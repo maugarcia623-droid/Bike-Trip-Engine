@@ -23,6 +23,7 @@ import {
   Moon,
 } from '@/components/icons';
 import type { TripProfile } from '../../types/trip';
+import type { RiderBikeSpecs } from '../../types/specs';
 import { Card } from '../common/Card';
 import { Badge } from '../common/Badge';
 import { IconBadge } from '../common/IconBadge';
@@ -40,6 +41,7 @@ interface ReverseTimelineBentoProps {
   trip?: TripProfile;
   timeline: ReverseTimelineCalculation;
   gateName?: string;
+  riderSpecs?: RiderBikeSpecs;
 }
 
 function getTimelineStepTokenSpec(
@@ -104,6 +106,7 @@ function getTimelineStepTokenSpec(
 export const ReverseTimelineBento: React.FC<ReverseTimelineBentoProps> = ({
   timeline,
   trip,
+  riderSpecs,
 }) => {
   const { t } = useTranslation();
 
@@ -139,7 +142,7 @@ export const ReverseTimelineBento: React.FC<ReverseTimelineBentoProps> = ({
       className="w-full"
     >
       {/* Contextual Directive Capsule / Expandable Pod */}
-      <TimelineContextualBanner trip={trip} timeline={timeline} />
+      <TimelineContextualBanner trip={trip} timeline={timeline} riderSpecs={riderSpecs} />
 
       {/* Stepper Timeline with Asphalt Dashed Center-Line */}
       <div className="relative mt-4 space-y-3 sm:space-y-3.5">

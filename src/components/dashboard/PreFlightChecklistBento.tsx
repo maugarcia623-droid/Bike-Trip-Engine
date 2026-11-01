@@ -9,19 +9,28 @@ import {
   GREYSCALE_TOKENS,
 } from '../../tokens/chipTokens';
 import { TripProfile, ChecklistItem, generateTripChecklist } from '../../types/trip';
+import { RiderBikeSpecs } from '../../types/specs';
 import { useTranslation, getChecklistItemLabel } from '../../context/LanguageContext';
 import { getArchetypeFromTag } from '../../utils/archetypeChips';
+import { loadRiderBikeSpecs, getActiveBike } from '../../utils/specsStorage';
 
 interface PreFlightChecklistBentoProps {
   trip: TripProfile;
   onUpdateTrip?: (updated: TripProfile) => void;
+  riderSpecs?: RiderBikeSpecs;
 }
 
 export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = ({
   trip,
   onUpdateTrip,
+  riderSpecs: riderSpecsProp,
 }) => {
   const { lang, t } = useTranslation();
+  const isFr = lang === 'fr';
+
+  const riderSpecs = riderSpecsProp || loadRiderBikeSpecs();
+  const activeBike = getActiveBike(riderSpecs);
+  const isTubeless = Boolean(activeBike?.isTubeless);
 
   const effectiveMode = getArchetypeFromTag(trip.tag, trip.name);
   const effectiveTag = effectiveMode === 'COMMUTE' ? 'VÉLOTAF' : effectiveMode;
@@ -32,15 +41,34 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
       lang,
       customChips: trip.customChips,
       totalDays,
+      isTubeless,
+      carbTargetGPerHr: riderSpecs.carbTargetGPerHr,
+      nutritionPreference: riderSpecs.nutritionPreference,
     });
 
-    const existing = trip.checklist || [];
-    if (existing.length === 0) {
-      return fresh;
-    }
+    const tireSetupItem: ChecklistItem = {
+      id: isTubeless ? 'tire-setup-tubeless' : 'tire-setup-tube',
+      label: isTubeless
+        ? isFr
+          ? `Kit mèches Tubeless + cartouche CO2 & niveau préventif (${activeBike.name})`
+          : `Tubeless tire plugs (bacon strips) + CO2 & sealant check (${activeBike.name})`
+        : isFr
+        ? `Chambre à air de secours + démonte-pneus & mini-pompe (${activeBike.name})`
+        : `Spare inner tube + tire levers & mini-pump (${activeBike.name})`,
+      category: 'gear',
+      checked: false,
+      critical: true,
+    };
 
+    const existing = trip.checklist || [];
     const checkedMap = new Map(existing.map((item) => [item.id, item.checked]));
-    return fresh.map((item) => ({
+
+    const mergedFresh = [
+      tireSetupItem,
+      ...fresh.filter((i) => !i.id.startsWith('tire-setup-')),
+    ];
+
+    return mergedFresh.map((item) => ({
       ...item,
       checked: checkedMap.has(item.id) ? Boolean(checkedMap.get(item.id)) : item.checked,
     }));
@@ -50,7 +78,20 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
 
   useEffect(() => {
     setItems(getInitialItems());
-  }, [trip.id, trip.tag, trip.name, trip.route?.distanceKm, JSON.stringify(trip.customChips), trip.stages?.length]);
+  }, [
+    trip.id,
+    trip.tag,
+    trip.name,
+    trip.route?.distanceKm,
+    JSON.stringify(trip.customChips),
+    trip.stages?.length,
+    activeBike?.id,
+    activeBike?.name,
+    isTubeless,
+    riderSpecs.carbTargetGPerHr,
+    riderSpecs.nutritionPreference,
+    lang,
+  ]);
 
   const completedCount = items.filter((i) => i.checked).length;
   const pendingCount = items.length - completedCount;
@@ -73,10 +114,27 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
       lang,
       customChips: trip.customChips,
       totalDays,
+      isTubeless,
+      carbTargetGPerHr: riderSpecs.carbTargetGPerHr,
+      nutritionPreference: riderSpecs.nutritionPreference,
     });
-    setItems(fresh);
+    const tireSetupItem: ChecklistItem = {
+      id: isTubeless ? 'tire-setup-tubeless' : 'tire-setup-tube',
+      label: isTubeless
+        ? isFr
+          ? `Kit mèches Tubeless + cartouche CO2 & niveau préventif (${activeBike.name})`
+          : `Tubeless tire plugs (bacon strips) + CO2 & sealant check (${activeBike.name})`
+        : isFr
+        ? `Chambre à air de secours + démonte-pneus & mini-pompe (${activeBike.name})`
+        : `Spare inner tube + tire levers & mini-pump (${activeBike.name})`,
+      category: 'gear',
+      checked: false,
+      critical: true,
+    };
+    const nextList = [tireSetupItem, ...fresh.filter((i) => !i.id.startsWith('tire-setup-'))];
+    setItems(nextList);
     if (onUpdateTrip) {
-      onUpdateTrip({ ...trip, checklist: fresh });
+      onUpdateTrip({ ...trip, checklist: nextList });
     }
   };
 
@@ -85,7 +143,17 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
       title={t('checklistTitle')}
       subtitle={t('checklistSub', { done: completedCount, total: items.length, tag: effectiveTag })}
       badge={
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Badge variant={isTubeless ? 'emerald' : 'zinc'} size="sm" className="tnum">
+            {isTubeless
+              ? isFr
+                ? 'Montage Tubeless'
+                : 'Tubeless Setup'
+              : isFr
+              ? 'Chambre à air'
+              : 'Inner Tube'}
+          </Badge>
+
           <button
             type="button"
             onClick={handleRegenerate}
@@ -126,7 +194,13 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
       {/* Full-Radius Chain-Link Checklist Capsules */}
       <div className="space-y-2">
         {items.map((item) => {
-          const displayLabel = getChecklistItemLabel(item, trip.route?.distanceKm, lang);
+          const displayLabel = item.id.startsWith('tire-setup-')
+            ? item.label
+            : getChecklistItemLabel(item, trip.route?.distanceKm, lang, {
+                isTubeless,
+                carbTargetGPerHr: riderSpecs.carbTargetGPerHr,
+                nutritionPreference: riderSpecs.nutritionPreference,
+              });
           return (
             <div
               key={item.id}
@@ -146,7 +220,6 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
                   : 'bg-pod hover:bg-chip/80 text-ink'
               }`}
             >
-              {/* Concentric Chain-Pin Check Circle (4-Layer Token Matrix) */}
               {item.checked ? (
                 <IconBadge
                   theme="emerald"

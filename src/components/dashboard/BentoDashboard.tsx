@@ -1,9 +1,11 @@
 import React from 'react';
 import { TripProfile } from '../../types/trip';
-import { RiderBikeSpecs } from '../../types/specs';
+import { RiderBikeSpecs, CockpitViewMode } from '../../types/specs';
+import { loadRiderBikeSpecs } from '../../utils/specsStorage';
 import { calculatePhysics } from '../../utils/physics';
 import { calculateReverseTimeline } from '../../utils/timeline';
 import { getChipsExtraBufferMinutes } from '../../utils/archetypeChips';
+import { parseGpxFileContent } from '../../utils/gpxParser';
 import { HeroRouteCard } from './HeroRouteCard';
 import { AtmosphereCard } from './AtmosphereCard';
 import { PhysicsEngineCard } from './PhysicsEngineCard';
@@ -13,7 +15,7 @@ import { PreFlightChecklistBento } from './PreFlightChecklistBento';
 import { NutritionBento } from './NutritionBento';
 import { useTranslation, getLocalizedTripMeta } from '../../context/LanguageContext';
 import { switchActiveStage, getExpeditionTotals } from '../../utils/stageManager';
-import { CHIP_TOKENS, CHIP_RING_BASE } from '../../tokens/chipTokens';
+import { CHIP_TOKENS } from '../../tokens/chipTokens';
 
 interface BentoDashboardProps {
   trip: TripProfile;
@@ -21,6 +23,7 @@ interface BentoDashboardProps {
   onToggleHeadwind: () => void;
   onPrint: () => void;
   riderSpecs?: RiderBikeSpecs;
+  onUpdateRiderSpecs?: (updated: RiderBikeSpecs) => void;
   onSelectBike?: (bikeId: string) => void;
   onOpenSpecs?: () => void;
   onOpenConfigurator?: () => void;
@@ -30,17 +33,71 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
   trip,
   onUpdateTrip,
   riderSpecs,
+  onUpdateRiderSpecs,
   onSelectBike,
   onOpenSpecs,
   onOpenConfigurator,
 }) => {
   const { lang, t } = useTranslation();
+  const effectiveSpecs = riderSpecs || loadRiderBikeSpecs();
+  const viewMode: CockpitViewMode =
+    effectiveSpecs.cockpitViewMode ??
+    (effectiveSpecs.riderLevel === 'occasional' ? 'essential' : 'pro');
+
+  const handleSetViewMode = (mode: CockpitViewMode) => {
+    if (onUpdateRiderSpecs) {
+      onUpdateRiderSpecs({
+        ...effectiveSpecs,
+        cockpitViewMode: mode,
+      });
+    }
+  };
+
+  const handleUploadGpxInCockpit = async (file: File) => {
+    try {
+      const text = await file.text();
+      const parsed = parseGpxFileContent(text, file.name);
+      const avgGradePct =
+        parsed.distanceKm > 0
+          ? Number(((parsed.elevationGainM / (parsed.distanceKm * 1000)) * 100).toFixed(2))
+          : 0;
+      onUpdateTrip({
+        ...trip,
+        updatedAt: new Date().toISOString(),
+        physics: {
+          ...trip.physics,
+          gradientPercent: Math.min(8, Math.max(0, avgGradePct * 0.35)),
+        },
+        route: {
+          ...trip.route,
+          routeMode: 'gpx',
+          gpxFileName: file.name,
+          origin: parsed.originLabel,
+          destination: parsed.destLabel,
+          distanceKm: parsed.distanceKm,
+          elevationGainM: parsed.elevationGainM,
+          elevationLossM: parsed.elevationLossM,
+          coordinates: parsed.coordinates,
+          elevationProfile: parsed.elevationProfile,
+          terrainSummary: parsed.terrainSummary,
+          radiusMeters: undefined,
+        },
+      });
+    } catch (err) {
+      alert(
+        lang === 'fr'
+          ? `Impossible de lire ce fichier GPX : ${(err as Error).message}`
+          : `Could not parse GPX file: ${(err as Error).message}`
+      );
+    }
+  };
+
   const physicsResult = calculatePhysics(
     trip.physics,
     trip.route,
     trip.weather,
     lang,
-    riderSpecs?.ftpWatts
+    effectiveSpecs.ftpWatts
   );
   const extraBufferMinutes = getChipsExtraBufferMinutes(trip);
   const timelineResult = calculateReverseTimeline(
@@ -96,26 +153,29 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
     ? t('heroTargetLabelBikepacking')
     : t('heroTargetLabelCommute');
 
-  const heroTargetValue = isEscapade || isSport || isBikepacking
-    ? timelineResult.gateArrivalTime
-    : timelineResult.shiftStartTime;
+  const heroTargetValue =
+    isEscapade || isSport || isBikepacking
+      ? timelineResult.gateArrivalTime
+      : timelineResult.shiftStartTime;
 
   const isFr = lang === 'fr';
   const hasMultipleStages = Boolean(trip.stages && trip.stages.length > 1);
   const expeditionTotals = getExpeditionTotals(trip);
-  const activeStageIdx = Math.max(0, Math.min(trip.activeStageIndex ?? 0, (trip.stages?.length || 1) - 1));
+  const activeStageIdx = Math.max(
+    0,
+    Math.min(trip.activeStageIndex ?? 0, (trip.stages?.length || 1) - 1)
+  );
 
   React.useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, []);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-8 no-print">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 pb-8 no-print">
       {/* ── EXPEDITION STAGE SEQUENCER BAR (WHEN MULTI-DAY EXPEDITION) ── */}
       {hasMultipleStages && (
         <div className="rounded-full bg-card text-ink p-2 sm:p-2.5 mb-5 shadow-sm border border-ink/5 dark:border-white/5 animate-flight-deck-in transition-colors">
           <div className="flex items-center justify-between gap-3 overflow-x-auto no-scrollbar">
-            {/* Left side: Expedition Badge */}
             <div className="flex items-center gap-2.5 shrink-0 pl-1 sm:pl-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-volt ring-4 ring-volt/25 animate-pulse" />
               <div className="flex items-center gap-2">
@@ -130,7 +190,6 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
               </div>
             </div>
 
-            {/* Center / Right: Interactive Stage Pills */}
             <div className="flex items-center gap-2 shrink-0 pr-1 sm:pr-1.5">
               {trip.stages!.map((stage, idx) => {
                 const isActive = idx === activeStageIdx;
@@ -167,7 +226,9 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
                     </span>
                     <span
                       className={`text-[11px] font-bold tnum shrink-0 ${
-                        isActive ? 'text-[#4d5200] dark:text-[#dfff00]' : 'text-ink-muted group-hover:text-ink-secondary'
+                        isActive
+                          ? 'text-[#4d5200] dark:text-[#dfff00]'
+                          : 'text-ink-muted group-hover:text-ink-secondary'
                       }`}
                     >
                       {dist} km
@@ -180,7 +241,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
         </div>
       )}
 
-      {/* ── CINEMATIC HERO DECK (MAP BACKGROUND + PROGRESSIVE BLUR & GRADIENT + 5 KPI BOXES) ── */}
+      {/* ── CINEMATIC HERO DECK (MAP + RADIUS / GPX TRACE + 5 KPI BOXES) ── */}
       <div className="animate-flight-deck-in deck-stagger-1">
         <HeroRouteCard
           trip={trip}
@@ -192,10 +253,11 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
           heroTargetLabel={heroTargetLabel}
           heroTargetValue={heroTargetValue}
           onUpdateTrip={onUpdateTrip}
-          riderSpecs={riderSpecs}
+          riderSpecs={effectiveSpecs}
           onSelectBike={onSelectBike}
           onOpenSpecs={onOpenSpecs}
           onOpenConfigurator={onOpenConfigurator}
+          onUploadGpxFile={handleUploadGpxInCockpit}
         />
       </div>
 
@@ -205,7 +267,11 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
         <div className="lg:col-span-7 flex flex-col gap-5">
           {/* 1. Dynamic Reverse Timeline */}
           <div className="animate-flight-deck-in deck-stagger-2">
-            <ReverseTimelineBento trip={trip} timeline={timelineResult} />
+            <ReverseTimelineBento
+              trip={trip}
+              timeline={timelineResult}
+              riderSpecs={effectiveSpecs}
+            />
           </div>
 
           {/* 2. Telemetry Dock: Aerodynamic & Rolling Physics Engine */}
@@ -213,6 +279,8 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
             <PhysicsEngineCard
               trip={trip}
               physicsResult={physicsResult}
+              viewMode={viewMode}
+              onToggleViewMode={handleSetViewMode}
             />
           </div>
         </div>
@@ -231,7 +299,11 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
 
           {/* 4. Pre-Flight Inspection Checklist */}
           <div className="animate-flight-deck-in deck-stagger-5">
-            <PreFlightChecklistBento trip={trip} onUpdateTrip={onUpdateTrip} />
+            <PreFlightChecklistBento
+              trip={trip}
+              onUpdateTrip={onUpdateTrip}
+              riderSpecs={effectiveSpecs}
+            />
           </div>
 
           {/* 5. Baseline Dock: Real-Food Nutrition & Recovery Protocol */}
@@ -241,6 +313,8 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
               hardDepartureTime={timelineResult.hardDepartureTime}
               gateArrivalTime={timelineResult.gateArrivalTime}
               physicsResult={physicsResult}
+              riderSpecs={effectiveSpecs}
+              onOpenSpecs={onOpenSpecs}
             />
           </div>
         </div>

@@ -92,8 +92,8 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
     : Math.min(8, weather.estuaryGustKmH || 5);
   const aeroDeltaWatts = Math.max(1, Math.round(physicsResult.powerDeltaWatts));
 
-  const isHighWind = effectiveWindSpeed >= 30 || (weather.isHeadwindActive && peakGust >= 50);
-  const isCaution = !isHighWind && weather.isHeadwindActive && effectiveWindSpeed >= 8;
+  const isHighWind = effectiveWindSpeed >= 32 || (weather.isHeadwindActive && peakGust >= 52);
+  const isCaution = !isHighWind && weather.isHeadwindActive && effectiveWindSpeed >= 20;
   const fillPercent = Math.min(100, Math.max(0, (weather.baseWindSpeedKmH / 35) * 100));
   const activeBarColor = isHighWind ? '#FF3B30' : isDark ? '#F2F455' : '#111111';
   const trackEmptyColor = isDark ? '#2D2D34' : '#EBE9E3';

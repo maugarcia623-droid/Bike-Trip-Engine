@@ -1,5 +1,6 @@
 import { RouteParams, OfficeConstraints, WeatherCondition, TimelineStep } from '../types/trip';
 import { subtractMinutesFromTime, addMinutesToTime } from './nutrition';
+import { loadRiderBikeSpecs } from './specsStorage';
 import { Language, getCurrentLanguage } from '../context/LanguageContext';
 
 export interface ReverseTimelineCalculation {
@@ -160,8 +161,8 @@ export function calculateReverseTimeline(
         category: 'nutrition',
         isCrucialCheckpoint: false,
         description: isFr
-          ? 'Prise de gel ou pâte de fruits en selle (cible 60–90 g glucides/h). Contrôle des watts moyens et de la dérive cardiaque.'
-          : 'On-the-bike gel/chew intake (60-90g carbs/hr target). Check average wattage and heart rate drift.',
+          ? `Prise énergétique en selle adaptée à votre profil (~${loadRiderBikeSpecs().carbTargetGPerHr ?? 60} g glucides/h). Contrôle de l’allure et de la dérive cardiaque.`
+          : `On-the-bike fueling scaled to your rider profile (~${loadRiderBikeSpecs().carbTargetGPerHr ?? 60}g carbs/hr target). Smooth pacing & hydration check.`,
         iconName: 'Wind',
       },
       {
@@ -237,11 +238,14 @@ export function calculateReverseTimeline(
 
     if (customChips.includes('hydration-electrolytes')) {
       const fuelStep = steps.find((s) => s.id === 'sport-mid-fuel');
+      const riderCarbs = loadRiderBikeSpecs().carbTargetGPerHr ?? 60;
       if (fuelStep) {
-        fuelStep.title = isFr ? 'Protocole 80–90g Glucides/h & Électrolytes' : 'High-Carb Pacing (80-90g/hr) & Electrolytes';
+        fuelStep.title = isFr
+          ? `Protocole ${riderCarbs}g Glucides/h & Électrolytes`
+          : `Tailored Carb Pacing (${riderCarbs}g/hr) & Electrolytes`;
         fuelStep.description = isFr
-          ? 'Prise continue de double-source maltodextrine/fructose en bidon + recharge sodium 750 mg pour éviter toute défaillance.'
-          : 'Dual-source maltodextrin/fructose in bidons + 750mg sodium reload to prevent bonking and cramping.';
+          ? `Apport régulier calibré sur votre tolérance digestive (${riderCarbs}g/h) + recharge sodium 500–750 mg pour éviter toute fringale.`
+          : `Steady fueling calibrated to your gut capacity (${riderCarbs}g/hr) + 500–750mg sodium reload to prevent bonking and cramping.`;
       }
     }
   } else if (isBikepacking) {

@@ -16,6 +16,7 @@ import {
   Gauge,
   Lightning,
   Shield,
+  FaceSmile,
 } from '@/components/icons';
 import { TripProfile, PhysicsCalculationResult } from '../../types/trip';
 import { getKitRecommendation } from '../../utils/kitAdvisor';
@@ -448,7 +449,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
       {activeTab === 'wind' && (
         <div className="animate-fade-in flex flex-col justify-between">
           {/* Status Chain-Link Capsule Callout */}
-          <div className="flex items-start sm:items-center gap-3 pl-3 pr-4 sm:pr-5 py-3 sm:py-2.5 rounded-2xl sm:rounded-full bg-pod mb-4">
+          <div className="flex items-start sm:items-center gap-3 pl-3 pr-4 sm:pr-5 py-3 sm:py-2.5 rounded-2xl sm:rounded-full bg-pod mb-3">
             <IconBadge
               theme={
                 goStatus === 'GO'
@@ -483,6 +484,38 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
               </p>
             </div>
           </div>
+
+          {/* Warm Pre-Ride Reassurance & Stress-Reducing Coach Note (Arthur Notes 8 & 9) */}
+          {goStatus !== 'NO-GO' && (
+            <div className="rounded-pod bg-pod/80 px-3.5 py-2.5 mb-4 border border-emerald-500/15 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <div className="flex items-start gap-2.5 min-w-0">
+                <FaceSmile
+                  className={`w-4 h-4 shrink-0 mt-0.5 ${CHIP_TOKENS.emerald.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                />
+                <p className="text-xs text-ink-secondary leading-relaxed">
+                  {!isHeadwind || windSpeed < 8
+                    ? t('weatherReassuranceCalm')
+                    : windSpeed < 16
+                    ? t('weatherReassuranceBreeze')
+                    : pacingMode === 'effort'
+                    ? t('weatherReassuranceHeadwindEffort', {
+                        watts: cappedWatts,
+                        zone: powerZone,
+                      })
+                    : t('weatherReassuranceHeadwindSpeed')}
+                </p>
+              </div>
+              {isHeadwind && windSpeed >= 12 && pacingMode === 'speed' && (
+                <button
+                  type="button"
+                  onClick={() => handlePacingModeChange('effort')}
+                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-colors ${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary}`}
+                >
+                  {t('weatherSwitchToEffortCapBtn')}
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Road Compass Instrument Pod */}
           <div className="rounded-pod bg-pod p-3.5 sm:p-4 flex items-center gap-3 sm:gap-4 mb-4">

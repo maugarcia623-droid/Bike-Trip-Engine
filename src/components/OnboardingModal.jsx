@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import {
   X,
   Check,
@@ -37,6 +39,7 @@ import {
   Package,
   Ruler,
   Target,
+  Upload,
 } from '@/components/icons';
 import { useTranslation } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
@@ -56,6 +59,9 @@ import {
   GREYSCALE_TOKENS,
 } from '../tokens/chipTokens';
 import { LocationAutocompleteInput } from './configurator/LocationAutocompleteInput';
+import { POPULAR_CYCLING_HUBS } from '../services/locationService';
+import { parseGpxFileContent } from '../utils/gpxParser';
+import { getActiveBike, loadRiderBikeSpecs } from '../utils/specsStorage';
 import { calculateAutoBikeRoute } from '../utils/routing';
 
 // Map trip archetype tags to ArchetypeMode keys used in archetypeChips.ts
@@ -360,8 +366,8 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
   const [archetype, setArchetype] = useState(null);
   const [selectedChips, setSelectedChips] = useState([]);
 
-  // STEP 2 STATE: Either corridor or manual distance (not both)
-  const [routeMode, setRouteMode] = useState('corridor'); // 'corridor' | 'manual'
+  // STEP 2 STATE: Corridor, Manual Start + Radius, or .GPX Trace
+  const [routeMode, setRouteMode] = useState('corridor'); // 'corridor' | 'manual' | 'gpx'
   const [origin, setOrigin] = useState('Nantes Quai');
   const [destination, setDestination] = useState('Saint-Nazaire Gate 17');
   const [originCoords, setOriginCoords] = useState(null);
@@ -370,8 +376,14 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
   const [routeFetchFeedback, setRouteFetchFeedback] = useState(null);
   const [routeCoordinates, setRouteCoordinates] = useState(undefined);
 
-  // Manual Distance state
+  // Manual Start + Radius state
   const [distanceKm, setDistanceKm] = useState(35);
+  const [manualStartCity, setManualStartCity] = useState('Nantes');
+  const [manualStartCoords, setManualStartCoords] = useState([47.2186, -1.5541]);
+
+  // GPX Import state
+  const [gpxData, setGpxData] = useState(null);
+  const [gpxError, setGpxError] = useState(null);
 
   // Time Mode state: Arrival OR Departure time
   const [timeMode, setTimeMode] = useState('arrival'); // 'arrival' | 'departure'
@@ -381,10 +393,13 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
   // STEP 2: Quirky Cruising Pace Slider
   const [cruisingSpeedKmH, setCruisingSpeedKmH] = useState(26.0);
 
-  // STEP 3 STATE: Starts BLANK (No pre-selected bike)
-  const [riderWeightKg, setRiderWeightKg] = useState(74);
+  // STEP 3 STATE: Rider Profile, Tubeless & Bike Selection
+  const [riderWeightKg, setRiderWeightKg] = useState(() => loadRiderBikeSpecs().riderWeightKg || 74);
   const [gearWeightKg, setGearWeightKg] = useState(4.0);
   const [selectedBikeId, setSelectedBikeId] = useState(null);
+  const [isTubeless, setIsTubeless] = useState(() => Boolean(getActiveBike(loadRiderBikeSpecs())?.isTubeless));
+  const [riderLevel, setRiderLevel] = useState(() => loadRiderBikeSpecs().riderLevel || 'regular');
+  const [carbTargetGPerHr, setCarbTargetGPerHr] = useState(() => loadRiderBikeSpecs().carbTargetGPerHr ?? 60);
 
   // STEP 4 CONTEXTUAL CONSTRAINTS STATE (Tailored per archetype)
   // Commute constraints
@@ -400,7 +415,7 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
   // Sport constraints
   const [recoveryWindowMinutes, setRecoveryWindowMinutes] = useState(15);
   const [hasWarmupRollout, setHasWarmupRollout] = useState(true);
-  const [highCarbPacingTarget, setHighCarbPacingTarget] = useState(true);
+  const [highCarbPacingTarget, setHighCarbPacingTarget] = useState(false);
 
   // Escapade constraints
   const [hotelCheckinBufferMinutes, setHotelCheckinBufferMinutes] = useState(30);
@@ -409,6 +424,130 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
 
   // Shared nutrition toggle
   const [realFoodNutrition, setRealFoodNutrition] = useState(true);
+
+  // Refs for interactive radius map & GPX input (declared before conditional return)
+  const radiusMapContainerRef = useRef(null);
+  const radiusMapInstanceRef = useRef(null);
+  const gpxFileInputRef = useRef(null);
+
+  const resolvedManualStartCoords = (() => {
+    if (
+      Array.isArray(manualStartCoords) &&
+      manualStartCoords.length === 2 &&
+      Number.isFinite(manualStartCoords[0]) &&
+      Number.isFinite(manualStartCoords[1])
+    ) {
+      return manualStartCoords;
+    }
+    const q = (manualStartCity || '').trim().toLowerCase();
+    const hub = POPULAR_CYCLING_HUBS.find(
+      (h) => h.name.toLowerCase() === q || q.includes(h.name.toLowerCase())
+    );
+    return hub ? hub.coordinates : [47.2186, -1.5541];
+  })();
+
+  useEffect(() => {
+    if (!isOpen || step !== 2 || routeMode !== 'manual' || !radiusMapContainerRef.current) {
+      if (radiusMapInstanceRef.current) {
+        radiusMapInstanceRef.current.remove();
+        radiusMapInstanceRef.current = null;
+      }
+      return;
+    }
+
+    if (radiusMapInstanceRef.current) {
+      radiusMapInstanceRef.current.remove();
+      radiusMapInstanceRef.current = null;
+    }
+
+    const darkTiles = document.documentElement.classList.contains('dark');
+    const map = L.map(radiusMapContainerRef.current, {
+      center: resolvedManualStartCoords,
+      zoom: 11,
+      zoomControl: false,
+      attributionControl: false,
+      dragging: !L.Browser.mobile,
+      scrollWheelZoom: false,
+      doubleClickZoom: false,
+    });
+    radiusMapInstanceRef.current = map;
+
+    const tileUrl = darkTiles
+      ? 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}'
+      : 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}';
+
+    L.tileLayer(tileUrl, { maxZoom: 15 }).addTo(map);
+
+    const startPin = L.divIcon({
+      className: 'onboarding-radius-pin',
+      html: `<div style="background-color:#007AFF;width:13px;height:13px;border-radius:9999px;border:2.5px solid #ffffff;box-shadow:0 0 8px rgba(0,122,255,0.85);"></div>`,
+      iconSize: [13, 13],
+      iconAnchor: [6.5, 6.5],
+    });
+    L.marker(resolvedManualStartCoords, { icon: startPin }).addTo(map);
+
+    const loopRadiusM = Math.max(1000, Math.round(((Number(distanceKm) || 35) / 2) * 1000));
+    const oneWayReachM = loopRadiusM * 2;
+
+    const outerCircle = L.circle(resolvedManualStartCoords, {
+      radius: oneWayReachM,
+      color: darkTiles ? '#94A3B8' : '#52525B',
+      weight: 1.5,
+      dashArray: '5, 5',
+      fillColor: darkTiles ? '#38BDF8' : '#10B981',
+      fillOpacity: 0.04,
+    }).addTo(map);
+
+    L.circle(resolvedManualStartCoords, {
+      radius: loopRadiusM,
+      color: darkTiles ? '#38BDF8' : '#10B981',
+      weight: 2.5,
+      fillColor: darkTiles ? '#38BDF8' : '#10B981',
+      fillOpacity: 0.16,
+    }).addTo(map);
+
+    try {
+      const circleBounds = outerCircle.getBounds();
+      if (circleBounds.isValid()) {
+        map.fitBounds(circleBounds, { padding: [18, 18], maxZoom: 12 });
+      }
+    } catch {
+      map.setView(resolvedManualStartCoords, 11);
+    }
+
+    const timer = setTimeout(() => {
+      if (radiusMapInstanceRef.current) {
+        radiusMapInstanceRef.current.invalidateSize();
+        try {
+          const circleBounds = outerCircle.getBounds();
+          if (circleBounds.isValid()) {
+            radiusMapInstanceRef.current.fitBounds(circleBounds, {
+              padding: [18, 18],
+              maxZoom: 12,
+            });
+          }
+        } catch {
+          radiusMapInstanceRef.current.setView(resolvedManualStartCoords, 11);
+        }
+      }
+    }, 120);
+
+    return () => {
+      clearTimeout(timer);
+      if (radiusMapInstanceRef.current) {
+        radiusMapInstanceRef.current.remove();
+        radiusMapInstanceRef.current = null;
+      }
+    };
+  }, [
+    isOpen,
+    step,
+    routeMode,
+    distanceKm,
+    resolvedManualStartCoords[0],
+    resolvedManualStartCoords[1],
+    isDark,
+  ]);
 
   if (!isOpen) return null;
 
@@ -458,6 +597,9 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
   // Handle archetype selection on Step 1
   const handleSelectArchetype = (archId) => {
     setArchetype(archId);
+    if (archId === 'BIKEPACKING' && routeMode === 'manual') {
+      setRouteMode('corridor');
+    }
     const arch = ARCHETYPES.find((a) => a.id === archId);
     if (arch) {
       setDistanceKm(arch.defaultDistance);
@@ -506,6 +648,7 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
       );
 
       if (result) {
+        setRouteMode('corridor');
         setDistanceKm(Number(result.distanceKm.toFixed(1)));
         if (result.coordinates && result.coordinates.length > 1) {
           setRouteCoordinates(result.coordinates);
@@ -546,9 +689,34 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
     setRouteFetchFeedback(null);
   };
 
+  // Upload and parse a custom .GPX trace in Step 2
+  const handleOnboardingGpxUpload = async (file) => {
+    if (!file) return;
+    setGpxError(null);
+    try {
+      const xmlText = await file.text();
+      const parsed = parseGpxFileContent(xmlText, file.name);
+      setGpxData({
+        fileName: file.name,
+        ...parsed,
+      });
+      setDistanceKm(parsed.distanceKm);
+      setOrigin(parsed.originLabel);
+      setDestination(parsed.destLabel);
+      setRouteMode('gpx');
+    } catch (err) {
+      setGpxError(
+        err?.message ||
+          (isFr ? 'Impossible de lire ce fichier .GPX.' : 'Unable to parse this .GPX trace.')
+      );
+    }
+  };
+
   // Load and launch demo ride (Screen 0)
   const handleLaunchDemo = () => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    const currentSpecs = loadRiderBikeSpecs();
+    const currentBike = getActiveBike(currentSpecs);
     const demoTrip = {
       id: `demo-estuary-commute-64k-${Date.now()}`,
       name: isFr ? 'Démo Vélotaf Estuaire (64 km)' : 'Demo Estuary Commute (64 km)',
@@ -559,17 +727,18 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       physics: {
-        riderWeightKg: 74,
+        riderWeightKg: currentSpecs.riderWeightKg || 74,
         bikeWeightKg: 9.8,
         gearWeightKg: 4.2,
         cda: 0.38,
-        crr: 0.0055,
+        crr: currentBike?.isTubeless ? 0.005 : 0.0055,
         rho: 1.225,
         drivetrainEfficiency: 0.95,
         grossMechanicalEfficiency: 0.21,
         gradientPercent: 0.3,
       },
       route: {
+        routeMode: 'corridor',
         origin: 'Nantes Quai',
         destination: 'Saint-Nazaire Gate 17',
         distanceKm: 64.0,
@@ -603,6 +772,9 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
       checklist: generateTripChecklist('VÉLOTAF', 64.0, undefined, {
         lang: isFr ? 'fr' : 'en',
         includeExtraRavito: true,
+        isTubeless: Boolean(currentBike?.isTubeless),
+        carbTargetGPerHr: currentSpecs.carbTargetGPerHr ?? 60,
+        nutritionPreference: currentSpecs.nutritionPreference ?? 'mixed',
       }),
       customChips: ['coffee-stop', 'shower-locker', 'bike-lane-priority'],
       arriveAtMode: true,
@@ -617,16 +789,37 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
 
     const chosenBike = selectedBike || BIKE_PRESETS[1];
     const finalArchetype = archetype || 'VÉLOTAF';
+    const effectiveDistanceKm =
+      routeMode === 'gpx' && gpxData?.distanceKm
+        ? Number(gpxData.distanceKm)
+        : Number(distanceKm) || 35;
+    const effectiveCrr = isTubeless
+      ? Math.max(0.0025, Number((chosenBike.crr - 0.0005).toFixed(4)))
+      : chosenBike.crr;
+    const effectiveNutritionPref = realFoodNutrition ? 'real-food' : 'mixed';
+    const effectiveCarbTarget = Math.max(30, Math.min(110, Number(carbTargetGPerHr) || 60));
+    const estimatedFtpWatts =
+      riderLevel === 'occasional' ? 165 : riderLevel === 'pro' ? 290 : 220;
 
     let tripName = '';
-    if (finalArchetype === 'VÉLOTAF') {
-      tripName = isFr ? `Vélotaf calibré (${distanceKm} km)` : `Calibrated Commute (${distanceKm} km)`;
+    if (routeMode === 'gpx' && gpxData?.trackName) {
+      tripName = `${gpxData.trackName} (${effectiveDistanceKm} km)`;
+    } else if (finalArchetype === 'VÉLOTAF') {
+      tripName = isFr
+        ? `Vélotaf calibré (${effectiveDistanceKm} km)`
+        : `Calibrated Commute (${effectiveDistanceKm} km)`;
     } else if (finalArchetype === 'SPORT') {
-      tripName = isFr ? `Gran Fondo aéro (${distanceKm} km)` : `Gran Fondo Aero (${distanceKm} km)`;
+      tripName = isFr
+        ? `Gran Fondo aéro (${effectiveDistanceKm} km)`
+        : `Gran Fondo Aero (${effectiveDistanceKm} km)`;
     } else if (finalArchetype === 'BIKEPACKING') {
-      tripName = isFr ? `Bikepacking autonome (${distanceKm} km)` : `Expedition Bikepack (${distanceKm} km)`;
+      tripName = isFr
+        ? `Bikepacking autonome (${effectiveDistanceKm} km)`
+        : `Expedition Bikepack (${effectiveDistanceKm} km)`;
     } else {
-      tripName = isFr ? `Escapade week-end (${distanceKm} km)` : `Weekend Escapade (${distanceKm} km)`;
+      tripName = isFr
+        ? `Escapade week-end (${effectiveDistanceKm} km)`
+        : `Weekend Escapade (${effectiveDistanceKm} km)`;
     }
 
     // Compile contextual notes
@@ -651,13 +844,57 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
         : `Scenic leisure escapade. Target stage buffer (${hotelCheckinBufferMinutes} min before check-in).`;
     }
 
+    const loopKm = Math.round((effectiveDistanceKm / 2) * 10) / 10;
+    const calibratedRoute =
+      routeMode === 'gpx' && gpxData
+        ? {
+            routeMode: 'gpx',
+            gpxFileName: gpxData.fileName,
+            origin: gpxData.originLabel || 'GPX Start',
+            destination: gpxData.destLabel || 'GPX Finish',
+            distanceKm: effectiveDistanceKm,
+            elevationGainM: gpxData.elevationGainM,
+            elevationLossM: gpxData.elevationLossM,
+            coordinates: gpxData.coordinates,
+            elevationProfile: gpxData.elevationProfile,
+            terrainSummary: gpxData.terrainSummary,
+            targetSpeedKmH: Number(cruisingSpeedKmH) || 26.0,
+            urbanTrafficDelayMinutes: finalArchetype === 'VÉLOTAF' ? 8 : 4,
+            gateSecurityDelayMinutes: finalArchetype === 'VÉLOTAF' ? 5 : 2,
+          }
+        : routeMode === 'manual'
+        ? {
+            routeMode: 'manual-radius',
+            origin: manualStartCity.trim() || 'Nantes',
+            destination: isFr ? `Rayon boucle ${loopKm} km` : `${loopKm} km loop radius`,
+            originCoords: resolvedManualStartCoords,
+            radiusMeters: Math.max(1000, Math.round((effectiveDistanceKm / 2) * 1000)),
+            distanceKm: effectiveDistanceKm,
+            elevationGainM: Math.round(effectiveDistanceKm * 6.5),
+            coordinates: [resolvedManualStartCoords],
+            targetSpeedKmH: Number(cruisingSpeedKmH) || 26.0,
+            urbanTrafficDelayMinutes: finalArchetype === 'VÉLOTAF' ? 8 : 4,
+            gateSecurityDelayMinutes: finalArchetype === 'VÉLOTAF' ? 5 : 2,
+          }
+        : {
+            routeMode: 'corridor',
+            origin: origin.trim() || 'Nantes Quai',
+            destination: destination.trim() || 'Saint-Nazaire Gate 17',
+            distanceKm: effectiveDistanceKm,
+            elevationGainM: Math.round(effectiveDistanceKm * 6.5),
+            targetSpeedKmH: Number(cruisingSpeedKmH) || 26.0,
+            urbanTrafficDelayMinutes: finalArchetype === 'VÉLOTAF' ? 8 : 4,
+            gateSecurityDelayMinutes: finalArchetype === 'VÉLOTAF' ? 5 : 2,
+            coordinates: routeCoordinates,
+          };
+
     const calibratedTrip = {
       id: `trip-calibrated-${Date.now()}`,
       name: tripName,
       tag: finalArchetype,
       description: isFr
-        ? `Sortie ${finalArchetype.toLowerCase()} de ${distanceKm} km calibrée avec ${isFr ? chosenBike.nameFr : chosenBike.nameEn}. Allure : ${cruisingSpeedKmH} km/h (${speedTier.titleFr}).`
-        : `${distanceKm} km calibrated ${finalArchetype.toLowerCase()} ride with ${chosenBike.nameEn}. Pace: ${cruisingSpeedKmH} km/h (${speedTier.titleEn}).`,
+        ? `Sortie ${finalArchetype.toLowerCase()} de ${effectiveDistanceKm} km calibrée avec ${isFr ? chosenBike.nameFr : chosenBike.nameEn} (${isTubeless ? 'Tubeless' : 'Chambre'}). Allure : ${cruisingSpeedKmH} km/h (${speedTier.titleFr}).`
+        : `${effectiveDistanceKm} km calibrated ${finalArchetype.toLowerCase()} ride with ${chosenBike.nameEn} (${isTubeless ? 'Tubeless' : 'Tube'}). Pace: ${cruisingSpeedKmH} km/h (${speedTier.titleEn}).`,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       departureTime: computedRollout,
@@ -666,21 +903,21 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
         bikeWeightKg: chosenBike.bikeWeightKg,
         gearWeightKg: Number(gearWeightKg) || 4.0,
         cda: chosenBike.cda,
-        crr: chosenBike.crr,
+        crr: effectiveCrr,
         rho: 1.225,
         drivetrainEfficiency: chosenBike.id === 'road' ? 0.97 : 0.95,
         grossMechanicalEfficiency: chosenBike.id === 'road' ? 0.22 : 0.21,
-        gradientPercent: 0.3,
+        gradientPercent:
+          calibratedRoute.elevationGainM && effectiveDistanceKm > 0
+            ? Number(
+                Math.min(
+                  6,
+                  Math.max(0.1, (calibratedRoute.elevationGainM / (effectiveDistanceKm * 1000)) * 100)
+                ).toFixed(2)
+              )
+            : 0.3,
       },
-      route: {
-        origin: routeMode === 'corridor' ? origin.trim() || 'Home Base' : (isFr ? 'Point de départ' : 'Origin Point'),
-        destination: routeMode === 'corridor' ? destination.trim() || 'Destination' : (isFr ? 'Point d’arrivée' : 'Destination Point'),
-        distanceKm: Number(distanceKm) || 35,
-        targetSpeedKmH: Number(cruisingSpeedKmH) || 26.0,
-        urbanTrafficDelayMinutes: finalArchetype === 'VÉLOTAF' ? 8 : 4,
-        gateSecurityDelayMinutes: finalArchetype === 'VÉLOTAF' ? 5 : 2,
-        coordinates: routeMode === 'corridor' ? routeCoordinates : undefined,
-      },
+      route: calibratedRoute,
       office: {
         shiftStartTime: computedArrival,
         targetGateArrivalTime: computedArrival,
@@ -702,10 +939,13 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
         estuaryGustKmH: 15,
         visibilityKm: 16,
       },
-      checklist: generateTripChecklist(finalArchetype, Number(distanceKm) || 35, undefined, {
+      checklist: generateTripChecklist(finalArchetype, effectiveDistanceKm, undefined, {
         lang: isFr ? 'fr' : 'en',
         includeExtraRavito: realFoodNutrition,
         customChips: selectedChips,
+        isTubeless,
+        carbTargetGPerHr: effectiveCarbTarget,
+        nutritionPreference: effectiveNutritionPref,
       }),
       customChips: [
         ...selectedChips,
@@ -713,6 +953,13 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
         ...(finalArchetype === 'VÉLOTAF' && hasLockerShower ? ['shower-buffer'] : []),
       ],
       arriveAtMode: timeMode === 'arrival',
+      __onboardingSpecs: {
+        isTubeless,
+        riderLevel,
+        ftpWatts: estimatedFtpWatts,
+        carbTargetGPerHr: effectiveCarbTarget,
+        nutritionPreference: effectiveNutritionPref,
+      },
     };
 
     onLaunch(calibratedTrip);
@@ -1170,43 +1417,92 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
                 </p>
               </div>
 
-              {/* Segmented Switcher: Either Corridor OR Manual Distance (Not both) */}
+              {/* Segmented Switcher: Corridor, Start + Radius, or Import .GPX (hidden for BIKEPACKING) */}
               <div className="p-4 sm:p-5 rounded-pod bg-pod border border-black/5 dark:border-white/10 space-y-4">
+                <input
+                  ref={gpxFileInputRef}
+                  type="file"
+                  accept=".gpx,application/gpx+xml,text/xml"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleOnboardingGpxUpload(file);
+                    e.target.value = '';
+                  }}
+                />
+
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <span className="text-xs font-bold uppercase tracking-wider text-ink">
-                    {isFr ? 'Mode de définition du parcours :' : 'Route Definition Mode:'}
+                    {archetype === 'BIKEPACKING'
+                      ? isFr
+                        ? 'Parcours d’étape (A → B) :'
+                        : 'Stage Route (A → B):'
+                      : isFr
+                      ? 'Mode de définition du parcours :'
+                      : 'Route Definition Mode:'}
                   </span>
 
-                  <div className="grid grid-cols-1 sm:inline-flex w-full sm:w-auto p-1 rounded-2xl sm:rounded-full bg-card border border-black/5 dark:border-white/10 gap-1">
+                  {archetype === 'BIKEPACKING' ? (
                     <button
                       type="button"
-                      onClick={() => setRouteMode('corridor')}
-                      className={`px-3.5 py-2 sm:py-1.5 rounded-xl sm:rounded-full text-xs font-semibold inline-flex items-center justify-center gap-1.5 transition-all cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
-                        routeMode === 'corridor'
-                          ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
-                          : `${GREYSCALE_TOKENS.primary} hover:text-ink ${CHIP_RING_UNSELECTED}`
+                      onClick={() => gpxFileInputRef.current?.click()}
+                      className={`self-start sm:self-auto px-3.5 py-1.5 rounded-full text-xs font-semibold inline-flex items-center gap-1.5 transition-all cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                        routeMode === 'gpx' && gpxData
+                          ? `${CHIP_TOKENS.sky.surface} ${CHIP_TOKENS.sky.primary} ${CHIP_TOKENS.sky.selectedRing}`
+                          : `bg-card hover:bg-chip ${GREYSCALE_TOKENS.primary} hover:text-ink ${CHIP_RING_UNSELECTED}`
                       }`}
                     >
-                      <MapPin className="w-4 h-4 shrink-0 text-current" />
-                      <span>{isFr ? 'Calcul itinéraire (Départ / Arrivée)' : 'Route Corridor (OSRM)'}</span>
+                      <Upload className="w-3.5 h-3.5 shrink-0 text-current" />
+                      <span className="truncate max-w-[180px]">
+                        {routeMode === 'gpx' && gpxData?.fileName
+                          ? gpxData.fileName
+                          : t('routeModeGpx')}
+                      </span>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setRouteMode('manual')}
-                      className={`px-3.5 py-2 sm:py-1.5 rounded-xl sm:rounded-full text-xs font-semibold inline-flex items-center justify-center gap-1.5 transition-all cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
-                        routeMode === 'manual'
-                          ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
-                          : `${GREYSCALE_TOKENS.primary} hover:text-ink ${CHIP_RING_UNSELECTED}`
-                      }`}
-                    >
-                      <Ruler className="w-4 h-4 shrink-0 text-current" />
-                      <span>{isFr ? 'Distance directe (km)' : 'Manual Distance (km)'}</span>
-                    </button>
-                  </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:inline-flex w-full sm:w-auto p-1 rounded-2xl sm:rounded-full bg-card border border-black/5 dark:border-white/10 gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setRouteMode('corridor')}
+                        className={`px-3 py-2 sm:py-1.5 rounded-xl sm:rounded-full text-xs font-semibold inline-flex items-center justify-center gap-1.5 transition-all cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                          routeMode === 'corridor'
+                            ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
+                            : `${GREYSCALE_TOKENS.primary} hover:text-ink ${CHIP_RING_UNSELECTED}`
+                        }`}
+                      >
+                        <MapPin className="w-4 h-4 shrink-0 text-current" />
+                        <span>{t('routeModeCorridor')}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRouteMode('manual')}
+                        className={`px-3 py-2 sm:py-1.5 rounded-xl sm:rounded-full text-xs font-semibold inline-flex items-center justify-center gap-1.5 transition-all cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                          routeMode === 'manual'
+                            ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
+                            : `${GREYSCALE_TOKENS.primary} hover:text-ink ${CHIP_RING_UNSELECTED}`
+                        }`}
+                      >
+                        <Ruler className="w-4 h-4 shrink-0 text-current" />
+                        <span>{t('routeModeRadius')}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRouteMode('gpx')}
+                        className={`px-3 py-2 sm:py-1.5 rounded-xl sm:rounded-full text-xs font-semibold inline-flex items-center justify-center gap-1.5 transition-all cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                          routeMode === 'gpx'
+                            ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
+                            : `${GREYSCALE_TOKENS.primary} hover:text-ink ${CHIP_RING_UNSELECTED}`
+                        }`}
+                      >
+                        <Upload className="w-4 h-4 shrink-0 text-current" />
+                        <span>{t('routeModeGpx')}</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* OPTION A: Corridor Autocomplete & Fetch Route */}
-                {routeMode === 'corridor' && (
+                {(archetype === 'BIKEPACKING' || routeMode === 'corridor') && (
                   <div className="space-y-4 pt-1 animate-fade-in">
                     {/* Suggested Corridor presets */}
                     {activeArchetypeDef?.corridorPresets && (
@@ -1330,44 +1626,160 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
                   </div>
                 )}
 
-                {/* OPTION B: Manual Distance Slider Only */}
-                {routeMode === 'manual' && (
-                  <div className="space-y-3 pt-1 animate-fade-in">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-ink-muted">
-                        {isFr ? 'Distance totale de la sortie :' : 'Total Ride Distance:'}
-                      </span>
-                      <Badge variant="zinc" size="lg" className="font-mono font-extrabold">
-                        {distanceKm} km
-                      </Badge>
+                {/* OPTION B: Start Point + Interactive Radius Visualization */}
+                {archetype !== 'BIKEPACKING' && routeMode === 'manual' && (
+                  <div className="space-y-4 pt-1 animate-fade-in">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                      <div className="space-y-3">
+                        <LocationAutocompleteInput
+                          id="onboarding-manual-start-input"
+                          label={t('radiusStartPointLabel')}
+                          value={manualStartCity}
+                          dropdownAlign="left"
+                          onChange={(val) => {
+                            setManualStartCity(val);
+                            setManualStartCoords(null);
+                          }}
+                          onSelectLocation={(loc) => {
+                            setManualStartCity(loc.name);
+                            setManualStartCoords(loc.coordinates);
+                          }}
+                          placeholder={isFr ? 'ex. Nantes, Clisson, Pornic...' : 'e.g. Nantes, Clisson, Pornic...'}
+                        />
+
+                        <div className="flex flex-wrap gap-1.5">
+                          {POPULAR_CYCLING_HUBS.slice(0, 4).map((hub) => {
+                            const activeHub =
+                              manualStartCity.trim().toLowerCase() === hub.name.toLowerCase();
+                            return (
+                              <button
+                                key={hub.id}
+                                type="button"
+                                onClick={() => {
+                                  setManualStartCity(hub.name);
+                                  setManualStartCoords(hub.coordinates);
+                                }}
+                                className={`px-2.5 py-1 text-[11px] rounded-full font-semibold transition-all cursor-pointer ${CHIP_RING_BASE} ${
+                                  activeHub
+                                    ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_TOKENS.emerald.selectedRing}`
+                                    : `bg-card hover:bg-chip text-ink-secondary ${CHIP_RING_UNSELECTED}`
+                                }`}
+                              >
+                                {hub.name}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        <div className="pt-1 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-ink-muted">
+                              {isFr ? 'Distance totale de la sortie :' : 'Total Ride Distance:'}
+                            </span>
+                            <Badge variant="zinc" size="lg" className="font-mono font-extrabold">
+                              {distanceKm} km
+                            </Badge>
+                          </div>
+
+                          <input
+                            type="range"
+                            min="5"
+                            max="160"
+                            step="1"
+                            value={distanceKm}
+                            onChange={(e) => setDistanceKm(parseFloat(e.target.value))}
+                            className="w-full accent-volt cursor-pointer h-2.5 bg-black/10 dark:bg-white/10 rounded-lg"
+                          />
+
+                          <div className="flex flex-wrap gap-1.5 pt-0.5">
+                            {[15, 25, 35, 50, 65, 80, 100, 120].map((presetKm) => (
+                              <button
+                                key={presetKm}
+                                type="button"
+                                onClick={() => setDistanceKm(presetKm)}
+                                className={`px-2.5 py-1 text-[11px] rounded-full font-mono transition-all cursor-pointer ${CHIP_RING_BASE} ${
+                                  distanceKm === presetKm
+                                    ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing} font-bold`
+                                    : `bg-card hover:bg-chip text-ink-secondary ${CHIP_RING_UNSELECTED}`
+                                }`}
+                              >
+                                {presetKm} km
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Live Radius Preview Map */}
+                      <div className="rounded-pod overflow-hidden border border-black/10 dark:border-white/10 bg-card flex flex-col">
+                        <div
+                          ref={radiusMapContainerRef}
+                          className="w-full h-44 sm:h-48 z-0"
+                        />
+                        <div className="px-3 py-2 bg-card/95 border-t border-black/5 dark:border-white/10 flex items-center justify-between gap-2 text-[11px]">
+                          <span className="font-bold text-ink truncate">
+                            {manualStartCity || 'Nantes'}
+                          </span>
+                          <span className={`font-mono font-semibold tnum shrink-0 ${CHIP_TOKENS.emerald.primary}`}>
+                            {t('radiusLoopReachSub', {
+                              loop: Math.round((distanceKm / 2) * 10) / 10,
+                              oneWay: distanceKm,
+                            })}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* OPTION C: Custom .GPX Trace Upload */}
+                {archetype !== 'BIKEPACKING' && routeMode === 'gpx' && (
+                  <div className="space-y-3.5 pt-1 animate-fade-in">
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => gpxFileInputRef.current?.click()}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          gpxFileInputRef.current?.click();
+                        }
+                      }}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const file = e.dataTransfer.files?.[0];
+                        if (file) handleOnboardingGpxUpload(file);
+                      }}
+                      className={`rounded-pod border border-dashed border-black/20 dark:border-white/20 hover:border-black/40 dark:hover:border-white/40 bg-card/80 hover:bg-card p-5 text-center transition-all cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                    >
+                      <Upload className={`w-7 h-7 mx-auto mb-1.5 ${CHIP_TOKENS.sky.primary}`} />
+                      <div className="text-xs sm:text-sm font-bold text-ink">
+                        {gpxData
+                          ? `${t('gpxLoadedBadge')} · ${gpxData.fileName}`
+                          : t('gpxUploadBtn')}
+                      </div>
+                      <p className="text-[11px] text-ink-muted mt-0.5">
+                        {t('gpxDropPrompt')}
+                      </p>
                     </div>
 
-                    <input
-                      type="range"
-                      min="5"
-                      max="160"
-                      step="1"
-                      value={distanceKm}
-                      onChange={(e) => setDistanceKm(parseFloat(e.target.value))}
-                      className="w-full accent-volt cursor-pointer h-2.5 bg-black/10 dark:bg-white/10 rounded-lg"
-                    />
+                    {gpxError && (
+                      <div className={`p-2.5 rounded-xl text-xs font-medium ${CHIP_TOKENS.rose.surface} ${CHIP_TOKENS.rose.primary}`}>
+                        {gpxError}
+                      </div>
+                    )}
 
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      {[15, 25, 35, 50, 65, 80, 100, 120].map((presetKm) => (
-                        <button
-                          key={presetKm}
-                          type="button"
-                          onClick={() => setDistanceKm(presetKm)}
-                          className={`px-3 py-1 text-xs rounded-full font-mono transition-all cursor-pointer ${CHIP_RING_BASE} ${
-                            distanceKm === presetKm
-                              ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing} font-bold`
-                              : `bg-card hover:bg-chip text-ink-secondary ${CHIP_RING_UNSELECTED}`
-                          }`}
-                        >
-                          {presetKm} km
-                        </button>
-                      ))}
-                    </div>
+                    {gpxData && (
+                      <div className={`rounded-full px-4 py-2 text-xs font-medium flex items-center justify-between gap-2 ${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary}`}>
+                        <span className="truncate font-semibold">
+                          {gpxData.originLabel} → {gpxData.destLabel}
+                        </span>
+                        <span className="font-mono font-bold tnum shrink-0">
+                          {gpxData.distanceKm} km · +{gpxData.elevationGainM} m
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1568,11 +1980,13 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
                       {isFr ? 'Synthèse chronométrique en direct' : 'Live Chronometry Preview'}
                     </h5>
                     <p className="text-xs text-ink-secondary mt-0.5">
-                      {isFr ? 'Temps de roulement pur :' : 'Pure rolling time :'}{' '}
+                      {t('timeSaddleExclPauses')} :{' '}
                       <strong className="text-ink font-mono">
                         {calculateMovingTime(distanceKm, cruisingSpeedKmH)}
                       </strong>{' '}
-                      ({distanceKm} km @ {cruisingSpeedKmH} km/h)
+                      <span className={`font-mono font-semibold ${CHIP_TOKENS.emerald.primary}`}>
+                        (+{bufferMinutes}m {isFr ? 'pauses/marges' : 'pauses/buffers'})
+                      </span>
                     </p>
                   </div>
                 </div>
@@ -1777,12 +2191,148 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
                             <span className={isSelected ? 'opacity-75' : 'text-ink-muted'}>
                               Crr (Roulement) :
                             </span>
-                            <span className="font-bold">{bike.crr}</span>
+                            <span className="font-bold">
+                              {isTubeless
+                                ? Math.max(0.0025, Number((bike.crr - 0.0005).toFixed(4)))
+                                : bike.crr}
+                            </span>
                           </div>
                         </div>
                       </button>
                     );
                   })}
+                </div>
+              </div>
+
+              {/* Tire Setup (Tubeless vs. Inner Tube) & Rider Digestion / Experience Profile */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Tubeless vs Inner Tube */}
+                <div className="p-4 sm:p-5 rounded-pod bg-pod border border-black/5 dark:border-white/10 space-y-3">
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-ink">
+                      {isFr ? 'Montage pneumatique (Tubeless / Chambre)' : 'Tire Setup (Tubeless vs. Tube)'}
+                    </h4>
+                    <p className="text-[11px] text-ink-muted mt-0.5">
+                      {isFr
+                        ? 'Ajuste la pression recommandée, le kit de réparation (mèches vs chambre) et le rendement Crr.'
+                        : 'Calibrates tire pressure targets, puncture kit (plugs vs spare tube), and rolling Crr.'}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      {
+                        val: false,
+                        title: isFr ? 'Chambre à air' : 'Inner Tube',
+                        sub: isFr ? 'Chambre secours + démonte-pneus' : 'Spare tube + tire levers',
+                      },
+                      {
+                        val: true,
+                        title: 'Tubeless',
+                        sub: isFr ? 'Préventif + mèches · pression basse' : 'Sealant + plugs · lower bar',
+                      },
+                    ].map((opt) => {
+                      const active = isTubeless === opt.val;
+                      return (
+                        <button
+                          key={String(opt.val)}
+                          type="button"
+                          onClick={() => setIsTubeless(opt.val)}
+                          className={`text-left p-3 rounded-xl transition-all cursor-pointer ${CHIP_RING_BASE} ${
+                            active
+                              ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_TOKENS.emerald.selectedRing}`
+                              : `bg-card hover:bg-chip text-ink ${CHIP_RING_UNSELECTED}`
+                          }`}
+                        >
+                          <div className="text-xs font-bold flex items-center justify-between">
+                            <span>{opt.title}</span>
+                            {active && <Check className="w-3.5 h-3.5 text-current shrink-0" />}
+                          </div>
+                          <span className={`text-[10px] block mt-0.5 ${active ? 'opacity-85' : 'text-ink-muted'}`}>
+                            {opt.sub}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Rider Profile & Carb Digestion Capacity */}
+                <div className="p-4 sm:p-5 rounded-pod bg-pod border border-black/5 dark:border-white/10 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-ink">
+                        {isFr ? 'Profil cycliste & Digestion glucidique' : 'Rider Profile & Carb Digestion'}
+                      </h4>
+                      <p className="text-[11px] text-ink-muted mt-0.5">
+                        {isFr
+                          ? 'Adapte les portions ravito (sans forcer 90g/h) et la vue guidée du cockpit.'
+                          : 'Scales fueling portions to your gut comfort and tailors cockpit view density.'}
+                      </p>
+                    </div>
+                    <Badge variant="yellow-vest" size="sm" selected className="font-mono font-bold shrink-0">
+                      {carbTargetGPerHr}g/h
+                    </Badge>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {[
+                      {
+                        id: 'occasional',
+                        label: isFr ? 'Occasionnel' : 'Occasional',
+                        carbs: 40,
+                        sub: '40g/h · ~165W',
+                      },
+                      {
+                        id: 'regular',
+                        label: isFr ? 'Régulier' : 'Regular',
+                        carbs: 60,
+                        sub: '60g/h · ~220W',
+                      },
+                      {
+                        id: 'pro',
+                        label: isFr ? 'Entraîné' : 'Trained',
+                        carbs: 85,
+                        sub: '85g/h · ~290W',
+                      },
+                    ].map((lvl) => {
+                      const active = riderLevel === lvl.id;
+                      return (
+                        <button
+                          key={lvl.id}
+                          type="button"
+                          onClick={() => {
+                            setRiderLevel(lvl.id);
+                            setCarbTargetGPerHr(lvl.carbs);
+                            setHighCarbPacingTarget(lvl.carbs >= 75);
+                          }}
+                          className={`text-left p-2.5 rounded-xl transition-all cursor-pointer ${CHIP_RING_BASE} ${
+                            active
+                              ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
+                              : `bg-card hover:bg-chip text-ink ${CHIP_RING_UNSELECTED}`
+                          }`}
+                        >
+                          <div className="text-xs font-bold truncate">{lvl.label}</div>
+                          <span className={`text-[10px] font-mono block mt-0.5 ${active ? 'opacity-85' : 'text-ink-muted'}`}>
+                            {lvl.sub}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <input
+                    type="range"
+                    min="30"
+                    max="105"
+                    step="5"
+                    value={carbTargetGPerHr}
+                    onChange={(e) => {
+                      const nextCarbs = parseInt(e.target.value, 10) || 60;
+                      setCarbTargetGPerHr(nextCarbs);
+                      setHighCarbPacingTarget(nextCarbs >= 75);
+                    }}
+                    className="w-full accent-volt cursor-pointer h-2 bg-black/10 dark:bg-white/10 rounded-lg"
+                  />
                 </div>
               </div>
 
@@ -2087,7 +2637,11 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
                       <input
                         type="checkbox"
                         checked={highCarbPacingTarget}
-                        onChange={(e) => setHighCarbPacingTarget(e.target.checked)}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setHighCarbPacingTarget(checked);
+                          setCarbTargetGPerHr(checked ? Math.max(80, carbTargetGPerHr) : 55);
+                        }}
                         className="w-4 h-4 mt-1 accent-volt rounded cursor-pointer"
                       />
                       <div className="flex-1">
@@ -2100,11 +2654,15 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
                             solidBacker
                           />
                           <h4 className="font-bold text-sm text-ink">
-                            {isFr ? 'Cible d’oxydation glucidique élevée (60 - 90g glucides/h)' : 'High Carbohydrate Pacing Target (60 - 90g carbs/hr)'}
+                            {isFr
+                              ? `Cible d’apport glucidique sportif (${carbTargetGPerHr}g glucides/h)`
+                              : `Sport Carbohydrate Pacing Target (${carbTargetGPerHr}g carbs/hr)`}
                           </h4>
                         </div>
                         <p className="text-xs text-ink-muted mt-1 leading-relaxed">
-                          {isFr ? 'Calibre la checklist avec un apport régulier toutes les 20 minutes pour éviter la fringale.' : 'Schedules aggressive 20-minute fueling intervals to sustain high aerobic threshold.'}
+                          {isFr
+                            ? `Calibre la checklist selon votre tolérance digestive (${carbTargetGPerHr}g/h) avec prises régulières toutes les 20 minutes.`
+                            : `Calibrates fueling checklist to your gut capacity (${carbTargetGPerHr}g/hr) with steady 20-minute sips and bites.`}
                         </p>
                       </div>
                     </label>

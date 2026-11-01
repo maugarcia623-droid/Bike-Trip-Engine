@@ -1,6 +1,7 @@
 import { PhysicsParams, RouteParams, WeatherCondition, PhysicsCalculationResult } from '../types/trip';
 import { Language, getCurrentLanguage, translate } from '../context/LanguageContext';
 import { loadRiderBikeSpecs } from './specsStorage';
+import { synthesizeRouteElevationProfile } from './gpxParser';
 
 const GRAVITY = 9.81; // m/s^2
 
@@ -235,18 +236,22 @@ export function calculatePhysics(
   const totalCarbsBurnedGrams =
     movingTimeSeconds > 0 ? Math.round(carbOxidationGramPerHour * (movingTimeSeconds / 3600)) : 0;
 
-  // 8. FTP-Aware GO / CAUTION / NO-GO Evaluation
+  // 8. FTP-Aware & Reassuring GO / CAUTION / NO-GO Evaluation
   let goStatus: 'GO' | 'CAUTION' | 'NO-GO' = 'GO';
   let goStatusReason = translate(lang, 'goReasonCalm');
 
   const windKmh = weather.isHeadwindActive ? weather.baseWindSpeedKmH || 0 : 0;
 
-  if (windKmh >= 30 || (weather.estuaryGustKmH && weather.estuaryGustKmH >= 50)) {
+  if (windKmh >= 32 || (weather.estuaryGustKmH && weather.estuaryGustKmH >= 52)) {
     goStatus = 'NO-GO';
     goStatusReason = translate(lang, 'goReasonGale', { wind: windKmh });
-  } else if (windKmh >= 15 || ftpPercent > 90) {
+  } else if (
+    (windKmh >= 22 && pacingMode === 'speed') ||
+    windKmh >= 26 ||
+    ftpPercent > 90
+  ) {
     goStatus = 'CAUTION';
-    if (windKmh >= 15) {
+    if (windKmh >= 22) {
       goStatusReason =
         pacingMode === 'effort'
           ? translate(lang, 'goReasonHeadwindEffort', {
@@ -268,10 +273,19 @@ export function calculatePhysics(
     }
   } else {
     goStatus = 'GO';
-    goStatusReason =
-      windKmh > 0
-        ? translate(lang, 'goReasonBreeze', { wind: windKmh })
-        : translate(lang, 'goReasonCalm');
+    if (windKmh >= 14 && pacingMode === 'effort') {
+      goStatusReason = translate(lang, 'goReasonHeadwindEffort', {
+        wind: windKmh,
+        watts: Math.round(legWatts),
+        zone: powerZone,
+        min: windDelayMinutes,
+      });
+    } else {
+      goStatusReason =
+        windKmh > 0
+          ? translate(lang, 'goReasonBreeze', { wind: windKmh })
+          : translate(lang, 'goReasonCalm');
+    }
   }
 
   return {
@@ -302,5 +316,347 @@ export function calculatePhysics(
     powerDeltaWatts,
     goStatus,
     goStatusReason,
+  };
+}
+
+export interface ZoneTimeShare {
+  zone: PowerZoneCode;
+  pctTime: number;
+  minutes: number;
+  wattsRange: string;
+}
+
+export interface SectionalEffortBand {
+  id: 'easy' | 'rolling' | 'climbs';
+  title: string;
+  subtitle: string;
+  pctDistance: number;
+  distanceKm: number;
+  avgWatts: number;
+  peakWatts: number;
+  zone: PowerZoneCode;
+  kcalShare: number;
+  avgSpeedKmH: number;
+}
+
+export interface SectionalEnergySummary {
+  isFromGpx: boolean;
+  zoneShares: ZoneTimeShare[];
+  bands: SectionalEffortBand[];
+  peakClimbWatts: number;
+  peakZone: PowerZoneCode;
+}
+
+/**
+ * Computes variable sectional energy expenditure across descents/flats, rolling terrain,
+ * and climbs using actual GPX elevation profiles (or synthesized route terrain),
+ * resolving Arthur's feedback that real rides span multiple zones rather than flat Z1.
+ */
+export function calculateSectionalEnergyBreakdown(
+  physics: PhysicsParams,
+  route: RouteParams,
+  weather: WeatherCondition,
+  result: PhysicsCalculationResult,
+  lang: Language = getCurrentLanguage()
+): SectionalEnergySummary {
+  const isFr = lang === 'fr';
+  const isFromGpx = Boolean(route.elevationProfile && route.elevationProfile.length >= 3);
+  const { elevationProfile } = synthesizeRouteElevationProfile(route);
+
+  const systemMassKg = result.systemMassKg;
+  const eff = Math.min(0.99, Math.max(0.7, physics.drivetrainEfficiency));
+  const grossEff = Math.min(0.26, Math.max(0.15, physics.grossMechanicalEfficiency));
+  const effectiveRho = weather.airDensityRho ?? physics.rho ?? 1.225;
+  const ftp = Math.max(80, result.ftpWatts);
+
+  let axialWindKmH = 0;
+  if (weather.isHeadwindActive) {
+    axialWindKmH =
+      typeof weather.effectiveHeadwindKmH === 'number' && weather.effectiveHeadwindKmH > 0
+        ? weather.effectiveHeadwindKmH
+        : Math.max(0, weather.baseWindSpeedKmH || 0);
+  } else if (weather.windDirection === 'tailwind') {
+    axialWindKmH =
+      typeof weather.effectiveHeadwindKmH === 'number' && weather.effectiveHeadwindKmH < 0
+        ? weather.effectiveHeadwindKmH
+        : -0.7 * Math.max(0, weather.baseWindSpeedKmH || 0);
+  }
+  const windMs = axialWindKmH / 3.6;
+
+  const zoneSeconds: Record<PowerZoneCode, number> = { Z1: 0, Z2: 0, Z3: 0, Z4: 0, Z5: 0 };
+
+  type BucketAcc = { distKm: number; timeSec: number; workKj: number; peakW: number };
+  const buckets: Record<'easy' | 'rolling' | 'climbs', BucketAcc> = {
+    easy: { distKm: 0, timeSec: 0, workKj: 0, peakW: 0 },
+    rolling: { distKm: 0, timeSec: 0, workKj: 0, peakW: 0 },
+    climbs: { distKm: 0, timeSec: 0, workKj: 0, peakW: 0 },
+  };
+
+  let peakClimbWatts = Math.round(result.legWatts);
+
+  for (let i = 1; i < elevationProfile.length; i++) {
+    const prev = elevationProfile[i - 1];
+    const curr = elevationProfile[i];
+    const segDistKm = Math.max(0.02, curr.distKm - prev.distKm);
+    const gradePct = curr.gradePct;
+    const gradeFrac = gradePct / 100;
+    const sinTheta = Math.sin(Math.atan(gradeFrac));
+
+    let segSpeedMs: number;
+    let segLegWatts: number;
+
+    if (result.pacingMode === 'effort') {
+      // Even in effort-cap mode, riders ease on descents and naturally press harder on >3% ramps
+      const modFactor =
+        gradePct < -2
+          ? 0.48
+          : gradePct < 0.8
+          ? 0.86
+          : gradePct <= 3.5
+          ? 1.04
+          : Math.min(1.42, 1.12 + (gradePct - 3.5) * 0.055);
+      // Minimum mechanical climbing wattage at ~7.5 km/h cadence floor on steep pitches
+      const minClimbSpeedMs = 2.1;
+      const minClimbW =
+        gradePct > 3
+          ? Math.max(
+              0,
+              (physics.crr * systemMassKg * GRAVITY * minClimbSpeedMs +
+                systemMassKg * GRAVITY * sinTheta * minClimbSpeedMs) /
+                eff
+            )
+          : 35;
+      const targetSegW = Math.max(35, minClimbW, result.legWatts * modFactor);
+      segSpeedMs = solveGroundSpeedMsForLegWatts(
+        targetSegW,
+        systemMassKg,
+        physics.cda,
+        physics.crr,
+        effectiveRho,
+        gradeFrac,
+        windMs,
+        eff
+      );
+      segLegWatts = targetSegW;
+    } else {
+      // Hold-speed mode, bounded by realistic climbing ceiling (~1.38x FTP) & descent coasting
+      const desiredMs = Math.max(2.0, (route.targetSpeedKmH || 25) / 3.6);
+      if (gradePct < -2.5) {
+        segSpeedMs = Math.min(13.5, desiredMs * 1.18);
+      } else {
+        segSpeedMs = desiredMs;
+      }
+      const airMs = Math.max(0, segSpeedMs + windMs);
+      const rawWheelW =
+        physics.crr * systemMassKg * GRAVITY * segSpeedMs +
+        0.5 * effectiveRho * physics.cda * Math.pow(airMs, 2) * segSpeedMs +
+        systemMassKg * GRAVITY * sinTheta * segSpeedMs;
+      const rawLegW = Math.max(25, rawWheelW / eff);
+      const ceilingW = ftp * 1.38;
+      if (rawLegW > ceilingW && gradePct > 1.5) {
+        segLegWatts = ceilingW;
+        segSpeedMs = solveGroundSpeedMsForLegWatts(
+          ceilingW,
+          systemMassKg,
+          physics.cda,
+          physics.crr,
+          effectiveRho,
+          gradeFrac,
+          windMs,
+          eff
+        );
+      } else {
+        segLegWatts = rawLegW;
+      }
+    }
+
+    const dtSec = (segDistKm * 1000) / Math.max(1.5, segSpeedMs);
+    const workKj = (segLegWatts * dtSec) / 1000;
+    const zone = getPowerZone(Math.round((segLegWatts / ftp) * 100));
+    zoneSeconds[zone] += dtSec;
+
+    if (segLegWatts > peakClimbWatts) {
+      peakClimbWatts = Math.round(segLegWatts);
+    }
+
+    const bucketKey: 'easy' | 'rolling' | 'climbs' =
+      gradePct < 1.0 ? 'easy' : gradePct <= 3.5 ? 'rolling' : 'climbs';
+    buckets[bucketKey].distKm += segDistKm;
+    buckets[bucketKey].timeSec += dtSec;
+    buckets[bucketKey].workKj += workKj;
+    if (segLegWatts > buckets[bucketKey].peakW) {
+      buckets[bucketKey].peakW = segLegWatts;
+    }
+  }
+
+  // Normalize kcal to align cleanly with overall result.totalKcalBurn
+  const rawTotalKj = Math.max(1, buckets.easy.workKj + buckets.rolling.workKj + buckets.climbs.workKj);
+  const totalTimeSec = Math.max(1, Object.values(zoneSeconds).reduce((a, b) => a + b, 0));
+  const totalDistKm = Math.max(0.1, buckets.easy.distKm + buckets.rolling.distKm + buckets.climbs.distKm);
+
+  const zoneRanges: Record<PowerZoneCode, string> = {
+    Z1: `< ${Math.round(ftp * 0.56)}W`,
+    Z2: `${Math.round(ftp * 0.56)}–${Math.round(ftp * 0.75)}W`,
+    Z3: `${Math.round(ftp * 0.76)}–${Math.round(ftp * 0.90)}W`,
+    Z4: `${Math.round(ftp * 0.91)}–${Math.round(ftp * 1.05)}W`,
+    Z5: `> ${Math.round(ftp * 1.05)}W`,
+  };
+
+  const zoneOrder: PowerZoneCode[] = ['Z1', 'Z2', 'Z3', 'Z4', 'Z5'];
+  const zoneShares: ZoneTimeShare[] = zoneOrder.map((z) => ({
+    zone: z,
+    pctTime: Math.round((zoneSeconds[z] / totalTimeSec) * 100),
+    minutes: Math.round(zoneSeconds[z] / 60),
+    wattsRange: zoneRanges[z],
+  }));
+
+  // Ensure percentages sum to 100%
+  const sumPct = zoneShares.reduce((acc, z) => acc + z.pctTime, 0);
+  if (sumPct !== 100 && sumPct > 0) {
+    const largest = zoneShares.reduce((prev, curr) => (curr.pctTime > prev.pctTime ? curr : prev));
+    largest.pctTime = Math.max(0, largest.pctTime + (100 - sumPct));
+  }
+
+  const makeBand = (
+    id: 'easy' | 'rolling' | 'climbs',
+    title: string,
+    subtitle: string,
+    fallbackMult: number
+  ): SectionalEffortBand => {
+    const b = buckets[id];
+    const avgW =
+      b.timeSec > 5 ? Math.round((b.workKj * 1000) / b.timeSec) : Math.round(result.legWatts * fallbackMult);
+    const peakW = b.peakW > 0 ? Math.round(b.peakW) : Math.round(avgW * 1.12);
+    const kcal = Math.round((b.workKj / rawTotalKj) * result.totalKcalBurn);
+    const avgSpd =
+      b.timeSec > 5 ? Number(((b.distKm / (b.timeSec / 3600))).toFixed(1)) : Number(result.effectiveSpeedKmH.toFixed(1));
+    return {
+      id,
+      title,
+      subtitle,
+      pctDistance: Math.round((b.distKm / totalDistKm) * 100),
+      distanceKm: Number(b.distKm.toFixed(1)),
+      avgWatts: avgW,
+      peakWatts: peakW,
+      zone: getPowerZone(Math.round((avgW / ftp) * 100)),
+      kcalShare: b.distKm > 0.05 ? Math.max(5, kcal) : 0,
+      avgSpeedKmH: avgSpd,
+    };
+  };
+
+  const bands: SectionalEffortBand[] = [
+    makeBand(
+      'easy',
+      isFr ? 'Plats abrités & Descentes' : 'Sheltered Flats & Descents',
+      isFr ? 'Récupération active, souplesse de pédalage' : 'Active recovery & light cadence spin',
+      0.74
+    ),
+    makeBand(
+      'rolling',
+      isFr ? 'Faux-plats & Sections ventées' : 'Rolling Cruise & Wind Exposure',
+      isFr ? 'Allure endurance régulière en prise d’air' : 'Steady endurance rhythm on undulating roads',
+      1.04
+    ),
+    makeBand(
+      'climbs',
+      isFr ? 'Côtes & Relances (>3,5 %)' : 'Climbs & Punchy Ramps (>3.5%)',
+      isFr ? 'Pic d’effort musculaire — moulinez tôt !' : 'Peak muscular effort — shift down early!',
+      1.32
+    ),
+  ];
+
+  const peakZone = getPowerZone(Math.round((peakClimbWatts / ftp) * 100));
+
+  // Suppress unused grossEff warning by referencing it if needed
+  void grossEff;
+
+  return {
+    isFromGpx,
+    zoneShares,
+    bands,
+    peakClimbWatts,
+    peakZone,
+  };
+}
+
+export interface WattsDidacticGuide {
+  headline: string;
+  breathingCue: string;
+  everydayAnalogy: string;
+  whatIsWatts: string;
+  whatIsFtp: string;
+  whatIsWkg: string;
+}
+
+export function getWattsDidacticExplanation(
+  legWatts: number,
+  ftpWatts: number,
+  riderWeightKg: number,
+  lang: Language = getCurrentLanguage()
+): WattsDidacticGuide {
+  const isFr = lang === 'fr';
+  const roundedW = Math.round(legWatts);
+  const pct = Math.round((legWatts / Math.max(80, ftpWatts)) * 100);
+  const wkg = (legWatts / Math.max(35, riderWeightKg || 70)).toFixed(1);
+
+  let headline = '';
+  let breathingCue = '';
+  let everydayAnalogy = '';
+
+  if (pct < 56) {
+    headline = isFr
+      ? `${roundedW} W — Promenade fluide & très confortable`
+      : `${roundedW}W — Gentle, effortless spin`;
+    breathingCue = isFr
+      ? 'Respiration calme par le nez, conversation fluide sans aucun essoufflement.'
+      : 'Easy nasal breathing — you can chat in full paragraphs all day.';
+    everydayAnalogy = isFr
+      ? 'Équivaut à une marche tranquille sur terrain plat.'
+      : 'Feels like an unhurried stroll on flat ground.';
+  } else if (pct <= 75) {
+    headline = isFr
+      ? `${roundedW} W — Allure endurance idéale (rythme voyage)`
+      : `${roundedW}W — All-day bikepacking endurance pace`;
+    breathingCue = isFr
+      ? 'Vous parlez en phrases complètes ; les jambes chauffent doucement sans brûler.'
+      : 'Comfortable full-sentence conversation; warm legs with zero burn.';
+    everydayAnalogy = isFr
+      ? 'Équivaut à une marche rapide et tonique en discutant.'
+      : 'Feels like a brisk, purposeful walk with a friend.';
+  } else if (pct <= 90) {
+    headline = isFr
+      ? `${roundedW} W — Allure soutenue "Tempo" (effort tonique)`
+      : `${roundedW}W — Brisk "Tempo" effort (engaged & focused)`;
+    breathingCue = isFr
+      ? 'Phrases courtes de 4–5 mots ; concentration active et souffle profond.'
+      : 'Short 4–5 word phrases; deep rhythmic breathing.';
+    everydayAnalogy = isFr
+      ? 'Équivaut à monter un long escalier d’un pas régulier.'
+      : 'Feels like climbing a long flight of stairs at a steady clip.';
+  } else {
+    headline = isFr
+      ? `${roundedW} W — Effort intense près du seuil (à limiter en voyage)`
+      : `${roundedW}W — High threshold push (best kept short on tours)`;
+    breathingCue = isFr
+      ? 'Un ou deux mots maximum ; jambes sollicitées — passez en "Effort Fixe" pour souffler.'
+      : '1–2 words at a time; heavy legs — switch to "Cap Effort" to ease off.';
+    everydayAnalogy = isFr
+      ? 'Équivaut à courir vite en côte ou grimper deux marches à la fois.'
+      : 'Feels like a fast uphill run — sustainable for ~45–60 min max.';
+  }
+
+  return {
+    headline,
+    breathingCue,
+    everydayAnalogy,
+    whatIsWatts: isFr
+      ? `Les Watts mesurent l'énergie mécanique réelle appuyée sur vos pédales (indépendamment du vent ou de la pente).`
+      : `Watts measure the actual leg push on your pedals right now (unlike speed, which drops in wind or hills).`,
+    whatIsFtp: isFr
+      ? `Votre FTP (${ftpWatts} W) est la puissance maximale que vous pouvez tenir pendant 1 heure sans exploser (${pct} % utilisé ici).`
+      : `Your FTP (${ftpWatts}W) is the max steady power you can sustain for 1 hour (${pct}% used on this ride).`,
+    whatIsWkg: isFr
+      ? `${wkg} W/kg rapporte votre puissance à votre poids (${riderWeightKg} kg) — le vrai repère dès que la route grimpe.`
+      : `${wkg} W/kg divides your watts by body weight (${riderWeightKg}kg) — what truly matters on climbs.`,
   };
 }

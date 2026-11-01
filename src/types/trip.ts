@@ -33,8 +33,27 @@ export interface PhysicsParams {
   gradientPercent: number;
 }
 
+export interface ElevationProfilePoint {
+  distKm: number;
+  eleM: number;
+  gradePct: number;
+}
+
+export interface TerrainSummary {
+  flatPct: number;
+  rollingPct: number;
+  climbPct: number;
+  descentPct: number;
+  maxGradePct: number;
+  minEleM: number;
+  maxEleM: number;
+  surfaceLabel?: 'road' | 'mixed' | 'gravel';
+  difficultyLevel?: 'easy' | 'moderate' | 'challenging' | 'alpine';
+}
+
 export interface RouteParams {
   elevationGainM?: number;
+  elevationLossM?: number;
   origin?: string;
   destination?: string;
   distanceKm: number;
@@ -44,6 +63,12 @@ export interface RouteParams {
   urbanTrafficDelayMinutes: number;
   gateSecurityDelayMinutes: number;
   coordinates?: [number, number][];
+  routeMode?: 'corridor' | 'manual-radius' | 'gpx';
+  originCoords?: [number, number];
+  radiusMeters?: number;
+  gpxFileName?: string;
+  elevationProfile?: ElevationProfilePoint[];
+  terrainSummary?: TerrainSummary;
 }
 
 export interface OfficeConstraints {
@@ -177,10 +202,16 @@ export function generateTripChecklist(
     includeExtraRavito?: boolean;
     customChips?: string[];
     totalDays?: number;
+    isTubeless?: boolean;
+    carbTargetGPerHr?: number;
+    nutritionPreference?: 'real-food' | 'mixed' | 'sports-fuel';
   }
 ): ChecklistItem[] {
   const isFr = options?.lang === 'fr';
   const totalDays = options?.totalDays || 1;
+  const isTubeless = options?.isTubeless ?? false;
+  const carbTarget = options?.carbTargetGPerHr ?? 60;
+  const nutritionPref = options?.nutritionPreference ?? 'real-food';
   const t = (tag || "")
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -190,12 +221,18 @@ export function generateTripChecklist(
   const isSport = !isCommute && (t.includes("SPORT") || t.includes("TRAINING") || t.includes("RACE") || t.includes("FONDO") || t.includes("TEMPO"));
   const isBikepacking = !isCommute && (t.includes("BIKEPACKING") || t.includes("BIVOUAC"));
 
-  const bar = distanceKm > 60 ? "3.0" : "3.2";
+  const bar = isTubeless
+    ? distanceKm > 60 ? "2.4" : "2.6"
+    : distanceKm > 60 ? "3.0" : "3.2";
 
   const items: ChecklistItem[] = [
     {
       id: "mech-pressure",
-      label: isFr
+      label: isTubeless
+        ? isFr
+          ? `Pression Tubeless calibrée à ${bar.replace('.', ',')} bar & préventif vérifié`
+          : `Tubeless tire pressure calibrated to ${bar} bar & sealant checked`
+        : isFr
         ? `Pression des pneus calibrée à ${bar.replace('.', ',')} bar`
         : `Tire pressure calibrated to ${bar} bar`,
       checked: false,
@@ -204,7 +241,15 @@ export function generateTripChecklist(
     },
     {
       id: "mech-spares",
-      label: isFr
+      label: isTubeless
+        ? isFr
+          ? distanceKm > 50
+            ? "Multi-outil, mèches tubeless, cartouche CO2 & chambre de secours"
+            : "Multi-outil, mèches tubeless & gonfleur CO2 / mini-pompe"
+          : distanceKm > 50
+          ? "Multi-tool, tubeless plug darts, CO2 inflator & backup micro-tube"
+          : "Multi-tool, tubeless plug kit & CO2 / mini pump"
+        : isFr
         ? distanceKm > 50
           ? "Multi-outil, 2 démonte-pneus, chambre à air & mini-pompe (kit anti-crève)"
           : "Multi-outil & kit anti-crève (chambre à air)"
@@ -252,11 +297,26 @@ export function generateTripChecklist(
     );
   } else if (isSport) {
     items.push(
-      { id: "sport-fuel", label: isFr ? "Boisson glucidique en bidons (~60g/h) & gels ravito" : "Carb mix in bottles (~60g/hr) & energy gels", checked: false, category: "nutrition", critical: true },
+      {
+        id: "sport-fuel",
+        label:
+          nutritionPref === 'real-food'
+            ? isFr
+              ? `Ravito aliments vrais (~${carbTarget}g/h : dattes, pâtes de fruits) & bidons isotoniques`
+              : `Whole-food ride fuel (~${carbTarget}g/hr: dates, fruit chews) & electrolyte bidons`
+            : isFr
+            ? `Boisson glucidique en bidons (~${carbTarget}g/h) & gels ravito`
+            : `Carb mix in bottles (~${carbTarget}g/hr) & energy gels`,
+        checked: false,
+        category: "nutrition",
+        critical: true,
+      },
       { id: "sport-computer", label: isFr ? "Compteur GPS synchronisé avec capteurs" : "GPS computer synced with sensors", checked: false, category: "gear", critical: true },
-      { id: "sport-kit", label: isFr ? "Tenue aéro ajustée & gilet coupe-vent léger" : "Aero kit & lightweight wind gilet", checked: false, category: "gear", critical: true },
-      { id: "sport-plugs", label: isFr ? "Kit mèches tubeless anti-crève & gonfleur CO2" : "Tubeless plug kit & CO2 inflator", checked: false, category: "mechanics", critical: true }
+      { id: "sport-kit", label: isFr ? "Tenue aéro ajustée & gilet coupe-vent léger" : "Aero kit & lightweight wind gilet", checked: false, category: "gear", critical: true }
     );
+    if (!isTubeless) {
+      items.push({ id: "sport-plugs", label: isFr ? "Cartouche CO2 rapide & démonte-pneus ultra-plats" : "Quick CO2 inflator & low-profile tire levers", checked: false, category: "mechanics", critical: true });
+    }
   } else if (isBikepacking) {
     items.push(
       { id: "bp-sleep", label: isFr ? "Sac de bivouac / tente compacte & matelas isolant" : "Bivouac bag / compact tent & sleeping pad", checked: false, category: "gear", critical: true },
@@ -455,8 +515,8 @@ export function generateTripChecklist(
     items.push({
       id: 'chip-hydration-fuel',
       label: isFr
-        ? 'Mélange glucidique haute dose (80-90g/h) & capsules de sodium'
-        : 'High-concentration carb drink mix (80-90g/hr) & sodium salt tabs',
+        ? `Mélange glucidique calibré (~${carbTarget}g/h) & capsules de sodium`
+        : `Calibrated carb drink mix (~${carbTarget}g/hr) & sodium salt tabs`,
       checked: false,
       category: 'nutrition',
       critical: true,

@@ -3,6 +3,7 @@ import { Wind, NavigationArrow, WarningCircle, CheckCircle } from '@/components/
 import { Card } from '../common/Card';
 import { Badge } from '../common/Badge';
 import { WeatherCondition, PhysicsCalculationResult } from '../../types/trip';
+import { useTranslation } from '../../context/LanguageContext';
 
 interface WeatherBentoProps {
   weather: WeatherCondition;
@@ -17,12 +18,18 @@ export const WeatherBento: React.FC<WeatherBentoProps> = ({
   onToggleHeadwind,
   onSetWindSpeed,
 }) => {
+  const { lang, t } = useTranslation();
+  const isFr = lang === 'fr';
   const isHeadwind = weather.isHeadwindActive;
 
   return (
     <Card
-      title="WIND CONDITIONS &amp; HEADWIND"
-      subtitle="Dynamic headwind modeling across exposed route segments"
+      title={isFr ? 'CONDITIONS MÉTÉO & VENT' : 'WIND CONDITIONS & HEADWIND'}
+      subtitle={
+        isFr
+          ? 'Modélisation dynamique du vent de face pour rassurer et guider votre sortie'
+          : 'Dynamic headwind modeling designed to reassure and guide your ride'
+      }
       icon={<Wind className="w-5 h-5 text-beacon-amber dual-tone-orange" />}
       badge={
         <button
@@ -33,7 +40,13 @@ export const WeatherBento: React.FC<WeatherBentoProps> = ({
               : 'bg-pod hover:bg-chip text-ink'
           }`}
         >
-          {isHeadwind ? '8 km/h Headwind: ON' : 'Calm: OFF'}
+          {isHeadwind
+            ? isFr
+              ? 'Vent de face : ACTIF'
+              : '8 km/h Headwind: ON'
+            : isFr
+            ? 'Calme : DOUX'
+            : 'Calm: OFF'}
         </button>
       }
       className="col-span-1"
@@ -62,31 +75,45 @@ export const WeatherBento: React.FC<WeatherBentoProps> = ({
         <div className="font-mono text-base font-bold text-ink">
           {weather.baseWindSpeedKmH} km/h{' '}
           <span className="text-xs font-normal text-ink-muted">
-            {isHeadwind ? '(245° WSW Headwind)' : '(Calm / Mild Vector)'}
+            {isHeadwind
+              ? isFr
+                ? '(245° WSW · Vent de face modéré)'
+                : '(245° WSW Headwind)'
+              : isFr
+              ? '(Flux favorable / Calme)'
+              : '(Calm / Mild Vector)'}
           </span>
         </div>
 
         {isHeadwind ? (
           <Badge variant="amber" size="sm" icon={WarningCircle} className="mt-2.5 font-mono font-bold">
-            +{Math.round(physicsResult.powerDeltaWatts)}W Aero Penalty &middot; +3m Buffer
+            {isFr
+              ? `+${Math.round(physicsResult.powerDeltaWatts)}W Aéro · Rien d’insurmontable (+3 min)`
+              : `+${Math.round(physicsResult.powerDeltaWatts)}W Aero Penalty · +3m Buffer`}
           </Badge>
         ) : (
           <Badge variant="emerald" size="sm" icon={CheckCircle} className="mt-2.5 font-mono font-bold">
-            Optimal Commute Corridor &middot; Zero Penalty
+            {isFr
+              ? 'Conditions idéales · Pédalage fluide & inspirant'
+              : 'Optimal Commute Corridor · Zero Penalty'}
           </Badge>
         )}
       </div>
 
       <div className="grid grid-cols-2 gap-3 text-xs font-mono mb-4">
         <div className="bg-pod rounded-pod p-3.5">
-          <div className="text-[10px] text-ink-muted uppercase font-bold">Air Temp &amp; Rho</div>
+          <div className="text-[10px] text-ink-muted uppercase font-bold">
+            {isFr ? 'Température & Densité' : 'Air Temp & Rho'}
+          </div>
           <div className="text-sm font-bold text-ink mt-0.5">
             {weather.temperatureC}°C <span className="text-[11px] font-normal text-ink-muted">(1.225)</span>
           </div>
         </div>
 
         <div className="bg-pod rounded-pod p-3.5">
-          <div className="text-[10px] text-ink-muted uppercase font-bold">Max Gust Envelope</div>
+          <div className="text-[10px] text-ink-muted uppercase font-bold">
+            {isFr ? 'Rafales max' : 'Max Gust Envelope'}
+          </div>
           <div className="text-sm font-bold text-ink mt-0.5">
             {isHeadwind ? weather.estuaryGustKmH : 6} km/h max
           </div>
@@ -96,7 +123,7 @@ export const WeatherBento: React.FC<WeatherBentoProps> = ({
       <div className="mt-auto">
         <div className="lane-divider mb-3" aria-hidden="true" />
         <div className="flex items-center justify-between text-xs font-mono text-ink-secondary mb-2">
-          <span>Estuary Wind Velocity:</span>
+          <span>{isFr ? 'Vitesse du vent :' : 'Estuary Wind Velocity:'}</span>
           <span className="px-2.5 py-0.5 rounded-full bg-pod text-ink font-bold">{weather.baseWindSpeedKmH} km/h</span>
         </div>
         <input
@@ -109,9 +136,9 @@ export const WeatherBento: React.FC<WeatherBentoProps> = ({
           className="w-full peloton-slider"
         />
         <div className="flex justify-between text-[10px] font-mono text-ink-muted mt-1.5">
-          <span>0 km/h (Calm)</span>
-          <span className="text-ink dark:text-volt font-bold">8 km/h (Baseline)</span>
-          <span>35 km/h (Gale)</span>
+          <span>0 km/h ({isFr ? 'Calme' : 'Calm'})</span>
+          <span className="text-ink dark:text-volt font-bold">8 km/h ({isFr ? 'Référence' : 'Baseline'})</span>
+          <span>35 km/h ({isFr ? 'Tempête' : 'Gale'})</span>
         </div>
       </div>
     </Card>

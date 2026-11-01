@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Bicycle, Check, Plus, Trash } from '@/components/icons';
-import { RiderBikeSpecs, BikeSpec } from '../../types/specs';
+import { X, User, Bicycle, Check, Plus, Trash, Sparkle, Lightning } from '@/components/icons';
+import { RiderBikeSpecs, BikeSpec, NutritionPreference, RiderLevel } from '../../types/specs';
 import { saveRiderBikeSpecs, getActiveBike } from '../../utils/specsStorage';
 import { useTranslation } from '../../context/LanguageContext';
 import { IconBadge } from '../common/IconBadge';
+import { Badge } from '../common/Badge';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
   CHIP_RING_BASE,
@@ -25,19 +26,26 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
   specs,
   onSave,
 }) => {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
+  const isFr = lang === 'fr';
   const [localSpecs, setLocalSpecs] = useState<RiderBikeSpecs>(specs);
   const [hasSaved, setHasSaved] = useState(false);
+  const [mobileTab, setMobileTab] = useState<'rider' | 'bike'>('rider');
+  const [showFtpEstimator, setShowFtpEstimator] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setLocalSpecs(specs);
+      setShowFtpEstimator(false);
     }
   }, [isOpen, specs]);
 
   if (!isOpen) return null;
 
   const activeBike = getActiveBike(localSpecs);
+  const currentWkg = Number(
+    ((localSpecs.ftpWatts || 210) / Math.max(35, localSpecs.riderWeightKg || 68)).toFixed(2)
+  );
 
   const handleSelectBike = (bikeId: string) => {
     setLocalSpecs((prev) => ({
@@ -54,6 +62,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
       weightKg: 9.5,
       crr: 0.0055,
       cda: 0.38,
+      isTubeless: true,
     };
     setLocalSpecs((prev) => ({
       ...prev,
@@ -85,6 +94,46 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
     }));
   };
 
+  const handleToggleTubeless = (nextTubeless: boolean) => {
+    setLocalSpecs((prev) => ({
+      ...prev,
+      bikes: prev.bikes.map((b) => {
+        if (b.id !== prev.activeBikeId) return b;
+        // Gently adjust rolling resistance baseline when switching between tubeless & inner tube
+        const prevTubeless = Boolean(b.isTubeless);
+        let nextCrr = b.crr;
+        if (prevTubeless !== nextTubeless) {
+          nextCrr = Number(
+            Math.max(0.003, Math.min(0.009, b.crr + (nextTubeless ? -0.0005 : 0.0005))).toFixed(4)
+          );
+        }
+        return { ...b, isTubeless: nextTubeless, crr: nextCrr };
+      }),
+    }));
+  };
+
+  const handleSelectRiderLevel = (level: RiderLevel) => {
+    const suggestedCarbs = level === 'occasional' ? 40 : level === 'pro' ? 90 : 60;
+    const suggestedView = level === 'occasional' ? 'essential' : 'pro';
+    setLocalSpecs((prev) => ({
+      ...prev,
+      riderLevel: level,
+      carbTargetGPerHr: suggestedCarbs,
+      cockpitViewMode: suggestedView,
+    }));
+  };
+
+  const handleApplyEstimatedFtp = (wkgMultiplier: number, levelToSync?: RiderLevel) => {
+    const weight = Math.max(40, localSpecs.riderWeightKg || 68);
+    const estFtp = Math.round((weight * wkgMultiplier) / 5) * 5;
+    setLocalSpecs((prev) => ({
+      ...prev,
+      ftpWatts: estFtp,
+      ...(levelToSync ? { riderLevel: levelToSync } : {}),
+    }));
+    setShowFtpEstimator(false);
+  };
+
   const handleSave = () => {
     saveRiderBikeSpecs(localSpecs);
     onSave(localSpecs);
@@ -100,17 +149,23 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="specs-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/55 dark:bg-black/75 backdrop-blur-xs"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/55 dark:bg-black/75 backdrop-blur-xs"
     >
-      <div className="relative w-full max-w-lg max-h-[90vh] max-h-[90dvh] flex flex-col bg-card text-ink rounded-card p-4 overflow-hidden animate-fade-in">
+      <div className="relative w-full max-w-4xl max-h-[92vh] max-h-[92dvh] flex flex-col bg-card text-ink rounded-card p-4 sm:p-6 overflow-hidden animate-fade-in shadow-xl">
         {/* Header */}
         <div className="flex items-start justify-between gap-3 mb-4 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <IconBadge theme="yellow-vest" icon={User} size="lg" isSelected solidBacker />
             <div className="min-w-0">
-              <h2 id="specs-modal-title" className="text-base sm:text-lg font-semibold text-ink tracking-tight">
-                {t('specsModalTitle')}
-              </h2>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 id="specs-modal-title" className="text-base sm:text-lg font-semibold text-ink tracking-tight">
+                  {isFr ? 'Profil Cycliste & Garage Vélo' : 'Rider Profile & Bike Garage'}
+                </h2>
+                <Badge variant="emerald" size="xs" className="tnum">
+                  {localSpecs.ftpWatts}W &middot; {localSpecs.carbTargetGPerHr}g/h &middot;{' '}
+                  {activeBike.isTubeless ? 'Tubeless' : 'Tube'}
+                </Badge>
+              </div>
               <p className="text-xs text-ink-muted mt-0.5">
                 {t('specsModalSub')}
               </p>
@@ -127,16 +182,108 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
           </button>
         </div>
 
-        <div className="space-y-5 sm:space-y-6 flex-1 min-h-0 overflow-y-auto pr-0.5">
-          {/* SECTION 1: RIDER METRICS */}
-          <div>
-            <div className="text-xs font-semibold text-ink-secondary mb-2.5">
-              {t('riderPhysiologyHeading')}
+        {/* Mobile Tab Switcher (Side-by-side columns automatically appear on lg+) */}
+        <div className="grid grid-cols-2 gap-1.5 p-1 rounded-full bg-pod mb-3.5 lg:hidden shrink-0">
+          <button
+            type="button"
+            onClick={() => setMobileTab('rider')}
+            className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+              mobileTab === 'rider'
+                ? 'bg-card text-ink shadow-xs'
+                : 'text-ink-muted hover:text-ink'
+            }`}
+          >
+            <User className="w-3.5 h-3.5" />
+            <span>{isFr ? 'Profil Cycliste' : 'Rider Profile'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileTab('bike')}
+            className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+              mobileTab === 'bike'
+                ? 'bg-card text-ink shadow-xs'
+                : 'text-ink-muted hover:text-ink'
+            }`}
+          >
+            <Bicycle className="w-3.5 h-3.5" />
+            <span>{isFr ? `Garage Vélo (${localSpecs.bikes.length})` : `Bike Profile (${localSpecs.bikes.length})`}</span>
+          </button>
+        </div>
+
+        {/* Dedicated Dual-Column Workspace: Rider Profile ALONGSIDE Bike Profile */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 flex-1 min-h-0 overflow-y-auto pr-0.5">
+          {/* ── LEFT COLUMN: DEDICATED RIDER PROFILE ── */}
+          <div
+            className={`space-y-4 rounded-pod bg-pod/45 p-3.5 sm:p-4 border border-ink/5 dark:border-white/5 ${
+              mobileTab !== 'rider' ? 'hidden lg:block' : ''
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <IconBadge theme="emerald" icon={User} size="sm" solidBacker />
+                <div>
+                  <div className="text-xs sm:text-[13px] font-bold text-ink">
+                    {isFr ? 'Profil Physiologique & Nutrition' : 'Rider Physiology & Nutrition'}
+                  </div>
+                  <div className="text-[11px] text-ink-muted">
+                    {isFr
+                      ? 'FTP, niveau, tolérance glucidique & préférences alimentaires'
+                      : 'FTP, experience tier, gut carb capacity & fueling style'}
+                  </div>
+                </div>
+              </div>
+              <Badge variant="zinc" size="xs" className="tnum font-mono">
+                {currentWkg} W/kg
+              </Badge>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
-              <div className="p-3.5 sm:p-4 rounded-pod bg-pod">
-                <label className="block text-xs text-ink-muted mb-1 sm:mb-1.5">
+            {/* Rider Level Selector */}
+            <div>
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-ink-muted mb-1.5">
+                {isFr ? 'Profil d’expérience cycliste' : 'Rider Experience Profile'}
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {([
+                  {
+                    id: 'occasional',
+                    label: isFr ? 'Occasionnel' : 'Occasional',
+                    sub: isFr ? 'Guidé · 40g/h' : 'Guided · 40g/h',
+                  },
+                  {
+                    id: 'regular',
+                    label: isFr ? 'Régulier' : 'Regular',
+                    sub: isFr ? 'Endurance · 60g/h' : 'Endurance · 60g/h',
+                  },
+                  {
+                    id: 'pro',
+                    label: isFr ? 'Performance' : 'Data / Pro',
+                    sub: isFr ? 'Intensif · 90g/h' : 'High-output · 90g/h',
+                  },
+                ] as const).map((tier) => {
+                  const isSelected = (localSpecs.riderLevel || 'regular') === tier.id;
+                  return (
+                    <button
+                      key={tier.id}
+                      type="button"
+                      onClick={() => handleSelectRiderLevel(tier.id)}
+                      className={`rounded-pod p-2.5 text-left transition-all cursor-pointer ${
+                        isSelected
+                          ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.emerald.selectedRing}`
+                          : `bg-card text-ink hover:bg-chip ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
+                      }`}
+                    >
+                      <div className="text-xs font-semibold truncate">{tier.label}</div>
+                      <div className="text-[10px] opacity-80 mt-0.5 truncate">{tier.sub}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Weight, Height & FTP */}
+            <div className="grid grid-cols-3 gap-2.5">
+              <div className="p-3 rounded-pod bg-card">
+                <label className="block text-[11px] text-ink-muted mb-1">
                   {t('weightLabel')}
                 </label>
                 <div className="flex items-baseline gap-1">
@@ -145,16 +292,19 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                     step="0.5"
                     value={localSpecs.riderWeightKg}
                     onChange={(e) =>
-                      setLocalSpecs((prev) => ({ ...prev, riderWeightKg: parseFloat(e.target.value) || 0 }))
+                      setLocalSpecs((prev) => ({
+                        ...prev,
+                        riderWeightKg: parseFloat(e.target.value) || 0,
+                      }))
                     }
-                    className="w-full text-xl font-semibold text-ink bg-transparent focus:outline-none tnum"
+                    className="w-full text-lg sm:text-xl font-semibold text-ink bg-transparent focus:outline-none tnum"
                   />
                   <span className="text-xs text-ink-muted">kg</span>
                 </div>
               </div>
 
-              <div className="p-3.5 sm:p-4 rounded-pod bg-pod">
-                <label className="block text-xs text-ink-muted mb-1 sm:mb-1.5">
+              <div className="p-3 rounded-pod bg-card">
+                <label className="block text-[11px] text-ink-muted mb-1">
                   {t('heightLabel')}
                 </label>
                 <div className="flex items-baseline gap-1">
@@ -163,56 +313,257 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                     step="1"
                     value={localSpecs.riderHeightCm}
                     onChange={(e) =>
-                      setLocalSpecs((prev) => ({ ...prev, riderHeightCm: parseInt(e.target.value) || 0 }))
+                      setLocalSpecs((prev) => ({
+                        ...prev,
+                        riderHeightCm: parseInt(e.target.value) || 0,
+                      }))
                     }
-                    className="w-full text-xl font-semibold text-ink bg-transparent focus:outline-none tnum"
+                    className="w-full text-lg sm:text-xl font-semibold text-ink bg-transparent focus:outline-none tnum"
                   />
                   <span className="text-xs text-ink-muted">cm</span>
                 </div>
               </div>
 
               <div
-                className={`p-3.5 sm:p-4 rounded-pod ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`}
+                className={`p-3 rounded-pod ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`}
               >
-                <label className="block text-xs opacity-80 mb-1 sm:mb-1.5">
-                  {t('ftpBaselineLabel')}
-                </label>
+                <div className="flex items-center justify-between gap-1 mb-1">
+                  <label className="block text-[11px] opacity-85 truncate">
+                    {t('ftpBaselineLabel')}
+                  </label>
+                </div>
                 <div className="flex items-baseline gap-1">
                   <input
                     type="number"
                     step="5"
                     value={localSpecs.ftpWatts}
                     onChange={(e) =>
-                      setLocalSpecs((prev) => ({ ...prev, ftpWatts: parseInt(e.target.value) || 0 }))
+                      setLocalSpecs((prev) => ({
+                        ...prev,
+                        ftpWatts: parseInt(e.target.value) || 0,
+                      }))
                     }
-                    className="w-full text-xl font-semibold text-current bg-transparent focus:outline-none tnum"
+                    className="w-full text-lg sm:text-xl font-semibold text-current bg-transparent focus:outline-none tnum"
                   />
                   <span className="text-xs opacity-80">W</span>
                 </div>
               </div>
             </div>
+
+            {/* Interactive FTP Estimator Helper (for riders without a power meter) */}
+            <div className="rounded-pod bg-card p-3 border border-ink/5 dark:border-white/5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-ink-secondary">
+                  {isFr
+                    ? 'Pas de capteur de puissance ? Estimez votre FTP :'
+                    : "Don't know your FTP? Estimate from your weight:"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowFtpEstimator((v) => !v)}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold cursor-pointer transition-colors ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary}`}
+                >
+                  <Sparkle className="w-3 h-3 text-current" />
+                  <span>{showFtpEstimator ? (isFr ? 'Masquer' : 'Hide') : isFr ? 'Estimer FTP' : 'Estimate FTP'}</span>
+                </button>
+              </div>
+              {showFtpEstimator && (
+                <div className="mt-2.5 pt-2.5 border-t border-dashed border-ink/10 dark:border-white/10 space-y-2 animate-fade-in">
+                  <p className="text-[11px] text-ink-muted leading-snug">
+                    {isFr
+                      ? `La FTP est la puissance max soutenable 1h. Basé sur ${localSpecs.riderWeightKg || 68} kg :`
+                      : `FTP is your 1-hour sustainable pedal power. Based on ${localSpecs.riderWeightKg || 68}kg:`}
+                  </p>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {[
+                      {
+                        wkg: 2.0,
+                        lvl: 'occasional' as RiderLevel,
+                        label: isFr ? 'Balade / Débutant' : 'Casual / Touring',
+                      },
+                      {
+                        wkg: 2.9,
+                        lvl: 'regular' as RiderLevel,
+                        label: isFr ? 'Cycliste Régulier' : 'Active Club',
+                      },
+                      {
+                        wkg: 3.9,
+                        lvl: 'pro' as RiderLevel,
+                        label: isFr ? 'Entraîné / Cyclosport' : 'Trained / Racer',
+                      },
+                    ].map((est) => {
+                      const valW =
+                        Math.round(((localSpecs.riderWeightKg || 68) * est.wkg) / 5) * 5;
+                      return (
+                        <button
+                          key={est.wkg}
+                          type="button"
+                          onClick={() => handleApplyEstimatedFtp(est.wkg, est.lvl)}
+                          className="p-2 rounded-sub-pod bg-pod hover:bg-chip text-left transition-colors cursor-pointer"
+                        >
+                          <div className="text-xs font-mono font-bold text-ink tnum">{valW} W</div>
+                          <div className="text-[10px] text-ink-muted truncate">{est.label}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Carbohydrate Digestion Capacity (Slider + Presets — replaces rigid 90g default) */}
+            <div className="p-3.5 rounded-pod bg-card space-y-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <label className="text-xs font-semibold text-ink block">
+                    {isFr
+                      ? 'Capacité de digestion glucidique'
+                      : 'Carbohydrate Digestion Capacity'}
+                  </label>
+                  <span className="text-[11px] text-ink-muted">
+                    {localSpecs.carbTargetGPerHr <= 45
+                      ? isFr
+                        ? 'Estomac doux · zéro surcharge digestive (idéal randonnée)'
+                        : 'Gentle on the stomach · zero GI stress (ideal for touring)'
+                      : localSpecs.carbTargetGPerHr <= 70
+                      ? isFr
+                        ? 'Endurance équilibrée · standard sorties longues'
+                        : 'Balanced endurance · standard multi-hour fueling'
+                      : isFr
+                      ? 'Haute assimilation · nécessite un entraînement digestif (gut training)'
+                      : 'High gut-trained intake · for intense Gran Fondo / race pace'}
+                  </span>
+                </div>
+                <span className={`px-2.5 py-1 rounded-full text-xs font-mono font-bold tnum shrink-0 ${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary}`}>
+                  {localSpecs.carbTargetGPerHr ?? 60} g/h
+                </span>
+              </div>
+
+              <input
+                type="range"
+                min={30}
+                max={105}
+                step={5}
+                value={localSpecs.carbTargetGPerHr ?? 60}
+                onChange={(e) =>
+                  setLocalSpecs((prev) => ({
+                    ...prev,
+                    carbTargetGPerHr: parseInt(e.target.value, 10) || 60,
+                  }))
+                }
+                aria-label={isFr ? 'Tolérance glucides par heure' : 'Carb digestion grams per hour'}
+                className="w-full accent-amber-500 cursor-pointer"
+              />
+
+              <div className="grid grid-cols-4 gap-1.5">
+                {[
+                  { val: 35, label: isFr ? '35g Léger' : '35g Gentle' },
+                  { val: 50, label: isFr ? '50g Rando' : '50g Touring' },
+                  { val: 65, label: isFr ? '65g Sport' : '65g Steady' },
+                  { val: 90, label: isFr ? '90g Pro' : '90g Gut-Pro' },
+                ].map((opt) => {
+                  const active = Math.abs((localSpecs.carbTargetGPerHr ?? 60) - opt.val) <= 3;
+                  return (
+                    <button
+                      key={opt.val}
+                      type="button"
+                      onClick={() =>
+                        setLocalSpecs((prev) => ({ ...prev, carbTargetGPerHr: opt.val }))
+                      }
+                      className={`py-1.5 px-2 rounded-full text-[11px] font-semibold transition-colors cursor-pointer tnum truncate ${
+                        active
+                          ? `${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary}`
+                          : 'bg-pod text-ink-muted hover:text-ink'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Nutritional Preference */}
+            <div className="p-3.5 rounded-pod bg-card">
+              <label className="block text-xs font-semibold text-ink mb-2">
+                {isFr ? 'Préférences nutritionnelles en selle' : 'On-Bike Nutritional Preference'}
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {(
+                  [
+                    {
+                      id: 'real-food',
+                      label: isFr ? 'Aliments vrais' : 'Real Food',
+                      sub: isFr ? 'Dattes, fruits, boulangerie' : 'Dates, figs, bakery',
+                    },
+                    {
+                      id: 'mixed',
+                      label: isFr ? 'Mixte' : 'Mixed Fuel',
+                      sub: isFr ? 'Solide + 1 gel secours' : 'Whole food + backup gel',
+                    },
+                    {
+                      id: 'sports-fuel',
+                      label: isFr ? 'Sport / Iso' : 'Sports Fuel',
+                      sub: isFr ? 'Boisson iso & gels' : 'Isotonic mix & gels',
+                    },
+                  ] as { id: NutritionPreference; label: string; sub: string }[]
+                ).map((opt) => {
+                  const active = (localSpecs.nutritionPreference || 'real-food') === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() =>
+                        setLocalSpecs((prev) => ({ ...prev, nutritionPreference: opt.id }))
+                      }
+                      className={`p-2.5 rounded-pod text-left flex flex-col justify-start transition-all cursor-pointer ${
+                        active
+                          ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.emerald.selectedRing}`
+                          : 'bg-pod text-ink-secondary hover:text-ink'
+                      }`}
+                    >
+                      <div className="text-xs font-semibold leading-snug">{opt.label}</div>
+                      <div className="text-[11px] opacity-80 mt-0.5 leading-snug">{opt.sub}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
-          {/* SECTION 2: MULTI-BIKE GARAGE & ACTIVE SPECIFICATION */}
-          <div>
-            <div className="flex items-center justify-between gap-2 mb-2.5">
-              <div className="flex items-center gap-2 text-xs font-semibold text-ink-secondary">
-                <Bicycle className={`w-4 h-4 ${GREYSCALE_TOKENS.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
-                <span>{t('bikeGarageHeading', { count: localSpecs.bikes.length })}</span>
+          {/* ── RIGHT COLUMN: DEDICATED BIKE PROFILE & GARAGE ── */}
+          <div
+            className={`space-y-4 rounded-pod bg-pod/45 p-3.5 sm:p-4 border border-ink/5 dark:border-white/5 ${
+              mobileTab !== 'bike' ? 'hidden lg:block' : ''
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2 min-w-0">
+                <IconBadge theme="yellow-vest" icon={Bicycle} size="sm" solidBacker className="shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-xs sm:text-[13px] font-bold text-ink">
+                    {t('bikeGarageHeading', { count: localSpecs.bikes.length })}
+                  </div>
+                  <div className="text-[11px] text-ink-muted">
+                    {isFr
+                      ? 'Montage Tubeless, masse, résistance Crr & profil CdA'
+                      : 'Tubeless setup, build weight, rolling Crr & aero CdA'}
+                  </div>
+                </div>
               </div>
 
               <button
                 type="button"
                 onClick={handleAddBike}
-                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-pod hover:bg-chip text-ink-secondary hover:text-ink transition-colors cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-card hover:bg-chip text-ink-secondary hover:text-ink transition-colors cursor-pointer shrink-0 whitespace-nowrap ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
               >
-                <Plus className="w-3.5 h-3.5 text-current" />
+                <Plus className="w-3.5 h-3.5 text-current shrink-0" />
                 <span>{t('addBikeBtn')}</span>
               </button>
             </div>
 
             {/* Bike Garage Selector Pods */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 gap-2">
               {localSpecs.bikes.map((bike) => {
                 const isSelected = bike.id === activeBike.id;
                 return (
@@ -230,7 +581,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                     className={`relative rounded-pod p-2.5 text-left transition-all cursor-pointer select-none ${
                       isSelected
                         ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
-                        : `bg-pod text-ink hover:bg-chip ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
+                        : `bg-card text-ink hover:bg-chip ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
                     }`}
                   >
                     <div className="flex items-center justify-between gap-1.5">
@@ -249,21 +600,18 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                         </button>
                       )}
                     </div>
-                    <div className="flex items-center justify-between gap-1 mt-1 text-[11px] font-mono tnum opacity-80">
+                    <div className="flex items-center justify-between gap-1 mt-1 text-[11px] font-mono tnum opacity-85">
                       <span>{bike.weightKg}kg</span>
-                      <span>CdA {bike.cda}</span>
+                      <span>{bike.isTubeless ? 'Tubeless' : 'Tube'}</span>
                     </div>
                   </div>
                 );
               })}
             </div>
 
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-ink-muted mb-2">
-              {t('activeBikeBuildHeading')}
-            </div>
-
-            <div className="space-y-2.5 sm:space-y-3">
-              <div className="px-4 py-3 rounded-2xl sm:rounded-full bg-pod flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-3">
+            {/* Active Bike Details */}
+            <div className="space-y-3">
+              <div className="px-4 py-2.5 rounded-2xl sm:rounded-full bg-card flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-3">
                 <label className="text-xs text-ink-muted shrink-0">
                   {t('modelNameLabel')}
                 </label>
@@ -275,9 +623,63 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
-                <div className="p-3.5 sm:p-4 rounded-pod bg-pod">
-                  <label className="block text-xs text-ink-muted mb-1 sm:mb-1.5">
+              {/* Dedicated Tubeless vs. Inner Tube Config Card */}
+              <div className="p-3.5 rounded-pod bg-card space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <span className="text-xs font-semibold text-ink block">
+                      {isFr ? 'Configuration Pneumatique' : 'Tire & Sealant Configuration'}
+                    </span>
+                    <span className="text-[11px] text-ink-muted">
+                      {activeBike.isTubeless
+                        ? isFr
+                          ? 'Basse pression confort (2,4–2,6 bar) · kit mèches + préventif dans la checklist'
+                          : 'Lower comfort pressure (2.4–2.6 bar) · syncs plug kit & sealant check'
+                        : isFr
+                        ? 'Pression standard (3,0–3,2 bar) · chambre à air + démonte-pneus dans la checklist'
+                        : 'Standard pressure (3.0–3.2 bar) · syncs spare inner tube & levers'}
+                    </span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    {
+                      val: true,
+                      title: isFr ? 'Tubeless (Préventif)' : 'Tubeless Ready',
+                      sub: isFr ? 'Rendement optimal · anti-pincement' : 'Lower Crr · pinch-flat immune',
+                    },
+                    {
+                      val: false,
+                      title: isFr ? 'Chambre à air' : 'Inner Tube',
+                      sub: isFr ? 'Montage classique · réparation simple' : 'Classic setup · spare tube',
+                    },
+                  ].map((opt) => {
+                    const active = Boolean(activeBike.isTubeless) === opt.val;
+                    return (
+                      <button
+                        key={String(opt.val)}
+                        type="button"
+                        onClick={() => handleToggleTubeless(opt.val)}
+                        className={`p-2.5 rounded-pod text-left transition-all cursor-pointer ${
+                          active
+                            ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.emerald.selectedRing}`
+                            : 'bg-pod text-ink-secondary hover:text-ink'
+                        }`}
+                      >
+                        <div className="text-xs font-semibold flex items-center gap-1.5">
+                          <Lightning className="w-3.5 h-3.5 text-current shrink-0" />
+                          <span className="truncate">{opt.title}</span>
+                        </div>
+                        <div className="text-[10px] opacity-80 mt-0.5 truncate">{opt.sub}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2.5">
+                <div className="p-3 rounded-pod bg-card">
+                  <label className="block text-[11px] text-ink-muted mb-1">
                     {t('bicycleBuildRow')}
                   </label>
                   <div className="flex items-baseline gap-1">
@@ -285,25 +687,29 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                       type="number"
                       step="0.1"
                       value={activeBike.weightKg}
-                      onChange={(e) => handleUpdateActiveBike('weightKg', parseFloat(e.target.value) || 0)}
-                      className="w-full text-xl font-semibold text-ink bg-transparent focus:outline-none tnum"
+                      onChange={(e) =>
+                        handleUpdateActiveBike('weightKg', parseFloat(e.target.value) || 0)
+                      }
+                      className="w-full text-lg sm:text-xl font-semibold text-ink bg-transparent focus:outline-none tnum"
                     />
                     <span className="text-xs text-ink-muted">kg</span>
                   </div>
                 </div>
 
-                <div className="p-3.5 sm:p-4 rounded-pod bg-pod">
-                  <label className="block text-xs text-ink-muted mb-1 sm:mb-1.5">
+                <div className="p-3 rounded-pod bg-card">
+                  <label className="block text-[11px] text-ink-muted mb-1">
                     {t('tireCrrLabel')}
                   </label>
                   <input
                     type="number"
                     step="0.0005"
                     value={activeBike.crr}
-                    onChange={(e) => handleUpdateActiveBike('crr', parseFloat(e.target.value) || 0.0055)}
-                    className="w-full text-xl font-semibold text-ink bg-transparent focus:outline-none tnum"
+                    onChange={(e) =>
+                      handleUpdateActiveBike('crr', parseFloat(e.target.value) || 0.0055)
+                    }
+                    className="w-full text-lg sm:text-xl font-semibold text-ink bg-transparent focus:outline-none tnum"
                   />
-                  <div className="flex flex-wrap gap-1 mt-2">
+                  <div className="flex flex-wrap gap-1 mt-1.5">
                     {[
                       { val: 0.004, short: '28c' },
                       { val: 0.0055, short: '38c' },
@@ -315,10 +721,10 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                           key={p.val}
                           type="button"
                           onClick={() => handleUpdateActiveBike('crr', p.val)}
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-semibold cursor-pointer transition-colors tnum ${
+                          className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold cursor-pointer transition-colors tnum ${
                             active
                               ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary}`
-                              : 'bg-card text-ink-muted hover:text-ink'
+                              : 'bg-pod text-ink-muted hover:text-ink'
                           }`}
                         >
                           {p.short}
@@ -328,18 +734,20 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                   </div>
                 </div>
 
-                <div className="p-3.5 sm:p-4 rounded-pod bg-pod">
-                  <label className="block text-xs text-ink-muted mb-1 sm:mb-1.5">
+                <div className="p-3 rounded-pod bg-card">
+                  <label className="block text-[11px] text-ink-muted mb-1">
                     {t('aeroCdaLabel')}
                   </label>
                   <input
                     type="number"
                     step="0.01"
                     value={activeBike.cda}
-                    onChange={(e) => handleUpdateActiveBike('cda', parseFloat(e.target.value) || 0.38)}
-                    className="w-full text-xl font-semibold text-ink bg-transparent focus:outline-none tnum"
+                    onChange={(e) =>
+                      handleUpdateActiveBike('cda', parseFloat(e.target.value) || 0.38)
+                    }
+                    className="w-full text-lg sm:text-xl font-semibold text-ink bg-transparent focus:outline-none tnum"
                   />
-                  <div className="flex flex-wrap gap-1 mt-2">
+                  <div className="flex flex-wrap gap-1 mt-1.5">
                     {[
                       { val: 0.32, short: '0.32' },
                       { val: 0.38, short: '0.38' },
@@ -351,10 +759,10 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                           key={p.val}
                           type="button"
                           onClick={() => handleUpdateActiveBike('cda', p.val)}
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-semibold cursor-pointer transition-colors tnum ${
+                          className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold cursor-pointer transition-colors tnum ${
                             active
                               ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary}`
-                              : 'bg-card text-ink-muted hover:text-ink'
+                              : 'bg-pod text-ink-muted hover:text-ink'
                           }`}
                         >
                           {p.short}
@@ -369,7 +777,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="mt-4 sm:mt-6 pt-3.5 sm:pt-4 border-t border-dashed border-ink/10 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+        <div className="mt-4 pt-3.5 border-t border-dashed border-ink/10 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
           <span className="text-xs text-ink-muted">
             {t('syncActiveTripNotice')}
           </span>

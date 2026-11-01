@@ -13,6 +13,8 @@ import {
   Sparkle,
 } from '@/components/icons';
 import { TripProfile } from '../../types/trip';
+import { RiderBikeSpecs } from '../../types/specs';
+import { loadRiderBikeSpecs } from '../../utils/specsStorage';
 import { ReverseTimelineCalculation } from '../../utils/timeline';
 import { useTranslation, getLocalizedTripMeta } from '../../context/LanguageContext';
 import { findChipDef, CHIP_ICONS, getArchetypeFromTag } from '../../utils/archetypeChips';
@@ -45,14 +47,18 @@ interface TimelineContextualBannerProps {
   trip?: TripProfile;
   timeline: ReverseTimelineCalculation;
   defaultExpanded?: boolean;
+  riderSpecs?: RiderBikeSpecs;
 }
 
 export const TimelineContextualBanner: React.FC<TimelineContextualBannerProps> = ({
   trip,
   timeline,
   defaultExpanded = false,
+  riderSpecs: riderSpecsProp,
 }) => {
   const { lang, t } = useTranslation();
+  const effectiveSpecs = riderSpecsProp || loadRiderBikeSpecs();
+  const carbTarget = effectiveSpecs.carbTargetGPerHr || 60;
 
   const [isExpanded, setIsExpanded] = React.useState<boolean>(() => {
     try {
@@ -113,17 +119,17 @@ export const TimelineContextualBanner: React.FC<TimelineContextualBannerProps> =
 
         return {
           directiveTitle: t('ctxSportTitle'),
-          summaryLine: t('ctxSportSummary', { speed: targetSpeed }),
+          summaryLine: t('ctxSportSummary', { carbs: carbTarget, speed: targetSpeed }),
           badgeValue: `~${targetSpeed} km/h`,
           icon: Lightning,
           theme: 'amber',
-          primaryAdvice: t('ctxSportAdvice'),
+          primaryAdvice: t('ctxSportAdvice', { carbs: carbTarget }),
           contextNote: isHeadwind
             ? t('ctxSportNoteWind', { speed: headwindKmH, min: headwindImpactMin })
             : t('ctxSportNoteCalm', { dest }),
           metrics: [
             { label: t('ctxSportMetric1Label'), value: `~${targetSpeed} km/h`, sub: t('ctxSportMetric1Sub') },
-            { label: t('ctxSportMetric2Label'), value: '60–90g/h', sub: t('ctxSportMetric2Sub') },
+            { label: t('ctxSportMetric2Label'), value: `${carbTarget}g/h`, sub: t('ctxSportMetric2Sub') },
             {
               label: t('ctxSportMetric3Label'),
               value: `${timeline.pureMovingMinutes}m`,
@@ -226,6 +232,7 @@ export const TimelineContextualBanner: React.FC<TimelineContextualBannerProps> =
     headwindKmH,
     headwindImpactMin,
     trip?.physics,
+    carbTarget,
     lang,
     localizedGate,
     t,

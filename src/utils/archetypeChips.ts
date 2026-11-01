@@ -35,6 +35,7 @@ import {
   IconProps,
 } from '@/components/icons';
 import { TripProfile, generateTripChecklist } from '../types/trip';
+import { getActiveBike, loadRiderBikeSpecs } from './specsStorage';
 import { subtractMinutesFromTime } from './nutrition';
 import { CHIP_TOKENS, ChipTheme } from '../tokens/chipTokens';
 
@@ -1220,19 +1221,19 @@ export const ARCHETYPE_CHIP_DEFINITIONS: Record<ArchetypeMode, ArchetypeChipDef[
     },
     {
       id: 'hydration-electrolytes',
-      labelEn: 'High-carb fueling (90g/h)',
-      labelFr: 'Hydratation & 90g glucides/h',
+      labelEn: 'Hydration & carb pacing',
+      labelFr: 'Hydratation & glucides adaptés',
       archetype: 'SPORT',
       iconName: 'Droplets',
       colorKey: 'teal',
-      descriptionEn: 'Scientific sports fueling protocol: 60-90g/hr maltodextrin/fructose and sodium reload',
-      descriptionFr: 'Protocole nutrition sportive : 60-90g/h glucides et recharge sodium',
-      ruleTitleEn: 'High-Rate Carbohydrate & Fluid Pacing',
-      ruleTitleFr: 'Apport glucidique horaire & hydratation',
-      ruleDescriptionEn: 'Calibrates high carb intake to sustain glycogen without gastrointestinal debt.',
-      ruleDescriptionFr: 'Optimise l’apport énergétique pour maintenir les réserves de glycogène.',
+      descriptionEn: 'Dynamic fueling protocol: hourly carbs & sodium scaled to your rider digestion profile',
+      descriptionFr: 'Protocole nutrition dynamique : glucides/h et sodium adaptés à votre tolérance digestive',
+      ruleTitleEn: 'Rider-Scaled Carbohydrate & Fluid Pacing',
+      ruleTitleFr: 'Apport glucidique horaire & hydratation calibrés',
+      ruleDescriptionEn: 'Calibrates hourly carb intake to your rider profile without gastrointestinal overload.',
+      ruleDescriptionFr: 'Adapte l’apport énergétique à votre profil cycliste sans surcharge digestive.',
       defaultSettings: {
-        carbTargetGramHour: 80,
+        carbTargetGramHour: 60,
       },
       settingsFields: [
         {
@@ -1240,7 +1241,7 @@ export const ARCHETYPE_CHIP_DEFINITIONS: Record<ArchetypeMode, ArchetypeChipDef[
           labelEn: 'Target carb intake (g/h)',
           labelFr: 'Cible glucides par heure (g/h)',
           type: 'number',
-          defaultValue: 80,
+          defaultValue: 60,
           unit: 'g/h',
         },
       ],
@@ -1954,11 +1955,19 @@ export function toggleArchetypeChip(
 
   const resolvedMode = getArchetypeFromTag(updatedTrip.tag, updatedTrip.name);
   const effectiveTag = resolvedMode === 'COMMUTE' ? 'VÉLOTAF' : resolvedMode;
+  const savedSpecs = loadRiderBikeSpecs();
+  const savedBike = getActiveBike(savedSpecs);
   const freshChecklist = generateTripChecklist(
     effectiveTag,
     updatedTrip.route?.distanceKm,
     updatedTrip.weather,
-    { lang, customChips: nextChips }
+    {
+      lang,
+      customChips: nextChips,
+      isTubeless: Boolean(savedBike?.isTubeless),
+      carbTargetGPerHr: savedSpecs.carbTargetGPerHr ?? 60,
+      nutritionPreference: savedSpecs.nutritionPreference ?? 'mixed',
+    }
   );
   const checkedMap = new Map((updatedTrip.checklist || []).map((item) => [item.id, item.checked]));
   updatedTrip.checklist = freshChecklist.map((item) => ({

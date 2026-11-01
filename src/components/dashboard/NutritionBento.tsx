@@ -5,20 +5,26 @@ import { Badge } from '../common/Badge';
 import { IconBadge } from '../common/IconBadge';
 import { CHIP_DUOTONE_ISOLATION_CLASSES, CHIP_TOKENS, GREYSCALE_TOKENS } from '../../tokens/chipTokens';
 import { TripProfile, PhysicsCalculationResult } from '../../types/trip';
+import { RiderBikeSpecs } from '../../types/specs';
 import { useTranslation } from '../../context/LanguageContext';
 import { getArchetypeFromTag } from '../../utils/archetypeChips';
+import { loadRiderBikeSpecs } from '../../utils/specsStorage';
 
 interface NutritionBentoProps {
   trip: TripProfile;
   hardDepartureTime?: string;
   gateArrivalTime?: string;
   physicsResult?: PhysicsCalculationResult;
+  riderSpecs?: RiderBikeSpecs;
+  onOpenSpecs?: () => void;
 }
 
 export const NutritionBento: React.FC<NutritionBentoProps> = ({
   trip,
   gateArrivalTime,
   physicsResult,
+  riderSpecs: riderSpecsProp,
+  onOpenSpecs,
 }) => {
   const { lang, t } = useTranslation();
   const isFr = lang === 'fr';
@@ -26,6 +32,19 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
   const isEscapade = mode === 'ESCAPADE';
   const isSport = mode === 'SPORT';
   const isBikepacking = mode === 'BIKEPACKING';
+
+  // Reactive rider gut absorption & nutrition preferences (synced with Rider Profile modal)
+  const riderSpecs = riderSpecsProp || loadRiderBikeSpecs();
+  const carbTarget = riderSpecs.carbTargetGPerHr || 60;
+  const carbScale = carbTarget / 60;
+  const nutPref = riderSpecs.nutritionPreference || 'real-food';
+  const prefBadgeLabel =
+    nutPref === 'real-food'
+      ? isFr ? 'Vrai Aliment' : 'Real Food'
+      : nutPref === 'mixed'
+      ? isFr ? 'Mixte' : 'Mixed Fuel'
+      : isFr ? 'Gels & Iso' : 'Gels & Iso';
+  void onOpenSpecs;
 
   const activeChips = trip.customChips || [];
   const distance = trip.route?.distanceKm || 35;
@@ -57,6 +76,10 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
   const renderExpeditionManifest = () => {
     if (totalDays <= 1) return null;
 
+    const datesCount = Math.max(2, Math.round(totalDays * 4 * carbScale));
+    const figsCount = Math.max(2, Math.round(totalDays * 3 * carbScale));
+    const fruitPastesCount = Math.max(1, Math.round(totalDays * 2 * carbScale));
+
     return (
       <div className="p-3.5 sm:p-4 rounded-pod bg-pod mb-4 border border-ink/5 dark:border-white/5 space-y-3 transition-colors">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-dashed border-ink/10 dark:border-white/10 pb-2.5">
@@ -70,8 +93,8 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
               </h4>
               <p className="text-[11px] text-ink-muted">
                 {isFr
-                  ? `Rations réelles de poche dimensionnées pour ${totalDays} étapes consécutives`
-                  : `Real-food pocket rations scaled for ${totalDays} consecutive stages`}
+                  ? `Rations calibrées sur votre profil digestif (${carbTarget}g/h · ${prefBadgeLabel})`
+                  : `Rations calibrated to your gut profile (${carbTarget}g/h · ${prefBadgeLabel})`}
               </p>
             </div>
           </div>
@@ -88,10 +111,10 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
               {isFr ? 'Dattes Medjool' : 'Medjool Dates'}
             </span>
             <span className="text-sm sm:text-base font-extrabold text-ink tnum mt-0.5">
-              {totalDays * 4}x
+              {datesCount}x
             </span>
             <span className="text-[10px] text-ink-muted">
-              ~{totalDays * 4 * 66} kcal
+              ~{datesCount * 66} kcal
             </span>
           </div>
 
@@ -100,22 +123,24 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
               {isFr ? 'Figues Séchées' : 'Turkish Figs'}
             </span>
             <span className="text-sm sm:text-base font-extrabold text-ink tnum mt-0.5">
-              {totalDays * 3}x
+              {figsCount}x
             </span>
             <span className="text-[10px] text-ink-muted">
-              ~{totalDays * 3 * 48} kcal
+              ~{figsCount * 48} kcal
             </span>
           </div>
 
           <div className="p-2 sm:p-2.5 rounded-sub-pod bg-card border border-ink/5 dark:border-white/5 flex flex-col justify-between">
             <span className="text-[10px] font-semibold text-ink-muted uppercase">
-              {isFr ? 'Pâtes de Fruits' : 'Pâte de Fruits'}
+              {nutPref === 'sports-fuel'
+                ? isFr ? 'Gels Isotoniques' : 'Isotonic Gels'
+                : isFr ? 'Pâtes de Fruits' : 'Pâte de Fruits'}
             </span>
             <span className="text-sm sm:text-base font-extrabold text-ink tnum mt-0.5">
-              {totalDays * 2}x
+              {fruitPastesCount}x
             </span>
             <span className="text-[10px] text-ink-muted">
-              ~{totalDays * 2 * 75} kcal
+              ~{fruitPastesCount * 75} kcal
             </span>
           </div>
 
@@ -164,7 +189,6 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       >
         {renderExpeditionManifest()}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Pod 1: Pre-rollout hydration */}
           <div className="p-4 rounded-pod bg-pod flex flex-col justify-between gap-3 border border-ink/5 dark:border-white/5 transition-colors">
             <div>
               <div className="flex items-center justify-between gap-2 mb-2.5">
@@ -190,7 +214,6 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
             </div>
           </div>
 
-          {/* Pod 2: Arrival coffee / recovery */}
           <div className="p-4 rounded-pod bg-pod flex flex-col justify-between gap-3 border border-ink/5 dark:border-white/5 transition-colors">
             <div>
               <div className="flex items-center justify-between gap-2 mb-2.5">
@@ -240,15 +263,15 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
     </button>
   ) : null;
 
-  // 1. SPORT / GRAN FONDO PROTOCOL
+  // 1. SPORT / GRAN FONDO PROTOCOL (Dynamically scaled to Rider Carb Target)
   if (isSport) {
     const isKom = activeChips.includes('climbing-kom-hunt');
     const isHydration = activeChips.includes('hydration-electrolytes');
-    const sportCarbLabel = isHydration
-      ? '80–90g carbs/h'
-      : isModerateRide
+    const minCarbRange = Math.max(30, carbTarget - 10);
+    const sportCarbLabel = isModerateRide
       ? t('nutriModCarbBadge', { min: movingMinutes })
-      : '70–90g carbs/h';
+      : `${minCarbRange}–${carbTarget}g carbs/h`;
+    const hourlyKcal = Math.round(carbTarget * 4);
 
     return (
       <Card
@@ -257,6 +280,9 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         badge={
           <div className="inline-flex items-center gap-2 flex-wrap">
             {compactReturnBtn}
+            <Badge variant="emerald" size="md" className="py-1.5 px-3 tnum">
+              {prefBadgeLabel}
+            </Badge>
             <Badge variant="yellow-vest" size="md" dot className="py-1.5 px-3 tnum">
               {sportCarbLabel}
             </Badge>
@@ -292,7 +318,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
               </span>
               <span className={`font-mono font-bold text-xs tnum flex items-center gap-1 ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}>
                 <Lightning className="w-4 h-4 text-current" />
-                ~100g &middot; ~450 kcal
+                ~{Math.round(75 * carbScale)}g &middot; ~{Math.round(350 * carbScale)} kcal
               </span>
             </div>
           </div>
@@ -308,27 +334,39 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
                   solidBacker
                 />
                 <Badge variant="yellow-vest" size="sm" className="tnum font-bold">
-                  {isHydration ? '80–90g/h' : isKom ? (isFr ? 'Attaques en bosse' : 'KOM Surges') : '70–90g/h'}
+                  {isKom
+                    ? isFr
+                      ? `Bosses · ${carbTarget}g/h`
+                      : `KOM · ${carbTarget}g/h`
+                    : `${minCarbRange}–${carbTarget}g/h`}
                 </Badge>
               </div>
 
               <h4 className="text-sm sm:text-[15px] font-bold text-ink leading-snug w-full">
-                {isHydration
-                  ? (isFr ? 'Stratégie Double Glucides & Recharge Sodium' : 'Dual-Source Carb & Sodium Protocol')
+                {nutPref === 'real-food'
+                  ? isFr
+                    ? `Ravito Naturel Calibré (${carbTarget}g/h)`
+                    : `Calibrated Real-Food Fueling (${carbTarget}g/h)`
+                  : isHydration
+                  ? isFr
+                    ? 'Stratégie Glucides & Recharge Sodium'
+                    : 'Carb & Sodium Hydration Protocol'
                   : isKom
-                  ? (isFr ? 'Glycogène Rapide pour Répétitions en Côte' : 'High-Rate Glycogen for Punchy Climbs')
+                  ? isFr
+                    ? 'Glycogène Rapide pour Répétitions en Côte'
+                    : 'High-Rate Glycogen for Punchy Climbs'
                   : t('nutriSport2Title')}
               </h4>
 
               <p className="text-[13px] text-ink-secondary leading-relaxed mt-2">
-                {isHydration
-                  ? (isFr
-                      ? 'Mélange 1:0.8 maltodextrine/fructose + 750 mg sodium/litre pour maximiser l’absorption intestinale sans troubles.'
-                      : '1:0.8 maltodextrin-to-fructose ratio + 750mg sodium/liter to saturate SGLT1/GLUT5 transporters without GI distress.')
-                  : isKom
-                  ? (isFr
-                      ? 'Gels isotoniques rapides avant chaque ascension. Prévention de la déplétion glycogénique sur les relances explosives à 380W+.'
-                      : 'Rapid isotonic gels taken prior to climb ramps. Prevents glycogen depletion during 380W+ explosive surges.')
+                {nutPref === 'real-food'
+                  ? isFr
+                    ? `Profil ajusté à ${carbTarget}g/h sans produits industriels : bidon 50/50 jus pressé + eau salée, dattes Medjool et pâtes de fruits artisanales.`
+                    : `Adjusted to your ${carbTarget}g/h gut target using whole foods: 50/50 pressed juice bidon with pinch of salt, Medjool dates & artisanal fruit pastes.`
+                  : isHydration
+                  ? isFr
+                    ? `Apport calibré à ${carbTarget}g/h + 750 mg sodium/litre pour maximiser l’absorption intestinale sans troubles digestifs.`
+                    : `Calibrated to ${carbTarget}g/h + 750mg sodium/liter to match your gut absorption rate without GI distress.`
                   : t('nutriSport2Body')}
               </p>
             </div>
@@ -339,7 +377,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
               </span>
               <span className={`font-mono font-bold text-xs tnum flex items-center gap-1 ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}>
                 <Lightning className="w-4 h-4 text-current" />
-                {isHydration ? '85g/h (~340 kcal/h)' : '80g/h (~320 kcal/h)'}
+                {`${carbTarget}g/h (~${hourlyKcal} kcal/h)`}
               </span>
             </div>
           </div>
@@ -383,6 +421,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
     const isMountain = activeChips.includes('mountain-adventure');
     const isResupply = activeChips.includes('resupply-points');
     const isBivouac = activeChips.includes('bivouac-camp');
+    const bpHourlyCarbs = Math.max(35, Math.round(carbTarget * 0.85));
 
     return (
       <Card
@@ -392,7 +431,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           <div className="inline-flex items-center gap-2 flex-wrap">
             {compactReturnBtn}
             <Badge variant="orange" size="md" dot className="py-1.5 px-3 tnum">
-              {isMountain ? (isFr ? 'Régime Alpin' : 'Alpine Grazing') : 'All-day grazing'}
+              {isMountain ? (isFr ? 'Régime Alpin' : 'Alpine Grazing') : `~${bpHourlyCarbs}g carbs/h`}
             </Badge>
             <Badge variant="amber" size="md" icon={Flame} className="py-1.5 px-3 tnum">
               ~{estimatedBurnKcal} kcal
@@ -402,7 +441,6 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       >
         {renderExpeditionManifest()}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Phase 1: Dense breakfast staging */}
           <div className="p-4 rounded-pod bg-pod flex flex-col justify-between gap-3 border border-ink/5 dark:border-white/5 transition-colors">
             <div>
               <div className="flex items-center justify-between gap-2 mb-2.5">
@@ -443,7 +481,6 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
             </div>
           </div>
 
-          {/* Phase 2: Steady all-day grazing */}
           <div className="p-4 rounded-pod bg-pod flex flex-col justify-between gap-3 border border-ink/5 dark:border-white/5 transition-colors">
             <div>
               <div className="flex items-center justify-between gap-2 mb-2.5">
@@ -469,7 +506,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
                   : isResupply
                   ? (isFr
                       ? 'Halte boulangerie villageoise : pain d’épices, fruits frais et ravitaillement à la fontaine d’eau potable.'
-                      : 'Village bakery halt: spiced honey cake, fresh bananas, and icy spring fountain water.')
+                      : 'Village bakery halt: spiced honey cake, fresh fruit, and icy spring fountain water.')
                   : t('nutriBp2Body')}
               </p>
             </div>
@@ -480,12 +517,11 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
               </span>
               <span className={`font-mono font-bold text-xs tnum flex items-center gap-1 ${CHIP_TOKENS.lime.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}>
                 <Lightning className="w-4 h-4 text-current" />
-                {isMountain ? '55–65g/h carbs' : '40–50g/h carbs'}
+                {`~${bpHourlyCarbs}g/h carbs (${prefBadgeLabel})`}
               </span>
             </div>
           </div>
 
-          {/* Phase 3: Camp restoration */}
           <div className="p-4 rounded-pod bg-pod flex flex-col justify-between gap-3 border border-ink/5 dark:border-white/5 transition-colors sm:col-span-2">
             <div>
               <div className="flex items-center justify-between gap-2 mb-2.5">
@@ -536,6 +572,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
     const isPicnic = activeChips.includes('picnic-outing');
     const isGastro = activeChips.includes('local-gastronomy') || activeChips.includes('wine-tasting');
     const isSpa = activeChips.includes('spa-wellness');
+    const escCarbs = Math.min(carbTarget, 50);
 
     return (
       <Card
@@ -545,7 +582,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           <div className="inline-flex items-center gap-2 flex-wrap">
             {compactReturnBtn}
             <Badge variant="emerald" size="md" dot className="py-1.5 px-3 tnum">
-              {isModerateRide ? t('nutriModCarbBadge', { min: movingMinutes }) : '~45g carbs/h'}
+              {isModerateRide ? t('nutriModCarbBadge', { min: movingMinutes }) : `~${escCarbs}g carbs/h`}
             </Badge>
             <Badge variant="amber" size="md" icon={Flame} className="py-1.5 px-3 tnum">
               ~{estimatedBurnKcal} kcal
@@ -555,7 +592,6 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       >
         {renderExpeditionManifest()}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Phase 1: Pre-rollout breakfast */}
           <div className="p-4 rounded-pod bg-pod flex flex-col justify-between gap-3 border border-ink/5 dark:border-white/5 transition-colors">
             <div>
               <div className="flex items-center justify-between gap-2 mb-2.5">
@@ -585,7 +621,6 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
             </div>
           </div>
 
-          {/* Phase 2: On-bike cruising / Picnic */}
           <div className="p-4 rounded-pod bg-pod flex flex-col justify-between gap-3 border border-ink/5 dark:border-white/5 transition-colors">
             <div>
               <div className="flex items-center justify-between gap-2 mb-2.5">
@@ -603,7 +638,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
               <h4 className="text-sm sm:text-[15px] font-bold text-ink leading-snug w-full">
                 {isPicnic
                   ? (isFr ? 'Déjeuner Pique-Nique du Terroir au Bord de l’Eau' : 'Artisanal Waterside Picnic Feast')
-                  : t('nutriEsc2Title')}
+                  : t('nutriEsc2Title', { carbs: escCarbs })}
               </h4>
 
               <p className="text-[13px] text-ink-secondary leading-relaxed mt-2">
@@ -621,12 +656,11 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
               </span>
               <span className={`font-mono font-bold text-xs tnum flex items-center gap-1 ${CHIP_TOKENS.emerald.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}>
                 <Lightning className="w-4 h-4 text-current" />
-                {isPicnic ? '~650 kcal · Balanced feast' : '~45g/h carbs'}
+                {isPicnic ? '~650 kcal · Balanced feast' : `~${escCarbs}g/h carbs`}
               </span>
             </div>
           </div>
 
-          {/* Phase 3: Check-in & evening dining */}
           <div className="p-4 rounded-pod bg-pod flex flex-col justify-between gap-3 border border-ink/5 dark:border-white/5 transition-colors sm:col-span-2">
             <div>
               <div className="flex items-center justify-between gap-2 mb-2.5">
@@ -697,7 +731,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
               ? (isFr ? 'Café Roaster' : 'Espresso reload')
               : isModerateRide
               ? t('nutriModCarbBadge', { min: movingMinutes })
-              : 'Clean glycogen'}
+              : `${carbTarget}g/h · ${prefBadgeLabel}`}
           </Badge>
           <Badge variant="amber" size="md" icon={Flame} className="py-1.5 px-3 tnum">
             {estimatedBurnKcal} kcal
@@ -707,7 +741,6 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
     >
       {renderExpeditionManifest()}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Phase 1: Pre-ride breakfast */}
         <div className="p-4 rounded-pod bg-pod flex flex-col justify-between gap-3 border border-ink/5 dark:border-white/5 transition-colors">
           <div>
             <div className="flex items-center justify-between gap-2 mb-2.5">
@@ -737,7 +770,6 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           </div>
         </div>
 
-        {/* Phase 2: Pocket fuel / Coffee Stop */}
         <div className="p-4 rounded-pod bg-pod flex flex-col justify-between gap-3 border border-ink/5 dark:border-white/5 transition-colors">
           <div>
             <div className="flex items-center justify-between gap-2 mb-2.5">
@@ -784,12 +816,11 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
             </span>
             <span className={`font-mono font-bold text-xs tnum flex items-center gap-1 ${CHIP_TOKENS.lime.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}>
               <Lightning className="w-4 h-4 text-current" />
-              {isCoffee ? '~320 kcal · Espresso + pastry' : '~45g carbs · Bidon + dates'}
+              {isCoffee ? '~320 kcal · Espresso + pastry' : `~${Math.min(carbTarget, 60)}g carbs · Bidon + dates`}
             </span>
           </div>
         </div>
 
-        {/* Phase 3: Locker refuel */}
         <div className="p-4 rounded-pod bg-pod flex flex-col justify-between gap-3 border border-ink/5 dark:border-white/5 transition-colors">
           <div>
             <div className="flex items-center justify-between gap-2 mb-2.5">
@@ -827,7 +858,6 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           </div>
         </div>
 
-        {/* Phase 4: Break-room meal */}
         <div className="p-4 rounded-pod bg-pod flex flex-col justify-between gap-3 border border-ink/5 dark:border-white/5 transition-colors">
           <div>
             <div className="flex items-center justify-between gap-2 mb-2.5">

@@ -31,6 +31,63 @@ import { OnboardingModal } from './components/OnboardingModal';
 
 const STORAGE_KEY_ONBOARDED = 'bike_trip_engine_onboarded_v1';
 
+interface CockpitErrorBoundaryProps {
+  children: React.ReactNode;
+  onResetCockpit: () => void;
+}
+
+interface CockpitErrorBoundaryState {
+  error: Error | null;
+}
+
+class CockpitErrorBoundary extends React.Component<
+  CockpitErrorBoundaryProps,
+  CockpitErrorBoundaryState
+> {
+  constructor(props: CockpitErrorBoundaryProps) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): CockpitErrorBoundaryState {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo): void {
+    console.error('Cockpit render error caught by ErrorBoundary:', error, info);
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="max-w-xl mx-auto px-4 py-16 text-center">
+          <div className="rounded-card bg-card text-ink p-6 border border-ink/10 dark:border-white/10 shadow-lg space-y-3">
+            <h2 className="text-lg font-bold text-ink">
+              Cockpit display interrupted
+            </h2>
+            <p className="text-xs text-ink-muted font-mono break-words">
+              {this.state.error.message}
+            </p>
+            <div className="pt-2 flex items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  this.setState({ error: null });
+                  this.props.onResetCockpit();
+                }}
+                className="px-4 py-2 rounded-full bg-volt text-[#111111] text-xs font-bold cursor-pointer"
+              >
+                Reset &amp; Reload Cockpit
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function markOnboardingSeen(): void {
   try {
     localStorage.setItem(STORAGE_KEY_ONBOARDED, 'true');
@@ -129,6 +186,9 @@ function AppContent() {
       checklist: generateTripChecklist("VÉLOTAF", baseTemplate.route.distanceKm, baseTemplate.weather, {
         lang,
         customChips: baseTemplate.customChips,
+        isTubeless: activeBike.isTubeless,
+        carbTargetGPerHr: riderSpecs.carbTargetGPerHr,
+        nutritionPreference: riderSpecs.nutritionPreference,
       }),
       physics: {
         ...baseTemplate.physics,
@@ -157,7 +217,7 @@ function AppContent() {
       tag: t('duplicateTag'),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      checklist: trip.checklist.map((c) => ({ ...c })),
+      checklist: (trip.checklist || []).map((c) => ({ ...c })),
     };
     const updated = [duplicated, ...trips];
     setTrips(updated);
@@ -234,9 +294,29 @@ function AppContent() {
 
   const applySpecsToActiveTrip = (nextSpecs: RiderBikeSpecs) => {
     const selectedBike = getActiveBike(nextSpecs);
+    const freshChecklist = generateTripChecklist(
+      activeTrip.tag,
+      activeTrip.route?.distanceKm,
+      activeTrip.weather,
+      {
+        lang,
+        includeExtraRavito: (activeTrip.customChips || []).includes('real-food'),
+        customChips: activeTrip.customChips || [],
+        isTubeless: Boolean(selectedBike.isTubeless),
+        carbTargetGPerHr: nextSpecs.carbTargetGPerHr ?? 60,
+        nutritionPreference: nextSpecs.nutritionPreference ?? 'mixed',
+      }
+    );
+    const checkedMap = new Map((activeTrip.checklist || []).map((item) => [item.id, item.checked]));
+    const syncedChecklist = freshChecklist.map((item) => ({
+      ...item,
+      checked: checkedMap.has(item.id) ? Boolean(checkedMap.get(item.id)) : item.checked,
+    }));
+
     const updatedActive: TripProfile = {
       ...activeTrip,
       updatedAt: new Date().toISOString(),
+      checklist: syncedChecklist,
       physics: {
         ...activeTrip.physics,
         riderWeightKg: nextSpecs.riderWeightKg,
@@ -277,13 +357,38 @@ function AppContent() {
   const handleLaunchFromOnboarding = (calibratedTrip: TripProfile) => {
     markOnboardingSeen();
 
-    if (calibratedTrip.id.startsWith('trip-calibrated-')) {
+    const onboardingSpecsHint = (calibratedTrip as any).__onboardingSpecs as
+      | {
+          isTubeless?: boolean;
+          riderLevel?: 'occasional' | 'regular' | 'pro';
+          carbTargetGPerHr?: number;
+          nutritionPreference?: 'real-food' | 'mixed' | 'sports-fuel';
+          ftpWatts?: number;
+        }
+      | undefined;
+    if ((calibratedTrip as any).__onboardingSpecs) {
+      delete (calibratedTrip as any).__onboardingSpecs;
+    }
+
+    if (calibratedTrip.id.startsWith('trip-calibrated-') || onboardingSpecsHint) {
       const matchedBike =
         riderSpecs.bikes.find((b) => Math.abs(b.cda - calibratedTrip.physics.cda) <= 0.03) ||
         getActiveBike(riderSpecs);
+      const nextLevel = onboardingSpecsHint?.riderLevel ?? riderSpecs.riderLevel;
       const syncedSpecs: RiderBikeSpecs = {
         ...riderSpecs,
         riderWeightKg: calibratedTrip.physics.riderWeightKg || riderSpecs.riderWeightKg,
+        ftpWatts: onboardingSpecsHint?.ftpWatts ?? riderSpecs.ftpWatts,
+        riderLevel: nextLevel,
+        cockpitViewMode:
+          onboardingSpecsHint?.riderLevel !== undefined
+            ? nextLevel === 'occasional'
+              ? 'essential'
+              : 'pro'
+            : riderSpecs.cockpitViewMode,
+        carbTargetGPerHr: onboardingSpecsHint?.carbTargetGPerHr ?? riderSpecs.carbTargetGPerHr,
+        nutritionPreference:
+          onboardingSpecsHint?.nutritionPreference ?? riderSpecs.nutritionPreference,
         activeBikeId: matchedBike.id,
         bikes: riderSpecs.bikes.map((b) =>
           b.id === matchedBike.id
@@ -292,6 +397,10 @@ function AppContent() {
                 weightKg: calibratedTrip.physics.bikeWeightKg,
                 cda: calibratedTrip.physics.cda,
                 crr: calibratedTrip.physics.crr,
+                isTubeless:
+                  typeof onboardingSpecsHint?.isTubeless === 'boolean'
+                    ? onboardingSpecsHint.isTubeless
+                    : b.isTubeless,
               }
             : b
         ),
@@ -392,16 +501,29 @@ function AppContent() {
         )}
 
         {currentView === 'dashboard' && (
-          <BentoDashboard
-            trip={activeTrip}
-            onUpdateTrip={handleUpdateActiveTrip}
-            onToggleHeadwind={handleToggleHeadwind}
-            onPrint={handlePrint}
-            riderSpecs={riderSpecs}
-            onSelectBike={handleQuickSelectBike}
-            onOpenSpecs={() => setIsSpecsModalOpen(true)}
-            onOpenConfigurator={() => handleEditTrip(activeTrip)}
-          />
+          <CockpitErrorBoundary
+            key={activeTrip.id}
+            onResetCockpit={() => {
+              const freshPresets = generateRandomPresetTrips(3, [], lang);
+              setTrips(freshPresets);
+              setActiveTripId(freshPresets[0].id);
+              saveActiveTripId(freshPresets[0].id);
+              setConfiguratorTrip(freshPresets[0]);
+              saveTrips(freshPresets);
+            }}
+          >
+            <BentoDashboard
+              trip={activeTrip}
+              onUpdateTrip={handleUpdateActiveTrip}
+              onToggleHeadwind={handleToggleHeadwind}
+              onPrint={handlePrint}
+              riderSpecs={riderSpecs}
+              onUpdateRiderSpecs={handleSaveRiderSpecs}
+              onSelectBike={handleQuickSelectBike}
+              onOpenSpecs={() => setIsSpecsModalOpen(true)}
+              onOpenConfigurator={() => handleEditTrip(activeTrip)}
+            />
+          </CockpitErrorBoundary>
         )}
       </main>
 
@@ -439,7 +561,7 @@ function AppContent() {
       />
 
       <div className="hidden print:block print-only">
-        <PrintFlightSheet trip={activeTrip} />
+        <PrintFlightSheet trip={activeTrip} riderSpecs={riderSpecs} />
       </div>
     </div>
   );

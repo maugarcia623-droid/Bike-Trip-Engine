@@ -3,6 +3,7 @@ import { en, TranslationKey } from '../locales/en';
 import { fr } from '../locales/fr';
 import { ChecklistItem, TripProfile } from '../types/trip';
 import { PRESET_TRIP_TRANSLATIONS } from '../utils/presetTrips';
+import { loadRiderBikeSpecs, getActiveBike } from '../utils/specsStorage';
 
 export type Language = 'en' | 'fr';
 
@@ -207,28 +208,48 @@ export function getLocalizedTripMeta(
     trip.description === builtin.en.description ||
     trip.description === builtin.fr.description;
   const isDefaultGate =
-    trip.office.gateName === builtin.en.gateName ||
-    trip.office.gateName === builtin.fr.gateName;
+    trip.office?.gateName === builtin.en.gateName ||
+    trip.office?.gateName === builtin.fr.gateName;
 
   return {
     name: isDefaultName ? builtin[lang].name : trip.name,
     description: isDefaultDesc ? builtin[lang].description : trip.description,
-    gateName: isDefaultGate ? builtin[lang].gateName : trip.office.gateName,
+    gateName: isDefaultGate ? builtin[lang].gateName : (trip.office?.gateName || builtin[lang].gateName),
   };
 }
 
 export function getChecklistItemLabel(
   item: ChecklistItem,
   distanceKm: number = 35,
-  lang: Language = 'en'
+  lang: Language = 'en',
+  options?: {
+    isTubeless?: boolean;
+    carbTargetGPerHr?: number;
+    nutritionPreference?: 'real-food' | 'mixed' | 'sports-fuel';
+  }
 ): string {
-  const bar = distanceKm > 60 ? '3.0' : '3.2';
+  const specs = loadRiderBikeSpecs();
+  const activeBike = getActiveBike(specs);
+  const isTubeless = options?.isTubeless ?? Boolean(activeBike?.isTubeless);
+  const carbTarget = options?.carbTargetGPerHr ?? specs.carbTargetGPerHr ?? 60;
+  const nutritionPref = options?.nutritionPreference ?? specs.nutritionPreference ?? 'real-food';
+  const bar = isTubeless
+    ? distanceKm > 60
+      ? '2.4'
+      : '2.6'
+    : distanceKm > 60
+    ? '3.0'
+    : '3.2';
 
   const map: Record<string, { en: string; fr: string }> = {
     // DEFAULT_CHECKLIST (Gate 17 preset)
     'chk-tire': {
-      en: 'Tire Pressure: 3.2 bar (Gravel Tubeless on tarmac)',
-      fr: 'Pression des pneus : 3,2 bar (Gravel Tubeless sur bitume)',
+      en: isTubeless
+        ? `Tire Pressure: ${bar} bar (Tubeless setup & sealant checked)`
+        : `Tire Pressure: ${bar} bar (Inner tube setup calibrated)`,
+      fr: isTubeless
+        ? `Pression des pneus : ${bar.replace('.', ',')} bar (Montage Tubeless & préventif vérifiés)`
+        : `Pression des pneus : ${bar.replace('.', ',')} bar (Chambre à air calibrée)`,
     },
     'chk-chain': {
       en: 'Drivetrain: Degreased & Silca hot-melt / ceramic wax lubricated',
@@ -297,18 +318,28 @@ export function getChecklistItemLabel(
 
     // Dynamic generateTripChecklist items
     'mech-pressure': {
-      en: `Tire pressure calibrated to ${bar} bar`,
-      fr: `Pression des pneus calibrée à ${bar.replace('.', ',')} bar`,
+      en: isTubeless
+        ? `Tubeless tire pressure calibrated to ${bar} bar & sealant checked`
+        : `Tire pressure calibrated to ${bar} bar`,
+      fr: isTubeless
+        ? `Pression Tubeless calibrée à ${bar.replace('.', ',')} bar & préventif vérifié`
+        : `Pression des pneus calibrée à ${bar.replace('.', ',')} bar`,
     },
     'mech-spares': {
-      en:
-        distanceKm > 50
-          ? 'Multi-tool, 2x tire levers, spare tube & mini pump'
-          : 'Multi-tool & spare tube',
-      fr:
-        distanceKm > 50
-          ? 'Multi-outil, 2 démonte-pneus, chambre à air & mini-pompe (kit anti-crève)'
-          : 'Multi-outil & kit anti-crève (chambre à air)',
+      en: isTubeless
+        ? distanceKm > 50
+          ? 'Multi-tool, tubeless plug darts, CO2 inflator & backup micro-tube'
+          : 'Multi-tool, tubeless plug kit & CO2 / mini pump'
+        : distanceKm > 50
+        ? 'Multi-tool, 2x tire levers, spare tube & mini pump'
+        : 'Multi-tool & spare tube',
+      fr: isTubeless
+        ? distanceKm > 50
+          ? 'Multi-outil, mèches tubeless, cartouche CO2 & chambre de secours'
+          : 'Multi-outil, mèches tubeless & gonfleur CO2 / mini-pompe'
+        : distanceKm > 50
+        ? 'Multi-outil, 2 démonte-pneus, chambre à air & mini-pompe (kit anti-crève)'
+        : 'Multi-outil & kit anti-crève (chambre à air)',
     },
     'mech-puncture-kit': {
       en: 'Full anti-puncture kit: tubeless plugs, CO2 cartridge & spare tube',
@@ -349,8 +380,14 @@ export function getChecklistItemLabel(
       fr: 'Éclairage avant & feu arrière flash de sécurité',
     },
     'sport-fuel': {
-      en: 'Carb mix in bottles (~60g/hr) & energy gels',
-      fr: 'Boisson glucidique en bidons (~60g/h) & gels ravito',
+      en:
+        nutritionPref === 'real-food'
+          ? `Whole-food ride fuel (~${carbTarget}g/hr: dates, fruit chews) & electrolyte bidons`
+          : `Carb mix in bottles (~${carbTarget}g/hr) & energy gels`,
+      fr:
+        nutritionPref === 'real-food'
+          ? `Ravito aliments vrais (~${carbTarget}g/h : dattes, pâtes de fruits) & bidons isotoniques`
+          : `Boisson glucidique en bidons (~${carbTarget}g/h) & gels ravito`,
     },
     'sport-computer': {
       en: 'GPS computer synced with sensors',
@@ -453,8 +490,8 @@ export function getChecklistItemLabel(
       fr: 'Abri bivouac ultraléger, matelas gonflable isolant & flasque filtrante',
     },
     'chip-hydration-fuel': {
-      en: 'High-concentration carb drink mix (80-90g/hr) & sodium salt tabs',
-      fr: 'Mélange glucidique haute dose (80-90g/h) & capsules de sodium',
+      en: `Calibrated carb drink mix (~${carbTarget}g/hr) & sodium salt tabs`,
+      fr: `Mélange glucidique calibré (~${carbTarget}g/h) & capsules de sodium`,
     },
     'chip-cargo-laptop': {
       en: '15" Work laptop inside IPX6 waterproof dry sleeve & USB-C charger',

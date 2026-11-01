@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
@@ -12,12 +12,14 @@ import {
   CaretUp,
   ArrowsLeftRight,
   SlidersHorizontal,
+  Upload,
   X,
   Check,
 } from '@/components/icons';
 import { TripProfile, PhysicsCalculationResult } from '../../types/trip';
 import { RiderBikeSpecs } from '../../types/specs';
-import { getActiveBike } from '../../utils/specsStorage';
+import { getActiveBike, loadRiderBikeSpecs } from '../../utils/specsStorage';
+import { synthesizeRouteElevationProfile } from '../../utils/gpxParser';
 import { ReverseTimelineCalculation } from '../../utils/timeline';
 import { useTranslation } from '../../context/LanguageContext';
 import { Badge } from '../common/Badge';
@@ -47,9 +49,13 @@ interface HeroRouteCardProps {
   onSelectBike?: (bikeId: string) => void;
   onOpenSpecs?: () => void;
   onOpenConfigurator?: () => void;
+  onUploadGpxFile?: (file: File) => void;
 }
 
-type ActiveHeroPopover = 'bike' | 'target' | 'route' | 'pace' | null;
+type ActiveHeroPopover = 'bike' | 'target' | 'route' | 'pace' | 'elevation' | null;
+
+const ELEV_MATRIX_COLS = 38;
+const ELEV_MATRIX_ROWS = 13;
 
 function shiftTimeHHMM(timeStr: string, deltaMinutes: number): string {
   const [hRaw, mRaw] = (timeStr || '08:30').split(':');
@@ -76,7 +82,17 @@ const DEFAULT_CORRIDOR: [number, number][] = [
   [47.2840, -2.2080],
 ];
 
-/** Formats minutes into 00:00 format (e.g. 04:12, 00:48) to match the Hard Rollout time */
+function isValidLatLngTuple(coord: unknown): coord is [number, number] {
+  return (
+    Array.isArray(coord) &&
+    coord.length >= 2 &&
+    typeof coord[0] === 'number' &&
+    typeof coord[1] === 'number' &&
+    Number.isFinite(coord[0]) &&
+    Number.isFinite(coord[1])
+  );
+}
+
 const formatTimeHHMM = (minutes: number): string => {
   const hrs = Math.floor(minutes / 60);
   const mins = minutes % 60;
@@ -99,35 +115,53 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
   onSelectBike,
   onOpenSpecs,
   onOpenConfigurator,
+  onUploadGpxFile,
 }) => {
   const { lang, t } = useTranslation();
+  const isFr = lang === 'fr';
   const heroRootRef = useRef<HTMLDivElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const lowerContentRef = useRef<HTMLDivElement>(null);
+  const gpxInputRef = useRef<HTMLInputElement>(null);
+  const elevHoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
 
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [activePopover, setActivePopover] = useState<ActiveHeroPopover>(null);
+  const [isElevationHovered, setIsElevationHovered] = useState<boolean>(false);
+  const [hoveredElevCol, setHoveredElevCol] = useState<number | null>(null);
 
-  const activeBike = riderSpecs ? getActiveBike(riderSpecs) : null;
+  const effectiveSpecs = riderSpecs || loadRiderBikeSpecs();
+  const activeBike = getActiveBike(effectiveSpecs);
   const isInteractive = Boolean(onUpdateTrip);
   const isDepartAtMode = trip.arriveAtMode === false;
   const currentTargetGateTime = isDepartAtMode
     ? trip.departureTime || timelineResult.hardDepartureTime || '07:30'
     : trip.office.targetGateArrivalTime || trip.office.shiftStartTime || '08:30';
 
-  // Close active popover on outside click or Escape
+  useEffect(() => {
+    return () => {
+      if (elevHoverTimeoutRef.current) {
+        clearTimeout(elevHoverTimeoutRef.current);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     if (!activePopover) return;
     const handleMouseDown = (e: MouseEvent) => {
       if (heroRootRef.current && !heroRootRef.current.contains(e.target as Node)) {
         setActivePopover(null);
+        setIsElevationHovered(false);
+        setHoveredElevCol(null);
       }
     };
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setActivePopover(null);
+        setIsElevationHovered(false);
+        setHoveredElevCol(null);
       }
     };
     document.addEventListener('mousedown', handleMouseDown);
@@ -259,12 +293,31 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
     });
   };
 
+  const isRadiusMode =
+    trip.route.routeMode === 'manual-radius' ||
+    Boolean(trip.route.radiusMeters && trip.route.radiusMeters > 0);
+  const sanitizedCoords: [number, number][] = Array.isArray(trip.route.coordinates)
+    ? trip.route.coordinates.filter(isValidLatLngTuple)
+    : [];
+  const radiusCenter: [number, number] = isValidLatLngTuple(trip.route.originCoords)
+    ? trip.route.originCoords
+    : sanitizedCoords.length > 0
+    ? sanitizedCoords[0]
+    : [47.2186, -1.5541];
+  const loopRadiusMeters =
+    typeof trip.route.radiusMeters === 'number' &&
+    Number.isFinite(trip.route.radiusMeters) &&
+    trip.route.radiusMeters > 0
+      ? trip.route.radiusMeters
+      : Math.max(1000, Math.round(((trip.route.distanceKm || 30) / 2) * 1000));
+
   const handleSetDistanceKm = (nextDistanceRaw: number) => {
     if (!onUpdateTrip || Number.isNaN(nextDistanceRaw)) return;
     const clampedKm = Math.max(2, Math.min(350, Math.round(nextDistanceRaw * 10) / 10));
     const oldKm = Math.max(1, trip.route.distanceKm || 1);
     const oldElev = trip.route.elevationGainM ?? Math.round(oldKm * 6.6);
     const scaledElev = Math.max(0, Math.round(oldElev * (clampedKm / oldKm)));
+    const nextLoopKm = Math.round((clampedKm / 2) * 10) / 10;
     onUpdateTrip({
       ...trip,
       updatedAt: new Date().toISOString(),
@@ -272,6 +325,14 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
         ...trip.route,
         distanceKm: clampedKm,
         elevationGainM: scaledElev,
+        ...(isRadiusMode
+          ? {
+              radiusMeters: Math.max(1000, Math.round((clampedKm / 2) * 1000)),
+              destination: isFr
+                ? `Rayon boucle ${nextLoopKm} km`
+                : `${nextLoopKm} km loop radius`,
+            }
+          : {}),
       },
     });
   };
@@ -289,34 +350,132 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
   };
 
   const activeCoordinates =
-    trip.route.coordinates && trip.route.coordinates.length > 0
-      ? trip.route.coordinates
-      : DEFAULT_CORRIDOR;
+    sanitizedCoords.length > 0 ? sanitizedCoords : DEFAULT_CORRIDOR;
 
   const movingMinutes = timelineResult?.pureMovingMinutes ?? 48;
   const bufferMinutes = timelineResult?.bufferMinutes ?? 18;
+  const totalElapsedMinutes = movingMinutes + bufferMinutes;
   const totalKcal = Math.round(physicsResult.totalKcalBurn || 832).toLocaleString(
-    lang === 'fr' ? 'fr-FR' : 'en-US'
+    isFr ? 'fr-FR' : 'en-US'
   );
 
-  // Elevation data (replaces Leg output per user request)
+  const elevationData = useMemo(() => synthesizeRouteElevationProfile(trip.route), [trip.route]);
+  const terrainSummary = elevationData.terrainSummary;
+
+  const elevationColumns = useMemo(() => {
+    const pts = elevationData.elevationProfile;
+    if (!pts || pts.length === 0) {
+      return Array.from({ length: ELEV_MATRIX_COLS }, (_, idx) => ({
+        distKm: Number((((idx / (ELEV_MATRIX_COLS - 1)) * (trip.route.distanceKm || 30))).toFixed(1)),
+        eleM: 20,
+        gradePct: 0,
+        filledRows: 4,
+      }));
+    }
+
+    const totalDist = Math.max(0.5, pts[pts.length - 1].distKm || trip.route.distanceKm || 30);
+    const sampled: { distKm: number; eleM: number; gradePct: number }[] = [];
+    let cursor = 0;
+
+    for (let c = 0; c < ELEV_MATRIX_COLS; c++) {
+      const targetDist = (c / (ELEV_MATRIX_COLS - 1)) * totalDist;
+      while (cursor < pts.length - 2 && pts[cursor + 1].distKm < targetDist) {
+        cursor++;
+      }
+      const p0 = pts[cursor];
+      const p1 = pts[Math.min(pts.length - 1, cursor + 1)];
+      const span = p1.distKm - p0.distKm;
+      const ratio = span > 0.0001 ? Math.max(0, Math.min(1, (targetDist - p0.distKm) / span)) : 0;
+      sampled.push({
+        distKm: targetDist,
+        eleM: p0.eleM + (p1.eleM - p0.eleM) * ratio,
+        gradePct: p0.gradePct + (p1.gradePct - p0.gradePct) * ratio,
+      });
+    }
+
+    let minEle = sampled[0].eleM;
+    let maxEle = sampled[0].eleM;
+    for (const s of sampled) {
+      if (s.eleM < minEle) minEle = s.eleM;
+      if (s.eleM > maxEle) maxEle = s.eleM;
+    }
+    const eleSpan = maxEle - minEle;
+
+    return sampled.map((s) => {
+      const filledRows =
+        eleSpan < 1.5
+          ? 4
+          : Math.max(
+              2,
+              Math.min(
+                ELEV_MATRIX_ROWS - 2,
+                Math.round(2 + ((s.eleM - minEle) / eleSpan) * (ELEV_MATRIX_ROWS - 4))
+              )
+            );
+      return {
+        ...s,
+        filledRows,
+      };
+    });
+  }, [elevationData.elevationProfile, trip.route.distanceKm]);
+
   const elevationGainM =
     trip.route.elevationGainM ?? (trip.route.distanceKm ? Math.round(trip.route.distanceKm * 6.6) : 145);
-  const maxGradientPercent = trip.physics.gradientPercent
-    ? (trip.physics.gradientPercent * 14).toFixed(1)
-    : '4.2';
+  const maxGradientPercent =
+    typeof trip.route.terrainSummary?.maxGradePct === 'number' && trip.route.terrainSummary.maxGradePct > 0
+      ? trip.route.terrainSummary.maxGradePct.toFixed(1)
+      : terrainSummary.maxGradePct > 0
+      ? terrainSummary.maxGradePct.toFixed(1)
+      : trip.physics.gradientPercent
+      ? (trip.physics.gradientPercent * 14).toFixed(1)
+      : '4.2';
 
-  // Compact single-line label for Tile 1 cutoff/shift target
+  const surfaceLabel =
+    terrainSummary.surfaceLabel === 'gravel'
+      ? isFr
+        ? 'Chemins & Gravel'
+        : 'Gravel & Trail'
+      : terrainSummary.surfaceLabel === 'mixed'
+      ? isFr
+        ? 'Voie verte & Bitume'
+        : 'Cycleway & Mixed'
+      : isFr
+      ? 'Asphalte / Route'
+      : 'Paved Road';
+
+  const difficultyLabel =
+    terrainSummary.difficultyLevel === 'alpine'
+      ? isFr
+        ? 'Montagne / Exigeant'
+        : 'Alpine / Steep'
+      : terrainSummary.difficultyLevel === 'challenging'
+      ? isFr
+        ? 'Sportif / Vallonné'
+        : 'Challenging'
+      : terrainSummary.difficultyLevel === 'moderate'
+      ? isFr
+        ? 'Modéré'
+        : 'Moderate'
+      : isFr
+      ? 'Facile & Roulant'
+      : 'Easy & Smooth';
+
+  const showElevationOverlay =
+    activePopover === 'elevation' || (isElevationHovered && activePopover === null);
+  const hoveredElevPoint =
+    hoveredElevCol !== null && elevationColumns[hoveredElevCol]
+      ? elevationColumns[hoveredElevCol]
+      : null;
+
   const targetShortLabel = (() => {
     const raw = heroTargetLabel.toLowerCase();
-    if (raw.includes('camp') || raw.includes('bivouac') || raw.includes('cutoff')) return lang === 'fr' ? 'bivouac' : 'cutoff';
-    if (raw.includes('shift') || raw.includes('poste')) return lang === 'fr' ? 'poste' : 'shift';
-    if (raw.includes('finish') || raw.includes('fin')) return lang === 'fr' ? 'arrivée' : 'finish';
-    if (raw.includes('check-in') || raw.includes('hôtel')) return lang === 'fr' ? 'hôtel' : 'hotel';
+    if (raw.includes('camp') || raw.includes('bivouac') || raw.includes('cutoff')) return isFr ? 'bivouac' : 'cutoff';
+    if (raw.includes('shift') || raw.includes('poste')) return isFr ? 'poste' : 'shift';
+    if (raw.includes('finish') || raw.includes('fin')) return isFr ? 'arrivée' : 'finish';
+    if (raw.includes('check-in') || raw.includes('hôtel')) return isFr ? 'hôtel' : 'hotel';
     return heroTargetLabel.split(' ')[0].toLowerCase();
   })();
 
-  // Check dark mode
   useEffect(() => {
     const checkDark = () => {
       setIsDarkMode(document.documentElement.classList.contains('dark'));
@@ -327,7 +486,6 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
     return () => observer.disconnect();
   }, []);
 
-  // Initialize and manage Leaflet map inside hero background
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
@@ -336,8 +494,13 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
     }
 
     const isDark = document.documentElement.classList.contains('dark');
+    const initialCenter: [number, number] = isRadiusMode
+      ? radiusCenter
+      : activeCoordinates[0] || [47.2184, -1.5536];
 
     const map = L.map(mapContainerRef.current, {
+      center: initialCenter,
+      zoom: 11,
       zoomControl: false,
       attributionControl: false,
       dragging: !L.Browser.mobile,
@@ -359,43 +522,6 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
 
     tileLayerRef.current = tileLayer;
 
-    // Glowing casing & route trace lines
-    const casingLine = L.polyline(activeCoordinates, {
-      color: isDark ? '#007AFF' : '#111111',
-      weight: isDark ? 7 : 5,
-      opacity: isDark ? 0.35 : 0.85,
-      lineCap: 'round',
-      lineJoin: 'round',
-    }).addTo(map);
-
-    const routeLine = L.polyline(activeCoordinates, {
-      color: isDark ? '#38BDF8' : '#F2F455',
-      weight: 3.2,
-      opacity: 1,
-      dashArray: isDark ? undefined : '7, 5',
-      lineCap: 'round',
-      lineJoin: 'round',
-    }).addTo(map);
-
-    // Watch dark mode for tile & line styles
-    const observer = new MutationObserver(() => {
-      const currentlyDark = document.documentElement.classList.contains('dark');
-      if (tileLayerRef.current) {
-        tileLayerRef.current.setUrl(getTileUrl(currentlyDark));
-      }
-      casingLine.setStyle({
-        color: currentlyDark ? '#007AFF' : '#111111',
-        weight: currentlyDark ? 7 : 5,
-        opacity: currentlyDark ? 0.35 : 0.85,
-      });
-      routeLine.setStyle({
-        color: currentlyDark ? '#38BDF8' : '#F2F455',
-        dashArray: currentlyDark ? undefined : '7, 5',
-      });
-    });
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-
-    // Waypoint Markers
     const startIcon = L.divIcon({
       className: 'custom-hero-start-marker',
       html: `
@@ -417,36 +543,128 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
       iconAnchor: [6.5, 6.5],
     });
 
-    const fitRouteInClearArea = () => {
-      if (activeCoordinates.length === 0 || !mapInstanceRef.current || !mapContainerRef.current) return;
-      const containerH = mapContainerRef.current.clientHeight || 480;
-      const lowerH = lowerContentRef.current?.offsetHeight || 240;
-      const isNarrow = window.innerWidth < 640;
-      const padX = isNarrow ? 24 : 40;
-      const padTop = isNarrow ? 48 : 44;
-      const padBottom = Math.min(Math.max(180, containerH - 95), lowerH + (isNarrow ? 20 : 28));
-      mapInstanceRef.current.fitBounds(routeLine.getBounds(), {
-        paddingTopLeft: [padX, padTop],
-        paddingBottomRight: [padX, padBottom],
-        maxZoom: 13,
-      });
-    };
+    let casingLine: L.Polyline | null = null;
+    let routeLine: L.Polyline | null = null;
+    let loopCircle: L.Circle | null = null;
+    let outerReachCircle: L.Circle | null = null;
 
-    if (activeCoordinates.length > 0) {
-      L.marker(activeCoordinates[0], { icon: startIcon }).addTo(map);
-      L.marker(activeCoordinates[activeCoordinates.length - 1], { icon: endIcon }).addTo(map);
+    if (isRadiusMode) {
+      L.marker(radiusCenter, { icon: startIcon }).addTo(map);
+      outerReachCircle = L.circle(radiusCenter, {
+        radius: loopRadiusMeters * 2,
+        color: isDark ? '#94A3B8' : '#52525B',
+        weight: 1.5,
+        dashArray: '6, 6',
+        fillColor: isDark ? '#38BDF8' : '#10B981',
+        fillOpacity: 0.03,
+      }).addTo(map);
 
-      // Frame the entire route strictly in the clear upper area of the card
-      fitRouteInClearArea();
+      loopCircle = L.circle(radiusCenter, {
+        radius: loopRadiusMeters,
+        color: isDark ? '#38BDF8' : '#10B981',
+        weight: 2.6,
+        fillColor: isDark ? '#38BDF8' : '#10B981',
+        fillOpacity: isDark ? 0.14 : 0.16,
+      }).addTo(map);
+    } else {
+      casingLine = L.polyline(activeCoordinates, {
+        color: isDark ? '#007AFF' : '#111111',
+        weight: isDark ? 7 : 5,
+        opacity: isDark ? 0.35 : 0.85,
+        lineCap: 'round',
+        lineJoin: 'round',
+      }).addTo(map);
+
+      routeLine = L.polyline(activeCoordinates, {
+        color: isDark ? '#38BDF8' : '#F2F455',
+        weight: 3.2,
+        opacity: 1,
+        dashArray: isDark ? undefined : '7, 5',
+        lineCap: 'round',
+        lineJoin: 'round',
+      }).addTo(map);
+
+      if (activeCoordinates.length > 0) {
+        L.marker(activeCoordinates[0], { icon: startIcon }).addTo(map);
+        if (activeCoordinates.length > 1) {
+          L.marker(activeCoordinates[activeCoordinates.length - 1], { icon: endIcon }).addTo(map);
+        }
+      }
     }
 
+    const observer = new MutationObserver(() => {
+      const currentlyDark = document.documentElement.classList.contains('dark');
+      if (tileLayerRef.current) {
+        tileLayerRef.current.setUrl(getTileUrl(currentlyDark));
+      }
+      if (casingLine && routeLine) {
+        casingLine.setStyle({
+          color: currentlyDark ? '#007AFF' : '#111111',
+          weight: currentlyDark ? 7 : 5,
+          opacity: currentlyDark ? 0.35 : 0.85,
+        });
+        routeLine.setStyle({
+          color: currentlyDark ? '#38BDF8' : '#F2F455',
+          dashArray: currentlyDark ? undefined : '7, 5',
+        });
+      }
+      if (loopCircle && outerReachCircle) {
+        loopCircle.setStyle({
+          color: currentlyDark ? '#38BDF8' : '#10B981',
+          fillColor: currentlyDark ? '#38BDF8' : '#10B981',
+          fillOpacity: currentlyDark ? 0.14 : 0.16,
+        });
+        outerReachCircle.setStyle({
+          color: currentlyDark ? '#94A3B8' : '#52525B',
+          fillColor: currentlyDark ? '#38BDF8' : '#10B981',
+        });
+      }
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
+    const fitRouteInClearArea = () => {
+      if (!mapInstanceRef.current || !mapContainerRef.current) return;
+      try {
+        const bounds = isRadiusMode
+          ? outerReachCircle?.getBounds()
+          : activeCoordinates.length > 0
+          ? routeLine?.getBounds()
+          : null;
+        if (!bounds || !bounds.isValid()) return;
+
+        if (bounds.getSouthWest().equals(bounds.getNorthEast())) {
+          mapInstanceRef.current.setView(bounds.getCenter(), 12, { animate: false });
+          return;
+        }
+
+        const containerH = mapContainerRef.current.clientHeight || 480;
+        const lowerH = lowerContentRef.current?.offsetHeight || 240;
+        const isNarrow = window.innerWidth < 640;
+        const padX = isNarrow ? 24 : 40;
+        const padTop = isNarrow ? 48 : 44;
+        const maxBottomPad = Math.max(120, containerH - padTop - 64);
+        const padBottom = Math.min(maxBottomPad, Math.max(160, lowerH + (isNarrow ? 20 : 28)));
+        mapInstanceRef.current.fitBounds(bounds, {
+          paddingTopLeft: [padX, padTop],
+          paddingBottomRight: [padX, padBottom],
+          maxZoom: 13,
+          animate: false,
+        });
+      } catch {
+        mapInstanceRef.current.setView(initialCenter, 11, { animate: false });
+      }
+    };
+
+    fitRouteInClearArea();
+
     const resizeObserver = new ResizeObserver(() => {
-      map.invalidateSize();
+      if (!mapInstanceRef.current) return;
+      mapInstanceRef.current.invalidateSize();
       fitRouteInClearArea();
     });
     resizeObserver.observe(mapContainerRef.current);
 
-    setTimeout(() => {
+    const initFitTimer = setTimeout(() => {
       if (mapInstanceRef.current) {
         mapInstanceRef.current.invalidateSize();
         fitRouteInClearArea();
@@ -454,21 +672,38 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
     }, 250);
 
     return () => {
+      clearTimeout(initFitTimer);
       observer.disconnect();
       resizeObserver.disconnect();
       map.remove();
       mapInstanceRef.current = null;
     };
-  }, [activeCoordinates]);
+  }, [activeCoordinates, isRadiusMode, radiusCenter[0], radiusCenter[1], loopRadiusMeters]);
+
+  const currentWatts = Math.round(
+    trip.route.pacingMode === 'effort'
+      ? trip.route.targetEffortWatts || 160
+      : physicsResult.legWatts || 160
+  );
+  const wattsDidacticNote =
+    currentWatts < 140
+      ? isFr
+        ? 'Allure balade : conversation fluide sans essoufflement.'
+        : 'Easy cruise: effortless breathing, full conversation pace.'
+      : currentWatts < 200
+      ? isFr
+        ? 'Allure endurance : effort régulier soutenable plusieurs heures.'
+        : 'Endurance tempo: steady pressure you can hold for hours.'
+      : isFr
+      ? 'Effort soutenu : respiration marquée, sollicitation musculaire élevée.'
+      : 'Punchy effort: deep breathing, strong muscular engagement.';
 
   return (
     <div
       ref={heroRootRef}
-      className="relative rounded-card bg-card text-ink border border-ink/5 dark:border-white/5 mb-6 transition-colors shadow-sm min-h-[460px] sm:min-h-[490px] lg:min-h-[520px]"
+      className="relative rounded-card bg-card text-ink border border-ink/5 dark:border-white/5 transition-colors shadow-sm min-h-[460px] sm:min-h-[490px] lg:min-h-[520px]"
     >
-      {/* ── CLIPPED BACKGROUND SHELL (LAYERS 1–3) ── */}
       <div className="absolute inset-0 z-0 rounded-card overflow-hidden">
-        {/* ── LAYER 1: MAP BACKGROUND CANVAS (WITH AMPLE OVERHEAD) ── */}
         <div className="absolute inset-0 z-0 overflow-hidden">
           <div
             ref={mapContainerRef}
@@ -476,7 +711,6 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
           />
         </div>
 
-        {/* ── LAYER 2: PROGRESSIVE GRADIENT BLEND (PURE WHITE IN LIGHT MODE, CARBON IN DARK MODE) ── */}
         <div
           className="absolute inset-0 z-1 pointer-events-none transition-colors"
           style={{
@@ -486,7 +720,6 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
           }}
         />
 
-        {/* ── LAYER 3: PROGRESSIVE BACKDROP BLUR (MASKED SO THE WHOLE ROUTE REMAINS CRYSTAL CLEAR) ── */}
         <div
           className="absolute inset-0 z-2 pointer-events-none backdrop-blur-[7px]"
           style={{
@@ -498,34 +731,60 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
         />
       </div>
 
-      {/* ── LAYER 4: HERO FOREGROUND CONTENT ── */}
       <div className="relative z-20 p-4 flex flex-col justify-between min-h-[460px] sm:min-h-[490px] lg:min-h-[520px] pointer-events-none">
-        {/* Top Overlay Controls: Corridor Direction Pill + Active Bike Garage Switcher */}
         <div className="flex items-center justify-between gap-2 mb-32 sm:mb-20 lg:mb-20 pointer-events-none">
           {isInteractive ? (
             <button
               type="button"
-              onClick={handleFlipRouteDirection}
-              title={`${t('heroFlipReturnBtn')} — ${t('heroFlipReturnSub')}`}
+              onClick={
+                isRadiusMode
+                  ? () => setActivePopover((prev) => (prev === 'route' ? null : 'route'))
+                  : handleFlipRouteDirection
+              }
+              title={
+                isRadiusMode
+                  ? t('radiusLoopReachSub', {
+                      loop: Math.round((loopRadiusMeters / 1000) * 10) / 10,
+                      oneWay: trip.route.distanceKm,
+                    })
+                  : `${t('heroFlipReturnBtn')} — ${t('heroFlipReturnSub')}`
+              }
               className={`inline-flex items-center gap-1.5 min-w-0 px-3 py-1 rounded-full text-[11px] font-medium bg-card/85 hover:bg-card text-ink-secondary hover:text-ink backdrop-blur-md border border-ink/5 dark:border-white/10 hover:border-ink/20 dark:hover:border-white/25 transition-all pointer-events-auto cursor-pointer select-none shadow-xs ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
               <span className={`w-2 h-2 rounded-full shrink-0 ${CHIP_TOKENS.emerald.dot}`} />
               <span className="truncate">
                 {trip.route.origin || 'Nord-sur-Erdre'}
               </span>
-              <ArrowsLeftRight className="w-3 h-3 shrink-0 opacity-75 text-current" />
-              <span className="truncate">
-                {trip.route.destination || meta.gateName || 'Redon'}
-              </span>
+              {isRadiusMode ? (
+                <span className="text-[10px] font-mono font-semibold text-ink tnum shrink-0">
+                  · ◯ {Math.round((loopRadiusMeters / 1000) * 10) / 10} km
+                </span>
+              ) : (
+                <>
+                  <ArrowsLeftRight className="w-3 h-3 shrink-0 opacity-75 text-current" />
+                  <span className="truncate">
+                    {trip.route.destination || meta.gateName || 'Redon'}
+                  </span>
+                </>
+              )}
+              {trip.route.routeMode === 'gpx' && (
+                <span className={`ml-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-extrabold uppercase tracking-wider shrink-0 ${CHIP_TOKENS.sky.surface} ${CHIP_TOKENS.sky.primary}`}>
+                  GPX
+                </span>
+              )}
             </button>
           ) : (
             <span className="inline-flex items-center gap-1.5 min-w-0 px-3 py-1 rounded-full text-[11px] font-medium bg-card/85 text-ink-secondary backdrop-blur-md border border-ink/5 dark:border-white/10 pointer-events-auto select-none">
               <span className={`w-2 h-2 rounded-full shrink-0 ${CHIP_TOKENS.emerald.dot}`} />
-              <span className="truncate">{trip.route.origin || 'Nord-sur-Erdre'} → {trip.route.destination || meta.gateName || 'Redon'}</span>
+              <span className="truncate">
+                {isRadiusMode
+                  ? `${trip.route.origin || 'Nantes'} · ◯ ${Math.round((loopRadiusMeters / 1000) * 10) / 10} km`
+                  : `${trip.route.origin || 'Nord-sur-Erdre'} → ${trip.route.destination || meta.gateName || 'Redon'}`}
+              </span>
             </span>
           )}
 
-          {riderSpecs && activeBike ? (
+          {effectiveSpecs && activeBike ? (
             <div className="relative shrink-0 pointer-events-auto">
               <button
                 type="button"
@@ -538,7 +797,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                 <Bicycle className={`w-3.5 h-3.5 shrink-0 ${CHIP_TOKENS['yellow-vest'].primary}`} />
                 <span className="max-w-[115px] sm:max-w-[180px] truncate">{activeBike.name}</span>
                 <span className="hidden min-[420px]:inline font-mono text-[10px] text-ink-muted tnum">
-                  · {activeBike.weightKg}kg
+                  · {activeBike.weightKg}kg · {activeBike.isTubeless ? 'TL' : 'Tube'}
                 </span>
                 <CaretDown
                   className={`w-3 h-3 shrink-0 text-ink-muted transition-transform duration-150 ${
@@ -551,7 +810,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                 <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 z-40 rounded-pod p-3 bg-card/95 dark:bg-[#16161A]/95 backdrop-blur-xl border border-ink/10 dark:border-white/15 shadow-2xl animate-fade-in">
                   <div className="flex items-center justify-between gap-2 mb-2 px-0.5">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">
-                      {t('bikeGarageHeading', { count: riderSpecs.bikes.length })}
+                      {t('bikeGarageHeading', { count: effectiveSpecs.bikes.length })}
                     </span>
                     <button
                       type="button"
@@ -564,14 +823,14 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   </div>
 
                   <div className="space-y-1.5">
-                    {riderSpecs.bikes.map((bike) => {
+                    {effectiveSpecs.bikes.map((bike) => {
                       const selected = bike.id === activeBike.id;
                       return (
                         <button
                           key={bike.id}
                           type="button"
                           onClick={() => onSelectBike?.(bike.id)}
-                          className={`w-full rounded-control px-3 py-2 text-left flex items-center justify-between gap-2 transition-all cursor-pointer ${
+                          className={`w-full rounded-full px-4 py-2 text-left flex items-center justify-between gap-2 transition-all cursor-pointer ${
                             selected
                               ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
                               : `bg-pod/80 hover:bg-chip text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
@@ -580,7 +839,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                           <div className="min-w-0">
                             <div className="text-xs font-semibold truncate">{bike.name}</div>
                             <div className="text-[10px] font-mono tnum opacity-80 mt-0.5">
-                              {bike.weightKg}kg · CdA {bike.cda} · Crr {bike.crr}
+                              {bike.weightKg}kg · {bike.isTubeless ? 'Tubeless' : 'Tube'} · CdA {bike.cda}
                             </div>
                           </div>
                           {selected && <Check className="w-3.5 h-3.5 shrink-0 text-current" />}
@@ -596,7 +855,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                         setActivePopover(null);
                         onOpenSpecs();
                       }}
-                      className={`mt-2.5 w-full pt-2 border-t border-dashed border-ink/10 dark:border-white/10 flex items-center justify-center gap-1.5 text-xs font-semibold text-ink-secondary hover:text-ink transition-colors cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                      className={`mt-2.5 w-full h-8 px-3 rounded-full bg-pod hover:bg-chip flex items-center justify-center gap-1.5 text-xs font-semibold text-ink-secondary hover:text-ink transition-colors cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
                     >
                       <SlidersHorizontal className="w-3.5 h-3.5 text-current" />
                       <span>{t('heroManageGarageBtn')}</span>
@@ -612,9 +871,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
           )}
         </div>
 
-        {/* ── LOWER SECTION: FIRST DATA CONTAINER + 5 TILES GROUPED CLOSELY ── */}
         <div ref={lowerContentRef} className="mt-auto flex flex-col gap-3.5 sm:gap-4 pointer-events-auto">
-          {/* First Data Container: Title, Description & Status Badges */}
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-3 sm:gap-4 min-w-0">
             <div className="max-w-3xl min-w-0">
               <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold tracking-tight text-ink leading-tight break-words">
@@ -626,26 +883,22 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
             </div>
 
             <div className="flex items-center gap-2 flex-wrap max-w-full min-w-0">
-              {/* 1. Commute / Pace badge */}
               <Badge variant="emerald" size="md" dot className="py-1.5 px-3 sm:px-3.5 backdrop-blur-md">
                 {heroBadge}
               </Badge>
 
-              {/* 2. Target gate / destination badge */}
               <Badge variant="rose" size="md" icon={MapPin} className="py-1.5 px-3 sm:px-3.5 backdrop-blur-md">
                 {heroTarget}
               </Badge>
 
-              {/* 3. Tag badge */}
               <Badge variant="yellow-vest" size="md" className="py-1.5 px-3 sm:px-3.5 backdrop-blur-md">
                 {trip.tag || 'BIKEPACKING'}
               </Badge>
             </div>
           </div>
 
-          {/* ── 5 REARRANGED KPI BENTO BOXES (UNIFORM HEIGHT & BASELINE ALIGNED) ── */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
-            {/* 1. Trip Start Time (Hard rollout) — Interactive Target Time Scrubber */}
+            {/* 1. Trip Start Time (Hard rollout) */}
             <div className="relative col-span-2 sm:col-span-1">
               {activePopover === 'target' && isInteractive && (
                 <div className="absolute left-0 bottom-full mb-2.5 w-[min(19.5rem,calc(100vw-3rem))] z-40 rounded-pod p-3.5 bg-card/95 dark:bg-[#16161A]/95 backdrop-blur-xl border border-ink/10 dark:border-white/15 shadow-2xl animate-fade-in">
@@ -660,10 +913,10 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                         className="px-2 py-0.5 rounded-full bg-pod hover:bg-chip text-[10px] font-semibold text-ink-secondary hover:text-ink transition-colors cursor-pointer"
                       >
                         {isDepartAtMode
-                          ? lang === 'fr'
+                          ? isFr
                             ? 'Mode Arrivée'
                             : 'Arrive mode'
-                          : lang === 'fr'
+                          : isFr
                           ? 'Mode Départ'
                           : 'Depart mode'}
                       </button>
@@ -683,7 +936,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                       type="time"
                       value={currentTargetGateTime}
                       onChange={(e) => handleSetDirectTargetTime(e.target.value)}
-                      className="flex-1 h-9 px-3 rounded-control bg-pod text-ink font-mono font-bold text-sm tnum border border-ink/10 dark:border-white/10 focus:outline-none"
+                      className="flex-1 h-9 px-3.5 rounded-full bg-pod text-ink font-mono font-bold text-sm tnum border border-ink/10 dark:border-white/10 focus:outline-none"
                     />
                   </div>
 
@@ -693,7 +946,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                         key={delta}
                         type="button"
                         onClick={() => handleNudgeTargetTime(delta)}
-                        className="h-8 rounded-control bg-pod hover:bg-chip text-xs font-mono font-semibold text-ink tnum transition-colors cursor-pointer"
+                        className="h-8 rounded-full bg-pod hover:bg-chip text-xs font-mono font-semibold text-ink tnum transition-colors cursor-pointer"
                       >
                         {delta > 0 ? `+${delta}m` : `${delta}m`}
                       </button>
@@ -760,7 +1013,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
               </div>
             </div>
 
-            {/* 2. Trip Length (Route distance & Outbound/Return Flip) */}
+            {/* 2. Trip Length */}
             <div className="relative">
               {activePopover === 'route' && isInteractive && (
                 <div className="absolute left-0 bottom-full mb-2.5 w-[min(19.5rem,calc(100vw-3rem))] z-40 rounded-pod p-3.5 bg-card/95 dark:bg-[#16161A]/95 backdrop-blur-xl border border-ink/10 dark:border-white/15 shadow-2xl animate-fade-in">
@@ -776,17 +1029,31 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     </button>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={handleFlipRouteDirection}
-                    className={`w-full rounded-control p-2.5 mb-2.5 text-left flex items-center gap-2.5 transition-all cursor-pointer ${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.emerald.selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
-                  >
-                    <ArrowsLeftRight className="w-4 h-4 shrink-0 text-current" />
-                    <div className="min-w-0">
-                      <div className="text-xs font-bold leading-tight">{t('heroFlipReturnBtn')}</div>
-                      <div className="text-[10px] opacity-80 leading-snug mt-0.5">{t('heroFlipReturnSub')}</div>
+                  {isRadiusMode ? (
+                    <div className="rounded-2xl px-3.5 py-2.5 mb-2.5 bg-pod/90 border border-ink/5 dark:border-white/5 text-[11px] text-ink-secondary leading-snug">
+                      <div className="font-bold text-ink mb-0.5">
+                        {trip.route.origin || 'Nantes'}
+                      </div>
+                      <div className="font-mono text-[10px] tnum">
+                        {t('radiusLoopReachSub', {
+                          loop: Math.round((loopRadiusMeters / 1000) * 10) / 10,
+                          oneWay: trip.route.distanceKm,
+                        })}
+                      </div>
                     </div>
-                  </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleFlipRouteDirection}
+                      className={`w-full rounded-full px-4 py-2.5 mb-2.5 text-left flex items-center gap-2.5 transition-all cursor-pointer ${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.emerald.selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                    >
+                      <ArrowsLeftRight className="w-4 h-4 shrink-0 text-current" />
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold leading-tight">{t('heroFlipReturnBtn')}</div>
+                        <div className="text-[10px] opacity-80 leading-snug mt-0.5">{t('heroFlipReturnSub')}</div>
+                      </div>
+                    </button>
+                  )}
 
                   <div className="flex items-center gap-1.5">
                     {[-5, -1].map((d) => (
@@ -794,12 +1061,12 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                         key={d}
                         type="button"
                         onClick={() => handleSetDistanceKm((trip.route.distanceKm || 10) + d)}
-                        className="h-8 px-2.5 rounded-control bg-pod hover:bg-chip text-xs font-mono font-semibold text-ink tnum cursor-pointer"
+                        className="h-8 px-3 rounded-full bg-pod hover:bg-chip text-xs font-mono font-semibold text-ink tnum cursor-pointer"
                       >
                         {d}
                       </button>
                     ))}
-                    <div className="flex-1 flex items-center justify-center gap-1 h-8 px-2 rounded-control bg-pod border border-ink/10 dark:border-white/10">
+                    <div className="flex-1 flex items-center justify-center gap-1 h-8 px-3 rounded-full bg-pod border border-ink/10 dark:border-white/10">
                       <input
                         type="number"
                         min={2}
@@ -816,12 +1083,43 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                         key={d}
                         type="button"
                         onClick={() => handleSetDistanceKm((trip.route.distanceKm || 10) + d)}
-                        className="h-8 px-2.5 rounded-control bg-pod hover:bg-chip text-xs font-mono font-semibold text-ink tnum cursor-pointer"
+                        className="h-8 px-3 rounded-full bg-pod hover:bg-chip text-xs font-mono font-semibold text-ink tnum cursor-pointer"
                       >
                         +{d}
                       </button>
                     ))}
                   </div>
+
+                  {onUploadGpxFile && (
+                    <div className="mt-2.5 pt-2.5 border-t border-dashed border-ink/10 dark:border-white/10">
+                      <input
+                        ref={gpxInputRef}
+                        type="file"
+                        accept=".gpx,application/gpx+xml,text/xml"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            onUploadGpxFile(file);
+                            setActivePopover(null);
+                          }
+                          e.target.value = '';
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => gpxInputRef.current?.click()}
+                        className={`w-full h-8 px-3.5 rounded-full bg-pod hover:bg-chip text-xs font-semibold text-ink flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                      >
+                        <Upload className={`w-3.5 h-3.5 shrink-0 ${CHIP_TOKENS.sky.primary}`} />
+                        <span className="truncate">
+                          {trip.route.gpxFileName
+                            ? `${t('gpxLoadedBadge')} · ${trip.route.gpxFileName}`
+                            : t('gpxUploadBtn')}
+                        </span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -881,11 +1179,11 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
               </div>
             </div>
 
-            {/* 3. Moving Time — Interactive Live Pace & Effort Scrubber */}
+            {/* 3. Moving Time — Clarifies Saddle Time (Excl. Pauses) vs Total Time (Incl. Buffer) */}
             <div className="relative">
               {activePopover === 'pace' && isInteractive && (
-                <div className="absolute right-0 lg:left-0 lg:right-auto bottom-full mb-2.5 w-[min(20.5rem,calc(100vw-3rem))] z-40 rounded-pod p-3.5 bg-card/95 dark:bg-[#16161A]/95 backdrop-blur-xl border border-ink/10 dark:border-white/15 shadow-2xl animate-fade-in">
-                  <div className="flex items-center justify-between gap-2 mb-2.5">
+                <div className="absolute right-0 lg:left-0 lg:right-auto bottom-full mb-2.5 w-[min(21.5rem,calc(100vw-3rem))] z-40 rounded-pod p-3.5 bg-card/95 dark:bg-[#16161A]/95 backdrop-blur-xl border border-ink/10 dark:border-white/15 shadow-2xl animate-fade-in">
+                  <div className="flex items-center justify-between gap-2 mb-2">
                     <span className="text-xs font-bold text-ink">{t('heroQuickPaceTitle')}</span>
                     <button
                       type="button"
@@ -897,12 +1195,28 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     </button>
                   </div>
 
+                  {/* Explicit Moving vs Buffer Time Breakdown Box */}
+                  <div className="p-3 rounded-2xl bg-pod/90 mb-2.5 text-[11px] space-y-1 border border-ink/5 dark:border-white/5">
+                    <div className="flex items-center justify-between text-ink-secondary">
+                      <span>{isFr ? 'Temps en selle (hors pauses) :' : 'Saddle time (excl. pauses):'}</span>
+                      <span className="font-mono font-bold text-ink tnum">{formatTimeHHMM(movingMinutes)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-ink-secondary">
+                      <span>{isFr ? 'Marge pauses & imprévus :' : 'Pause & buffer allowance:'}</span>
+                      <span className={`font-mono font-bold tnum ${CHIP_TOKENS.emerald.primary}`}>+{bufferMinutes} min</span>
+                    </div>
+                    <div className="pt-1 border-t border-dashed border-ink/10 dark:border-white/10 flex items-center justify-between font-semibold text-ink">
+                      <span>{isFr ? 'Durée totale estimée :' : 'Total elapsed time:'}</span>
+                      <span className="font-mono font-extrabold tnum">{formatTimeHHMM(totalElapsedMinutes)}</span>
+                    </div>
+                  </div>
+
                   {/* Hold Speed vs Hold Effort Toggle */}
-                  <div className="grid grid-cols-2 gap-1 p-1 rounded-control bg-pod mb-3">
+                  <div className="grid grid-cols-2 gap-1 p-1 rounded-full bg-pod mb-3">
                     <button
                       type="button"
                       onClick={() => handleUpdatePacing({ pacingMode: 'speed' })}
-                      className={`py-1.5 px-2 rounded-control text-[11px] font-semibold transition-all cursor-pointer ${
+                      className={`py-1.5 px-3 rounded-full text-[11px] font-semibold transition-all cursor-pointer ${
                         trip.route.pacingMode !== 'effort'
                           ? 'bg-card text-ink shadow-xs'
                           : 'text-ink-muted hover:text-ink'
@@ -919,7 +1233,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                             trip.route.targetEffortWatts || Math.round(physicsResult.legWatts || 160),
                         })
                       }
-                      className={`py-1.5 px-2 rounded-control text-[11px] font-semibold transition-all cursor-pointer ${
+                      className={`py-1.5 px-3 rounded-full text-[11px] font-semibold transition-all cursor-pointer ${
                         trip.route.pacingMode === 'effort'
                           ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary}`
                           : 'text-ink-muted hover:text-ink'
@@ -963,7 +1277,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                                 ),
                               })
                             }
-                            className="flex-1 h-7 rounded-control bg-pod hover:bg-chip text-[11px] font-mono font-semibold text-ink tnum cursor-pointer"
+                            className="flex-1 h-8 rounded-full bg-pod hover:bg-chip text-[11px] font-mono font-semibold text-ink tnum cursor-pointer"
                           >
                             {dw > 0 ? `+${dw}W` : `${dw}W`}
                           </button>
@@ -1004,7 +1318,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                                 ),
                               })
                             }
-                            className="flex-1 h-7 rounded-control bg-pod hover:bg-chip text-[11px] font-mono font-semibold text-ink tnum cursor-pointer"
+                            className="flex-1 h-8 rounded-full bg-pod hover:bg-chip text-[11px] font-mono font-semibold text-ink tnum cursor-pointer"
                           >
                             {dv > 0 ? `+${dv}` : `${dv}`} km/h
                           </button>
@@ -1013,6 +1327,11 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     </div>
                   )}
 
+                  {/* Didactic Watts Explanation */}
+                  <p className="mt-2.5 text-[11px] text-ink-muted leading-snug">
+                    💡 {wattsDidacticNote}
+                  </p>
+
                   {onOpenConfigurator && (
                     <button
                       type="button"
@@ -1020,7 +1339,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                         setActivePopover(null);
                         onOpenConfigurator();
                       }}
-                      className={`mt-2.5 w-full pt-2 border-t border-dashed border-ink/10 dark:border-white/10 flex items-center justify-center gap-1.5 text-xs font-semibold text-ink-secondary hover:text-ink transition-colors cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                      className={`mt-2.5 w-full h-8 px-3 rounded-full bg-pod hover:bg-chip flex items-center justify-center gap-1.5 text-xs font-semibold text-ink-secondary hover:text-ink transition-colors cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
                     >
                       <SlidersHorizontal className="w-3.5 h-3.5 text-current" />
                       <span>{t('heroOpenFullConfigBtn')}</span>
@@ -1033,7 +1352,11 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                 role={isInteractive ? 'button' : undefined}
                 tabIndex={isInteractive ? 0 : undefined}
                 aria-expanded={isInteractive ? activePopover === 'pace' : undefined}
-                title={isInteractive ? t('heroClickToTweakHint') : undefined}
+                title={
+                  isFr
+                    ? `En selle : ${formatTimeHHMM(movingMinutes)} (hors pauses) + ${bufferMinutes}m pauses = ${formatTimeHHMM(totalElapsedMinutes)} total`
+                    : `Saddle time: ${formatTimeHHMM(movingMinutes)} (excl. pauses) + ${bufferMinutes}m buffer = ${formatTimeHHMM(totalElapsedMinutes)} total`
+                }
                 onClick={
                   isInteractive
                     ? () => setActivePopover((prev) => (prev === 'pace' ? null : 'pace'))
@@ -1056,7 +1379,9 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                 } ${isInteractive ? 'cursor-pointer select-none group' : ''}`}
               >
                 <div className="flex items-center justify-between gap-1.5 text-xs font-medium text-ink-muted shrink-0">
-                  <span className="truncate">{t('pureRolling')}</span>
+                  <span className="truncate">
+                    {isFr ? 'En selle (hors pauses)' : 'Saddle (excl. pauses)'}
+                  </span>
                   <span className="flex items-center gap-1.5 shrink-0">
                     {isInteractive && (
                       <CaretUp
@@ -1072,8 +1397,10 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   <span className="text-2xl sm:text-[28px] xl:text-[30px] font-bold tracking-tight tnum leading-none text-ink shrink-0">
                     {formatTimeHHMM(movingMinutes)}
                   </span>
-                  <span className={`text-[11px] font-medium tnum truncate w-full xl:w-auto text-left xl:text-right min-w-0 whitespace-nowrap ${CHIP_TOKENS.emerald.primary}`}>
-                    +{bufferMinutes}m buffer
+                  <span
+                    className={`text-[11px] font-medium tnum truncate w-full xl:w-auto text-left xl:text-right min-w-0 whitespace-nowrap ${CHIP_TOKENS.emerald.primary}`}
+                  >
+                    +{bufferMinutes}m → {formatTimeHHMM(totalElapsedMinutes)} tot.
                   </span>
                 </div>
               </div>
@@ -1092,28 +1419,181 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   </span>
                   <span className="text-xs font-medium text-ink-muted">kcal</span>
                 </div>
-                <span className="text-[11px] font-medium text-ink-muted tnum truncate w-full xl:w-auto text-left xl:text-right min-w-0 whitespace-nowrap">
-                  {physicsResult.carbOxidationGramPerHour}g/h
+                <span
+                  className="text-[11px] font-medium text-ink-muted tnum truncate w-full xl:w-auto text-left xl:text-right min-w-0 whitespace-nowrap"
+                  title={
+                    isFr
+                      ? `Cible ravito : ${effectiveSpecs.carbTargetGPerHr ?? 60}g/h`
+                      : `Fueling target: ${effectiveSpecs.carbTargetGPerHr ?? 60}g/h`
+                  }
+                >
+                  {effectiveSpecs.carbTargetGPerHr ?? 60}g/h {isFr ? 'ravito' : 'carbs'}
                 </span>
               </div>
             </div>
 
-            {/* 5. Elevation Gain (formerly Leg output, per user preference) */}
-            <div className="rounded-pod p-3.5 sm:p-4.5 bg-pod/90 dark:bg-[#141418]/85 text-ink backdrop-blur-md border border-ink/5 dark:border-white/5 flex flex-col justify-between min-h-[108px] sm:min-h-[114px] transition-all hover:border-ink/15 dark:hover:border-white/15">
-              <div className="flex items-center justify-between gap-1.5 text-xs font-medium text-ink-muted shrink-0">
-                <span className="truncate">{t('elevationGain') || 'Elevation gain'}</span>
-                <Mountains className={`w-4 h-4 shrink-0 ${CHIP_TOKENS.emerald.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
-              </div>
-              <div className="mt-auto pt-2 flex flex-col xl:flex-row items-start xl:items-baseline justify-between gap-1 min-w-0">
-                <div className="flex items-baseline gap-1 shrink-0">
-                  <span className="text-2xl sm:text-[28px] xl:text-[30px] font-bold tracking-tight tnum leading-none text-ink">
-                    +{elevationGainM}
-                  </span>
-                  <span className="text-xs font-medium text-ink-muted">m</span>
+            {/* 5. Elevation Gain (Hover / Click Dot-Matrix Brand Overlay) */}
+            <div
+              className="relative"
+              onMouseEnter={() => {
+                if (elevHoverTimeoutRef.current) {
+                  clearTimeout(elevHoverTimeoutRef.current);
+                  elevHoverTimeoutRef.current = null;
+                }
+                setIsElevationHovered(true);
+              }}
+              onMouseLeave={() => {
+                if (elevHoverTimeoutRef.current) {
+                  clearTimeout(elevHoverTimeoutRef.current);
+                }
+                elevHoverTimeoutRef.current = setTimeout(() => {
+                  setIsElevationHovered(false);
+                  setHoveredElevCol(null);
+                }, 130);
+              }}
+            >
+              {showElevationOverlay && (
+                <div className="absolute right-0 bottom-full mb-2.5 w-[min(22.5rem,calc(100vw-3rem))] z-40 rounded-pod p-4 sm:p-4.5 bg-[#faffcb] text-[#4d5200] dark:bg-[#191C06] dark:text-[#dfff00] border border-[#8ea000]/30 dark:border-[#dfff00]/25 shadow-2xl animate-fade-in">
+                  {/* Top Header Row modeled after reference card (Title left | Primary + Secondary % right) */}
+                  <div className="flex items-start justify-between gap-3 mb-3.5">
+                    <div className="min-w-0">
+                      <div className="text-lg sm:text-[21px] font-bold tracking-tight uppercase leading-none">
+                        {isFr ? 'DÉNIVELÉ' : 'ELEVATION'}
+                      </div>
+                      <div className="text-[11px] font-medium opacity-75 mt-1.5 truncate tnum">
+                        {hoveredElevPoint
+                          ? `km ${hoveredElevPoint.distKm.toFixed(1)} · Alt ${Math.round(hoveredElevPoint.eleM)} m`
+                          : `${surfaceLabel} · ${difficultyLabel} · ${trip.route.distanceKm} km`}
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <div className="text-lg sm:text-[21px] font-bold font-mono tracking-tight tnum leading-none">
+                        {hoveredElevPoint ? `${Math.round(hoveredElevPoint.eleM)}m` : `+${elevationGainM}m`}
+                      </div>
+                      <div className="text-xs font-mono font-semibold tnum opacity-80 mt-1">
+                        {hoveredElevPoint
+                          ? `${hoveredElevPoint.gradePct >= 0 ? '↑' : '↓'}${Math.abs(hoveredElevPoint.gradePct).toFixed(1)}%`
+                          : `↑${maxGradientPercent}%`}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Dot-Matrix Elevation Silhouette (38 cols × 13 rows) */}
+                  <svg
+                    viewBox={`0 0 ${ELEV_MATRIX_COLS * 8} ${ELEV_MATRIX_ROWS * 8}`}
+                    className="w-full h-auto block select-none cursor-crosshair"
+                    role="img"
+                    aria-label={isFr ? 'Aperçu du dénivelé et du terrain' : 'Elevation and terrain overview'}
+                    onMouseMove={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      if (rect.width <= 0) return;
+                      const relX = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                      const col = Math.min(
+                        ELEV_MATRIX_COLS - 1,
+                        Math.max(0, Math.round(relX * (ELEV_MATRIX_COLS - 1)))
+                      );
+                      setHoveredElevCol(col);
+                    }}
+                    onMouseLeave={() => setHoveredElevCol(null)}
+                  >
+                    {elevationColumns.map((colData, colIdx) => {
+                      const isColHovered = hoveredElevCol === colIdx;
+                      return Array.from({ length: ELEV_MATRIX_ROWS }, (_, rowFromTop) => {
+                        const rowFromBottom = ELEV_MATRIX_ROWS - 1 - rowFromTop;
+                        const isFilled = rowFromBottom < colData.filledRows;
+                        const fill = isFilled
+                          ? isColHovered
+                            ? isDarkMode
+                              ? '#FFFFFF'
+                              : '#4D5200'
+                            : isDarkMode
+                            ? '#DFFF00'
+                            : '#8EA000'
+                          : isDarkMode
+                          ? 'rgba(223, 255, 0, 0.15)'
+                          : 'rgba(77, 82, 0, 0.14)';
+
+                        return (
+                          <circle
+                            key={`${colIdx}-${rowFromTop}`}
+                            cx={colIdx * 8 + 4}
+                            cy={rowFromTop * 8 + 4}
+                            r={3.3}
+                            fill={fill}
+                          />
+                        );
+                      });
+                    })}
+                  </svg>
+
+                  {/* Compact Monochrome Terrain Split Footer (no Upload .GPX button) */}
+                  <div className="mt-3 pt-2.5 border-t border-[#4d5200]/15 dark:border-[#dfff00]/15 flex items-center justify-between gap-2 text-[10px] font-mono font-semibold opacity-80 tnum">
+                    <span className="truncate">
+                      {isFr ? 'Plat' : 'Flat'} {terrainSummary.flatPct}% ·{' '}
+                      {isFr ? 'Vallonné' : 'Rolling'} {terrainSummary.rollingPct}% ·{' '}
+                      {isFr ? 'Bosses' : 'Climb'} {terrainSummary.climbPct}%
+                    </span>
+                    <span className="shrink-0">
+                      {Math.round(terrainSummary.minEleM)}–{Math.round(terrainSummary.maxEleM)}m
+                    </span>
+                  </div>
                 </div>
-                <span className="text-[11px] font-medium text-ink-muted tnum truncate w-full xl:w-auto text-left xl:text-right min-w-0 whitespace-nowrap">
-                  Max {maxGradientPercent}%
-                </span>
+              )}
+
+              <div
+                role="button"
+                tabIndex={0}
+                aria-expanded={showElevationOverlay}
+                onClick={() => {
+                  if (activePopover === 'elevation') {
+                    setActivePopover(null);
+                    setIsElevationHovered(false);
+                    setHoveredElevCol(null);
+                  } else {
+                    setActivePopover('elevation');
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    if (activePopover === 'elevation') {
+                      setActivePopover(null);
+                      setIsElevationHovered(false);
+                      setHoveredElevCol(null);
+                    } else {
+                      setActivePopover('elevation');
+                    }
+                  }
+                }}
+                className={`h-full rounded-pod p-3.5 sm:p-4.5 bg-pod/90 dark:bg-[#141418]/85 text-ink backdrop-blur-md border flex flex-col justify-between min-h-[108px] sm:min-h-[114px] transition-all cursor-pointer select-none group ${
+                  showElevationOverlay
+                    ? 'border-[#8ea000]/50 dark:border-[#dfff00]/45'
+                    : 'border-ink/5 dark:border-white/5 hover:border-ink/15 dark:hover:border-white/15'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-1.5 text-xs font-medium text-ink-muted shrink-0">
+                  <span className="truncate">{t('elevationGain') || 'Elevation gain'}</span>
+                  <span className="flex items-center gap-1 shrink-0">
+                    <CaretUp
+                      className={`w-3 h-3 opacity-55 group-hover:opacity-100 transition-transform ${
+                        showElevationOverlay ? 'rotate-180 opacity-100 text-ink' : ''
+                      }`}
+                    />
+                    <Mountains className={`w-4 h-4 shrink-0 ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
+                  </span>
+                </div>
+                <div className="mt-auto pt-2 flex flex-col xl:flex-row items-start xl:items-baseline justify-between gap-1 min-w-0">
+                  <div className="flex items-baseline gap-1 shrink-0">
+                    <span className="text-2xl sm:text-[28px] xl:text-[30px] font-bold tracking-tight tnum leading-none text-ink">
+                      +{elevationGainM}
+                    </span>
+                    <span className="text-xs font-medium text-ink-muted">m</span>
+                  </div>
+                  <span className="text-[11px] font-medium text-ink-muted tnum truncate w-full xl:w-auto text-left xl:text-right min-w-0 whitespace-nowrap">
+                    Max {maxGradientPercent}%
+                  </span>
+                </div>
               </div>
             </div>
           </div>

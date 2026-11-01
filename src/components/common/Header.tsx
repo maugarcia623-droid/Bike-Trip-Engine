@@ -203,16 +203,16 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
               </div>
 
-              {/* Specs Pill */}
+              {/* Specs Circular Button */}
               {onOpenSpecs && (
                 <button
                   type="button"
                   onClick={onOpenSpecs}
-                  className="flex items-center gap-1.5 h-10 px-3.5 rounded-full text-[13px] font-medium text-ink bg-card hover:bg-pod transition-colors cursor-pointer"
                   title={t('specsButtonTitle')}
+                  aria-label={t('specsButtonTitle')}
+                  className="w-10 h-10 shrink-0 rounded-full bg-card hover:bg-pod transition-colors flex items-center justify-center text-ink-secondary hover:text-ink cursor-pointer"
                 >
-                  <Bicycle className="w-4 h-4 text-ink-secondary dark:text-ink" />
-                  <span>{t('specsButton')}</span>
+                  <Bicycle className="w-4.5 h-4.5" />
                 </button>
               )}
 

@@ -2,6 +2,9 @@ import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Info } from '@/components/icons';
 
+const useIsomorphicLayoutEffect =
+  typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+
 export interface InfoTooltipProps {
   title?: string;
   content: string;

@@ -1,17 +1,30 @@
 import { NutritionPhase } from '../types/trip';
 import { Language, getCurrentLanguage } from '../context/LanguageContext';
+import { loadRiderBikeSpecs } from './specsStorage';
 
 /**
- * Returns the exact 4-phase Real-Food Nutrition Protocol
- * adhering strictly to the rule: NO POWDERS / NO MILK / NO BANANAS.
+ * Returns the 4-phase Nutrition Protocol scaled dynamically to the rider's
+ * carbohydrate digestion capacity (carbTargetGPerHr) and fuel preference.
  */
 export function getRealFoodNutritionPlan(
   lockerArrivalTime: string = '08:30',
   breakRoomTime: string = '08:50',
   departureTime: string = '07:35',
-  lang: Language = getCurrentLanguage()
+  lang: Language = getCurrentLanguage(),
+  options?: {
+    carbTargetGPerHr?: number;
+    rideHours?: number;
+    nutritionPreference?: 'real-food' | 'mixed' | 'sports-fuel';
+  }
 ): NutritionPhase[] {
   const isFr = lang === 'fr';
+  const storedSpecs = loadRiderBikeSpecs();
+  const carbTargetGPerHr = Math.max(25, Math.min(120, options?.carbTargetGPerHr ?? storedSpecs.carbTargetGPerHr ?? 60));
+  const rideHours = Math.max(0.6, options?.rideHours ?? 1.5);
+  const pref = options?.nutritionPreference ?? storedSpecs.nutritionPreference ?? 'real-food';
+  // Baseline on-bike items below total 117g carbs; scale factor matches rider's gut target * ride duration
+  const targetOnBikeCarbs = Math.max(30, Math.round(carbTargetGPerHr * rideHours));
+  const carbScale = targetOnBikeCarbs / 117;
   return [
     {
       phaseId: 'pre-ride',
@@ -66,54 +79,100 @@ export function getRealFoodNutritionPlan(
     },
     {
       phaseId: 'on-bike',
-      title: isFr ? 'Ravito Naturel en Selle' : 'On-Bike Real-Food Fueling',
+      title:
+        pref === 'sports-fuel'
+          ? isFr
+            ? `Ravito Sportif en Selle (${carbTargetGPerHr} g/h)`
+            : `On-Bike Sports Fueling (${carbTargetGPerHr}g/h)`
+          : pref === 'mixed'
+          ? isFr
+            ? `Ravito Hybride en Selle (${carbTargetGPerHr} g/h)`
+            : `On-Bike Mixed Fueling (${carbTargetGPerHr}g/h)`
+          : isFr
+          ? `Ravito Naturel en Selle (${carbTargetGPerHr} g/h)`
+          : `On-Bike Real-Food Fueling (${carbTargetGPerHr}g/h)`,
       timeWindow: isFr ? 'Du départ à l’arrivée (boire toutes les 15-20 min)' : 'Rollout to Arrival (sip every 15-20 min)',
       location: isFr ? 'En Route / Cockpit' : 'On Route / Cockpit',
-      rules: isFr
-        ? 'ZÉRO poudre industrielle, ZÉRO maltodextrine. Sucres naturels bruts uniquement.'
-        : 'NO engineered powders, NO sticky maltodextrin. Pure whole food sugars.',
-      items: [
-        {
-          name: isFr ? '50/50 Eau & Pur Jus de Pomme/Raisin Pressé' : '50/50 Water & 100% Pressed Apple/Grape Juice',
-          quantity: isFr ? 'Bidon 650 ml' : '650ml bidon',
-          carbsGrams: 36,
-          proteinGrams: 0,
-          fatsGrams: 0,
-          kcals: 145,
-          notes: isFr ? 'Solution isotonique naturelle ~6 % de glucides.' : 'Isotonic ~6% natural carbohydrate solution, effortless stomach transit.',
-          isRealFoodVerified: true,
-        },
-        {
-          name: isFr ? 'Dattes Medjool (Dénoyautées)' : 'Medjool Dates (Pitted)',
-          quantity: isFr ? '2 dattes (48 g)' : '2 plump dates (48g)',
-          carbsGrams: 34,
-          proteinGrams: 1,
-          fatsGrams: 0,
-          kcals: 135,
-          notes: isFr ? 'Riches en potassium naturel, texture fondante.' : 'Rich in natural potassium, melt-in-mouth chewability.',
-          isRealFoodVerified: true,
-        },
-        {
-          name: isFr ? 'Figues Séchées Naturelles' : 'Sun-Dried Turkish Figs',
-          quantity: isFr ? '2 pièces (38 g)' : '2 pieces (38g)',
-          carbsGrams: 24,
-          proteinGrams: 1,
-          fatsGrams: 0,
-          kcals: 100,
-          notes: isFr ? 'Énergie progressive et durable.' : 'Crunchy crunch seeds, steady sustained glycemic release.',
-          isRealFoodVerified: true,
-        },
-        {
-          name: isFr ? 'Pâtes de Fruits Artisanales' : 'Artisanal Pâte de Fruits (Fruit Pastes)',
-          quantity: isFr ? '2 carrés (30 g)' : '2 squares (30g)',
-          carbsGrams: 23,
-          proteinGrams: 0,
-          fatsGrams: 0,
-          kcals: 92,
-          notes: isFr ? 'Coup de fouet pectine + saccharose face au vent.' : 'Fruit pectin + sucrose burst for headwind segments.',
-          isRealFoodVerified: true,
-        },
-      ],
+      rules:
+        pref === 'sports-fuel'
+          ? isFr
+            ? `Calibré sur votre tolérance digestive (${carbTargetGPerHr} g/h) : boisson isotonique + gels rapides.`
+            : `Calibrated to your gut target (${carbTargetGPerHr}g/h): isotonic drink mix + fast energy gels.`
+          : pref === 'mixed'
+          ? isFr
+            ? `Calibré sur ${carbTargetGPerHr} g/h : aliments naturels en croisière + 1 gel de secours pour les bosses.`
+            : `Calibrated to ${carbTargetGPerHr}g/h: whole foods for steady cruising + 1 gel backup for climbs.`
+          : isFr
+          ? `Calibré sur ${carbTargetGPerHr} g/h — ZÉRO poudre industrielle, sucres naturels bruts uniquement.`
+          : `Calibrated to ${carbTargetGPerHr}g/h — NO engineered powders, pure whole-food sugars.`,
+      items:
+        pref === 'sports-fuel'
+          ? [
+              {
+                name: isFr ? 'Boisson Glucidique Isotonique + Électrolytes' : 'Isotonic Carb Drink Mix + Electrolytes',
+                quantity: isFr ? `${Math.max(1, Math.round(rideHours))}x Bidon 650 ml` : `${Math.max(1, Math.round(rideHours))}x 650ml bidon`,
+                carbsGrams: Math.round(targetOnBikeCarbs * 0.55),
+                proteinGrams: 0,
+                fatsGrams: 0,
+                kcals: Math.round(targetOnBikeCarbs * 0.55 * 4),
+                notes: isFr ? 'Assimilation liquide rapide sans mastication.' : 'Rapid liquid gastric uptake without chewing.',
+                isRealFoodVerified: false,
+              },
+              {
+                name: isFr ? 'Gels Énergétiques Glucose/Fructose' : 'Dual-Source Energy Gels',
+                quantity: `${Math.max(1, Math.round((targetOnBikeCarbs * 0.45) / 25))}x gel (25g)`,
+                carbsGrams: Math.max(20, Math.round(targetOnBikeCarbs * 0.45)),
+                proteinGrams: 0,
+                fatsGrams: 0,
+                kcals: Math.max(80, Math.round(targetOnBikeCarbs * 0.45 * 4)),
+                notes: isFr ? 'À prendre avant les côtes ou sections exposées.' : 'Take ahead of climbs or exposed headwind sections.',
+                isRealFoodVerified: false,
+              },
+            ]
+          : [
+              {
+                name: isFr ? '50/50 Eau & Pur Jus de Pomme/Raisin Pressé' : '50/50 Water & 100% Pressed Apple/Grape Juice',
+                quantity: isFr ? `${Math.max(1, Math.round(carbScale))}x Bidon 650 ml` : `${Math.max(1, Math.round(carbScale))}x 650ml bidon`,
+                carbsGrams: Math.max(18, Math.round(36 * carbScale)),
+                proteinGrams: 0,
+                fatsGrams: 0,
+                kcals: Math.max(72, Math.round(145 * carbScale)),
+                notes: isFr ? 'Solution isotonique naturelle ~6 % de glucides.' : 'Isotonic ~6% natural carbohydrate solution, effortless stomach transit.',
+                isRealFoodVerified: true,
+              },
+              {
+                name: isFr ? 'Dattes Medjool (Dénoyautées)' : 'Medjool Dates (Pitted)',
+                quantity: isFr ? `${Math.max(1, Math.round(2 * carbScale))} dattes` : `${Math.max(1, Math.round(2 * carbScale))} plump dates`,
+                carbsGrams: Math.max(15, Math.round(34 * carbScale)),
+                proteinGrams: 1,
+                fatsGrams: 0,
+                kcals: Math.max(60, Math.round(135 * carbScale)),
+                notes: isFr ? 'Riches en potassium naturel, texture fondante.' : 'Rich in natural potassium, melt-in-mouth chewability.',
+                isRealFoodVerified: true,
+              },
+              {
+                name:
+                  pref === 'mixed'
+                    ? isFr
+                      ? 'Gel Énergétique Rapide (Secours Bosses)'
+                      : 'Fast Energy Gel (Climb Backup)'
+                    : isFr
+                    ? 'Pâtes de Fruits Artisanales & Figues'
+                    : 'Artisanal Fruit Chews & Dried Figs',
+                quantity:
+                  pref === 'mixed'
+                    ? `${Math.max(1, Math.round((47 * carbScale) / 25))}x gel`
+                    : isFr
+                    ? `${Math.max(2, Math.round(4 * carbScale))} portions`
+                    : `${Math.max(2, Math.round(4 * carbScale))} pieces`,
+                carbsGrams: Math.max(18, Math.round(47 * carbScale)),
+                proteinGrams: pref === 'mixed' ? 0 : 1,
+                fatsGrams: 0,
+                kcals: Math.max(75, Math.round(192 * carbScale)),
+                notes: isFr ? 'Énergie progressive et coup de boost dans les côtes.' : 'Steady release plus quick boost for climbs and headwinds.',
+                isRealFoodVerified: pref !== 'mixed',
+              },
+            ],
     },
     {
       phaseId: 'locker-refuel',

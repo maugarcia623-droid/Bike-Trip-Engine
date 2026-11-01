@@ -33,6 +33,7 @@ function createKeylineIcon(
     ...rest
   }) => {
     const ctx = useContext(IconContext);
+    if (!Component) return null;
     const finalSize = size ?? ctx.size ?? 24;
     const finalPrimary = primaryColor;
     const finalSecondary = secondaryColor ?? ctx.secondaryColor;
@@ -112,8 +113,53 @@ const CustomAppleSvg: React.FC<any> = ({ size = 24, className = '', ...props }) 
     />
     {/* Apple outline */}
     <path d="M12 21c-2.5 0-3.5-1-5-1s-3.5 1-5 1c-1.5 0-2-1.5-2-4C0 12.5 2 7 6.5 7c2 0 3 1.5 5.5 1.5s3.5-1.5 5.5-1.5c4.5 0 6.5 5.5 6.5 10 0 2.5-.5 4-2 4-1.5 0-3.5-1-5-1s-2.5 1-5 1z" />
-    {/* Stem and Leaf */}
+  {/* Stem and Leaf */}
     <path d="M12 7V3M12 3c2 0 4 1 5 3" />
+  </svg>
+);
+
+const CustomUploadSvg: React.FC<any> = ({ size = 24, className = '', ...props }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    width={size}
+    height={size}
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    {...props}
+  >
+    <path
+      d="M4 15v3a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-3H4z"
+      fill="currentColor"
+      fillOpacity={0.32}
+      stroke="none"
+    />
+    <path d="M12 15V4M7.5 8.5 12 4l4.5 4.5" />
+    <path d="M4 15v3a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-3" />
+  </svg>
+);
+
+const CustomEyeSvg: React.FC<any> = ({ size = 24, className = '', ...props }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    width={size}
+    height={size}
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    {...props}
+  >
+    <circle cx="12" cy="12" r="3" fill="currentColor" fillOpacity={0.35} stroke="none" />
+    <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" />
+    <circle cx="12" cy="12" r="3" />
   </svg>
 );
 
@@ -268,6 +314,9 @@ export const Wrench = createKeylineIcon(Duotone.Wrench, 'Wrench');
 export const Calendar = createKeylineIcon(Duotone.Calendar, 'Calendar');
 export const HomeSmile = createKeylineIcon(Duotone.HomeSmile, 'HomeSmile');
 export const Home = createKeylineIcon(Duotone.Home, 'Home');
+export const Upload = createKeylineIcon(CustomUploadSvg, 'Upload');
+export const FileArrowUp = Upload;
+export const Eye = createKeylineIcon(CustomEyeSvg, 'Eye');
 
 export default {
   Bike,
@@ -410,4 +459,7 @@ export default {
   TrainSimple,
   Wrench,
   Calendar,
+  Upload,
+  FileArrowUp,
+  Eye,
 };

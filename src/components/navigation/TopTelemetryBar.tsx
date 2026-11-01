@@ -151,23 +151,20 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
             <span className="font-bold text-ink tnum">{currentTime}</span>
           </div>
 
-          {/* Rider & Bike Garage Modal Trigger */}
+          {/* Dedicated Rider Profile + Bike Garage 1:1 Trigger */}
           {onOpenSpecs && (
             <button
               type="button"
               onClick={onOpenSpecs}
-              className={`h-9 sm:h-10 ${
-                activeBike ? 'w-9 sm:w-10 xl:w-auto xl:px-3.5 xl:gap-2' : 'w-9 sm:w-10'
-              } rounded-full bg-card dark:bg-pod hover:bg-chip flex items-center justify-center transition-colors cursor-pointer shadow-xs ${CHIP_DUOTONE_ISOLATION_CLASSES} ${GREYSCALE_TOKENS.primary} hover:text-ink`}
-              title={activeBike ? `${t('specsModalTitle')} — ${activeBike.name}` : t('specsModalTitle')}
+              className={`w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-full bg-card dark:bg-pod hover:bg-chip flex items-center justify-center transition-colors cursor-pointer shadow-xs ${CHIP_DUOTONE_ISOLATION_CLASSES} ${GREYSCALE_TOKENS.primary} hover:text-ink`}
+              title={
+                activeBike && riderSpecs
+                  ? `${t('specsModalTitle')} — ${riderSpecs.ftpWatts}W · ${riderSpecs.carbTargetGPerHr}g/h · ${activeBike.name} (${activeBike.isTubeless ? 'Tubeless' : 'Tube'})`
+                  : t('specsModalTitle')
+              }
               aria-label={t('specsModalTitle')}
             >
               <Bicycle size={19} className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-current shrink-0" />
-              {activeBike && (
-                <span className="hidden xl:inline text-xs font-medium text-ink-secondary max-w-[130px] truncate">
-                  {activeBike.name}
-                </span>
-              )}
             </button>
           )}
 

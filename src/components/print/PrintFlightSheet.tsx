@@ -1,5 +1,7 @@
 import React from 'react';
 import { TripProfile } from '../../types/trip';
+import { RiderBikeSpecs } from '../../types/specs';
+import { loadRiderBikeSpecs, getActiveBike } from '../../utils/specsStorage';
 import { calculatePhysics } from '../../utils/physics';
 import { calculateReverseTimeline } from '../../utils/timeline';
 import { getChipsExtraBufferMinutes } from '../../utils/archetypeChips';
@@ -14,17 +16,26 @@ import {
 
 interface PrintFlightSheetProps {
   trip: TripProfile;
+  riderSpecs?: RiderBikeSpecs;
 }
 
-export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip }) => {
+export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderSpecs: riderSpecsProp }) => {
   const { lang, t } = useTranslation();
   const isFr = lang === 'fr';
   const locale = isFr ? 'fr-FR' : 'en-US';
+  const effectiveSpecs = riderSpecsProp || loadRiderBikeSpecs();
+  const activeBike = getActiveBike(effectiveSpecs);
   const meta = getLocalizedTripMeta(trip, lang);
   const hasMultipleStages = Boolean(trip.stages && trip.stages.length > 1);
   const expeditionTotals = getExpeditionTotals(trip);
 
-  const physicsResult = calculatePhysics(trip.physics, trip.route, trip.weather, lang);
+  const physicsResult = calculatePhysics(
+    trip.physics,
+    trip.route,
+    trip.weather,
+    lang,
+    effectiveSpecs.ftpWatts
+  );
   const extraBufferMinutes = getChipsExtraBufferMinutes(trip);
   const timelineResult = calculateReverseTimeline(
     trip.route,
@@ -50,7 +61,12 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip }) => {
     timelineResult.gateArrivalTime,
     breakRoomTime,
     timelineResult.hardDepartureTime,
-    lang
+    lang,
+    {
+      carbTargetGPerHr: effectiveSpecs.carbTargetGPerHr,
+      rideHours: Math.max(0.6, physicsResult.movingTimeSeconds / 3600),
+      nutritionPreference: effectiveSpecs.nutritionPreference,
+    }
   );
 
   return (
@@ -268,10 +284,15 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip }) => {
           {t('printSection4')}
         </h2>
         <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-[10px] font-mono mb-4">
-          {trip.checklist.map((item) => (
+          {(trip.checklist || []).map((item) => (
             <div key={item.id} className="flex items-center justify-between border-b border-gray-100 py-0.5">
               <span className={item.checked ? 'font-bold' : ''}>
-                [{item.checked ? 'X' : ' '}] {getChecklistItemLabel(item, trip.route?.distanceKm, lang)}
+                [{item.checked ? 'X' : ' '}]{' '}
+                {getChecklistItemLabel(item, trip.route?.distanceKm, lang, {
+                  isTubeless: activeBike?.isTubeless,
+                  carbTargetGPerHr: effectiveSpecs.carbTargetGPerHr,
+                  nutritionPreference: effectiveSpecs.nutritionPreference,
+                })}
               </span>
               <span className="text-gray-500 uppercase text-[9px]">
                 {getChecklistCategoryLabel(item.category, lang)}

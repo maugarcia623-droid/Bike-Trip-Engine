@@ -19,6 +19,8 @@ import {
   SlidersHorizontal,
   Info,
   Plus,
+  Upload,
+  MapPin,
   X,
 } from '@/components/icons';
 import {
@@ -38,6 +40,9 @@ import {
 import { ParameterTabs } from './ParameterTabs';
 import { PresetRuleCard } from './PresetRuleCard';
 import { LocationAutocompleteInput } from './LocationAutocompleteInput';
+import { POPULAR_CYCLING_HUBS } from '../../services/locationService';
+import { parseGpxFileContent } from '../../utils/gpxParser';
+import { getActiveBike, loadRiderBikeSpecs } from '../../utils/specsStorage';
 import { calculatePhysics } from '../../utils/physics';
 import { calculateReverseTimeline } from '../../utils/timeline';
 import { subtractMinutesFromTime, addMinutesToTime } from '../../utils/nutrition';
@@ -155,6 +160,14 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
   } | null>(null);
   const [hasSaved, setHasSaved] = useState(false);
   const [isArriveAtMode, setIsArriveAtMode] = useState<boolean>(trip.arriveAtMode !== false);
+  const [routeGenMode, setRouteGenMode] = useState<'corridor' | 'manual-radius' | 'gpx'>(() => {
+    const initialMode = getArchetypeFromTag(initialTrip.tag, initialTrip.name);
+    if (initialMode === 'BIKEPACKING') return 'corridor';
+    if (initialTrip.route?.routeMode === 'gpx' || initialTrip.route?.gpxFileName) return 'gpx';
+    if (initialTrip.route?.routeMode === 'manual-radius' || initialTrip.route?.radiusMeters) return 'manual-radius';
+    return 'corridor';
+  });
+  const gpxConfigInputRef = React.useRef<HTMLInputElement>(null);
 
   const isFr = lang === 'fr';
 
@@ -170,11 +183,21 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
         setIsArriveAtMode(initialTrip.arriveAtMode !== false);
         setOriginInput(initialTrip.route.origin || 'Nantes');
         setDestInput(initialTrip.route.destination || initialTrip.office.gateName || 'Saint-Nazaire');
+        const nextArchetype = getArchetypeFromTag(initialTrip.tag, initialTrip.name);
+        if (nextArchetype === 'BIKEPACKING') {
+          setRouteGenMode('corridor');
+        } else if (initialTrip.route?.routeMode === 'gpx' || initialTrip.route?.gpxFileName) {
+          setRouteGenMode('gpx');
+        } else if (initialTrip.route?.routeMode === 'manual-radius' || initialTrip.route?.radiusMeters) {
+          setRouteGenMode('manual-radius');
+        } else {
+          setRouteGenMode('corridor');
+        }
         if (initialTrip.route?.coordinates && initialTrip.route.coordinates.length > 1) {
           setOriginCoords(initialTrip.route.coordinates[0]);
           setDestCoords(initialTrip.route.coordinates[initialTrip.route.coordinates.length - 1]);
         } else {
-          setOriginCoords(null);
+          setOriginCoords(initialTrip.route?.originCoords || null);
           setDestCoords(null);
         }
       }
@@ -301,6 +324,11 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
             name: newName,
             route: {
               ...prev.route,
+              routeMode: 'corridor',
+              radiusMeters: undefined,
+              gpxFileName: undefined,
+              elevationProfile: undefined,
+              terrainSummary: undefined,
               origin: originInput,
               destination: destInput,
               distanceKm: result.distanceKm,
@@ -322,6 +350,109 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
     }
   };
 
+  const resolveStartHubCoords = (
+    label: string,
+    explicitCoords?: [number, number] | null
+  ): [number, number] => {
+    if (explicitCoords) return explicitCoords;
+    if (trip.route.originCoords) return trip.route.originCoords;
+    const normalized = (label || '').trim().toLowerCase();
+    const match = POPULAR_CYCLING_HUBS.find(
+      (h) => h.name.toLowerCase() === normalized || normalized.includes(h.name.toLowerCase())
+    );
+    if (match) return match.coordinates;
+    if (trip.route.coordinates && trip.route.coordinates.length > 0) {
+      return trip.route.coordinates[0];
+    }
+    return [47.2186, -1.5541];
+  };
+
+  const handleUpdateRadiusRoute = (
+    nextOriginRaw: string,
+    nextCoords: [number, number] | null,
+    nextDistanceRaw: number
+  ) => {
+    const nextOrigin = nextOriginRaw.trim() || 'Nantes';
+    const clampedKm = Math.max(5, Math.min(250, Math.round((nextDistanceRaw || 30) * 10) / 10));
+    const center = resolveStartHubCoords(nextOrigin, nextCoords);
+    const loopKm = Math.round((clampedKm / 2) * 10) / 10;
+    const radiusMeters = Math.max(1000, Math.round((clampedKm / 2) * 1000));
+    const destLabel = isFr ? `Rayon boucle ${loopKm} km` : `${loopKm} km loop radius`;
+
+    setOriginInput(nextOriginRaw);
+    if (nextCoords) setOriginCoords(nextCoords);
+    setDestInput(destLabel);
+    setRouteError(null);
+
+    commitTrip((prev) => ({
+      ...prev,
+      route: {
+        ...prev.route,
+        routeMode: 'manual-radius',
+        origin: nextOrigin,
+        destination: destLabel,
+        originCoords: center,
+        radiusMeters,
+        distanceKm: clampedKm,
+        elevationGainM: Math.round(clampedKm * 6.5),
+        coordinates: [center],
+        gpxFileName: undefined,
+        elevationProfile: undefined,
+        terrainSummary: undefined,
+      },
+    }));
+  };
+
+  const handleConfigGpxUpload = async (file: File) => {
+    if (!file) return;
+    setRouteError(null);
+    setRouteSuccess(false);
+    try {
+      const xmlText = await file.text();
+      const parsed = parseGpxFileContent(xmlText, file.name);
+      const curMode = getArchetypeFromTag(tripRef.current.tag, tripRef.current.name);
+      setRouteGenMode(curMode === 'BIKEPACKING' ? 'corridor' : 'gpx');
+      setOriginInput(parsed.originLabel);
+      setDestInput(parsed.destLabel);
+      if (parsed.coordinates.length > 1) {
+        setOriginCoords(parsed.coordinates[0]);
+        setDestCoords(parsed.coordinates[parsed.coordinates.length - 1]);
+      }
+      setRouteSuccess(true);
+
+      commitTrip((prev) => {
+        const bearing =
+          parsed.coordinates.length >= 2
+            ? computeRouteBearing(parsed.coordinates)
+            : prev.weather.windDirectionDegrees || 0;
+        return {
+          ...prev,
+          name: parsed.trackName || prev.name,
+          route: {
+            ...prev.route,
+            routeMode: 'gpx',
+            gpxFileName: file.name,
+            radiusMeters: undefined,
+            origin: parsed.originLabel,
+            destination: parsed.destLabel,
+            distanceKm: parsed.distanceKm,
+            elevationGainM: parsed.elevationGainM,
+            elevationLossM: parsed.elevationLossM,
+            coordinates: parsed.coordinates,
+            elevationProfile: parsed.elevationProfile,
+            terrainSummary: parsed.terrainSummary,
+          },
+          weather: {
+            ...prev.weather,
+            windDirectionDegrees: Math.round(bearing),
+          },
+        };
+      });
+    } catch (err: any) {
+      setRouteError(err?.message || (isFr ? 'Fichier GPX invalide.' : 'Invalid GPX trace file.'));
+    }
+  };
+
   const handleSelectArchetype = (mode: ArchetypeMode) => {
     const effectiveTag = mode === 'COMMUTE' ? 'VÉLOTAF' : mode;
     // Filter active chips so only chips belonging to the newly selected archetype are preserved
@@ -336,9 +467,14 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
       else if (mode === 'ESCAPADE') retainedChips = ['historical-tour', 'local-gastronomy'];
     }
 
+    const savedSpecs = loadRiderBikeSpecs();
+    const savedBike = getActiveBike(savedSpecs);
     const freshChecklist = generateTripChecklist(effectiveTag, trip.route?.distanceKm, trip.weather, {
       lang,
       customChips: retainedChips,
+      isTubeless: Boolean(savedBike?.isTubeless),
+      carbTargetGPerHr: savedSpecs.carbTargetGPerHr ?? 60,
+      nutritionPreference: savedSpecs.nutritionPreference ?? 'mixed',
     });
     const checkedMap = new Map((trip.checklist || []).map((item) => [item.id, item.checked]));
     const syncedChecklist = freshChecklist.map((item) => ({
@@ -355,6 +491,12 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
         ? '15:00'
         : '08:30';
 
+    if (mode === 'BIKEPACKING' && routeGenMode !== 'corridor') {
+      setRouteGenMode('corridor');
+      setRouteError(null);
+      setRouteSuccess(false);
+    }
+
     commitTrip((prev) => {
       const mergedRuleSettings = { ...(prev.ruleSettings || {}) };
       for (const chipId of retainedChips) {
@@ -367,12 +509,33 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
           }
         }
       }
+      const shouldResetRadius =
+        mode === 'BIKEPACKING' &&
+        (prev.route.routeMode === 'manual-radius' || Boolean(prev.route.radiusMeters));
+      const sanitizedDest =
+        shouldResetRadius &&
+        (prev.route.destination?.toLowerCase().includes('radius') ||
+          prev.route.destination?.toLowerCase().includes('rayon'))
+          ? 'Redon'
+          : prev.route.destination;
+      if (shouldResetRadius && sanitizedDest) {
+        setDestInput(sanitizedDest);
+      }
+
       return {
         ...prev,
         tag: effectiveTag,
         checklist: syncedChecklist,
         customChips: retainedChips,
         ruleSettings: mergedRuleSettings,
+        route: shouldResetRadius
+          ? {
+              ...prev.route,
+              routeMode: 'corridor',
+              radiusMeters: undefined,
+              destination: sanitizedDest,
+            }
+          : prev.route,
         office: {
           ...prev.office,
           targetGateArrivalTime: defaultArrival,
@@ -618,7 +781,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Card 1: Route Generator */}
         <div className="rounded-card bg-card text-ink p-4 flex flex-col justify-between transition-colors">
-          <div className="flex items-start justify-between gap-2 mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2.5 mb-4">
             <div>
               <h2 className="text-base sm:text-[17px] font-semibold tracking-tight text-ink font-rounded">
                 {isFr ? 'Générateur d’itinéraire' : 'Route generator'}
@@ -627,9 +790,62 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                 {t('corridorGeneratorSub')}
               </p>
             </div>
-            <Badge variant="zinc" size="md" className="tnum shrink-0">
-              {trip.route.distanceKm} km
-            </Badge>
+            <div className="flex items-center gap-2 flex-wrap shrink-0">
+              {isBikepacking ? (
+                <button
+                  type="button"
+                  onClick={() => gpxConfigInputRef.current?.click()}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold bg-pod hover:bg-chip text-ink-secondary hover:text-ink transition-all cursor-pointer whitespace-nowrap border border-ink/5 dark:border-white/10 ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                >
+                  <Upload className={`w-3.5 h-3.5 shrink-0 ${CHIP_TOKENS.sky.primary}`} />
+                  <span>
+                    {trip.route.gpxFileName
+                      ? `${t('gpxLoadedBadge')} · ${trip.route.gpxFileName}`
+                      : t('routeModeGpx')}
+                  </span>
+                </button>
+              ) : (
+                <div className="inline-flex items-center p-1 rounded-full bg-pod border border-ink/5 dark:border-white/10">
+                  {(
+                    [
+                      { id: 'corridor', label: t('routeModeCorridor') },
+                      { id: 'manual-radius', label: t('routeModeRadius') },
+                      { id: 'gpx', label: t('routeModeGpx') },
+                    ] as const
+                  ).map((modeOpt) => {
+                    const active = routeGenMode === modeOpt.id;
+                    return (
+                      <button
+                        key={modeOpt.id}
+                        type="button"
+                        onClick={() => {
+                          setRouteGenMode(modeOpt.id);
+                          setRouteError(null);
+                          setRouteSuccess(false);
+                          if (modeOpt.id === 'manual-radius') {
+                            handleUpdateRadiusRoute(
+                              originInput || trip.route.origin || 'Nantes',
+                              originCoords,
+                              trip.route.distanceKm || 35
+                            );
+                          }
+                        }}
+                        className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                          active
+                            ? 'bg-card text-ink shadow-xs'
+                            : 'text-ink-muted hover:text-ink'
+                        }`}
+                      >
+                        {modeOpt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              <Badge variant="zinc" size="md" className="tnum shrink-0">
+                {trip.route.distanceKm} km
+              </Badge>
+            </div>
           </div>
 
           {/* Multi-Day Stage Sequencer Bar */}
@@ -758,97 +974,227 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
             </div>
           )}
 
-          {/* In-Line Corridor Inputs: Origin + Swap + Destination + Fetch in a clean cohesive row */}
+          {/* Route Mode Body: Corridor (OSRM) | Start + Radius | Import .GPX */}
           <div className="space-y-4 mt-auto">
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-2.5">
-              {/* Origin Input */}
-              <div className="flex-1 relative min-w-0">
-                <LocationAutocompleteInput
-                  id="origin-input"
-                  label={t('originCityLabel')}
-                  value={originInput}
-                  dropdownAlign="left"
-                  onChange={(val) => {
-                    setOriginInput(val);
-                    setOriginCoords(null);
-                    setRouteSuccess(false);
-                    setRouteError(null);
-                    commitTrip((prev) => ({
-                      ...prev,
-                      route: { ...prev.route, origin: val },
-                    }));
-                  }}
-                  onSelectLocation={(loc) => {
-                    setOriginInput(loc.name);
-                    setOriginCoords(loc.coordinates);
-                    setRouteSuccess(false);
-                    setRouteError(null);
-                    commitTrip((prev) => ({
-                      ...prev,
-                      route: { ...prev.route, origin: loc.name },
-                    }));
-                  }}
-                  onKeyDownEnter={handleCalculateRoute}
-                  placeholder={isFr ? 'ex. Nantes Quai, Gare...' : 'e.g. Nantes Quai, Station...'}
-                />
-              </div>
+            <input
+              ref={gpxConfigInputRef}
+              type="file"
+              accept=".gpx,application/gpx+xml,text/xml"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  handleConfigGpxUpload(file);
+                }
+                e.target.value = '';
+              }}
+            />
 
-              {/* Swap Button */}
-              <div className="flex items-center justify-center self-center sm:self-end pb-0.5">
-                <button
-                  type="button"
-                  onClick={handleSwapCorridor}
-                  title={t('swapCorridorBtn')}
-                  className="h-11 w-11 flex items-center justify-center rounded-full bg-pod hover:bg-chip text-ink-secondary hover:text-ink transition-all duration-200 active:scale-95 cursor-pointer shrink-0"
+            {(isBikepacking || routeGenMode === 'corridor') && (
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-2.5 animate-fade-in">
+                {/* Origin Input */}
+                <div className="flex-1 relative min-w-0">
+                  <LocationAutocompleteInput
+                    id="origin-input"
+                    label={t('originCityLabel')}
+                    value={originInput}
+                    dropdownAlign="left"
+                    onChange={(val) => {
+                      setOriginInput(val);
+                      setOriginCoords(null);
+                      setRouteSuccess(false);
+                      setRouteError(null);
+                      commitTrip((prev) => ({
+                        ...prev,
+                        route: { ...prev.route, origin: val },
+                      }));
+                    }}
+                    onSelectLocation={(loc) => {
+                      setOriginInput(loc.name);
+                      setOriginCoords(loc.coordinates);
+                      setRouteSuccess(false);
+                      setRouteError(null);
+                      commitTrip((prev) => ({
+                        ...prev,
+                        route: { ...prev.route, origin: loc.name },
+                      }));
+                    }}
+                    onKeyDownEnter={handleCalculateRoute}
+                    placeholder={isFr ? 'ex. Nantes Quai, Gare...' : 'e.g. Nantes Quai, Station...'}
+                  />
+                </div>
+
+                {/* Swap Button */}
+                <div className="flex items-center justify-center self-center sm:self-end pb-0.5">
+                  <button
+                    type="button"
+                    onClick={handleSwapCorridor}
+                    title={t('swapCorridorBtn')}
+                    className="h-11 w-11 flex items-center justify-center rounded-full bg-pod hover:bg-chip text-ink-secondary hover:text-ink transition-all duration-200 active:scale-95 cursor-pointer shrink-0"
+                  >
+                    <ArrowsLeftRight className="w-4 h-4 transition-transform duration-300" />
+                  </button>
+                </div>
+
+                {/* Destination Input */}
+                <div className="flex-1 relative min-w-0">
+                  <LocationAutocompleteInput
+                    id="destination-input"
+                    label={t('destinationLabel')}
+                    value={destInput}
+                    dropdownAlign="right"
+                    onChange={(val) => {
+                      setDestInput(val);
+                      setDestCoords(null);
+                      setRouteSuccess(false);
+                      setRouteError(null);
+                      commitTrip((prev) => ({
+                        ...prev,
+                        route: { ...prev.route, destination: val },
+                      }));
+                    }}
+                    onSelectLocation={(loc) => {
+                      setDestInput(loc.name);
+                      setDestCoords(loc.coordinates);
+                      setRouteSuccess(false);
+                      setRouteError(null);
+                      commitTrip((prev) => ({
+                        ...prev,
+                        route: { ...prev.route, destination: loc.name },
+                      }));
+                    }}
+                    onKeyDownEnter={handleCalculateRoute}
+                    placeholder={isFr ? 'ex. Gate 17 Campus, Pornic...' : 'e.g. Gate 17 Campus, Clisson...'}
+                  />
+                </div>
+
+                {/* Fetch Button in the same line */}
+                <div className="self-stretch sm:self-end pb-0.5">
+                  <button
+                    type="button"
+                    onClick={handleCalculateRoute}
+                    disabled={isRouting}
+                    className="h-11 px-5 w-full sm:w-auto flex items-center justify-center gap-2 bg-[#111111] hover:bg-[#262626] text-white dark:bg-chip dark:hover:bg-chip-hover dark:text-ink disabled:opacity-50 rounded-full text-xs font-semibold tracking-wide transition-all cursor-pointer disabled:cursor-not-allowed shrink-0"
+                  >
+                    {isRouting ? <SpinnerGap className="w-4 h-4 animate-spin" /> : <span>{t('fetchRouteBtn')}</span>}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {!isBikepacking && routeGenMode === 'manual-radius' && (
+              <div className="space-y-3.5 animate-fade-in">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+                  <div className="min-w-0">
+                    <LocationAutocompleteInput
+                      id="radius-origin-input"
+                      label={t('radiusStartPointLabel')}
+                      value={originInput}
+                      dropdownAlign="left"
+                      onChange={(val) => {
+                        handleUpdateRadiusRoute(val, null, trip.route.distanceKm || 35);
+                      }}
+                      onSelectLocation={(loc) => {
+                        handleUpdateRadiusRoute(loc.name, loc.coordinates, trip.route.distanceKm || 35);
+                      }}
+                      placeholder={isFr ? 'ex. Nantes, Clisson, Pornic...' : 'e.g. Nantes, Clisson, Pornic...'}
+                    />
+                  </div>
+
+                  <div className="rounded-pod bg-pod p-3 border border-ink/5 dark:border-white/5">
+                    <div className="flex items-center justify-between text-xs font-semibold text-ink mb-1.5">
+                      <span>{t('routeDistInputLabel')}</span>
+                      <span className="font-mono font-bold tnum">{trip.route.distanceKm} km</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={5}
+                      max={200}
+                      step={5}
+                      value={trip.route.distanceKm}
+                      onChange={(e) =>
+                        handleUpdateRadiusRoute(
+                          originInput || trip.route.origin || 'Nantes',
+                          originCoords || trip.route.originCoords || null,
+                          parseFloat(e.target.value) || 30
+                        )
+                      }
+                      className="w-full accent-[#10b981] cursor-pointer"
+                    />
+                    <div className="mt-1.5 flex items-center justify-between gap-1">
+                      {[20, 40, 60, 90, 130].map((kmPreset) => (
+                        <button
+                          key={kmPreset}
+                          type="button"
+                          onClick={() =>
+                            handleUpdateRadiusRoute(
+                              originInput || trip.route.origin || 'Nantes',
+                              originCoords || trip.route.originCoords || null,
+                              kmPreset
+                            )
+                          }
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold tnum cursor-pointer transition-colors ${
+                            Math.round(trip.route.distanceKm) === kmPreset
+                              ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary}`
+                              : 'bg-card hover:bg-chip text-ink-muted hover:text-ink'
+                          }`}
+                        >
+                          {kmPreset}km
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className={`rounded-pod px-3.5 py-2.5 flex items-center justify-between gap-2 text-xs ${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <MapPin className="w-4 h-4 shrink-0 text-current" />
+                    <span className="font-semibold truncate">
+                      {originInput || trip.route.origin || 'Nantes'}
+                    </span>
+                  </div>
+                  <span className="font-mono text-[11px] font-bold tnum shrink-0">
+                    {t('radiusLoopReachSub', {
+                      loop: Math.round(((trip.route.distanceKm || 30) / 2) * 10) / 10,
+                      oneWay: trip.route.distanceKm,
+                    })}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {!isBikepacking && routeGenMode === 'gpx' && (
+              <div className="animate-fade-in">
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => gpxConfigInputRef.current?.click()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      gpxConfigInputRef.current?.click();
+                    }
+                  }}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const file = e.dataTransfer.files?.[0];
+                    if (file) handleConfigGpxUpload(file);
+                  }}
+                  className={`rounded-pod border border-dashed border-ink/20 dark:border-white/20 hover:border-ink/40 dark:hover:border-white/40 bg-pod/70 hover:bg-pod p-4 text-center transition-all cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
                 >
-                  <ArrowsLeftRight className="w-4 h-4 transition-transform duration-300" />
-                </button>
+                  <Upload className={`w-6 h-6 mx-auto mb-1.5 ${CHIP_TOKENS.sky.primary}`} />
+                  <div className="text-xs font-bold text-ink">
+                    {trip.route.gpxFileName
+                      ? `${t('gpxLoadedBadge')} · ${trip.route.gpxFileName}`
+                      : t('gpxUploadBtn')}
+                  </div>
+                  <p className="text-[11px] text-ink-muted mt-0.5">
+                    {t('gpxDropPrompt')}
+                  </p>
+                </div>
               </div>
-
-              {/* Destination Input */}
-              <div className="flex-1 relative min-w-0">
-                <LocationAutocompleteInput
-                  id="destination-input"
-                  label={t('destinationLabel')}
-                  value={destInput}
-                  dropdownAlign="right"
-                  onChange={(val) => {
-                    setDestInput(val);
-                    setDestCoords(null);
-                    setRouteSuccess(false);
-                    setRouteError(null);
-                    commitTrip((prev) => ({
-                      ...prev,
-                      route: { ...prev.route, destination: val },
-                    }));
-                  }}
-                  onSelectLocation={(loc) => {
-                    setDestInput(loc.name);
-                    setDestCoords(loc.coordinates);
-                    setRouteSuccess(false);
-                    setRouteError(null);
-                    commitTrip((prev) => ({
-                      ...prev,
-                      route: { ...prev.route, destination: loc.name },
-                    }));
-                  }}
-                  onKeyDownEnter={handleCalculateRoute}
-                  placeholder={isFr ? 'ex. Gate 17 Campus, Pornic...' : 'e.g. Gate 17 Campus, Clisson...'}
-                />
-              </div>
-
-              {/* Fetch Button in the same line */}
-              <div className="self-stretch sm:self-end pb-0.5">
-                <button
-                  type="button"
-                  onClick={handleCalculateRoute}
-                  disabled={isRouting}
-                  className="h-11 px-5 w-full sm:w-auto flex items-center justify-center gap-2 bg-[#111111] hover:bg-[#262626] text-white dark:bg-chip dark:hover:bg-chip-hover dark:text-ink disabled:opacity-50 rounded-full text-xs font-semibold tracking-wide transition-all cursor-pointer disabled:cursor-not-allowed shrink-0"
-                >
-                  {isRouting ? <SpinnerGap className="w-4 h-4 animate-spin" /> : <span>{t('fetchRouteBtn')}</span>}
-                </button>
-              </div>
-            </div>
+            )}
 
             {/* Status footer with dashed divider */}
             <div className="pt-3 border-t border-dashed border-ink/10 dark:border-white/10 transition-colors">
@@ -863,7 +1209,13 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                 <p className="text-xs text-ink-muted tnum truncate animate-fade-in">
                   {isFr ? 'Itinéraire actif' : 'Active route'} : {trip.route.origin || originInput} &gt; {trip.route.destination || destInput} ({trip.route.distanceKm} km
                   {trip.route.elevationGainM ? ` · +${trip.route.elevationGainM}m` : ''}
-                  {(trip.route.coordinates?.length || 0) > 1
+                  {trip.route.routeMode === 'gpx' && trip.route.gpxFileName
+                    ? ` · ${trip.route.gpxFileName}`
+                    : trip.route.routeMode === 'manual-radius'
+                    ? isFr
+                      ? ' · Rayon boucle sur carte'
+                      : ' · Map radius circle'
+                    : (trip.route.coordinates?.length || 0) > 1
                     ? isFr
                       ? ' · Tracé GPS préchargé'
                       : ' · Pre-fetched GPS trace'
@@ -1524,12 +1876,16 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                   {t('targetTimeLabel', { time: timelineResult.gateArrivalTime })}
                 </span>
               </div>
-              <p className="text-xs opacity-80 mt-2 tnum">
-                {t('movingPlusBuffer', {
-                  moving: physicsResult.movingTimeFormatted,
-                  buffer: timelineResult.bufferMinutes,
-                })}
-              </p>
+              <div className="mt-2.5 pt-2 border-t border-current/15 text-[11px] space-y-0.5 tnum opacity-90">
+                <div className="flex items-center justify-between">
+                  <span>{t('timeSaddleExclPauses')}</span>
+                  <span className="font-mono font-bold">{physicsResult.movingTimeFormatted}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>{t('timePausesAndBuffers')}</span>
+                  <span className="font-mono font-bold">+{timelineResult.bufferMinutes}m</span>
+                </div>
+              </div>
             </div>
 
             {/* Power Matrix Breakdown */}
