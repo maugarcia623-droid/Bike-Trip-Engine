@@ -2,6 +2,7 @@ import { RiderBikeSpecsModal } from "./components/settings/RiderBikeSpecsModal";
 import { loadRiderBikeSpecs, saveRiderBikeSpecs, getActiveBike } from "./utils/specsStorage";
 import { RiderBikeSpecs } from "./types/specs";
 import React, { useState, useEffect } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { IconContext } from '@/components/icons';
 import { generateTripChecklist, TripProfile, WeatherCondition } from "./types/trip";
 import {
@@ -584,6 +585,7 @@ export function App() {
       <LanguageProvider lang={lang} setLang={setLang}>
         <IconContext.Provider value={{ weight: 'duotone' }}>
           <AppContent />
+          <Analytics />
         </IconContext.Provider>
       </LanguageProvider>
     </ThemeProvider>
