@@ -53,20 +53,16 @@ export function loadTrips(): TripProfile[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_PROFILES);
     if (!raw) {
-      const randomized = generateRandomPresetTrips(3);
-      saveTrips(randomized);
-      return randomized;
+      return [];
     }
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
+    if (Array.isArray(parsed)) {
       return parsed;
     }
-    const randomized = generateRandomPresetTrips(3);
-    saveTrips(randomized);
-    return randomized;
+    return [];
   } catch (e) {
     console.error('Error loading trips from localStorage', e);
-    return INITIAL_PROFILES;
+    return [];
   }
 }
 
@@ -84,11 +80,13 @@ export function getActiveTripId(trips: TripProfile[]): string {
     if (stored && trips.some((t) => t.id === stored)) {
       return stored;
     }
-    const fallback = trips[0]?.id || INITIAL_PROFILES[0].id;
-    setActiveTripId(fallback);
+    const fallback = trips[0]?.id || '';
+    if (fallback) {
+      setActiveTripId(fallback);
+    }
     return fallback;
   } catch (e) {
-    return trips[0]?.id || INITIAL_PROFILES[0].id;
+    return trips[0]?.id || '';
   }
 }
 

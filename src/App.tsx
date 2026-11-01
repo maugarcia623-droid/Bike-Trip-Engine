@@ -27,10 +27,38 @@ import { DynamicIslandNav } from './components/navigation/DynamicIslandNav';
 import { HomeScreen } from './components/home/HomeScreen';
 import { ConfiguratorScreen } from './components/configurator/ConfiguratorScreen';
 import { BentoDashboard } from './components/dashboard/BentoDashboard';
+import { DashboardEmptyState } from './components/dashboard/DashboardEmptyState';
 import { PrintFlightSheet } from './components/print/PrintFlightSheet';
 import { OnboardingModal } from './components/OnboardingModal';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthModal } from './components/auth/AuthModal';
+import { ResetPasswordModal } from './components/auth/ResetPasswordModal';
+import { fetchCloudUserState, saveCloudUserState, isCloudDataEmpty } from './services/cloudSync';
+import { AppDataPayload } from './types/auth';
 
 const STORAGE_KEY_ONBOARDED = 'bike_trip_engine_onboarded_v1';
+
+function hasPotentialSupabaseSession(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (
+        key &&
+        (key.startsWith('sb-') || key.includes('supabase.auth.token')) &&
+        key.endsWith('-auth-token')
+      ) {
+        const item = localStorage.getItem(key);
+        if (item && item.includes('access_token')) {
+          return true;
+        }
+      }
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
 
 interface CockpitErrorBoundaryProps {
   children: React.ReactNode;
@@ -100,12 +128,17 @@ function markOnboardingSeen(): void {
 function AppContent() {
   const { isDark } = useTheme();
   const { lang, t } = useTranslation();
+  const { user, setSyncStatus, setLastSyncedAt, registerForceSync } = useAuth();
   const [trips, setTrips] = useState<TripProfile[]>(() => loadTrips());
   const [activeTripId, setActiveTripId] = useState<string>(() =>
     getActiveTripId(trips)
   );
   const [riderSpecs, setRiderSpecs] = useState(loadRiderBikeSpecs);
   const [isSpecsModalOpen, setIsSpecsModalOpen] = useState(false);
+
+  const isCloudApplyingRef = React.useRef(false);
+  const saveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSyncedPayloadHashRef = React.useRef<string>('');
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     const hash = window.location.hash;
@@ -118,12 +151,25 @@ function AppContent() {
     ) {
       return false;
     }
+    // Returning user with Supabase session: skip onboarding
+    if (hasPotentialSupabaseSession()) {
+      return false;
+    }
     try {
       return localStorage.getItem(STORAGE_KEY_ONBOARDED) !== 'true';
     } catch {
       return false;
     }
   });
+
+  // If user is already logged in or logs in to Supabase, skip onboarding completely
+  useEffect(() => {
+    if (user) {
+      markOnboardingSeen();
+      setIsOnboardingOpen(false);
+    }
+  }, [user]);
+
   const [currentView, setCurrentView] = useState<'home' | 'configurator' | 'dashboard'>(() => {
     if (typeof window !== 'undefined') {
       if (window.location.hash === '#configurator' || window.location.search.includes('view=configurator')) {
@@ -140,13 +186,192 @@ function AppContent() {
   const [configuratorTrip, setConfiguratorTrip] = useState<TripProfile | null>(null);
   const [isNewTrip, setIsNewTrip] = useState<boolean>(false);
 
-  // Active trip object
-  const activeTrip = trips.find((tripItem) => tripItem.id === activeTripId) || trips[0] || INITIAL_PROFILES[0];
+  // Active trip object (null if 0 trips created yet)
+  const activeTrip = trips.find((tripItem) => tripItem.id === activeTripId) || trips[0] || null;
 
   // Persist to localStorage whenever trips change
   useEffect(() => {
     saveTrips(trips);
   }, [trips]);
+
+  // Cloud sync on user login or initial session
+  useEffect(() => {
+    if (!user) {
+      setSyncStatus('idle');
+      return;
+    }
+
+    const currentUserId = user.id;
+    let isMounted = true;
+    setSyncStatus('loading');
+
+    async function handleLoginSync() {
+      try {
+        const { data, error } = await fetchCloudUserState(currentUserId);
+        if (!isMounted) return;
+
+        if (error) {
+          console.error('Error fetching Supabase cloud user_state:', error);
+          setSyncStatus('error');
+          return;
+        }
+
+        const cloudAppData = data?.app_data;
+        const cloudEmpty = isCloudDataEmpty(cloudAppData);
+
+        if (cloudEmpty) {
+          // If logged in and cloud account is empty, upload local data into cloud account ONLY if user actually has trips
+          if (trips.length > 0) {
+            const initialPayload: AppDataPayload = {
+              trips,
+              riderSpecs,
+              activeTripId,
+              updatedAt: new Date().toISOString(),
+            };
+
+            const { error: uploadError } = await saveCloudUserState(currentUserId, initialPayload);
+            if (!isMounted) return;
+
+            if (uploadError) {
+              console.error('Error uploading initial local data to Supabase:', uploadError);
+              setSyncStatus('error');
+            } else {
+              lastSyncedPayloadHashRef.current = JSON.stringify({ trips, riderSpecs, activeTripId });
+              setSyncStatus('synced');
+              setLastSyncedAt(new Date());
+            }
+          } else {
+            setSyncStatus('synced');
+            setLastSyncedAt(new Date());
+          }
+        } else if (cloudAppData) {
+          // Cloud account has existing data; load app_data from Supabase
+          isCloudApplyingRef.current = true;
+          const incomingTrips = cloudAppData.trips;
+          const incomingSpecs = cloudAppData.riderSpecs;
+          const incomingActiveId = cloudAppData.activeTripId;
+
+          if (Array.isArray(incomingTrips) && incomingTrips.length > 0) {
+            setTrips(incomingTrips);
+            saveTrips(incomingTrips);
+          }
+
+          if (incomingSpecs && typeof incomingSpecs === 'object') {
+            setRiderSpecs(incomingSpecs);
+            saveRiderBikeSpecs(incomingSpecs);
+          }
+
+          const resolvedActiveId =
+            incomingActiveId && incomingTrips?.some((t: TripProfile) => t.id === incomingActiveId)
+              ? incomingActiveId
+              : incomingTrips?.[0]?.id || activeTripId;
+
+          if (resolvedActiveId) {
+            setActiveTripId(resolvedActiveId);
+            saveActiveTripId(resolvedActiveId);
+          }
+
+          lastSyncedPayloadHashRef.current = JSON.stringify({
+            trips: incomingTrips,
+            riderSpecs: incomingSpecs || riderSpecs,
+            activeTripId: resolvedActiveId,
+          });
+
+          setSyncStatus('synced');
+          setLastSyncedAt(data?.updated_at ? new Date(data.updated_at) : new Date());
+        }
+      } catch (err) {
+        console.error('Exception during Supabase cloud login sync:', err);
+        if (isMounted) setSyncStatus('error');
+      }
+    }
+
+    handleLoginSync();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
+
+  // Auto-save changes to Supabase user_state while logged in
+  useEffect(() => {
+    if (!user) return;
+
+    const currentUserId = user.id;
+
+    if (isCloudApplyingRef.current) {
+      isCloudApplyingRef.current = false;
+      return;
+    }
+
+    const currentHash = JSON.stringify({ trips, riderSpecs, activeTripId });
+    if (currentHash === lastSyncedPayloadHashRef.current) {
+      return;
+    }
+
+    setSyncStatus('saving');
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    saveTimeoutRef.current = setTimeout(async () => {
+      try {
+        const payload: AppDataPayload = {
+          trips,
+          riderSpecs,
+          activeTripId,
+          updatedAt: new Date().toISOString(),
+        };
+
+        const { error } = await saveCloudUserState(currentUserId, payload);
+        if (error) {
+          console.error('Error auto-saving changes to Supabase user_state:', error);
+          setSyncStatus('error');
+        } else {
+          lastSyncedPayloadHashRef.current = currentHash;
+          setSyncStatus('synced');
+          setLastSyncedAt(new Date());
+        }
+      } catch (err) {
+        console.error('Exception during auto-save to Supabase:', err);
+        setSyncStatus('error');
+      }
+    }, 1000);
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [trips, riderSpecs, activeTripId, user]);
+
+  // Register manual force-sync trigger
+  useEffect(() => {
+    registerForceSync(async () => {
+      if (!user) return;
+      const currentUserId = user.id;
+      setSyncStatus('saving');
+      try {
+        const payload: AppDataPayload = {
+          trips,
+          riderSpecs,
+          activeTripId,
+          updatedAt: new Date().toISOString(),
+        };
+        const { error } = await saveCloudUserState(currentUserId, payload);
+        if (error) {
+          setSyncStatus('error');
+        } else {
+          lastSyncedPayloadHashRef.current = JSON.stringify({ trips, riderSpecs, activeTripId });
+          setSyncStatus('synced');
+          setLastSyncedAt(new Date());
+        }
+      } catch (err) {
+        setSyncStatus('error');
+      }
+    });
+  }, [user, trips, riderSpecs, activeTripId, registerForceSync, setSyncStatus, setLastSyncedAt]);
 
   // Ensure scroll position resets to top on view changes
   useEffect(() => {
@@ -443,6 +668,17 @@ function AppContent() {
     }
   };
 
+  const handleLoadDemoTrips = () => {
+    const sampleTrips = generateRandomPresetTrips(3, [], lang);
+    setTrips(sampleTrips);
+    setActiveTripId(sampleTrips[0].id);
+    saveActiveTripId(sampleTrips[0].id);
+    setConfiguratorTrip(sampleTrips[0]);
+    setIsNewTrip(false);
+    saveTrips(sampleTrips);
+    setCurrentView('dashboard');
+  };
+
   const handlePrint = () => {
     window.print();
   };
@@ -483,13 +719,14 @@ function AppContent() {
             onUpdateWeather={handleUpdateWeather}
             onResetDefaults={handleResetDefaults}
             onOpenOnboarding={() => setIsOnboardingOpen(true)}
+            onLoadDemoTrip={handleLoadDemoTrips}
           />
         )}
 
         {currentView === 'configurator' && (
           <ConfiguratorScreen
-            key={(configuratorTrip || activeTrip).id}
-            initialTrip={configuratorTrip || activeTrip}
+            key={(configuratorTrip || activeTrip)?.id || 'new-trip'}
+            initialTrip={configuratorTrip || activeTrip || buildDefaultNewTripTemplate(lang)}
             isNew={isNewTrip}
             onSave={handleSaveConfiguratorTrip}
             onAutoSync={handleSaveConfiguratorTrip}
@@ -502,29 +739,36 @@ function AppContent() {
         )}
 
         {currentView === 'dashboard' && (
-          <CockpitErrorBoundary
-            key={activeTrip.id}
-            onResetCockpit={() => {
-              const freshPresets = generateRandomPresetTrips(3, [], lang);
-              setTrips(freshPresets);
-              setActiveTripId(freshPresets[0].id);
-              saveActiveTripId(freshPresets[0].id);
-              setConfiguratorTrip(freshPresets[0]);
-              saveTrips(freshPresets);
-            }}
-          >
-            <BentoDashboard
-              trip={activeTrip}
-              onUpdateTrip={handleUpdateActiveTrip}
-              onToggleHeadwind={handleToggleHeadwind}
-              onPrint={handlePrint}
-              riderSpecs={riderSpecs}
-              onUpdateRiderSpecs={handleSaveRiderSpecs}
-              onSelectBike={handleQuickSelectBike}
-              onOpenSpecs={() => setIsSpecsModalOpen(true)}
-              onOpenConfigurator={() => handleEditTrip(activeTrip)}
+          !activeTrip || trips.length === 0 ? (
+            <DashboardEmptyState
+              onCreateFirstTrip={handleCreateNewTrip}
+              onLoadDemoTrip={handleLoadDemoTrips}
             />
-          </CockpitErrorBoundary>
+          ) : (
+            <CockpitErrorBoundary
+              key={activeTrip.id}
+              onResetCockpit={() => {
+                const freshPresets = generateRandomPresetTrips(3, [], lang);
+                setTrips(freshPresets);
+                setActiveTripId(freshPresets[0].id);
+                saveActiveTripId(freshPresets[0].id);
+                setConfiguratorTrip(freshPresets[0]);
+                saveTrips(freshPresets);
+              }}
+            >
+              <BentoDashboard
+                trip={activeTrip}
+                onUpdateTrip={handleUpdateActiveTrip}
+                onToggleHeadwind={handleToggleHeadwind}
+                onPrint={handlePrint}
+                riderSpecs={riderSpecs}
+                onUpdateRiderSpecs={handleSaveRiderSpecs}
+                onSelectBike={handleQuickSelectBike}
+                onOpenSpecs={() => setIsSpecsModalOpen(true)}
+                onOpenConfigurator={() => handleEditTrip(activeTrip)}
+              />
+            </CockpitErrorBoundary>
+          )
         )}
       </main>
 
@@ -561,9 +805,17 @@ function AppContent() {
         onLaunch={handleLaunchFromOnboarding}
       />
 
-      <div className="hidden print:block print-only">
-        <PrintFlightSheet trip={activeTrip} riderSpecs={riderSpecs} />
-      </div>
+      {/* Supabase Authentication & Cloud Sync Modal */}
+      <AuthModal />
+
+      {/* Supabase Password Recovery Modal */}
+      <ResetPasswordModal />
+
+      {activeTrip && (
+        <div className="hidden print:block print-only">
+          <PrintFlightSheet trip={activeTrip} riderSpecs={riderSpecs} />
+        </div>
+      )}
     </div>
   );
 }
@@ -583,10 +835,12 @@ export function App() {
   return (
     <ThemeProvider>
       <LanguageProvider lang={lang} setLang={setLang}>
-        <IconContext.Provider value={{ weight: 'duotone' }}>
-          <AppContent />
-          <Analytics />
-        </IconContext.Provider>
+        <AuthProvider>
+          <IconContext.Provider value={{ weight: 'duotone' }}>
+            <AppContent />
+            <Analytics />
+          </IconContext.Provider>
+        </AuthProvider>
       </LanguageProvider>
     </ThemeProvider>
   );

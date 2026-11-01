@@ -21,7 +21,7 @@ import {
 interface DynamicIslandNavProps {
   currentView: 'home' | 'configurator' | 'dashboard';
   onNavigate: (view: 'home' | 'configurator' | 'dashboard') => void;
-  activeTrip: TripProfile;
+  activeTrip?: TripProfile | null;
   allTrips: TripProfile[];
   onSelectTrip: (id: string) => void;
   onCreateNew: () => void;
@@ -42,10 +42,12 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
   const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
   const switcherRef = useRef<HTMLDivElement>(null);
 
-  // Calculate live physics for dynamic telemetry status dot
-  const physics = calculatePhysics(activeTrip.physics, activeTrip.route, activeTrip.weather, lang);
-  const isGo = physics.goStatus === 'GO';
-  const isCaution = physics.goStatus === 'CAUTION';
+  // Calculate live physics for dynamic telemetry status dot (if activeTrip is defined)
+  const physics = activeTrip
+    ? calculatePhysics(activeTrip.physics, activeTrip.route, activeTrip.weather, lang)
+    : null;
+  const isGo = physics?.goStatus === 'GO';
+  const isCaution = physics?.goStatus === 'CAUTION';
 
   // Keyboard navigation shortcuts
   useEffect(() => {
@@ -89,7 +91,7 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
     };
   }, [isSwitcherOpen]);
 
-  const activeMeta = getLocalizedTripMeta(activeTrip, lang);
+  const activeMeta = activeTrip ? getLocalizedTripMeta(activeTrip, lang) : null;
   const yellowVest = CHIP_TOKENS['yellow-vest'];
   const navBtnBase = `inline-flex items-center justify-center gap-2 h-9 w-9 sm:w-auto sm:h-10 px-0 sm:px-4.5 rounded-full text-xs sm:text-[13.5px] font-semibold whitespace-nowrap transition-all duration-150 cursor-pointer focus:outline-none shrink-0 ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES}`;
   const navBtnActive = `${yellowVest.surface} ${yellowVest.primary} ${yellowVest.selectedRing}`;
@@ -159,39 +161,50 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
 
         {/* ── PROJECT TITLE BUTTON & DEDICATED TRIP SELECTOR DROPDOWN ── */}
         <div className="min-w-0 flex-1 sm:flex-initial sm:relative z-50">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsSwitcherOpen((prev) => !prev);
-            }}
-            className={`inline-flex items-center gap-1.5 sm:gap-2.5 h-9 sm:h-10 px-2.5 sm:px-4.5 max-w-full min-w-0 rounded-full text-xs sm:text-[13.5px] font-semibold whitespace-nowrap transition-all duration-150 cursor-pointer focus:outline-none ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
-              isSwitcherOpen
-                ? `${yellowVest.surface} ${yellowVest.primary} ${yellowVest.selectedRing}`
-                : `${CHIP_RING_UNSELECTED} bg-zinc-100 hover:bg-zinc-200/80 text-zinc-800 dark:bg-zinc-800/70 dark:hover:bg-zinc-800 dark:text-zinc-200`
-            }`}
-            title="Open Trip Selector"
-            aria-expanded={isSwitcherOpen}
-            aria-haspopup="listbox"
-          >
-            <span
-              className={`w-2 h-2 rounded-full shrink-0 ${
-                isGo
-                  ? CHIP_TOKENS.emerald.dot
-                  : isCaution
-                  ? CHIP_TOKENS.amber.dot
-                  : CHIP_TOKENS.rose.dot
+          {activeTrip && activeMeta ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsSwitcherOpen((prev) => !prev);
+              }}
+              className={`inline-flex items-center gap-1.5 sm:gap-2.5 h-9 sm:h-10 px-2.5 sm:px-4.5 max-w-full min-w-0 rounded-full text-xs sm:text-[13.5px] font-semibold whitespace-nowrap transition-all duration-150 cursor-pointer focus:outline-none ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                isSwitcherOpen
+                  ? `${yellowVest.surface} ${yellowVest.primary} ${yellowVest.selectedRing}`
+                  : `${CHIP_RING_UNSELECTED} bg-zinc-100 hover:bg-zinc-200/80 text-zinc-800 dark:bg-zinc-800/70 dark:hover:bg-zinc-800 dark:text-zinc-200`
               }`}
-            />
-            <span className="truncate max-w-[96px] min-[360px]:max-w-[145px] min-[400px]:max-w-[180px] sm:max-w-[220px] md:max-w-[280px]">
-              {activeMeta.name}
-            </span>
-            {isSwitcherOpen ? (
-              <CaretDown className="w-4 h-4 shrink-0 text-current stroke-[2.2]" />
-            ) : (
-              <CaretUp className="w-4 h-4 shrink-0 text-zinc-500 dark:text-zinc-400 stroke-[2.2]" />
-            )}
-          </button>
+              title="Open Trip Selector"
+              aria-expanded={isSwitcherOpen}
+              aria-haspopup="listbox"
+            >
+              <span
+                className={`w-2 h-2 rounded-full shrink-0 ${
+                  isGo
+                    ? CHIP_TOKENS.emerald.dot
+                    : isCaution
+                    ? CHIP_TOKENS.amber.dot
+                    : CHIP_TOKENS.rose.dot
+                }`}
+              />
+              <span className="truncate max-w-[96px] min-[360px]:max-w-[145px] min-[400px]:max-w-[180px] sm:max-w-[220px] md:max-w-[280px]">
+                {activeMeta.name}
+              </span>
+              {isSwitcherOpen ? (
+                <CaretDown className="w-4 h-4 shrink-0 text-current stroke-[2.2]" />
+              ) : (
+                <CaretUp className="w-4 h-4 shrink-0 text-zinc-500 dark:text-zinc-400 stroke-[2.2]" />
+              )}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onCreateNew}
+              className={`inline-flex items-center gap-1.5 h-9 sm:h-10 px-3 sm:px-4 rounded-full text-xs font-semibold ${yellowVest.surface} ${yellowVest.primary} ${CHIP_RING_BASE} ${yellowVest.selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} cursor-pointer`}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>{t('createNewTripBtn')}</span>
+            </button>
+          )}
 
           {/* ── TRIP SWITCHER / SELECTOR (CENTERED ABOVE PILL ON MOBILE, ANCHORED ABOVE BUTTON ON SM+) ── */}
           {isSwitcherOpen && (
@@ -223,7 +236,7 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
               <div className="max-h-56 sm:max-h-60 overflow-y-auto space-y-1.5 pr-0.5 no-scrollbar">
                 {allTrips.map((tripItem) => {
                   const meta = getLocalizedTripMeta(tripItem, lang);
-                  const isSelected = tripItem.id === activeTrip.id;
+                  const isSelected = activeTrip ? tripItem.id === activeTrip.id : false;
                   return (
                     <button
                       key={tripItem.id}

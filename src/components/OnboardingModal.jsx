@@ -40,9 +40,12 @@ import {
   Ruler,
   Target,
   Upload,
+  User,
 } from '@/components/icons';
+import { Cloud } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 import { generateTripChecklist } from '../types/trip';
 import {
   ARCHETYPE_CHIP_DEFINITIONS,
@@ -357,9 +360,17 @@ function calculateMovingTime(distanceKm, speedKmH) {
 export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
   const { lang, setLang, toggleLang, t } = useTranslation();
   const { isDark, toggleTheme, setTheme } = useTheme();
+  const { user, openAuthModal } = useAuth();
   const isFr = lang === 'fr';
 
-  // Wizard internal step: 0 = Welcome & Fork, 1 = Archetype & Chips, 2 = Route, 3 = Equipment, 4 = Contextual Constraints
+  // If user is already logged in to Supabase, skip onboarding completely
+  useEffect(() => {
+    if (user && isOpen) {
+      onClose();
+    }
+  }, [user, isOpen, onClose]);
+
+  // Wizard internal step: 0 = Welcome & Fork, 1 = Archetype & Chips, 2 = Route, 3 = Equipment, 4 = Contextual Constraints, 5 = Cloud Access
   const [step, setStep] = useState(0);
 
   // STEP 1 STATE: Starts BLANK to avoid orienting the user
@@ -784,7 +795,7 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
   };
 
   // Compile calibrated user trip
-  const handleLaunchCalibrated = () => {
+  const compileCalibratedTrip = () => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
 
     const chosenBike = selectedBike || BIKE_PRESETS[1];
@@ -888,7 +899,7 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
             coordinates: routeCoordinates,
           };
 
-    const calibratedTrip = {
+    return {
       id: `trip-calibrated-${Date.now()}`,
       name: tripName,
       tag: finalArchetype,
@@ -961,8 +972,17 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
         nutritionPreference: effectiveNutritionPref,
       },
     };
+  };
 
+  const handleLaunchCalibrated = () => {
+    const calibratedTrip = compileCalibratedTrip();
     onLaunch(calibratedTrip);
+  };
+
+  const handleLaunchWithAuth = (mode = 'signup') => {
+    const calibratedTrip = compileCalibratedTrip();
+    onLaunch(calibratedTrip);
+    openAuthModal(mode);
   };
 
   return (
@@ -981,14 +1001,16 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
               <span className="text-[11px] sm:text-xs font-bold tracking-wider uppercase text-ink-muted leading-tight">
                 {step === 0
                   ? (isFr ? 'Bienvenue · Assistant de calibrage' : 'Welcome · Calibration Wizard')
-                  : `${isFr ? 'Étape' : 'Step'} ${step} / 4 · ${
+                  : `${isFr ? 'Étape' : 'Step'} ${step} / 5 · ${
                       step === 1
                         ? (isFr ? 'Profil de sortie & Badges' : 'Ride Profile & Chips')
                         : step === 2
                         ? (isFr ? 'Parcours & Allure' : 'Route & Cruising Pace')
                         : step === 3
                         ? (isFr ? 'Type de vélo & Bagages' : 'Bike Type & Luggage')
-                        : (isFr ? 'Protocoles opérationnels' : 'Operational Protocols')
+                        : step === 4
+                        ? (isFr ? 'Protocoles opérationnels' : 'Operational Protocols')
+                        : (isFr ? 'Accédez à vos trajets partout' : 'Access Your Trips Anywhere')
                     }`}
               </span>
             </div>
@@ -1059,9 +1081,9 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
             </div>
           </div>
 
-          {/* 4-Segment Progress Bar */}
-          <div className="grid grid-cols-4 gap-2 mt-3.5">
-            {[1, 2, 3, 4].map((segIndex) => {
+          {/* 5-Segment Progress Bar */}
+          <div className="grid grid-cols-5 gap-2 mt-3.5">
+            {[1, 2, 3, 4, 5].map((segIndex) => {
               const isFilled = step >= segIndex;
               const isCurrent = step === segIndex;
               return (
@@ -1261,6 +1283,18 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
                     </button>
                   </div>
                 </div>
+              </div>
+
+              {/* Returning User Quick Log In Button */}
+              <div className="pt-4 pb-1 text-center">
+                <button
+                  type="button"
+                  onClick={() => openAuthModal('login')}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-xs sm:text-sm font-semibold bg-pod hover:bg-chip text-ink border border-black/10 dark:border-white/15 transition-all shadow-xs cursor-pointer hover:scale-[1.01] active:scale-[0.98]"
+                >
+                  <User className="w-4 h-4 text-ink-secondary" />
+                  <span>{isFr ? 'Déjà un compte ? Se connecter' : 'Already have an account? Log In'}</span>
+                </button>
               </div>
             </div>
           )}
@@ -2812,6 +2846,144 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
               </div>
             </div>
           )}
+
+          {/* STEP 5: ACCESS YOUR TRIPS ANYWHERE (FOR NEW USERS) */}
+          {step === 5 && (
+            <div className="space-y-6 animate-fade-in">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <IconBadge theme="yellow-vest" icon={Cloud} size="md" solidBacker />
+                  <h3 className="text-lg sm:text-xl font-bold text-ink tracking-tight">
+                    {isFr ? 'Accédez à vos trajets partout' : 'Access Your Trips Anywhere'}
+                  </h3>
+                </div>
+                <p className="text-xs text-ink-muted mt-1 leading-relaxed">
+                  {isFr
+                    ? 'Synchronisez vos profils de sortie et réglages vélo en temps réel avec Supabase, ou conservez vos données uniquement sur cet appareil en tant qu’invité.'
+                    : 'Sync your calibrated rides, bike setups, and nutrition protocols securely with Supabase, or continue as a local guest on this device only.'}
+                </p>
+              </div>
+
+              {/* Primary Cloud Sync Card */}
+              <div className="p-5 sm:p-6 rounded-3xl bg-pod border border-black/10 dark:border-white/10 space-y-4 relative overflow-hidden">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-ink">
+                      {isFr ? 'Synchronisation Cloud Supabase' : 'Supabase Cloud Sync'}
+                    </span>
+                  </div>
+                  <Badge variant="emerald" size="sm" className="font-bold">
+                    {isFr ? 'GRATUIT & SÉCURISÉ' : 'FREE & ENCRYPTED'}
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                  <div className="p-3.5 rounded-2xl bg-card border border-black/5 dark:border-white/10 space-y-1">
+                    <div className="flex items-center gap-2 text-ink font-bold text-xs">
+                      <Sparkle className="w-4 h-4 text-volt-dim dark:text-volt" />
+                      <span>{isFr ? 'Multi-écrans' : 'Multi-Device'}</span>
+                    </div>
+                    <p className="text-[11px] text-ink-muted leading-tight">
+                      {isFr
+                        ? 'Cockpit bureau et guidon mobile synchronisés instantanément.'
+                        : 'Seamless sync between desktop planning and mobile handlebars.'}
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-card border border-black/5 dark:border-white/10 space-y-1">
+                    <div className="flex items-center gap-2 text-ink font-bold text-xs">
+                      <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                      <span>{isFr ? 'Zéro perte' : 'Zero Data Loss'}</span>
+                    </div>
+                    <p className="text-[11px] text-ink-muted leading-tight">
+                      {isFr
+                        ? 'Sauvegarde automatique de vos profils et vélos dans le cloud.'
+                        : 'Automated persistent backup of your custom profiles and garage.'}
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-card border border-black/5 dark:border-white/10 space-y-1">
+                    <div className="flex items-center gap-2 text-ink font-bold text-xs">
+                      <Bicycle className="w-4 h-4 text-blue-500" />
+                      <span>{isFr ? 'Garage & Ravitaillement' : 'Bikes & Fueling'}</span>
+                    </div>
+                    <p className="text-[11px] text-ink-muted leading-tight">
+                      {isFr
+                        ? 'Vos pneus tubeless, watts FTP et cibles glucides mémorisés.'
+                        : 'Your tubeless pressures, FTP watts, and carb targets retained.'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Cloud Action Buttons */}
+                <div className="pt-2">
+                  {user ? (
+                    <div className="p-4 rounded-2xl bg-card border border-emerald-500/20 flex flex-col sm:flex-row items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                        <span className="text-xs text-ink font-medium">
+                          {isFr ? 'Connecté en tant que' : 'Signed in as'}{' '}
+                          <strong className="text-ink font-mono">{user.email}</strong>
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleLaunchCalibrated}
+                        className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} text-xs font-bold transition-all shadow-xs cursor-pointer`}
+                      >
+                        <RocketLaunch className="w-4 h-4 text-current" />
+                        <span>{isFr ? 'Synchroniser & Ouvrir le Cockpit' : 'Sync & Launch Cockpit'}</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col sm:flex-row items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => handleLaunchWithAuth('signup')}
+                        className={`w-full sm:flex-1 inline-flex items-center justify-center gap-2 py-3 px-5 rounded-full ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} hover:brightness-[0.97] dark:hover:brightness-110 font-bold text-xs sm:text-sm transition-all shadow-md cursor-pointer`}
+                      >
+                        <Sparkle className="w-4 h-4 text-current" />
+                        <span>{isFr ? 'Créer un compte & Synchroniser' : 'Sign Up & Sync to Cloud'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleLaunchWithAuth('login')}
+                        className="w-full sm:w-auto inline-flex items-center justify-center gap-2 py-3 px-5 rounded-full bg-card hover:bg-chip text-ink border border-black/10 dark:border-white/15 font-semibold text-xs sm:text-sm transition-all shadow-xs cursor-pointer"
+                      >
+                        <User className="w-4 h-4 text-ink-secondary" />
+                        <span>{isFr ? 'Se connecter' : 'Log In'}</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Local Guest Fallback Option */}
+              <div className="p-4 sm:p-5 rounded-3xl bg-pod/60 border border-dashed border-black/10 dark:border-white/15 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="space-y-0.5">
+                  <h4 className="text-xs font-bold text-ink">
+                    {isFr ? 'Mode invité local' : 'Local Guest Mode'}
+                  </h4>
+                  <p className="text-[11px] text-ink-muted leading-tight">
+                    {isFr
+                      ? 'Vous préférez ne pas créer de compte ? Votre trajet restera uniquement dans le stockage de ce navigateur.'
+                      : 'Prefer not to create an account? Your ride will stay strictly in this browser’s local storage.'}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleLaunchCalibrated}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-card hover:bg-chip text-ink border border-black/10 dark:border-white/15 text-xs font-semibold whitespace-nowrap transition-all shadow-xs cursor-pointer shrink-0"
+                >
+                  <span>{isFr ? 'Passer — Conserver sur cet appareil uniquement' : 'Skip — Keep data on this device only'}</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-ink-muted" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Wizard Footer Navigation Controls */}
@@ -2854,11 +3026,22 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
           {step === 4 && (
             <button
               type="button"
-              onClick={handleLaunchCalibrated}
+              onClick={() => setStep(5)}
               className={`flex items-center gap-2 px-6 py-2.5 rounded-full ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} hover:brightness-[0.97] dark:hover:brightness-110 text-xs font-extrabold uppercase tracking-wider transition-all shadow-sm cursor-pointer`}
             >
-              <RocketLaunch className="w-4 h-4 text-current" />
-              <span>{isFr ? 'Ouvrir le Cockpit' : 'Open Ride Cockpit'}</span>
+              <span>{isFr ? 'Continuer : Accès & Sauvegarde' : 'Next: Cloud Access'}</span>
+              <ArrowRight className="w-4 h-4 text-current" />
+            </button>
+          )}
+
+          {step === 5 && (
+            <button
+              type="button"
+              onClick={handleLaunchCalibrated}
+              className="inline-flex items-center gap-1.5 text-xs text-ink-muted hover:text-ink font-medium transition-colors cursor-pointer py-1.5 px-3.5 rounded-full hover:bg-card"
+            >
+              <span>{isFr ? 'Passer (invité local)' : 'Skip (local guest)'}</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
