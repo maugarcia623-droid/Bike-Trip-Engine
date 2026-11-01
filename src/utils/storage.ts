@@ -1,8 +1,15 @@
 import { TripProfile, ChecklistItem } from '../types/trip';
+import {
+  generateRandomPresetTrips,
+  getAllPresetTrips,
+  buildDefaultNewTripTemplate,
+} from './presetTrips';
 
-const STORAGE_KEY_PROFILES = 'bike_trip_engine_profiles_v1';
-const STORAGE_KEY_ACTIVE_ID = 'bike_trip_engine_active_id_v1';
+const STORAGE_KEY_PROFILES = 'bike_trip_engine_profiles_v2';
+const STORAGE_KEY_ACTIVE_ID = 'bike_trip_engine_active_id_v2';
 const STORAGE_KEY_THEME = 'bike_trip_engine_theme_v1';
+
+export { generateRandomPresetTrips, getAllPresetTrips, buildDefaultNewTripTemplate };
 
 export const DEFAULT_CHECKLIST: ChecklistItem[] = [
   // Mechanics
@@ -19,8 +26,8 @@ export const DEFAULT_CHECKLIST: ChecklistItem[] = [
 
   // Nutrition Pack (NO POWDERS / NO MILK / NO BANANAS)
   { id: 'chk-bidon', label: 'Bidon: 650ml 50/50 Water & 100% Pressed Grape/Apple juice', category: 'nutrition', checked: true, critical: true },
-  { id: 'chk-dates', label: 'Pocket Pocket: 2 Medjool dates + 2 dried Turkish figs', category: 'nutrition', checked: true, critical: true },
-  { id: 'chk-pate', label: 'Pocket Pocket: 2 artisanal pâte de fruits squares', category: 'nutrition', checked: false, critical: false },
+  { id: 'chk-dates', label: 'Pocket Fuel: 2 Medjool dates + 2 dried Turkish figs', category: 'nutrition', checked: true, critical: true },
+  { id: 'chk-pate', label: 'Pocket Fuel: 2 artisanal pâte de fruits squares', category: 'nutrition', checked: false, critical: false },
   { id: 'chk-skyr', label: 'Commute Pack: 200g Skyr 0% in insulated cooler pouch for Locker Bay', category: 'nutrition', checked: true, critical: true },
   { id: 'chk-oats', label: 'Commute Pack: Jar of oat milk overnight oats + apple + walnuts', category: 'nutrition', checked: true, critical: true },
 
@@ -31,163 +38,32 @@ export const DEFAULT_CHECKLIST: ChecklistItem[] = [
   { id: 'chk-towel', label: 'Microfiber quick-dry bath towel + natural cedar deodorant', category: 'logistics', checked: true, critical: true },
 ];
 
-export const INITIAL_PROFILES: TripProfile[] = [
-  {
-    id: 'estuary-gate17-morning',
-    name: 'Morning Estuary Commute (Gate 17)',
-    tag: 'DEFAULT REVERSE RUN',
-    description: '22 km daily gravel commute crossing the Saint-Nazaire estuary bridge to secure Gate 17. Strict office protocol: Locker refuel at 08:30, Break room breakfast at 08:50, Shift lock 09:00.',
-    createdAt: '2026-10-24T06:00:00Z',
-    updatedAt: '2026-10-24T06:00:00Z',
-    physics: {
-      riderWeightKg: 74,
-      bikeWeightKg: 9.4,
-      gearWeightKg: 4.2,
-      cda: 0.40,
-      crr: 0.006, // Gravel tires on asphalt
-      rho: 1.225, // Air density kg/m3
-      drivetrainEfficiency: 0.95, // 95%
-      grossMechanicalEfficiency: 0.21, // 21%
-      gradientPercent: 0.3, // Slight rolling elevation
-    },
-    route: {
-      distanceKm: 22.0,
-      targetSpeedKmH: 27.5,
-      urbanTrafficDelayMinutes: 8,
-      gateSecurityDelayMinutes: 5,
-    },
-    office: {
-      shiftStartTime: '09:00',
-      targetGateArrivalTime: '08:30',
-      gateName: 'Gate 17',
-      lockerRefuelMinutes: 10,
-      showerChangeMinutes: 10,
-      breakRoomBreakfastMinutes: 15,
-      strictNoFoodInOpenSpace: true,
-      badgeRequiredForGate: true,
-      notes: 'No food permitted at open space desks. Locker refuel (Skyr + juice) on arrival, break room oats before 09:00 standup.',
-    },
-    weather: {
-      isHeadwindActive: true,
-      baseWindSpeedKmH: 8.0, // 8 km/h Estuary Headwind
-      windDirection: 'headwind',
-      windDirectionDegrees: 245,
-      temperatureC: 11,
-      precipitationRiskPercent: 15,
-      estuaryGustKmH: 14,
-      visibilityKm: 12,
-    },
-    checklist: DEFAULT_CHECKLIST,
-  },
-  {
-    id: 'gravel-aero-speedrun',
-    name: 'Gravel Aero Time-Trial (Fast Shift)',
-    tag: 'HIGH INTENSITY',
-    description: 'Aggressive aero posture for compressed morning transit. Pushing 31.5 km/h with low profile tuck and reduced drag envelope.',
-    createdAt: '2026-10-23T06:00:00Z',
-    updatedAt: '2026-10-23T06:00:00Z',
-    physics: {
-      riderWeightKg: 74,
-      bikeWeightKg: 8.8,
-      gearWeightKg: 3.2,
-      cda: 0.36,
-      crr: 0.0055,
-      rho: 1.225,
-      drivetrainEfficiency: 0.96,
-      grossMechanicalEfficiency: 0.21,
-      gradientPercent: 0.0,
-    },
-    route: {
-      distanceKm: 22.0,
-      targetSpeedKmH: 31.5,
-      urbanTrafficDelayMinutes: 6,
-      gateSecurityDelayMinutes: 4,
-    },
-    office: {
-      shiftStartTime: '08:30',
-      targetGateArrivalTime: '08:00',
-      gateName: 'Gate 17 Fast Lane',
-      lockerRefuelMinutes: 10,
-      showerChangeMinutes: 10,
-      breakRoomBreakfastMinutes: 10,
-      strictNoFoodInOpenSpace: true,
-      badgeRequiredForGate: true,
-      notes: 'Speedrun configuration. Arrive at 08:00 for earlier team scrum.',
-    },
-    weather: {
-      isHeadwindActive: false,
-      baseWindSpeedKmH: 4.0,
-      windDirection: 'calm',
-      windDirectionDegrees: 180,
-      temperatureC: 13,
-      precipitationRiskPercent: 5,
-      estuaryGustKmH: 7,
-      visibilityKm: 20,
-    },
-    checklist: DEFAULT_CHECKLIST.map((item, idx) => ({ ...item, checked: idx < 10 })),
-  },
-  {
-    id: 'calm-recovery-commute',
-    name: 'Endurance Recovery Cruise',
-    tag: 'AEROBIC RECOVERY',
-    description: 'Zone 2 gentle cruise on flat tarmac. Relaxed cadence with ample 15-minute buffer cushion.',
-    createdAt: '2026-10-22T06:00:00Z',
-    updatedAt: '2026-10-22T06:00:00Z',
-    physics: {
-      riderWeightKg: 74,
-      bikeWeightKg: 9.8,
-      gearWeightKg: 4.5,
-      cda: 0.42,
-      crr: 0.0062,
-      rho: 1.225,
-      drivetrainEfficiency: 0.94,
-      grossMechanicalEfficiency: 0.21,
-      gradientPercent: 0.1,
-    },
-    route: {
-      distanceKm: 22.0,
-      targetSpeedKmH: 24.0,
-      urbanTrafficDelayMinutes: 10,
-      gateSecurityDelayMinutes: 5,
-    },
-    office: {
-      shiftStartTime: '09:00',
-      targetGateArrivalTime: '08:30',
-      gateName: 'Gate 17',
-      lockerRefuelMinutes: 10,
-      showerChangeMinutes: 10,
-      breakRoomBreakfastMinutes: 15,
-      strictNoFoodInOpenSpace: true,
-      badgeRequiredForGate: true,
-      notes: 'Easy recovery watts, low heart rate zone.',
-    },
-    weather: {
-      isHeadwindActive: false,
-      baseWindSpeedKmH: 3.0,
-      windDirection: 'calm',
-      windDirectionDegrees: 90,
-      temperatureC: 15,
-      precipitationRiskPercent: 0,
-      estuaryGustKmH: 5,
-      visibilityKm: 18,
-    },
-    checklist: DEFAULT_CHECKLIST,
-  },
-];
+/**
+ * Full curated pool of 12 preset trip projects (3 per archetype) with pre-fetched OSRM routes,
+ * DEM elevation profiles, and preloaded archetype chips + ruleSettings.
+ */
+export const PRESET_TRIP_POOL: TripProfile[] = getAllPresetTrips();
+
+/**
+ * Default initial set of 3 randomized trip projects across distinct ride archetypes.
+ */
+export const INITIAL_PROFILES: TripProfile[] = generateRandomPresetTrips(3);
 
 export function loadTrips(): TripProfile[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_PROFILES);
     if (!raw) {
-      saveTrips(INITIAL_PROFILES);
-      return INITIAL_PROFILES;
+      const randomized = generateRandomPresetTrips(3);
+      saveTrips(randomized);
+      return randomized;
     }
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed) && parsed.length > 0) {
       return parsed;
     }
-    saveTrips(INITIAL_PROFILES);
-    return INITIAL_PROFILES;
+    const randomized = generateRandomPresetTrips(3);
+    saveTrips(randomized);
+    return randomized;
   } catch (e) {
     console.error('Error loading trips from localStorage', e);
     return INITIAL_PROFILES;
@@ -230,7 +106,9 @@ export function loadTheme(): 'dark' | 'light' {
     if (stored === 'light' || stored === 'dark') {
       return stored;
     }
-    // Default to dark mode per design system specs
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
     return 'dark';
   } catch (e) {
     return 'dark';

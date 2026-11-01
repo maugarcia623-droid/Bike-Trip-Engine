@@ -1,27 +1,64 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2310b981' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='18.5' cy='17.5' r='3.5'/><circle cx='5.5' cy='17.5' r='3.5'/><circle cx='15' cy='5' r='1'/><path d='M12 17.5V14l-3-3 4-3 2 3h2'/></svg>" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Bike Trip Engine — High-Precision Flight Deck & Commute Telemetry</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'><rect width='24' height='24' rx='12' fill='%23111111'/><circle cx='7.5' cy='12' r='3.5' stroke='%23F2F455' stroke-width='2.2'/><circle cx='16.5' cy='12' r='3.5' stroke='%23F2F455' stroke-width='2.2'/><path d='M9.8 9.2h4.4M9.8 14.8h4.4' stroke='%23F2F455' stroke-width='2.2' stroke-linecap='round'/></svg>" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Bike Trip Engine — Cockpit &amp; Ride Metrics</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script>
-      try {
-        var theme = localStorage.getItem('bike_trip_engine_theme_v1');
-        if (theme === 'light') {
-          document.documentElement.classList.remove('dark');
-          document.documentElement.classList.add('light');
-        } else {
-          document.documentElement.classList.add('dark');
-          document.documentElement.classList.remove('light');
-        }
-      } catch (e) {}
+      (function() {
+        try {
+          var query = window.location.search || '';
+          var queryLight = query.indexOf('theme=light') !== -1;
+          var queryDark = query.indexOf('theme=dark') !== -1;
+          var savedTheme = localStorage.getItem('bike_trip_engine_theme_v1');
+          var systemDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+          var isDark;
+          if (queryLight) {
+            isDark = false;
+          } else if (queryDark) {
+            isDark = true;
+          } else if (savedTheme === 'light') {
+            isDark = false;
+          } else if (savedTheme === 'dark') {
+            isDark = true;
+          } else {
+            // Default to system theming when no explicit user preference is set
+            isDark = Boolean(systemDark);
+          }
+
+          var root = document.documentElement;
+          if (isDark) {
+            root.classList.add('dark');
+            root.classList.remove('light');
+            root.style.colorScheme = 'dark';
+            root.setAttribute('data-theme', 'dark');
+          } else {
+            root.classList.remove('dark');
+            root.classList.add('light');
+            root.style.colorScheme = 'light';
+            root.setAttribute('data-theme', 'light');
+          }
+
+          var savedLang = localStorage.getItem('velotaf_lang');
+          if (!savedLang && typeof navigator !== 'undefined') {
+            var navLang = (navigator.language || (navigator.languages && navigator.languages[0]) || '').toLowerCase();
+            if (navLang.indexOf('fr') === 0) {
+              savedLang = 'fr';
+            }
+          }
+          if (savedLang === 'fr' || savedLang === 'en') {
+            root.lang = savedLang;
+          }
+        } catch (e) {}
+      })();
     </script>
   </head>
-  <body class="bg-slate-50 dark:bg-[#09090b] text-slate-900 dark:text-zinc-100 antialiased selection:bg-emerald-500/20 selection:text-emerald-700 dark:selection:text-emerald-300 min-h-screen transition-colors duration-200">
+  <body class="bg-canvas text-ink antialiased selection:bg-volt selection:text-[#111111] min-h-screen transition-colors duration-200">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -1,186 +1,287 @@
-import React from 'react';
-import { Wind, Thermometer, CloudRain, AlertTriangle, CheckCircle, Navigation2 } from 'lucide-react';
-import { WeatherCondition } from '../../types/trip';
+import React, { useState, useEffect } from 'react';
+import { Wind, ThermometerSimple, CloudRain, Warning, CheckCircle, NavigationArrow } from '@/components/icons';
+import { TripProfile, WeatherCondition } from '../../types/trip';
+import { useTranslation } from '../../context/LanguageContext';
+import { calculatePhysics } from '../../utils/physics';
+import { degreesToCompassCardinal } from '../../services/weatherService';
+import { Badge } from '../common/Badge';
+import {
+  CHIP_DUOTONE_ISOLATION_CLASSES,
+  CHIP_RING_BASE,
+  CHIP_RING_UNSELECTED,
+  CHIP_TOKENS,
+  GREYSCALE_TOKENS,
+} from '../../tokens/chipTokens';
 
 interface WeatherWidgetProps {
+  trip?: TripProfile;
   weather: WeatherCondition;
   onUpdateWeather: (newWeather: WeatherCondition) => void;
   speedKmH: number;
 }
 
 export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
+  trip,
   weather,
   onUpdateWeather,
   speedKmH,
 }) => {
+  const { lang, t } = useTranslation();
+  const [isDark, setIsDark] = useState(true);
+
+  useEffect(() => {
+    const checkDark = () => setIsDark(document.documentElement.classList.contains('dark'));
+    checkDark();
+    const observer = new MutationObserver(checkDark);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
   const toggleHeadwind = () => {
+    const nextActive = !weather.isHeadwindActive;
+    const nextSpeed = nextActive && weather.baseWindSpeedKmH === 0 ? 12 : weather.baseWindSpeedKmH;
     onUpdateWeather({
       ...weather,
-      isHeadwindActive: !weather.isHeadwindActive,
-      windDirection: !weather.isHeadwindActive ? 'headwind' : 'calm',
+      source: 'simulated',
+      effectiveHeadwindKmH: undefined,
+      isHeadwindActive: nextActive,
+      baseWindSpeedKmH: nextSpeed,
+      windDirection: nextActive ? 'headwind' : 'calm',
+      estuaryGustKmH: nextActive ? (weather.estuaryGustKmH || Math.round(nextSpeed * 1.5)) : 5,
     });
   };
 
   const handleWindSpeedChange = (speed: number) => {
     onUpdateWeather({
       ...weather,
+      source: 'simulated',
+      effectiveHeadwindKmH: undefined,
       baseWindSpeedKmH: speed,
       isHeadwindActive: speed > 0,
+      windDirection: speed > 0 ? 'headwind' : 'calm',
+      estuaryGustKmH: speed > 0 ? Math.round(speed * 1.5) : 5,
     });
   };
 
-  // Status
-  const isHighWind = weather.baseWindSpeedKmH >= 30;
-  const isCaution = weather.isHeadwindActive && weather.baseWindSpeedKmH >= 8;
+  const rhoNum = weather.airDensityRho ?? trip?.physics.rho ?? 1.225;
+  const effectivePhysics = {
+    riderWeightKg: trip?.physics.riderWeightKg ?? 74,
+    bikeWeightKg: trip?.physics.bikeWeightKg ?? 9.4,
+    gearWeightKg: trip?.physics.gearWeightKg ?? 4.0,
+    cda: trip?.physics.cda ?? 0.4,
+    crr: trip?.physics.crr ?? 0.006,
+    rho: rhoNum,
+    drivetrainEfficiency: trip?.physics.drivetrainEfficiency ?? 0.95,
+    grossMechanicalEfficiency: trip?.physics.grossMechanicalEfficiency ?? 0.21,
+    gradientPercent: trip?.physics.gradientPercent ?? 0,
+  };
+  const effectiveRoute = trip?.route ?? {
+    distanceKm: 22,
+    targetSpeedKmH: speedKmH,
+    urbanTrafficDelayMinutes: 8,
+    gateSecurityDelayMinutes: 5,
+  };
+
+  const physicsResult = calculatePhysics(effectivePhysics, effectiveRoute, weather, lang);
+
+  const effectiveWindSpeed = weather.isHeadwindActive ? weather.baseWindSpeedKmH : 0;
+  const windDeg = Math.round(weather.windDirectionDegrees ?? 245);
+  const windCardinal = degreesToCompassCardinal(windDeg, lang);
+  const peakGust = weather.isHeadwindActive
+    ? (weather.estuaryGustKmH || Math.round(weather.baseWindSpeedKmH * 1.5))
+    : Math.min(8, weather.estuaryGustKmH || 5);
+  const aeroDeltaWatts = Math.max(1, Math.round(physicsResult.powerDeltaWatts));
+
+  const isHighWind = effectiveWindSpeed >= 30 || (weather.isHeadwindActive && peakGust >= 50);
+  const isCaution = !isHighWind && weather.isHeadwindActive && effectiveWindSpeed >= 8;
+  const fillPercent = Math.min(100, Math.max(0, (weather.baseWindSpeedKmH / 35) * 100));
+  const activeBarColor = isHighWind ? '#FF3B30' : isDark ? '#F2F455' : '#111111';
+  const trackEmptyColor = isDark ? '#2D2D34' : '#EBE9E3';
 
   return (
-    <div className="bg-white dark:bg-[#121215] border border-slate-200 dark:border-zinc-800 rounded-xl p-5 mb-8 shadow-sm dark:shadow-none">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-zinc-800/80 pb-4 mb-4">
+    <div className="bg-card rounded-card p-4 mb-7 transition-colors">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-cyan-500 animate-ping" />
-            <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-900 dark:text-white">
-              QUICK WEATHER CHECK &middot; ESTUARY BRIDGE CORRIDOR
+          <div className="flex items-center gap-2.5">
+            <span
+              className={`w-2 h-2 rounded-full animate-beacon-pulse ${
+                isHighWind
+                  ? CHIP_TOKENS.rose.dot
+                  : isCaution
+                  ? CHIP_TOKENS.amber.dot
+                  : CHIP_TOKENS.emerald.dot
+              }`}
+            />
+            <h2 className="text-base sm:text-[17px] font-semibold tracking-tight text-ink">
+              {t('weatherCheckTitle')}
             </h2>
           </div>
-          <p className="text-xs text-slate-600 dark:text-zinc-400 mt-1">
-            Real-time atmospheric telemetry and dynamic GO / NO-GO aerodynamic evaluation.
+          <p className="text-[13px] text-ink-muted mt-0.5">
+            {t('weatherCheckSubtitle')}
           </p>
         </div>
 
-        {/* Global GO / CAUTION Status Banner */}
-        <div className="flex items-center gap-3">
+        {/* Full-Radius Status Callout & Toggle */}
+        <div className="flex items-center gap-2 flex-wrap">
           {isHighWind ? (
-            <div className="flex items-center gap-2 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 text-rose-700 dark:text-rose-400 px-3 py-1.5 rounded-lg text-xs font-mono font-bold">
-              <AlertTriangle className="w-4 h-4" />
-              <span>NO-GO &middot; GALE HAZARD</span>
-            </div>
+            <Badge variant="rose" size="lg" icon={Warning} className="py-2 px-3.5 text-xs">
+              {t('statusNoGoGale')}
+            </Badge>
           ) : isCaution ? (
-            <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-500/10 border border-amber-300 dark:border-amber-500/30 text-amber-800 dark:text-amber-400 px-3 py-1.5 rounded-lg text-xs font-mono font-bold">
-              <AlertTriangle className="w-4 h-4" />
-              <span>CAUTION &middot; HEADWIND ACTIVE</span>
-            </div>
+            <Badge variant="yellow-vest" size="lg" icon={Warning} className="py-2 px-3.5 text-xs">
+              {t('statusCautionHeadwind')}
+            </Badge>
           ) : (
-            <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-300 dark:border-emerald-500/30 text-emerald-800 dark:text-emerald-400 px-3 py-1.5 rounded-lg text-xs font-mono font-bold">
-              <CheckCircle className="w-4 h-4" />
-              <span>GO &middot; OPTIMAL CONDITIONS</span>
-            </div>
+            <Badge variant="emerald" size="lg" icon={CheckCircle} className="py-2 px-3.5 text-xs">
+              {t('statusGoOptimal')}
+            </Badge>
           )}
 
-          {/* Quick Toggle Button */}
           <button
+            type="button"
             onClick={toggleHeadwind}
-            className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all flex items-center gap-1.5 ${
+            className={`px-4 py-2 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer tnum ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
               weather.isHeadwindActive
-                ? 'bg-amber-500 text-zinc-950 shadow-glow-amber'
-                : 'bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-zinc-700'
+                ? `${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary} ${CHIP_TOKENS.amber.selectedRing}`
+                : `${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} ${CHIP_RING_UNSELECTED} hover:brightness-[0.97] dark:hover:brightness-110`
             }`}
           >
-            <Wind className="w-3.5 h-3.5" />
-            <span>{weather.isHeadwindActive ? '8 km/h Headwind ON' : 'Calm Mode'}</span>
+            <Wind className="w-4 h-4 text-current" />
+            <span>
+              {weather.isHeadwindActive
+                ? t('headwindSpeedToggle', { speed: weather.baseWindSpeedKmH })
+                : t('calmModeToggle')}
+            </span>
           </button>
         </div>
       </div>
 
-      {/* Grid of Weather Gauges */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {/* Wind Vector */}
-        <div className="bg-slate-50 dark:bg-zinc-950/70 border border-slate-200 dark:border-zinc-800/80 rounded-lg p-3">
-          <div className="flex items-center justify-between text-[10px] font-mono text-slate-500 dark:text-zinc-400 uppercase">
-            <span>Estuary Vector</span>
-            <Navigation2
-              className={`w-3.5 h-3.5 transform transition-transform ${
-                weather.isHeadwindActive ? 'text-amber-500 dark:text-amber-400 rotate-180' : 'text-emerald-600 dark:text-emerald-400 rotate-45'
+      {/* 4 Borderless Weather Gauge Pods */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
+        <div className="bg-pod rounded-pod p-3.5 sm:p-4 min-w-0">
+          <div className="flex items-center justify-between gap-1.5 text-xs font-medium text-ink-muted">
+            <span className="truncate">{t('estuaryVectorLabel')}</span>
+            <NavigationArrow
+              className={`w-4 h-4 shrink-0 transform transition-transform ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                weather.isHeadwindActive
+                  ? `${CHIP_TOKENS.amber.primary} rotate-180`
+                  : `${CHIP_TOKENS.emerald.primary} rotate-45`
               }`}
             />
           </div>
-          <div className="mt-1.5 flex items-baseline gap-1">
-            <span className="text-xl font-mono font-bold text-slate-900 dark:text-white">
-              {weather.baseWindSpeedKmH}
+          <div className="mt-2.5 flex items-baseline gap-1 flex-wrap">
+            <span className="text-2xl sm:text-3xl font-semibold tracking-tight text-ink tnum">
+              {effectiveWindSpeed}
             </span>
-            <span className="text-xs font-mono text-slate-500 dark:text-zinc-400">km/h</span>
+            <span className="text-xs font-medium text-ink-muted">km/h</span>
           </div>
-          <p className="text-[10px] font-mono text-slate-500 dark:text-zinc-400 mt-1">
-            {weather.isHeadwindActive ? 'Opposing Headwind (245° WSW)' : 'Negligible Drag'}
+          <p className="text-xs text-ink-secondary mt-1 tnum">
+            {weather.isHeadwindActive && effectiveWindSpeed > 0
+              ? t('opposingHeadwindSub', { deg: windDeg, dir: windCardinal })
+              : t('negligibleDragSub', { deg: windDeg, dir: windCardinal })}
           </p>
         </div>
 
-        {/* Temperature & Air Density */}
-        <div className="bg-slate-50 dark:bg-zinc-950/70 border border-slate-200 dark:border-zinc-800/80 rounded-lg p-3">
-          <div className="flex items-center justify-between text-[10px] font-mono text-slate-500 dark:text-zinc-400 uppercase">
-            <span>Air Temp / Rho</span>
-            <Thermometer className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
+        <div className="bg-pod rounded-pod p-3.5 sm:p-4 min-w-0">
+          <div className="flex items-center justify-between gap-1.5 text-xs font-medium text-ink-muted">
+            <span className="truncate">{t('airTempDensityLabel')}</span>
+            <ThermometerSimple className={`w-4 h-4 shrink-0 ${GREYSCALE_TOKENS.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
           </div>
-          <div className="mt-1.5 flex items-baseline gap-1">
-            <span className="text-xl font-mono font-bold text-cyan-600 dark:text-cyan-400">
+          <div className="mt-2.5 flex items-baseline gap-x-1.5 gap-y-0.5 flex-wrap">
+            <span className="text-2xl sm:text-3xl font-semibold tracking-tight text-ink tnum">
               {weather.temperatureC}°C
             </span>
-            <span className="text-xs font-mono text-slate-500 dark:text-zinc-400">1.225 kg/m³</span>
+            <span className="text-xs font-medium text-ink-muted tnum">{rhoNum.toFixed(3)} kg/m³</span>
           </div>
-          <p className="text-[10px] font-mono text-slate-500 dark:text-zinc-400 mt-1">
-            Crisp morning air (ideal drag)
+          <p className="text-xs text-ink-secondary mt-1">
+            {rhoNum >= 1.245
+              ? t('coldDenseAirSub')
+              : rhoNum <= 1.195
+              ? t('warmLightAirSub')
+              : t('standardMorningDensitySub')}
           </p>
         </div>
 
-        {/* Gust Envelope */}
-        <div className="bg-slate-50 dark:bg-zinc-950/70 border border-slate-200 dark:border-zinc-800/80 rounded-lg p-3">
-          <div className="flex items-center justify-between text-[10px] font-mono text-slate-500 dark:text-zinc-400 uppercase">
-            <span>Bridge Gusts</span>
-            <Wind className="w-3.5 h-3.5 text-slate-500 dark:text-zinc-400" />
+        <div className="bg-pod rounded-pod p-3.5 sm:p-4 min-w-0">
+          <div className="flex items-center justify-between gap-1.5 text-xs font-medium text-ink-muted">
+            <span className="truncate">{t('bridgeGustsLabel')}</span>
+            <Wind className={`w-4 h-4 shrink-0 ${GREYSCALE_TOKENS.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
           </div>
-          <div className="mt-1.5 flex items-baseline gap-1">
-            <span className="text-xl font-mono font-bold text-slate-900 dark:text-white">
-              {weather.isHeadwindActive ? weather.estuaryGustKmH : 5}
+          <div className="mt-2.5 flex items-baseline gap-1 flex-wrap">
+            <span className="text-2xl sm:text-3xl font-semibold tracking-tight text-ink tnum">
+              {peakGust}
             </span>
-            <span className="text-xs font-mono text-slate-500 dark:text-zinc-400">km/h max</span>
+            <span className="text-xs font-medium text-ink-muted">{t('maxUnit')}</span>
           </div>
-          <p className="text-[10px] font-mono text-slate-500 dark:text-zinc-400 mt-1">
-            Lateral stability: Safe
+          <p className="text-xs text-ink-secondary mt-1">
+            {peakGust >= 40
+              ? t('lateralGustCautionSub')
+              : peakGust >= 24
+              ? t('lateralGustModerateSub')
+              : t('lateralHandlingSafeSub')}
           </p>
         </div>
 
-        {/* Rain Risk & Road Grip */}
-        <div className="bg-slate-50 dark:bg-zinc-950/70 border border-slate-200 dark:border-zinc-800/80 rounded-lg p-3">
-          <div className="flex items-center justify-between text-[10px] font-mono text-slate-500 dark:text-zinc-400 uppercase">
-            <span>Precipitation</span>
-            <CloudRain className="w-3.5 h-3.5 text-slate-500 dark:text-zinc-400" />
+        <div className="bg-pod rounded-pod p-3.5 sm:p-4 min-w-0">
+          <div className="flex items-center justify-between gap-1.5 text-xs font-medium text-ink-muted">
+            <span className="truncate">{t('precipitationLabel')}</span>
+            <CloudRain
+              className={`w-4 h-4 shrink-0 ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                weather.precipitationRiskPercent >= 25
+                  ? CHIP_TOKENS.blue.primary
+                  : GREYSCALE_TOKENS.primary
+              }`}
+            />
           </div>
-          <div className="mt-1.5 flex items-baseline gap-1">
-            <span className="text-xl font-mono font-bold text-slate-900 dark:text-white">
+          <div className="mt-2.5 flex items-baseline gap-1.5 flex-wrap">
+            <span className="text-2xl sm:text-3xl font-semibold tracking-tight text-ink tnum">
               {weather.precipitationRiskPercent}%
             </span>
-            <span className="text-xs font-mono text-slate-500 dark:text-zinc-400">dry tarmac</span>
+            <span className="text-xs font-medium text-ink-muted">{t('riskUnit')}</span>
           </div>
-          <p className="text-[10px] font-mono text-slate-500 dark:text-zinc-400 mt-1">
-            Crr nominal: 0.006 (Gravel)
+          <p className="text-xs text-ink-secondary mt-1 tnum">
+            {weather.precipitationRiskPercent >= 40
+              ? t('wetSurfaceCrrSub', { crr: effectivePhysics.crr })
+              : t('nominalCrrSub', { crr: effectivePhysics.crr })}
           </p>
         </div>
       </div>
 
-      {/* Interactive Wind Tuning Slider */}
-      <div className="mt-4 pt-3 border-t border-slate-100 dark:border-zinc-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono">
-        <div className="flex items-center gap-3">
-          <span className="text-slate-600 dark:text-zinc-400">Tuning Slider:</span>
+      {/* Full-Radius Wind Tuning Capsule */}
+      <div className="rounded-pod lg:rounded-full bg-pod px-4 sm:px-5 py-3 flex flex-col lg:flex-row lg:items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-3 flex-1 w-full lg:max-w-md min-w-0">
+          <span className="text-ink-secondary font-medium shrink-0">{t('windSpeedSliderLabel')}</span>
           <input
             type="range"
+            aria-label={t('windSimulationAria')}
             min="0"
             max="35"
             step="1"
             value={weather.baseWindSpeedKmH}
             onChange={(e) => handleWindSpeedChange(Number(e.target.value))}
-            className="w-40 sm:w-56 accent-emerald-500 cursor-pointer"
+            style={{
+              background: `linear-gradient(to right, ${activeBarColor} 0%, ${activeBarColor} ${fillPercent}%, ${trackEmptyColor} ${fillPercent}%, ${trackEmptyColor} 100%)`,
+            }}
+            className="w-full min-w-[72px] peloton-slider focus:outline-none"
           />
-          <span className="font-bold text-slate-900 dark:text-white min-w-[50px]">
+          <span className="px-3 py-1 rounded-full bg-card font-semibold text-ink min-w-[68px] text-center tnum shrink-0 whitespace-nowrap">
             {weather.baseWindSpeedKmH} km/h
           </span>
         </div>
 
-        <div className="text-[11px] text-slate-500 dark:text-zinc-400">
-          Target Speed: <span className="text-slate-800 dark:text-zinc-200 font-bold">{speedKmH} km/h</span> &middot;{' '}
-          {weather.isHeadwindActive ? (
-            <span className="text-amber-600 dark:text-amber-400 font-bold">+22W aero penalty factored in</span>
+        <div className="flex items-center justify-between sm:justify-start gap-2 flex-wrap">
+          <span className="text-ink-muted tnum">
+            {t('cruisingPaceLabel')} <strong className="text-ink font-semibold">{speedKmH} km/h</strong>
+          </span>
+          {weather.isHeadwindActive && effectiveWindSpeed > 0 ? (
+            <Badge variant="amber" size="md" className="tnum">
+              {t('aeroDragFactoredPill', { watts: aeroDeltaWatts })}
+            </Badge>
           ) : (
-            <span className="text-emerald-600 dark:text-emerald-400 font-bold">Standard baseline profile</span>
+            <Badge variant="emerald" size="md">
+              {t('baselineDragPill')}
+            </Badge>
           )}
         </div>
       </div>

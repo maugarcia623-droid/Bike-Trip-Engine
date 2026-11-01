@@ -1,6 +1,8 @@
 /**
- * Free Bicycle Routing Engine via Nominatim + OSRM Public Bike Routing
+ * Free Bicycle Routing Engine via Komoot Photon / Nominatim + OSRM Public Bike Routing
  */
+import { getCurrentLanguage } from '../context/LanguageContext';
+import { geocodeLocation } from '../services/locationService';
 
 export interface CalculatedBikeRoute {
   coordinates: [number, number][]; // [lat, lng]
@@ -8,47 +10,59 @@ export interface CalculatedBikeRoute {
   estimatedMinutes: number;
 }
 
-// 1. Geocode location string to [lat, lng]
-async function geocodeLocation(query: string): Promise<[number, number] | null> {
-  try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`,
-      {
-        headers: {
-          'Accept-Language': 'fr,en',
-        },
-      }
-    );
-    const data = await res.json();
-    if (data && data.length > 0) {
-      return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
-    }
-  } catch (err) {
-    console.error('Geocoding error:', err);
-  }
-  return null;
-}
-
-// 2. Fetch OSRM Bicycle Path
+// Fetch OSRM Bicycle Path
 export async function calculateAutoBikeRoute(
   originText: string,
-  destText: string
+  destText: string,
+  originCoordsOverride?: [number, number] | null,
+  destCoordsOverride?: [number, number] | null
 ): Promise<CalculatedBikeRoute | null> {
-  const originCoord = await geocodeLocation(originText);
-  const destCoord = await geocodeLocation(destText);
+  const lang = getCurrentLanguage();
+  const originCoord = originCoordsOverride || (await geocodeLocation(originText, lang));
+  const destCoord = destCoordsOverride || (await geocodeLocation(destText, lang, originCoord || undefined));
 
   if (!originCoord || !destCoord) {
-    throw new Error('Could not find geographic coordinates for one of the locations.');
+    if (!originCoord && !destCoord) {
+      throw new Error(
+        lang === 'fr'
+          ? `Impossible de trouver les coordonnées pour le départ ("${originText}") et la destination ("${destText}"). Choisissez un lieu dans la liste déroulante.`
+          : `Could not find coordinates for origin ("${originText}") and destination ("${destText}"). Please pick a location from the dropdown suggestions.`
+      );
+    }
+    if (!originCoord) {
+      throw new Error(
+        lang === 'fr'
+          ? `Impossible de trouver les coordonnées du départ ("${originText}"). Choisissez une suggestion dans la liste.`
+          : `Could not find coordinates for origin ("${originText}"). Please choose a suggestion from the dropdown.`
+      );
+    }
+    throw new Error(
+      lang === 'fr'
+        ? `Impossible de trouver les coordonnées de la destination ("${destText}"). Choisissez une suggestion dans la liste.`
+        : `Could not find coordinates for destination ("${destText}"). Please choose a suggestion from the dropdown.`
+    );
   }
 
   // OSRM expects coordinates in lng,lat format
   const osrmUrl = `https://routing.openstreetmap.de/routed-bike/route/v1/cycling/${originCoord[1]},${originCoord[0]};${destCoord[1]},${destCoord[0]}?overview=full&geometries=geojson`;
 
   const response = await fetch(osrmUrl);
+  if (!response.ok) {
+    throw new Error(
+      lang === 'fr'
+        ? `Erreur du serveur d'itinéraire OSRM (statut ${response.status}).`
+        : `OSRM routing server error (status ${response.status}).`
+    );
+  }
+
   const json = await response.json();
 
   if (!json.routes || json.routes.length === 0) {
-    throw new Error('No cycling path found between those locations.');
+    throw new Error(
+      lang === 'fr'
+        ? 'Aucun itinéraire cyclable trouvé entre ces deux lieux.'
+        : 'No cycling path found between those locations.'
+    );
   }
 
   const route = json.routes[0];

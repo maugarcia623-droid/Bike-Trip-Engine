@@ -1,44 +1,112 @@
+import { RiderBikeSpecsModal } from "./components/settings/RiderBikeSpecsModal";
+import { loadRiderBikeSpecs, saveRiderBikeSpecs, getActiveBike } from "./utils/specsStorage";
+import { RiderBikeSpecs } from "./types/specs";
 import React, { useState, useEffect } from 'react';
-import { TripProfile, WeatherCondition } from './types/trip';
+import { IconContext } from '@/components/icons';
+import { generateTripChecklist, TripProfile, WeatherCondition } from "./types/trip";
 import {
   loadTrips,
   saveTrips,
   getActiveTripId,
-  setActiveTripId,
+  setActiveTripId as saveActiveTripId,
   INITIAL_PROFILES,
-  DEFAULT_CHECKLIST,
+  generateRandomPresetTrips,
+  buildDefaultNewTripTemplate,
 } from './utils/storage';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
-import { Header } from './components/common/Header';
+import {
+  Language,
+  LanguageProvider,
+  STORAGE_KEY_LANG,
+  loadInitialLanguage,
+  useTranslation,
+} from './context/LanguageContext';
+import { TopTelemetryBar } from './components/navigation/TopTelemetryBar';
+import { DynamicIslandNav } from './components/navigation/DynamicIslandNav';
 import { HomeScreen } from './components/home/HomeScreen';
 import { ConfiguratorScreen } from './components/configurator/ConfiguratorScreen';
 import { BentoDashboard } from './components/dashboard/BentoDashboard';
 import { PrintFlightSheet } from './components/print/PrintFlightSheet';
+import { OnboardingModal } from './components/OnboardingModal';
+
+const STORAGE_KEY_ONBOARDED = 'bike_trip_engine_onboarded_v1';
+
+function markOnboardingSeen(): void {
+  try {
+    localStorage.setItem(STORAGE_KEY_ONBOARDED, 'true');
+  } catch (e) {
+    console.error('Error saving onboarding state:', e);
+  }
+}
 
 function AppContent() {
   const { isDark } = useTheme();
+  const { lang, t } = useTranslation();
   const [trips, setTrips] = useState<TripProfile[]>(() => loadTrips());
-  const [activeTripId, setActiveTripIdState] = useState<string>(() =>
-    getActiveTripId(loadTrips())
+  const [activeTripId, setActiveTripId] = useState<string>(() =>
+    getActiveTripId(trips)
   );
-  const [currentView, setCurrentView] = useState<'home' | 'configurator' | 'dashboard'>('dashboard');
-  
+  const [riderSpecs, setRiderSpecs] = useState(loadRiderBikeSpecs);
+  const [isSpecsModalOpen, setIsSpecsModalOpen] = useState(false);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    const hash = window.location.hash;
+    const search = window.location.search;
+    if (
+      hash === '#configurator' ||
+      hash === '#home' ||
+      search.includes('view=configurator') ||
+      search.includes('view=home')
+    ) {
+      return false;
+    }
+    try {
+      return localStorage.getItem(STORAGE_KEY_ONBOARDED) !== 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [currentView, setCurrentView] = useState<'home' | 'configurator' | 'dashboard'>(() => {
+    if (typeof window !== 'undefined') {
+      if (window.location.hash === '#configurator' || window.location.search.includes('view=configurator')) {
+        return 'configurator';
+      }
+      if (window.location.hash === '#home' || window.location.search.includes('view=home')) {
+        return 'home';
+      }
+    }
+    return 'dashboard';
+  });
+
   // Trip being edited in configurator
   const [configuratorTrip, setConfiguratorTrip] = useState<TripProfile | null>(null);
   const [isNewTrip, setIsNewTrip] = useState<boolean>(false);
 
   // Active trip object
-  const activeTrip = trips.find((t) => t.id === activeTripId) || trips[0] || INITIAL_PROFILES[0];
+  const activeTrip = trips.find((tripItem) => tripItem.id === activeTripId) || trips[0] || INITIAL_PROFILES[0];
 
   // Persist to localStorage whenever trips change
   useEffect(() => {
     saveTrips(trips);
   }, [trips]);
 
+  // Ensure scroll position resets to top on view changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [currentView]);
+
   // Persist active id
   const handleSelectTrip = (id: string) => {
-    setActiveTripIdState(id);
     setActiveTripId(id);
+    saveActiveTripId(id);
+    setTrips((currentTrips) => {
+      const found = currentTrips.find((tripItem) => tripItem.id === id);
+      if (found) {
+        setConfiguratorTrip(found);
+        setIsNewTrip(false);
+      }
+      return currentTrips;
+    });
   };
 
   const handleLaunchDashboard = (id: string) => {
@@ -48,19 +116,31 @@ function AppContent() {
 
   const handleCreateNewTrip = () => {
     const newId = `trip-${Date.now()}`;
+    const activeBike = getActiveBike(riderSpecs);
+    const baseTemplate = buildDefaultNewTripTemplate(lang);
     const newProfile: TripProfile = {
-      ...INITIAL_PROFILES[0],
+      ...baseTemplate,
       id: newId,
-      name: `Custom Commute Mission #${trips.length + 1}`,
-      tag: 'NEW FLIGHT',
-      description: 'Custom engineered commute profile with aerodynamic and office timeline constraints.',
+      name: t('newTripDefaultName', { num: trips.length + 1 }),
+      tag: "VÉLOTAF",
+      description: t('newTripDefaultDesc'),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      checklist: DEFAULT_CHECKLIST.map((item) => ({ ...item })),
+      checklist: generateTripChecklist("VÉLOTAF", baseTemplate.route.distanceKm, baseTemplate.weather, {
+        lang,
+        customChips: baseTemplate.customChips,
+      }),
+      physics: {
+        ...baseTemplate.physics,
+        riderWeightKg: riderSpecs.riderWeightKg,
+        bikeWeightKg: activeBike.weightKg,
+        crr: activeBike.crr,
+        cda: activeBike.cda,
+      },
     };
     setConfiguratorTrip(newProfile);
     setIsNewTrip(true);
-    setCurrentView('configurator');
+    setCurrentView("configurator");
   };
 
   const handleEditTrip = (trip: TripProfile) => {
@@ -73,8 +153,8 @@ function AppContent() {
     const duplicated: TripProfile = {
       ...trip,
       id: `trip-${Date.now()}`,
-      name: `${trip.name} (Copy)`,
-      tag: 'DUPLICATE',
+      name: `${trip.name} ${t('copySuffix')}`,
+      tag: t('duplicateTag'),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       checklist: trip.checklist.map((c) => ({ ...c })),
@@ -86,10 +166,15 @@ function AppContent() {
 
   const handleDeleteTrip = (id: string) => {
     if (trips.length <= 1) {
-      alert("At least one trip profile must be preserved in the system.");
+      alert(t('minOneProfileAlert'));
       return;
     }
-    const filtered = trips.filter((t) => t.id !== id);
+    const target = trips.find((tripItem) => tripItem.id === id);
+    const label = target?.name || id;
+    if (!window.confirm(t('deleteProfileConfirm', { name: label }))) {
+      return;
+    }
+    const filtered = trips.filter((tripItem) => tripItem.id !== id);
     setTrips(filtered);
     if (activeTripId === id) {
       handleSelectTrip(filtered[0].id);
@@ -97,7 +182,7 @@ function AppContent() {
   };
 
   const handleUpdateActiveTrip = (updated: TripProfile) => {
-    const updatedList = trips.map((t) => (t.id === updated.id ? updated : t));
+    const updatedList = trips.map((tripItem) => (tripItem.id === updated.id ? updated : tripItem));
     setTrips(updatedList);
   };
 
@@ -107,6 +192,7 @@ function AppContent() {
       ...activeTrip,
       weather: {
         ...activeTrip.weather,
+        effectiveHeadwindKmH: undefined,
         isHeadwindActive: newHeadwind,
         windDirection: newHeadwind ? 'headwind' : 'calm',
         baseWindSpeedKmH: newHeadwind ? 8 : 2,
@@ -123,28 +209,127 @@ function AppContent() {
     handleUpdateActiveTrip(updated);
   };
 
-  const handleSaveConfiguratorTrip = (saved: TripProfile) => {
-    const exists = trips.some((t) => t.id === saved.id);
-    let updatedList: TripProfile[];
-    if (exists) {
-      updatedList = trips.map((t) => (t.id === saved.id ? saved : t));
-    } else {
-      updatedList = [saved, ...trips];
-    }
-    setTrips(updatedList);
-    handleSelectTrip(saved.id);
+  const handleSaveConfiguratorTrip = (tripToSave: TripProfile) => {
+    setTrips((prev) => {
+      const exists = prev.some((tripItem) => tripItem.id === tripToSave.id);
+      const updated = exists
+        ? prev.map((tripItem) => (tripItem.id === tripToSave.id ? tripToSave : tripItem))
+        : [...prev, tripToSave];
+      saveTrips(updated);
+      return updated;
+    });
+    setActiveTripId(tripToSave.id);
+    saveActiveTripId(tripToSave.id);
+    setConfiguratorTrip(tripToSave);
+    setIsNewTrip(false);
   };
 
-  const handleLaunchFromConfigurator = (saved: TripProfile) => {
-    handleSaveConfiguratorTrip(saved);
+  const handleLaunchFromConfigurator = (tripToLaunch?: TripProfile) => {
+    const target = tripToLaunch || configuratorTrip || activeTrip;
+    if (target) {
+      handleSaveConfiguratorTrip(target);
+    }
+    setCurrentView("dashboard");
+  };
+
+  const applySpecsToActiveTrip = (nextSpecs: RiderBikeSpecs) => {
+    const selectedBike = getActiveBike(nextSpecs);
+    const updatedActive: TripProfile = {
+      ...activeTrip,
+      updatedAt: new Date().toISOString(),
+      physics: {
+        ...activeTrip.physics,
+        riderWeightKg: nextSpecs.riderWeightKg,
+        bikeWeightKg: selectedBike.weightKg,
+        cda: selectedBike.cda,
+        crr: selectedBike.crr,
+      },
+    };
+    setTrips((prev) =>
+      prev.map((tripItem) => (tripItem.id === updatedActive.id ? updatedActive : tripItem))
+    );
+    if (configuratorTrip && configuratorTrip.id === updatedActive.id) {
+      setConfiguratorTrip(updatedActive);
+    }
+  };
+
+  const handleSaveRiderSpecs = (updated: RiderBikeSpecs) => {
+    saveRiderBikeSpecs(updated);
+    setRiderSpecs(updated);
+    applySpecsToActiveTrip(updated);
+  };
+
+  const handleQuickSelectBike = (bikeId: string) => {
+    const nextSpecs: RiderBikeSpecs = {
+      ...riderSpecs,
+      activeBikeId: bikeId,
+    };
+    saveRiderBikeSpecs(nextSpecs);
+    setRiderSpecs(nextSpecs);
+    applySpecsToActiveTrip(nextSpecs);
+  };
+
+  const handleCloseOnboarding = () => {
+    markOnboardingSeen();
+    setIsOnboardingOpen(false);
+  };
+
+  const handleLaunchFromOnboarding = (calibratedTrip: TripProfile) => {
+    markOnboardingSeen();
+
+    if (calibratedTrip.id.startsWith('trip-calibrated-')) {
+      const matchedBike =
+        riderSpecs.bikes.find((b) => Math.abs(b.cda - calibratedTrip.physics.cda) <= 0.03) ||
+        getActiveBike(riderSpecs);
+      const syncedSpecs: RiderBikeSpecs = {
+        ...riderSpecs,
+        riderWeightKg: calibratedTrip.physics.riderWeightKg || riderSpecs.riderWeightKg,
+        activeBikeId: matchedBike.id,
+        bikes: riderSpecs.bikes.map((b) =>
+          b.id === matchedBike.id
+            ? {
+                ...b,
+                weightKg: calibratedTrip.physics.bikeWeightKg,
+                cda: calibratedTrip.physics.cda,
+                crr: calibratedTrip.physics.crr,
+              }
+            : b
+        ),
+      };
+      saveRiderBikeSpecs(syncedSpecs);
+      setRiderSpecs(syncedSpecs);
+    }
+
+    setTrips((prev) => {
+      const exists = prev.some((t) => t.id === calibratedTrip.id);
+      const updated = exists
+        ? prev.map((t) => (t.id === calibratedTrip.id ? calibratedTrip : t))
+        : [calibratedTrip, ...prev];
+      saveTrips(updated);
+      return updated;
+    });
+    setActiveTripId(calibratedTrip.id);
+    saveActiveTripId(calibratedTrip.id);
+    setConfiguratorTrip(calibratedTrip);
+    setIsNewTrip(false);
+    setIsOnboardingOpen(false);
     setCurrentView('dashboard');
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   };
 
   const handleResetDefaults = () => {
-    if (window.confirm("Reset all profiles to factory engineering defaults? Any custom edits will be re-initialized.")) {
-      setTrips(INITIAL_PROFILES);
-      handleSelectTrip(INITIAL_PROFILES[0].id);
-      saveTrips(INITIAL_PROFILES);
+    if (window.confirm(t('resetDefaultsConfirm'))) {
+      const freshPresets = generateRandomPresetTrips(
+        3,
+        trips.map((tripItem) => tripItem.id),
+        lang
+      );
+      setTrips(freshPresets);
+      setActiveTripId(freshPresets[0].id);
+      saveActiveTripId(freshPresets[0].id);
+      setConfiguratorTrip(freshPresets[0]);
+      setIsNewTrip(false);
+      saveTrips(freshPresets);
     }
   };
 
@@ -155,22 +340,26 @@ function AppContent() {
   return (
     <div
       className={`min-h-screen ${
-        isDark ? 'dark bg-[#09090b] text-zinc-100' : 'light bg-slate-50 text-slate-900'
-      } flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-700 dark:selection:text-emerald-300 transition-colors duration-200`}
+        isDark ? 'dark' : 'light'
+      } bg-canvas text-ink flex flex-col font-sans selection:bg-volt selection:text-[#111111] transition-colors duration-200`}
     >
-      {/* Sticky High-Tech Navigation Header */}
-      <Header
-        currentView={currentView}
-        onNavigate={(view) => setCurrentView(view)}
+      {/* High-End Minimalist Top Telemetry Bar */}
+      <TopTelemetryBar
         activeTrip={activeTrip}
-        allTrips={trips}
-        onSelectTrip={handleSelectTrip}
-        onCreateNew={handleCreateNewTrip}
+        currentView={currentView}
+        onNavigate={(view) => {
+          if (view === 'configurator' && !isNewTrip) {
+            setConfiguratorTrip(activeTrip);
+          }
+          setCurrentView(view);
+        }}
+        onOpenSpecs={() => setIsSpecsModalOpen(true)}
         onPrint={handlePrint}
+        riderSpecs={riderSpecs}
       />
 
-      {/* Screen Views */}
-      <main className="flex-1 pb-16">
+      {/* Screen Views (with ample bottom padding for the floating navigation island & iOS safe area) */}
+      <main className="flex-1 w-full max-w-full pb-[calc(7rem+env(safe-area-inset-bottom,0px))] sm:pb-32 print:hidden no-print">
         {currentView === 'home' && (
           <HomeScreen
             trips={trips}
@@ -183,16 +372,22 @@ function AppContent() {
             onLaunchDashboard={handleLaunchDashboard}
             onUpdateWeather={handleUpdateWeather}
             onResetDefaults={handleResetDefaults}
+            onOpenOnboarding={() => setIsOnboardingOpen(true)}
           />
         )}
 
         {currentView === 'configurator' && (
           <ConfiguratorScreen
+            key={(configuratorTrip || activeTrip).id}
             initialTrip={configuratorTrip || activeTrip}
             isNew={isNewTrip}
             onSave={handleSaveConfiguratorTrip}
-            onCancel={() => setCurrentView('dashboard')}
-            onLaunch={handleLaunchFromConfigurator}
+            onAutoSync={handleSaveConfiguratorTrip}
+            onCancel={() => {
+              setIsNewTrip(false);
+              setCurrentView('dashboard');
+            }}
+            onLaunch={(savedTrip) => handleLaunchFromConfigurator(savedTrip || configuratorTrip || activeTrip)}
           />
         )}
 
@@ -202,20 +397,73 @@ function AppContent() {
             onUpdateTrip={handleUpdateActiveTrip}
             onToggleHeadwind={handleToggleHeadwind}
             onPrint={handlePrint}
+            riderSpecs={riderSpecs}
+            onSelectBike={handleQuickSelectBike}
+            onOpenSpecs={() => setIsSpecsModalOpen(true)}
+            onOpenConfigurator={() => handleEditTrip(activeTrip)}
           />
         )}
       </main>
 
+      {/* Floating Dynamic Island Navigation Pill */}
+      <DynamicIslandNav
+        currentView={currentView}
+        onNavigate={(view) => {
+          if (view === 'configurator' && !isNewTrip) {
+            setConfiguratorTrip(activeTrip);
+          }
+          setCurrentView(view);
+        }}
+        activeTrip={activeTrip}
+        allTrips={trips}
+        onSelectTrip={handleSelectTrip}
+        onCreateNew={handleCreateNewTrip}
+        onPrint={handlePrint}
+        onOpenSpecs={() => setIsSpecsModalOpen(true)}
+        onResetDefaults={handleResetDefaults}
+      />
+
       {/* Printable A4 Flight Sheet Layout (Hidden on Screen, Active on Print) */}
-      <PrintFlightSheet trip={activeTrip} />
+      <RiderBikeSpecsModal
+        isOpen={isSpecsModalOpen}
+        onClose={() => setIsSpecsModalOpen(false)}
+        specs={riderSpecs}
+        onSave={handleSaveRiderSpecs}
+      />
+
+      {/* Standalone Interactive Onboarding & Calibration Wizard */}
+      <OnboardingModal
+        isOpen={isOnboardingOpen}
+        onClose={handleCloseOnboarding}
+        onLaunch={handleLaunchFromOnboarding}
+      />
+
+      <div className="hidden print:block print-only">
+        <PrintFlightSheet trip={activeTrip} />
+      </div>
     </div>
   );
 }
 
 export function App() {
+  const [lang, setLang] = useState<Language>(loadInitialLanguage);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_LANG, lang);
+    } catch (e) {
+      console.error('Error saving language to localStorage', e);
+    }
+    document.documentElement.lang = lang;
+  }, [lang]);
+
   return (
     <ThemeProvider>
-      <AppContent />
+      <LanguageProvider lang={lang} setLang={setLang}>
+        <IconContext.Provider value={{ weight: 'duotone' }}>
+          <AppContent />
+        </IconContext.Provider>
+      </LanguageProvider>
     </ThemeProvider>
   );
 }

@@ -1,5 +1,6 @@
 import { RouteParams, OfficeConstraints, WeatherCondition, TimelineStep } from '../types/trip';
 import { subtractMinutesFromTime, addMinutesToTime } from './nutrition';
+import { Language, getCurrentLanguage } from '../context/LanguageContext';
 
 export interface ReverseTimelineCalculation {
   shiftStartTime: string;
@@ -14,178 +15,746 @@ export interface ReverseTimelineCalculation {
   weatherHeadwindImpactMinutes: number;
 }
 
-/**
- * Calculates the exact reverse timeline working backwards from
- * the user's shift start time and gate arrival constraints.
- */
 export function calculateReverseTimeline(
   route: RouteParams,
   office: OfficeConstraints,
-  weather: WeatherCondition
+  weather: WeatherCondition,
+  tripTag: string = 'VÉLOTAF',
+  destinationName: string = '',
+  lang: Language = getCurrentLanguage(),
+  extraBufferMinutes: number = 0,
+  customChips: string[] = [],
+  physicsSpeedOverride?: {
+    effectiveSpeedKmH: number;
+    calmSpeedKmH: number;
+    arriveAtMode?: boolean;
+    departureTime?: string;
+  }
 ): ReverseTimelineCalculation {
-  // Moving time in minutes
-  const speed = Math.max(5, route.targetSpeedKmH);
-  const rawMovingMinutes = Math.round((route.distanceKm / speed) * 60);
+  const isFr = lang === 'fr';
+  const tagUpper = tripTag.toUpperCase();
+  const isSport = tagUpper.includes('SPORT') || tagUpper.includes('FONDO') || tagUpper.includes('TEMPO');
+  const isBikepacking = tagUpper.includes('BIKEPACK') || tagUpper.includes('BIVOUAC');
+  const isEscapade = !isSport && !isBikepacking && (
+    tagUpper.includes('ESCAPADE') ||
+    tagUpper.includes('TOURING') ||
+    tagUpper.includes('LEISURE') ||
+    tagUpper.includes('WEEKEND')
+  );
 
-  // Weather headwind penalty: if 8 km/h headwind active, adds roughly 3 to 6 mins
+  // Moving time in minutes — unified with Hold-Speed vs. Hold-Effort physics solver
+  const fallbackSpeed = Math.max(5, route.targetSpeedKmH || 25);
+  const isEffortMode = route.pacingMode === 'effort';
   const windKmh = weather.isHeadwindActive ? (weather.baseWindSpeedKmH || 0) : 0;
-  // Dynamic aero drag: speed drops ~0.30 km/h per 1 km/h opposing headwind
-  const speedPenaltyKmH = windKmh * 0.30;
-  const effectiveSpeedKmH = Math.max(8, speed - speedPenaltyKmH);
+
+  const calmSpeed = physicsSpeedOverride?.calmSpeedKmH
+    ? Math.max(5, physicsSpeedOverride.calmSpeedKmH)
+    : fallbackSpeed;
+
+  const effectiveSpeedKmH = physicsSpeedOverride?.effectiveSpeedKmH
+    ? Math.max(5, physicsSpeedOverride.effectiveSpeedKmH)
+    : isEffortMode
+    ? Math.max(8, calmSpeed - windKmh * 0.35)
+    : calmSpeed;
+
+  const rawMovingMinutes = Math.round((route.distanceKm / calmSpeed) * 60);
   const actualMovingMinutes = Math.round((route.distanceKm / effectiveSpeedKmH) * 60);
   const weatherHeadwindImpactMinutes = Math.max(0, actualMovingMinutes - rawMovingMinutes);
 
-  const totalRideMinutes = rawMovingMinutes + weatherHeadwindImpactMinutes;
-  const urbanBuffer = route.urbanTrafficDelayMinutes || 8;
-  const securityBuffer = route.gateSecurityDelayMinutes || 5;
+  const totalRideMinutes = actualMovingMinutes;
+  const routeBuffer = (isEscapade || isBikepacking) ? 15 : isSport ? 5 : (route.urbanTrafficDelayMinutes ?? 8);
+  const arrivalBuffer = (isEscapade || isBikepacking) ? 10 : isSport ? 5 : (route.gateSecurityDelayMinutes ?? 5);
 
-  // The critical anchor is Gate Arrival: targetGateArrivalTime (e.g. "08:30")
-  // Or if shift is 09:00, arrival at Gate 17 is calculated backwards from shift:
-  // Shift (09:00) minus Break Room (15m) minus Shower (10m) minus Locker Skyr (10m) = 08:25
-  const gateArrivalAnchor = office.targetGateArrivalTime || '08:30';
+  const defaultAnchor = isSport ? '11:00' : isBikepacking ? '18:00' : isEscapade ? '15:00' : '08:30';
+  const totalEnRouteMinutes = totalRideMinutes + routeBuffer + arrivalBuffer + extraBufferMinutes;
 
-  // Security gate clearance time: Gate Arrival minus security clearance buffer
-  const gateTurnstileTime = subtractMinutesFromTime(gateArrivalAnchor, securityBuffer);
+  // Support both Reverse Chronometry ("Arrive at") and Forward Chronometry ("Depart at")
+  const isDepartAtMode =
+    physicsSpeedOverride?.arriveAtMode === false && Boolean(physicsSpeedOverride?.departureTime);
 
-  // Hard Departure Time from Home = gateTurnstileTime minus (totalRideMinutes + urbanBuffer)
-  const totalEnRouteMinutes = totalRideMinutes + urbanBuffer;
-  const hardDepartureTime = subtractMinutesFromTime(gateTurnstileTime, totalEnRouteMinutes);
+  const hardDepartureTime = isDepartAtMode
+    ? (physicsSpeedOverride!.departureTime as string)
+    : subtractMinutesFromTime(
+        office.targetGateArrivalTime || office.shiftStartTime || defaultAnchor,
+        totalEnRouteMinutes
+      );
 
-  // Pre-rollout bike prep (15 min before departure)
+  const targetArrival = isDepartAtMode
+    ? addMinutesToTime(hardDepartureTime, totalEnRouteMinutes)
+    : office.targetGateArrivalTime || office.shiftStartTime || defaultAnchor;
+
+  const postGateOfficeMinutes = Math.max(
+    15,
+    (office.lockerRefuelMinutes ?? 10) +
+      (office.showerChangeMinutes ?? 10) +
+      (office.breakRoomBreakfastMinutes ?? 10)
+  );
+  const resolvedShiftStartTime =
+    isSport || isBikepacking || isEscapade
+      ? targetArrival
+      : isDepartAtMode
+      ? addMinutesToTime(targetArrival, postGateOfficeMinutes)
+      : office.shiftStartTime || addMinutesToTime(targetArrival, postGateOfficeMinutes);
+
+  // Pre-rollout checkpoints
   const bikePrepTime = subtractMinutesFromTime(hardDepartureTime, 15);
-
-  // Pre-ride ignition meal (45 min before departure)
   const preRideMealTime = subtractMinutesFromTime(hardDepartureTime, 45);
-
-  // Wake up time (60 min before departure)
   const wakeUpTime = subtractMinutesFromTime(hardDepartureTime, 60);
 
-  // Office Steps forward from Gate Arrival:
-  // 1. Locker Refuel: e.g. 08:30 to 08:40
-  const lockerRefuelEnd = addMinutesToTime(gateArrivalAnchor, office.lockerRefuelMinutes || 10);
-  // 2. Shower & Grooming: e.g. 08:40 to 08:50
-  const showerEnd = addMinutesToTime(lockerRefuelEnd, office.showerChangeMinutes || 10);
-  // 3. Break Room Breakfast: e.g. 08:50 to 09:05 (or 09:00 desk lock)
-  const breakRoomEnd = addMinutesToTime(showerEnd, office.breakRoomBreakfastMinutes || 15);
+  const destTitle = destinationName || route.destination || 'Destination';
+  const rawGate = office.gateName || (isFr ? 'Porte' : 'Gate');
+  const localizedGate = isFr
+    ? rawGate.replace(/^Gate\b/i, 'Porte')
+    : rawGate.replace(/^Porte\b/i, 'Gate');
 
-  const steps: TimelineStep[] = [
-    {
-      id: 'wake-prep',
-      time: wakeUpTime,
-      title: 'Wake Up & Hydration Primer',
-      location: 'Home Base',
-      category: 'prep',
-      isCrucialCheckpoint: false,
-      description: 'Drink 300ml fresh water with pinch of salt. Systems boot.',
-      iconName: 'AlarmClock',
-    },
-    {
-      id: 'pre-ride-fuel',
-      time: preRideMealTime,
-      title: 'Pre-Ride Ignition Meal',
-      location: 'Kitchen Counter',
-      category: 'nutrition',
-      isCrucialCheckpoint: true,
-      description: 'White toasted baguette + wildflower honey + double espresso. Zero milk/powders.',
-      iconName: 'Utensils',
-    },
-    {
-      id: 'garage-rollout',
-      time: bikePrepTime,
-      title: 'Pre-Flight Cockpit & Tire Check',
-      location: 'Garage / Staging Area',
-      category: 'prep',
-      isCrucialCheckpoint: false,
-      description: 'Verify 3.2 bar gravel tire pressure, Di2 battery green, bottles mounted, badge in pocket.',
-      iconName: 'CheckCircle2',
-    },
-    {
-      id: 'hard-departure',
-      time: hardDepartureTime,
-      title: 'HARD DEPARTURE (Zero Delay Tolerance)',
-      location: 'Rollout Point',
-      category: 'ride',
-      isCrucialCheckpoint: true,
-      description: `Roll out at steady target pace (${route.targetSpeedKmH} km/h). Headwind buffer: +${weatherHeadwindImpactMinutes}m.`,
-      iconName: 'Navigation',
-    },
-    {
-      id: 'estuary-transit',
-      time: addMinutesToTime(hardDepartureTime, Math.round(totalRideMinutes * 0.45)),
-      title: 'Estuary Bridge & Open Flat Crossing',
-      location: 'Bridge Sector',
-      category: 'ride',
-      isCrucialCheckpoint: false,
-      description: weather.isHeadwindActive
-        ? `Estuary headwind detected (${windKmh} km/h). Hold aero tuck on hoods to conserve ~${Math.round(windKmh * 3.5)}W.`
-        : 'Estuary crossing calm. Cruise at steady endurance cadence (88-92 RPM).',
-      iconName: 'Wind',
-    },
-    {
-      id: 'gate-security',
-      time: gateTurnstileTime,
-      title: `Arrival at Security Perimeter (${office.gateName})`,
-      location: office.gateName,
-      category: 'transit',
-      isCrucialCheckpoint: true,
-      description: `Badge scan at ${office.gateName}. Lock gravel bike in secure subterranean shelter.`,
-      iconName: 'ShieldCheck',
-    },
-    {
-      id: 'locker-refuel',
-      time: gateArrivalAnchor,
-      title: 'Phase 1 Locker Refuel (Directly at Locker)',
-      location: 'Basement Locker Area',
-      category: 'nutrition',
-      isCrucialCheckpoint: true,
-      description: 'Eat 200g Skyr 0% tub + 250ml pure grape juice immediately before heading to shower.',
-      iconName: 'Zap',
-    },
-    {
-      id: 'shower-groom',
-      time: lockerRefuelEnd,
-      title: 'Shower, Cool Down & Executive Kit Change',
-      location: 'Locker Showers',
-      category: 'office',
-      isCrucialCheckpoint: false,
-      description: 'Fast contrast shower. Swap into clean office kit. Pack damp kit in aerated dry-bag.',
-      iconName: 'ShowerHead',
-    },
-    {
-      id: 'breakroom-breakfast',
-      time: showerEnd,
-      title: 'Phase 2: Break Room Breakfast',
-      location: '3rd Floor Dedicated Break Room',
-      category: 'nutrition',
-      isCrucialCheckpoint: true,
-      description: 'POLICY MANDATE: Break room only! Enjoy oat milk overnight oats, grated apple, walnuts, baguette & coffee.',
-      iconName: 'Coffee',
-    },
-    {
-      id: 'shift-start',
-      time: office.shiftStartTime,
-      title: 'Shift Start / On-Desk Presence',
-      location: 'Engineering Open-Space Desk',
-      category: 'office',
-      isCrucialCheckpoint: true,
-      description: 'Desk clear of food (strict rule). Fully fueled, bathed, and zero cortisol spike.',
-      iconName: 'Briefcase',
-    },
-  ];
+  let steps: TimelineStep[] = [];
 
-  // Total door-to-desk duration
+  if (isSport) {
+    // ── SPORT / GRAN FONDO MILESTONES ──
+    const warmupTime = hardDepartureTime;
+    const midIntervalTime = addMinutesToTime(hardDepartureTime, Math.round(totalRideMinutes * 0.5));
+    const recoveryWindowTime = addMinutesToTime(targetArrival, 15);
+
+    steps = [
+      {
+        id: 'sport-fuel-primer',
+        time: wakeUpTime,
+        title: isFr ? 'Hydratation & Charge Glucides Rapides' : 'Hydration & Fast Carbs Primer',
+        location: isFr ? 'Domicile' : 'Home Base',
+        category: 'nutrition',
+        isCrucialCheckpoint: true,
+        description: isFr
+          ? '500 ml de boisson électrolytes + 60 g de glucides à IG élevé. Vérifiez la charge du compteur GPS et de la ceinture cardio.'
+          : '500ml electrolyte mix + 60g high-glycemic carbs. Top off bike computer & heart rate monitor.',
+        iconName: 'AlarmClock',
+      },
+      {
+        id: 'sport-cockpit-check',
+        time: bikePrepTime,
+        title: isFr ? 'Calibrage Transmission & Pression Pneus' : 'Drivetrain & Tire Pressure Calibration',
+        location: isFr ? 'Zone de départ' : 'Roll-Out Point',
+        category: 'prep',
+        isCrucialCheckpoint: false,
+        description: isFr
+          ? 'Pression ajustée pour minimiser le Crr. Vérification lubrification chaîne et mise en place des 2 bidons de 750 ml.'
+          : 'Tire pressures dialed for low rolling resistance. Lube check and bottle cage staging (2x 750ml).',
+        iconName: 'CheckCircle2',
+      },
+      {
+        id: 'sport-rollout',
+        time: warmupTime,
+        title: isFr ? 'DÉPART & ÉCHAUFFEMENT PROGRESSIF ZONE 2' : 'ROLLOUT & ZONE 2 PROGRESSIVE WARMUP',
+        location: isFr ? 'Départ' : 'Origin',
+        category: 'ride',
+        isCrucialCheckpoint: true,
+        description: isFr
+          ? `15 min de vélocité progressive avant de caler l'allure cible (~${route.targetSpeedKmH || 30} km/h).`
+          : `15-min progressive spin before settling into target pace (~${route.targetSpeedKmH || 30} km/h).`,
+        iconName: 'Navigation',
+      },
+      {
+        id: 'sport-mid-fuel',
+        time: midIntervalTime,
+        title: isFr ? 'Fenêtre Ravito Glucides & Électrolytes' : 'Mid-Ride Carb & Electrolyte Window',
+        location: isFr ? 'Secteur Allure' : 'Pacing Sector',
+        category: 'nutrition',
+        isCrucialCheckpoint: false,
+        description: isFr
+          ? 'Prise de gel ou pâte de fruits en selle (cible 60–90 g glucides/h). Contrôle des watts moyens et de la dérive cardiaque.'
+          : 'On-the-bike gel/chew intake (60-90g carbs/hr target). Check average wattage and heart rate drift.',
+        iconName: 'Wind',
+      },
+      {
+        id: 'sport-session-finish',
+        time: targetArrival,
+        title: isFr ? `Arrivée d'étape : ${destTitle}` : `Stage Finish: ${destTitle}`,
+        location: destTitle,
+        category: 'transit',
+        isCrucialCheckpoint: true,
+        description: isFr
+          ? 'Passage de la ligne d’arrivée. 5 min de retour au calme souple sous 120 bpm.'
+          : 'Cross route finish marker. 5-min easy spin down below 120 bpm.',
+        iconName: 'ShieldCheck',
+      },
+      {
+        id: 'sport-post-recovery',
+        time: recoveryWindowTime,
+        title: isFr ? 'Fenêtre Métabolique Récup & Étirements' : 'Anabolic Recovery Window & Stretch',
+        location: isFr ? 'Zone Récup' : 'Recovery Staging',
+        category: 'prep',
+        isCrucialCheckpoint: false,
+        description: isFr
+          ? '25 g de protéines + 500 ml d’eau fraîche. Relâchement ischio-jambiers et fléchisseurs de hanche.'
+          : '25g whey/plant protein + 500ml cold water. Hamstring & hip flexor release protocol.',
+        iconName: 'Coffee',
+      },
+    ];
+
+    if (customChips.includes('climbing-kom-hunt')) {
+      steps.push({
+        id: 'sport-kom-repeats',
+        time: addMinutesToTime(hardDepartureTime, Math.round(totalRideMinutes * 0.4)),
+        title: isFr ? 'Chasse aux KOM & Répétitions en Côte' : 'KOM Segment Attacks & Ridge Climbs',
+        location: isFr ? 'Secteur Bosses' : 'KOM Ridge Segment',
+        category: 'ride',
+        isCrucialCheckpoint: true,
+        description: isFr
+          ? 'Attaques à 380W+ sur les segments clés, relances explosives en danseuse et descente aéro en récupération.'
+          : 'Punchy 380W+ surges on target segments, out-of-the-saddle attacks and aero recovery descents.',
+        iconName: 'Trophy',
+      });
+    }
+
+    if (customChips.includes('interval-training')) {
+      steps.push({
+        id: 'sport-threshold-intervals',
+        time: addMinutesToTime(hardDepartureTime, Math.round(totalRideMinutes * 0.35)),
+        title: isFr ? 'Fractionné au Seuil (Séries à 310W+)' : 'Threshold VO2max Interval Sets (310W+)',
+        location: isFr ? 'Corridor Chrono' : 'Interval Strip',
+        category: 'ride',
+        isCrucialCheckpoint: true,
+        description: isFr
+          ? 'Répétitions au seuil anaérobie (310W+) avec maintien d’une cadence stricte à 95–100 tr/min.'
+          : 'Structured threshold repetitions holding 310W+ with tight cadence control (95-100 RPM).',
+        iconName: 'Flame',
+      });
+    }
+
+    if (customChips.includes('paceline-drafting')) {
+      steps.push({
+        id: 'sport-paceline-echelon',
+        time: addMinutesToTime(hardDepartureTime, Math.round(totalRideMinutes * 0.6)),
+        title: isFr ? 'Peloton & Relais Organisés (33 km/h)' : 'Paceline Echelon Rotations (33 km/h)',
+        location: isFr ? 'Corridor Peloton' : 'Drafting Corridor',
+        category: 'ride',
+        isCrucialCheckpoint: false,
+        description: isFr
+          ? 'Relais réguliers de 20-30 secondes à 33 km/h avec 15-20% d’économie de watts à l’abri du vent.'
+          : 'Smooth 20-30s pulls at 33 km/h, harvesting 15-20% aerodynamic savings in the echelon.',
+        iconName: 'Users',
+      });
+    }
+
+    if (customChips.includes('hydration-electrolytes')) {
+      const fuelStep = steps.find((s) => s.id === 'sport-mid-fuel');
+      if (fuelStep) {
+        fuelStep.title = isFr ? 'Protocole 80–90g Glucides/h & Électrolytes' : 'High-Carb Pacing (80-90g/hr) & Electrolytes';
+        fuelStep.description = isFr
+          ? 'Prise continue de double-source maltodextrine/fructose en bidon + recharge sodium 750 mg pour éviter toute défaillance.'
+          : 'Dual-source maltodextrin/fructose in bidons + 750mg sodium reload to prevent bonking and cramping.';
+      }
+    }
+  } else if (isBikepacking) {
+    // ── BIKEPACKING / ADVENTURE MILESTONES ──
+    const midStageTime = addMinutesToTime(hardDepartureTime, Math.round(totalRideMinutes * 0.5));
+    const campPitchTime = addMinutesToTime(targetArrival, 20);
+
+    steps = [
+      {
+        id: 'bp-stowage-check',
+        time: wakeUpTime,
+        title: isFr ? 'Chargement des Sacoches & Calories' : 'Rig Packing & Calorie Staging',
+        location: isFr ? 'Camp / Domicile' : 'Camp / Home Base',
+        category: 'prep',
+        isCrucialCheckpoint: true,
+        description: isFr
+          ? 'Compression des sacs étanches, équilibrage de la sacoche de cadre, contrôle du couchage et de la filtration d’eau.'
+          : 'Pack dry bags, balance frame bag weight, inspect sleeping kit and water filtration gear.',
+        iconName: 'AlarmClock',
+      },
+      {
+        id: 'bp-harness-inspection',
+        time: bikePrepTime,
+        title: isFr ? 'Contrôle Harnais, Freins & Kit Anti-Crève' : 'Harness & Brake Pad Clearance Inspection',
+        location: isFr ? 'Point de Départ' : 'Trailhead Staging',
+        category: 'prep',
+        isCrucialCheckpoint: false,
+        description: isFr
+          ? 'Serrage du harnais de cintre, maintien de la sacoche de selle et vérification des flancs de pneus sous charge.'
+          : 'Torque check handlebar harness, secure seat-pack sway, check tire sidewalls for loaded clearance.',
+        iconName: 'CheckCircle2',
+      },
+      {
+        id: 'bp-departure',
+        time: hardDepartureTime,
+        title: isFr ? `DÉPART EXPÉDITION VERS ${destTitle.toUpperCase()}` : `TRAILHEAD ROLLOUT TOWARD ${destTitle.toUpperCase()}`,
+        location: isFr ? 'Départ' : 'Origin',
+        category: 'ride',
+        isCrucialCheckpoint: true,
+        description: isFr
+          ? `Cadence d’endurance régulière (~${route.targetSpeedKmH || 18} km/h) avec vélo chargé.`
+          : `Steady endurance cadence (~${route.targetSpeedKmH || 18} km/h) under loaded cargo mass.`,
+        iconName: 'Navigation',
+      },
+      {
+        id: 'bp-mid-refuel',
+        time: midStageTime,
+        title: isFr ? 'Ravito Mi-Étape, Eau & Sanglage' : 'Mid-Stage Water Resupply & Bag Check',
+        location: isFr ? 'Mi-Parcours' : 'Midway Sector',
+        category: 'nutrition',
+        isCrucialCheckpoint: false,
+        description: isFr
+          ? 'Contrôle de tension des sangles après vibrations et remplissage des réserves d’eau.'
+          : 'Check frame bag straps for trail vibration looseness. Top off water bladders.',
+        iconName: 'Wind',
+      },
+      {
+        id: 'bp-destination-arrive',
+        time: targetArrival,
+        title: isFr ? `Arrivée à ${destTitle}` : `Arrival at ${destTitle}`,
+        location: destTitle,
+        category: 'transit',
+        isCrucialCheckpoint: true,
+        description: isFr
+          ? 'Arrivée sur la zone de bivouac avant le crépuscule. Repérage d’un sol plat.'
+          : 'Reach destination or bivouac zone. Survey ground for camp setup.',
+        iconName: 'ShieldCheck',
+      },
+      {
+        id: 'bp-camp-settle',
+        time: campPitchTime,
+        title: isFr ? 'Montage Bivouac & Repas Chaud' : 'Bivouac Setup & Calorie Refuel',
+        location: isFr ? 'Zone de Bivouac' : 'Bivouac Site',
+        category: 'prep',
+        isCrucialCheckpoint: false,
+        description: isFr
+          ? 'Montage de la tente, aération de la tenue et réchaud pour un dîner riche de récupération.'
+          : 'Pitch shelter, hang bike kit to air dry, fire stove for warm calorie-dense recovery meal.',
+        iconName: 'Coffee',
+      },
+    ];
+
+    if (customChips.includes('mountain-adventure')) {
+      steps.push({
+        id: 'bp-mountain-col-clearance',
+        time: addMinutesToTime(hardDepartureTime, Math.round(totalRideMinutes * 0.45)),
+        title: isFr ? 'Franchissement de Col & Contrôle Freins' : 'Alpine Pass Summit & Brake Pad Check',
+        location: isFr ? 'Sommet du Col' : 'Alpine Pass Summit',
+        category: 'ride',
+        isCrucialCheckpoint: true,
+        description: isFr
+          ? 'Contrôle du mordant des freins avant la descente technique, hydratation haute altitude et coupe-vent enfilé.'
+          : 'Brake pad bite check before technical descent, altitude hydration and wind gilet deployed.',
+        iconName: 'Mountain',
+      });
+      const arrStep = steps.find((s) => s.id === 'bp-destination-arrive');
+      if (arrStep) {
+        arrStep.title = isFr ? 'Arrivée Bivouac Montagne avant Crépuscule' : 'Mountain Bivouac Arrival before Dusk';
+        arrStep.description = isFr
+          ? 'Arrivée impérative avant 19:30 pour planter le campement abrité du vent d’altitude.'
+          : 'Mandatory arrival before 19:30 to secure sheltered mountain camp against altitude wind.';
+      }
+    }
+
+    if (customChips.includes('resupply-points')) {
+      steps.push({
+        id: 'bp-resupply-stop',
+        time: addMinutesToTime(hardDepartureTime, Math.round(totalRideMinutes * 0.35)),
+        title: isFr ? 'Ravitaillement Boulangerie & Eau de Source' : 'Village Bakery & Spring Water Resupply',
+        location: isFr ? 'Fontaine du Village' : 'Village Spring Waypoint',
+        category: 'nutrition',
+        isCrucialCheckpoint: false,
+        description: isFr
+          ? 'Recharge des 2L d’eau, approvisionnement en pain frais, fruits secs et bananes.'
+          : 'Top off 2L water capacity, pick up fresh bread, dried fruit & energy rations.',
+        iconName: 'UtensilsCrossed',
+      });
+    }
+
+    if (customChips.includes('bivouac-camp')) {
+      const campStep = steps.find((s) => s.id === 'bp-camp-settle');
+      if (campStep) {
+        campStep.title = isFr ? 'Bivouac Sauvage : Zéro Trace & Filtration d’Eau' : 'Wild Bivouac: Leave-No-Trace & Gravity Filter';
+        campStep.description = isFr
+          ? 'Montage de l’abri ultraléger, filtration d’eau à la flasque et repas chaud lyophilisé au réchaud.'
+          : 'Pitch ultralight shelter, gravity water filtration, hot camp stove stew, and pristine leave-no-trace protocol.';
+      }
+    }
+
+    if (customChips.includes('gravel-trail-master')) {
+      const harnessStep = steps.find((s) => s.id === 'bp-harness-inspection');
+      if (harnessStep) {
+        harnessStep.title = isFr ? 'Calibrage Pression Tout-Terrain & Mèches' : 'Off-Grid Trail Pressure & Tubeless Dart Check';
+        harnessStep.description = isFr
+          ? 'Pression descendue à 2,4 bar pour maximiser l’adhérence sur piste caillouteuse, outil mèches accessible.'
+          : 'Pressures dialed to 2.4 bar for loose trail grip, tubeless dart plug tool mounted on cockpit.';
+      }
+    }
+  } else if (isEscapade) {
+    // ── ESCAPADE / TOURING MILESTONES ──
+    const arrivalTime = subtractMinutesFromTime(targetArrival, 5);
+    const roomSettleTime = addMinutesToTime(targetArrival, 25);
+    const exploreTime = addMinutesToTime(roomSettleTime, 30);
+
+    steps = [
+      {
+        id: 'prep-hydration',
+        time: wakeUpTime,
+        title: isFr ? 'Préparation Bagages & Hydratation' : 'Stage Equipment & Hydration Primer',
+        location: isFr ? 'Domicile' : 'Home Base',
+        category: 'prep',
+        isCrucialCheckpoint: false,
+        description: isFr
+          ? 'Boire 400 ml d’eau avec électrolytes. Dernier contrôle des sacoches (chargeurs, tenue du soir).'
+          : 'Drink 400ml water with electrolytes. Final pack check (chargers, overnight kit).',
+        iconName: 'AlarmClock',
+      },
+      {
+        id: 'pre-ride-fuel',
+        time: preRideMealTime,
+        title: isFr ? 'Collation Énergétique Pré-Départ' : 'Pre-Ride Energy Breakfast',
+        location: isFr ? 'Cuisine' : 'Kitchen Counter',
+        category: 'nutrition',
+        isCrucialCheckpoint: true,
+        description: isFr
+          ? 'Glucides digestes + expresso. Remplissage des 2 bidons pour la route.'
+          : 'Complex carbs + espresso. Fill 2x water bidons for the road.',
+        iconName: 'Utensils',
+      },
+      {
+        id: 'garage-rollout',
+        time: bikePrepTime,
+        title: isFr ? 'Contrôle Vélo, Pression & Anti-Crève' : 'Rig & Cockpit Pre-Check',
+        location: isFr ? 'Point de Départ' : 'Rollout Point',
+        category: 'prep',
+        isCrucialCheckpoint: false,
+        description: isFr
+          ? 'Pression pneus cyclo, sacoches sanglées, kit anti-crève et trace GPS chargée.'
+          : 'Tire pressures at touring spec, panniers strapped, GPS route locked.',
+        iconName: 'CheckCircle2',
+      },
+      {
+        id: 'hard-departure',
+        time: hardDepartureTime,
+        title: isFr ? `DÉPART IMPÉRATIF VERS ${destTitle.toUpperCase()}` : `ROLLOUT FOR ${destTitle.toUpperCase()}`,
+        location: isFr ? 'Départ' : 'Origin',
+        category: 'ride',
+        isCrucialCheckpoint: true,
+        description: isFr
+          ? `Allure cyclo régulière (~${route.targetSpeedKmH} km/h). Arrivée cible à ${targetArrival}.`
+          : `Steady touring pace (~${route.targetSpeedKmH} km/h). Target arrival by ${targetArrival}.`,
+        iconName: 'Navigation',
+      },
+      {
+        id: 'mid-ride-transit',
+        time: addMinutesToTime(hardDepartureTime, Math.round(totalRideMinutes * 0.5)),
+        title: isFr ? 'Pause Ravito & Mi-Parcours' : 'Scenic Mid-Route Transition',
+        location: isFr ? 'Mi-Parcours' : 'Midway Sector',
+        category: 'ride',
+        isCrucialCheckpoint: false,
+        description: isFr
+          ? 'Hydratation & encas énergétique. Gardez une cadence souple et confortable.'
+          : 'Hydration check & energy bar. Maintain smooth, sustainable cadence.',
+        iconName: 'Wind',
+      },
+      {
+        id: 'destination-arrival',
+        time: arrivalTime,
+        title: isFr ? `Arrivée à ${destTitle}` : `Arrival in ${destTitle}`,
+        location: destTitle,
+        category: 'transit',
+        isCrucialCheckpoint: true,
+        description: isFr
+          ? `Entrée dans ${destTitle}. Approche calme jusqu'à la réception de l'hébergement.`
+          : `Roll into ${destTitle}. Navigate to accommodation entrance.`,
+        iconName: 'ShieldCheck',
+      },
+      {
+        id: 'hotel-checkin',
+        time: targetArrival,
+        title: isFr ? 'Check-In & Local Vélo Sécurisé' : 'Check-In & Secure Bike Storage',
+        location: isFr ? 'Réception Hôtel' : 'Hotel Reception',
+        category: 'office',
+        isCrucialCheckpoint: true,
+        description: isFr
+          ? 'Enregistrement à la réception, rangement du vélo au local fermé et dépôt des bagages.'
+          : 'Check in, secure bike in dedicated room/rack, and drop luggage.',
+        iconName: 'Briefcase',
+      },
+      {
+        id: 'freshen-up',
+        time: roomSettleTime,
+        title: isFr ? 'Douche, Récup & Tenue Civile' : 'Shower, Refresh & Casual Kit Change',
+        location: isFr ? "Chambre d'Hôtel" : 'Hotel Room',
+        category: 'prep',
+        isCrucialCheckpoint: false,
+        description: isFr
+          ? 'Douche chaude, réhydratation et passage en tenue de ville confortable.'
+          : 'Hot shower, rehydrate, slip into off-bike walking clothes.',
+        iconName: 'ShowerHead',
+      },
+      {
+        id: 'town-explore',
+        time: exploreTime,
+        title: isFr ? `Découverte de ${destTitle} & Dîner` : `Explore ${destTitle} & Evening Dining`,
+        location: isFr ? `Centre de ${destTitle}` : `${destTitle} Center`,
+        category: 'nutrition',
+        isCrucialCheckpoint: false,
+        description: isFr
+          ? 'Balade à pied dans le centre, découverte locale et dîner détendu sans contrainte horaire.'
+          : 'Stroll town center, visit local sights, relaxed dinner without timeline stress.',
+        iconName: 'Coffee',
+      },
+    ];
+
+    if (customChips.includes('picnic-outing')) {
+      steps.push({
+        id: 'esc-picnic-lunch',
+        time: addMinutesToTime(hardDepartureTime, Math.round(totalRideMinutes * 0.5)),
+        title: isFr ? 'Déjeuner Pique-Nique au Bord de l’Eau (45 min)' : 'Waterside Scenic Picnic Lunch (45 min)',
+        location: isFr ? 'Halte Fluviale / Lac' : 'Scenic Riverbank Halt',
+        category: 'nutrition',
+        isCrucialCheckpoint: true,
+        description: isFr
+          ? 'Pause détente de 45 minutes : pain frais, fromage local du terroir, fruits frais et hydratation au soleil.'
+          : '45-minute waterside pause: artisanal sourdough, regional cheese, fresh fruit and hydration in the sun.',
+        iconName: 'Utensils',
+      });
+    }
+
+    if (customChips.includes('historical-tour')) {
+      steps.push({
+        id: 'esc-historical-chateau',
+        time: addMinutesToTime(hardDepartureTime, Math.round(totalRideMinutes * 0.35)),
+        title: isFr ? 'Visite Patrimoine & Pause Château (30 min)' : 'Château & Heritage Site Visit (30 min)',
+        location: isFr ? 'Site Historique' : 'Heritage Monument',
+        category: 'ride',
+        isCrucialCheckpoint: false,
+        description: isFr
+          ? 'Stationnement sécurisé du vélo au pied des remparts et découverte à pied des monuments classés.'
+          : 'Secure bike parking at castle gates, 30-min walking exploration of historic grounds.',
+        iconName: 'Landmark',
+      });
+    }
+
+    if (customChips.includes('local-gastronomy') || customChips.includes('wine-tasting')) {
+      const diningStep = steps.find((s) => s.id === 'town-explore');
+      if (diningStep) {
+        diningStep.title = isFr ? 'Dîner Gastronomique du Terroir & Vignoble' : 'Regional Gastronomy & Terroir Dining';
+        diningStep.description = isFr
+          ? 'Table réservée pour 19:45 : accords mets-vins de terroir, spécialités régionales et récupération gourmande.'
+          : 'Table booked for 19:45: local wine pairings, regional farm-to-table cuisine, and relaxed recovery.';
+        diningStep.iconName = 'Wine';
+      }
+    }
+
+    if (customChips.includes('photography-spots')) {
+      steps.push({
+        id: 'esc-golden-hour-photo',
+        time: addMinutesToTime(hardDepartureTime, Math.round(totalRideMinutes * 0.75)),
+        title: isFr ? 'Spot Photo : Halte Lumière Dorée' : 'Golden Hour Scenic Photography Stop',
+        location: isFr ? 'Belvédère Panoramique' : 'Scenic Overlook',
+        category: 'ride',
+        isCrucialCheckpoint: false,
+        description: isFr
+          ? 'Pause de 15 min pour immortaliser les paysages dans la lumière rasante de fin d’après-midi.'
+          : '15-min pause to capture golden hour panoramas with handlebar camera gear.',
+        iconName: 'Camera',
+      });
+    }
+  } else {
+    // ── COMMUTE / VÉLOTAF MILESTONES ──
+    const gateArrivalAnchor = targetArrival;
+    const gateTurnstileTime = subtractMinutesFromTime(gateArrivalAnchor, arrivalBuffer);
+    const lockerRefuelEnd = addMinutesToTime(gateArrivalAnchor, office.lockerRefuelMinutes || 10);
+
+    steps = [
+      {
+        id: 'wake-prep',
+        time: wakeUpTime,
+        title: isFr ? 'Réveil & Hydratation Matinale' : 'Wake Up & Hydration Primer',
+        location: isFr ? 'Domicile' : 'Home Base',
+        category: 'prep',
+        isCrucialCheckpoint: false,
+        description: isFr
+          ? 'Boire 300 ml d’eau fraîche avec une pincée de sel. Mise en route.'
+          : 'Drink 300ml fresh water with pinch of salt. Wake up and get ready.',
+        iconName: 'AlarmClock',
+      },
+      {
+        id: 'pre-ride-fuel',
+        time: preRideMealTime,
+        title: isFr ? 'Petit-Déjeuner Pré-Vélotaf' : 'Pre-Ride Breakfast',
+        location: isFr ? 'Cuisine' : 'Kitchen Counter',
+        category: 'nutrition',
+        isCrucialCheckpoint: true,
+        description: isFr
+          ? 'Baguette blanche grillée + miel de fleurs + double expresso. Zéro lait ni poudre.'
+          : 'White toasted baguette + wildflower honey + double espresso. Zero milk/powders.',
+        iconName: 'Utensils',
+      },
+      {
+        id: 'garage-rollout',
+        time: bikePrepTime,
+        title: isFr ? 'Contrôle Vélo, Pression & Poste de Pilotage' : 'Bike, Tire & Cockpit Pre-Ride Check',
+        location: isFr ? 'Garage / Départ' : 'Staging Area',
+        category: 'prep',
+        isCrucialCheckpoint: false,
+        description: isFr
+          ? 'Vérifier pression des pneus, batteries feux/radar, bidons montés et badge d’accès.'
+          : 'Verify tire pressure, battery status, bottles mounted, badge secured.',
+        iconName: 'CheckCircle2',
+      },
+      {
+        id: 'hard-departure',
+        time: hardDepartureTime,
+        title: isFr ? 'DÉPART IMPÉRATIF (Tolérance Zéro Retard)' : 'HARD DEPARTURE (Zero Delay Tolerance)',
+        location: isFr ? 'Point de Départ' : 'Rollout Point',
+        category: 'ride',
+        isCrucialCheckpoint: true,
+        description: isFr
+          ? `Départ à l'allure cible (${route.targetSpeedKmH} km/h). Marge vent de face : +${weatherHeadwindImpactMinutes}m.`
+          : `Roll out at target pace (${route.targetSpeedKmH} km/h). Headwind buffer: +${weatherHeadwindImpactMinutes}m.`,
+        iconName: 'Navigation',
+      },
+      {
+        id: 'estuary-transit',
+        time: addMinutesToTime(hardDepartureTime, Math.round(totalRideMinutes * 0.45)),
+        title: isFr ? 'Secteur Allure & Traversée Exposée' : 'Mid-Ride Pacing Sector',
+        location: isFr ? 'Route Ouverte' : 'Open Road Sector',
+        category: 'ride',
+        isCrucialCheckpoint: false,
+        description: weather.isHeadwindActive
+          ? isFr
+            ? `Vent de face détecté (${windKmh} km/h). Position aéro sur les cocottes pour économiser ~${Math.round(windKmh * 3.5)}W.`
+            : `Headwind detected (${windKmh} km/h). Hold aero tuck to conserve ~${Math.round(windKmh * 3.5)}W.`
+          : isFr
+          ? 'Vent calme sur le parcours. Cadence d’endurance régulière (88–92 tr/min).'
+          : 'Calm road conditions. Cruise at steady endurance cadence (88-92 RPM).',
+        iconName: 'Wind',
+      },
+      {
+        id: 'gate-security',
+        time: gateTurnstileTime,
+        title: isFr
+          ? `Arrivée au Portillon Sécurité (${localizedGate})`
+          : `Arrival & Bike Lockup (${localizedGate})`,
+        location: localizedGate,
+        category: 'transit',
+        isCrucialCheckpoint: true,
+        description: isFr
+          ? `Scan du badge à ${localizedGate}. Stationnement sécurisé au parking vélo.`
+          : `Badge scan at ${localizedGate}. Lock bike in secure facility.`,
+        iconName: 'ShieldCheck',
+      },
+      {
+        id: 'locker-refuel',
+        time: gateArrivalAnchor,
+        title: isFr ? 'Ravito Phase 1 au Vestiaire' : 'Phase 1 Locker Refuel',
+        location: isFr ? 'Vestiaires' : 'Locker Area',
+        category: 'nutrition',
+        isCrucialCheckpoint: true,
+        description: isFr
+          ? 'Recharge glycémique et protéinée rapide avant la douche.'
+          : 'Fast glycemic reload before shower.',
+        iconName: 'Zap',
+      },
+      {
+        id: 'shower-groom',
+        time: lockerRefuelEnd,
+        title: isFr ? 'Douche & Tenue de Travail' : 'Shower & Clean Kit Change',
+        location: isFr ? 'Douches Vestiaires' : 'Locker Showers',
+        category: 'office',
+        isCrucialCheckpoint: false,
+        description: isFr
+          ? 'Douche et passage en tenue de bureau propre.'
+          : 'Shower and swap into work attire.',
+        iconName: 'ShowerHead',
+      },
+      {
+        id: 'shift-start',
+        time: resolvedShiftStartTime,
+        title: isFr ? 'Prise de Poste / Bureau' : 'Shift Start / On-Desk Presence',
+        location: isFr ? 'Poste de Travail' : 'Work Desk',
+        category: 'office',
+        isCrucialCheckpoint: true,
+        description: isFr
+          ? 'Installation au poste à l’heure, ravitaillé et prêt pour la journée.'
+          : 'Arrive composed, fully fueled, and ready for work.',
+        iconName: 'Briefcase',
+      },
+    ];
+
+    if (customChips.includes('coffee-stop')) {
+      steps.push({
+        id: 'commute-coffee-pause',
+        time: addMinutesToTime(hardDepartureTime, Math.max(10, Math.round(totalRideMinutes * 0.35))),
+        title: isFr ? 'Pause Café & Ravitaillement Roaster' : 'Cafe Waypoint & Espresso Pause',
+        location: isFr ? 'Café d’Étape' : 'Roastery Waypoint',
+        category: 'nutrition',
+        isCrucialCheckpoint: true,
+        description: isFr
+          ? 'Pause café matinale planifiée (15 min). Double expresso & viennoiserie aux amandes avant la relance.'
+          : 'Scheduled 15-min morning coffee stop. Double espresso & almond pastry before rolling again.',
+        iconName: 'Coffee',
+      });
+    }
+
+    if (customChips.includes('night-ride')) {
+      const rolloutStep = steps.find((s) => s.id === 'garage-rollout');
+      if (rolloutStep) {
+        rolloutStep.title = isFr ? 'Sécurité Nocturne & Contrôle Phare 800+ lm' : 'Night Ride Prep & 800+ lm Check';
+        rolloutStep.description = isFr
+          ? 'Phare 800+ lumens vérifié en mode plein faisceau, baudrier rétro-réfléchissant ajusté et radar actif.'
+          : '800+ lm headlight high-beam verified, hi-vis reflective sash adjusted, rear radar active.';
+        rolloutStep.iconName = 'Moon';
+      }
+    }
+
+    if (customChips.includes('fitness-boost')) {
+      const transitStep = steps.find((s) => s.id === 'estuary-transit');
+      if (transitStep) {
+        transitStep.title = isFr ? 'Secteur Allure & Relais Cardio Tempo' : 'Tempo Cadence & Cardio Surge Sector';
+        transitStep.description = isFr
+          ? 'Relance en Zone 3 soutenue (~260W). Rythme cardio soutenu pour maximiser le bénéfice entraînement.'
+          : 'Sustained Zone 3 tempo (~260W). High-output aerobic pacing to turn commute into a structured workout.';
+      }
+    }
+
+    if (customChips.includes('rush-hour-buffer')) {
+      const gateStep = steps.find((s) => s.id === 'gate-security');
+      if (gateStep) {
+        gateStep.title = isFr ? `Arrivée Portillon avec Marge Heure de Pointe (${localizedGate})` : `Arrival with Peak Rush Buffer (${localizedGate})`;
+        gateStep.description = isFr
+          ? 'Franchissement sécurisé avec marge de +12 min pour parer aux goulets d’étranglement urbains.'
+          : 'Arrival cushion with +12m buffer factoring bridge bottlenecks and urban traffic.';
+      }
+    }
+
+    if (customChips.includes('cargo-laptop-pack')) {
+      const rolloutStep = steps.find((s) => s.id === 'garage-rollout');
+      if (rolloutStep) {
+        rolloutStep.description += isFr
+          ? ' Ordinateur portable 15" rangé dans la sacoche étanche IPX6.'
+          : ' 15" Work laptop secured in IPX6 waterproof pannier.';
+      }
+    }
+  }
+
+  // Ensure steps are strictly ordered chronologically relative to wakeUpTime (midnight-wrap safe)
+  const toMinutes = (hhmm: string) => {
+    const [h, m] = (hhmm || '00:00').split(':').map(Number);
+    return (h || 0) * 60 + (m || 0);
+  };
+  const anchorMinutes = toMinutes(wakeUpTime);
+  steps.sort((a, b) => {
+    const relA = (toMinutes(a.time) - anchorMinutes + 1440) % 1440;
+    const relB = (toMinutes(b.time) - anchorMinutes + 1440) % 1440;
+    return relA - relB;
+  });
+
   const totalDoorToDeskMinutes =
-    60 + totalRideMinutes + urbanBuffer + securityBuffer + 10 + 10 + 15;
+    60 + totalRideMinutes + routeBuffer + arrivalBuffer + extraBufferMinutes + postGateOfficeMinutes;
 
   return {
-    shiftStartTime: office.shiftStartTime,
-    gateArrivalTime: gateArrivalAnchor,
+    shiftStartTime: resolvedShiftStartTime,
+    gateArrivalTime: targetArrival,
     hardDepartureTime,
     preRideMealTime,
     wakeUpTime,
     totalDoorToDeskMinutes,
-    pureMovingMinutes: rawMovingMinutes,
-    bufferMinutes: urbanBuffer + securityBuffer + weatherHeadwindImpactMinutes,
+    pureMovingMinutes: actualMovingMinutes,
+    bufferMinutes: routeBuffer + arrivalBuffer + extraBufferMinutes,
     steps,
     weatherHeadwindImpactMinutes,
   };

@@ -8,7 +8,7 @@ interface CardProps {
   badge?: React.ReactNode;
   action?: React.ReactNode;
   icon?: React.ReactNode;
-  glow?: 'emerald' | 'amber' | 'cyan' | 'none';
+  glow?: 'emerald' | 'amber' | 'cyan' | 'volt' | 'red' | 'none';
 }
 
 export const Card: React.FC<CardProps> = ({
@@ -19,44 +19,39 @@ export const Card: React.FC<CardProps> = ({
   badge,
   action,
   icon,
-  glow = 'none',
 }) => {
-  const glowClasses = {
-    emerald: 'hover:border-emerald-500/50 hover:shadow-glow-emerald',
-    amber: 'hover:border-amber-500/50 hover:shadow-glow-amber',
-    cyan: 'hover:border-cyan-500/50 hover:shadow-glow-cyan',
-    none: 'hover:border-slate-300 dark:hover:border-zinc-700',
-  }[glow];
-
   return (
     <div
-      className={`bento-card bg-white dark:bg-[#121215]/90 border border-slate-200 dark:border-zinc-800/90 rounded-xl p-6 transition-all duration-200 relative overflow-hidden flex flex-col shadow-sm dark:shadow-none text-slate-900 dark:text-zinc-100 ${glowClasses} ${className}`}
+      className={`bento-card bg-card text-ink rounded-card p-4 transition-colors duration-200 relative overflow-hidden flex flex-col ${className}`}
     >
       {(title || action || icon || badge) && (
-        <div className="flex items-start justify-between gap-3 mb-5 border-b border-slate-100 dark:border-zinc-800/60 pb-3.5">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+          <div className="flex items-start gap-3 min-w-0">
             {icon && (
-              <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex items-center justify-center text-slate-700 dark:text-zinc-300 flex-shrink-0">
+              <div className="w-9 h-9 rounded-full bg-pod flex items-center justify-center text-ink shrink-0 mt-0.5">
                 {icon}
               </div>
             )}
-            <div>
-              <div className="flex items-center gap-2.5">
-                {title && (
-                  <h3 className="text-xs font-mono font-bold tracking-wider uppercase text-slate-700 dark:text-zinc-300">
-                    {title}
-                  </h3>
-                )}
-                {badge}
-              </div>
+            <div className="min-w-0">
+              {title && (
+                <h3 className="text-base sm:text-[17px] font-semibold tracking-tight text-ink leading-snug">
+                  {title}
+                </h3>
+              )}
               {subtitle && (
-                <p className="text-xs text-slate-500 dark:text-zinc-500 font-sans mt-0.5">
+                <p className="text-[13px] text-ink-muted mt-0.5 leading-snug">
                   {subtitle}
                 </p>
               )}
             </div>
           </div>
-          {action && <div className="flex items-center gap-2">{action}</div>}
+
+          {(badge || action) && (
+            <div className="flex items-center gap-2 flex-wrap max-w-full min-w-0">
+              {badge}
+              {action}
+            </div>
+          )}
         </div>
       )}
       <div className="flex-1 flex flex-col">{children}</div>

@@ -1,0 +1,3987 @@
+{
+  "totalScenarios": 100,
+  "passedCount": 100,
+  "warnCount": 0,
+  "failCount": 0,
+  "results": [
+    {
+      "id": 1,
+      "name": "Baseline Estuary Commute (Gate 17)",
+      "category": "COMMUTE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 254,
+        "aeroWatts": 182,
+        "rollingWatts": 39,
+        "gravityWatts": 20,
+        "movingTimeFormatted": "48m 00s",
+        "totalKcalBurn": 832,
+        "totalCarbsGrams": 141,
+        "carbRateGramsPerHour": 176,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (254W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "06:24",
+        "preRideMealTime": "06:39",
+        "hardDepartureTime": "07:24",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 48,
+        "totalDoorToDeskMinutes": 156,
+        "bufferMinutes": 18,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 2,
+      "name": "Early Dawn Commute (06:00 Shift)",
+      "category": "COMMUTE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 143,
+        "aeroWatts": 82,
+        "rollingWatts": 36,
+        "gravityWatts": 18,
+        "movingTimeFormatted": "38m 24s",
+        "totalKcalBurn": 375,
+        "totalCarbsGrams": 54,
+        "carbRateGramsPerHour": 84,
+        "goStatus": "GO",
+        "goStatusReason": "Calm conditions. Pure rolling resistance pacing."
+      },
+      "timeline": {
+        "wakeUpTime": "03:39",
+        "preRideMealTime": "03:54",
+        "hardDepartureTime": "04:39",
+        "gateArrivalTime": "05:30",
+        "shiftStartTime": "06:00",
+        "pureMovingMinutes": 38,
+        "totalDoorToDeskMinutes": 141,
+        "bufferMinutes": 13,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 3,
+      "name": "Estuary Gale Surcharge (NO-GO Trigger)",
+      "category": "COMMUTE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 501,
+        "aeroWatts": 424,
+        "rollingWatts": 34,
+        "gravityWatts": 17,
+        "movingTimeFormatted": "1h 20m 00s",
+        "totalKcalBurn": 2734,
+        "totalCarbsGrams": 581,
+        "carbRateGramsPerHour": 436,
+        "goStatus": "NO-GO",
+        "goStatusReason": "Severe estuary gale (34 km/h). Cross-bridge gust hazard."
+      },
+      "timeline": {
+        "wakeUpTime": "04:58",
+        "preRideMealTime": "05:13",
+        "hardDepartureTime": "05:58",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 80,
+        "totalDoorToDeskMinutes": 242,
+        "bufferMinutes": 72,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 4,
+      "name": "Estuary Strong Headwind Warning (CAUTION Trigger)",
+      "category": "COMMUTE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 363,
+        "aeroWatts": 289,
+        "rollingWatts": 37,
+        "gravityWatts": 19,
+        "movingTimeFormatted": "1h 0m 00s",
+        "totalKcalBurn": 1487,
+        "totalCarbsGrams": 287,
+        "carbRateGramsPerHour": 287,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Stiff headwind (20 km/h). +207W aerodynamic surcharge on exposed segments."
+      },
+      "timeline": {
+        "wakeUpTime": "05:29",
+        "preRideMealTime": "05:44",
+        "hardDepartureTime": "06:29",
+        "gateArrivalTime": "08:00",
+        "shiftStartTime": "08:30",
+        "pureMovingMinutes": 60,
+        "totalDoorToDeskMinutes": 181,
+        "bufferMinutes": 31,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 5,
+      "name": "Ultra-Short Urban Commute Sprint",
+      "category": "COMMUTE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 159,
+        "aeroWatts": 104,
+        "rollingWatts": 32,
+        "gravityWatts": 16,
+        "movingTimeFormatted": "10m 21s",
+        "totalKcalBurn": 113,
+        "totalCarbsGrams": 17,
+        "carbRateGramsPerHour": 96,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "07:26",
+        "preRideMealTime": "07:41",
+        "hardDepartureTime": "08:26",
+        "gateArrivalTime": "08:45",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 10,
+        "totalDoorToDeskMinutes": 109,
+        "bufferMinutes": 9,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 6,
+      "name": "Long-Range Interurban Mega-Commute",
+      "category": "COMMUTE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 335,
+        "aeroWatts": 256,
+        "rollingWatts": 42,
+        "gravityWatts": 21,
+        "movingTimeFormatted": "1h 39m 18s",
+        "totalKcalBurn": 2272,
+        "totalCarbsGrams": 425,
+        "carbRateGramsPerHour": 257,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (335W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "05:10",
+        "preRideMealTime": "05:25",
+        "hardDepartureTime": "06:10",
+        "gateArrivalTime": "08:20",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 99,
+        "totalDoorToDeskMinutes": 220,
+        "bufferMinutes": 31,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 7,
+      "name": "Heavy E-Commuter with Full Cargo Panniers",
+      "category": "COMMUTE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 122.5,
+        "legWatts": 179,
+        "aeroWatts": 104,
+        "rollingWatts": 44,
+        "gravityWatts": 22,
+        "movingTimeFormatted": "54m 32s",
+        "totalKcalBurn": 667,
+        "totalCarbsGrams": 102,
+        "carbRateGramsPerHour": 112,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "06:16",
+        "preRideMealTime": "06:31",
+        "hardDepartureTime": "07:16",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 55,
+        "totalDoorToDeskMinutes": 164,
+        "bufferMinutes": 19,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 8,
+      "name": "Minimalist Fixie Courier Commute (Zero Cargo)",
+      "category": "COMMUTE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 77.8,
+        "legWatts": 237,
+        "aeroWatts": 172,
+        "rollingWatts": 36,
+        "gravityWatts": 18,
+        "movingTimeFormatted": "30m 00s",
+        "totalKcalBurn": 485,
+        "totalCarbsGrams": 80,
+        "carbRateGramsPerHour": 160,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (237W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "07:19",
+        "preRideMealTime": "07:34",
+        "hardDepartureTime": "08:19",
+        "gateArrivalTime": "09:05",
+        "shiftStartTime": "09:30",
+        "pureMovingMinutes": 30,
+        "totalDoorToDeskMinutes": 136,
+        "bufferMinutes": 16,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 9,
+      "name": "Zero-Buffer High-Risk Commute",
+      "category": "COMMUTE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 244,
+        "aeroWatts": 174,
+        "rollingWatts": 39,
+        "gravityWatts": 19,
+        "movingTimeFormatted": "48m 53s",
+        "totalKcalBurn": 814,
+        "totalCarbsGrams": 136,
+        "carbRateGramsPerHour": 167,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (244W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "06:23",
+        "preRideMealTime": "06:38",
+        "hardDepartureTime": "07:23",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "08:30",
+        "pureMovingMinutes": 49,
+        "totalDoorToDeskMinutes": 157,
+        "bufferMinutes": 18,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 10,
+      "name": "Congested Urban Chokepoint (45m Traffic Delay)",
+      "category": "COMMUTE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 132,
+        "aeroWatts": 82,
+        "rollingWatts": 29,
+        "gravityWatts": 14,
+        "movingTimeFormatted": "45m 00s",
+        "totalKcalBurn": 405,
+        "totalCarbsGrams": 58,
+        "carbRateGramsPerHour": 77,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "05:39",
+        "preRideMealTime": "05:54",
+        "hardDepartureTime": "06:39",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 45,
+        "totalDoorToDeskMinutes": 201,
+        "bufferMinutes": 66,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 11,
+      "name": "Sub-Zero Winter Commute (-6°C)",
+      "category": "COMMUTE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 283,
+        "aeroWatts": 215,
+        "rollingWatts": 36,
+        "gravityWatts": 18,
+        "movingTimeFormatted": "52m 48s",
+        "totalKcalBurn": 1020,
+        "totalCarbsGrams": 179,
+        "carbRateGramsPerHour": 203,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (283W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "06:14",
+        "preRideMealTime": "06:29",
+        "hardDepartureTime": "07:14",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 53,
+        "totalDoorToDeskMinutes": 166,
+        "bufferMinutes": 23,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 9,
+        "criticalCount": 9,
+        "hasThermalKit": true,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 12,
+      "name": "Summer Heatwave Commute (38°C)",
+      "category": "COMMUTE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 149,
+        "aeroWatts": 86,
+        "rollingWatts": 37,
+        "gravityWatts": 19,
+        "movingTimeFormatted": "55m 23s",
+        "totalKcalBurn": 563,
+        "totalCarbsGrams": 82,
+        "carbRateGramsPerHour": 89,
+        "goStatus": "GO",
+        "goStatusReason": "Calm conditions. Pure rolling resistance pacing."
+      },
+      "timeline": {
+        "wakeUpTime": "06:22",
+        "preRideMealTime": "06:37",
+        "hardDepartureTime": "07:22",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 55,
+        "totalDoorToDeskMinutes": 158,
+        "bufferMinutes": 13,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 13,
+      "name": "Strict Subterranean Shelter Token (Gate 17)",
+      "category": "COMMUTE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 254,
+        "aeroWatts": 182,
+        "rollingWatts": 39,
+        "gravityWatts": 20,
+        "movingTimeFormatted": "48m 00s",
+        "totalKcalBurn": 832,
+        "totalCarbsGrams": 141,
+        "carbRateGramsPerHour": 176,
+        "goStatus": "CAUTION",
+        "goStatusReason": "La puissance soutenue requise (254W) dépasse le tempo d'endurance habituel."
+      },
+      "timeline": {
+        "wakeUpTime": "06:24",
+        "preRideMealTime": "06:39",
+        "hardDepartureTime": "07:24",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 48,
+        "totalDoorToDeskMinutes": 156,
+        "bufferMinutes": 18,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 14,
+      "name": "Public Access Commute (No Badge Required)",
+      "category": "COMMUTE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 254,
+        "aeroWatts": 182,
+        "rollingWatts": 39,
+        "gravityWatts": 20,
+        "movingTimeFormatted": "48m 00s",
+        "totalKcalBurn": 832,
+        "totalCarbsGrams": 141,
+        "carbRateGramsPerHour": 176,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (254W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "06:24",
+        "preRideMealTime": "06:39",
+        "hardDepartureTime": "07:24",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 48,
+        "totalDoorToDeskMinutes": 156,
+        "bufferMinutes": 18,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 15,
+      "name": "Late Evening Shift Commute (22:00 Shift)",
+      "category": "COMMUTE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 225,
+        "aeroWatts": 158,
+        "rollingWatts": 37,
+        "gravityWatts": 19,
+        "movingTimeFormatted": "50m 46s",
+        "totalKcalBurn": 780,
+        "totalCarbsGrams": 127,
+        "carbRateGramsPerHour": 150,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "19:21",
+        "preRideMealTime": "19:36",
+        "hardDepartureTime": "20:21",
+        "gateArrivalTime": "21:30",
+        "shiftStartTime": "22:00",
+        "pureMovingMinutes": 51,
+        "totalDoorToDeskMinutes": 159,
+        "bufferMinutes": 18,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 16,
+      "name": "Midnight Graveyard Shift Commute (00:00 Shift)",
+      "category": "COMMUTE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 207,
+        "aeroWatts": 143,
+        "rollingWatts": 36,
+        "gravityWatts": 18,
+        "movingTimeFormatted": "1h 0m 00s",
+        "totalKcalBurn": 848,
+        "totalCarbsGrams": 134,
+        "carbRateGramsPerHour": 134,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "21:11",
+        "preRideMealTime": "21:26",
+        "hardDepartureTime": "22:11",
+        "gateArrivalTime": "23:30",
+        "shiftStartTime": "00:00",
+        "pureMovingMinutes": 60,
+        "totalDoorToDeskMinutes": 169,
+        "bufferMinutes": 19,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 17,
+      "name": "Post-Midnight 01:15 Shift (Rollover Prior Day)",
+      "category": "COMMUTE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 225,
+        "aeroWatts": 158,
+        "rollingWatts": 37,
+        "gravityWatts": 19,
+        "movingTimeFormatted": "1h 13m 50s",
+        "totalKcalBurn": 1134,
+        "totalCarbsGrams": 185,
+        "carbRateGramsPerHour": 150,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "22:11",
+        "preRideMealTime": "22:26",
+        "hardDepartureTime": "23:11",
+        "gateArrivalTime": "00:45",
+        "shiftStartTime": "01:15",
+        "pureMovingMinutes": 74,
+        "totalDoorToDeskMinutes": 184,
+        "bufferMinutes": 20,
+        "stepCount": 9,
+        "hasMidnightCrossing": true
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 18,
+      "name": "Early Morning 05:00 Shift (Pre-Dawn Rollout)",
+      "category": "COMMUTE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 225,
+        "aeroWatts": 158,
+        "rollingWatts": 37,
+        "gravityWatts": 19,
+        "movingTimeFormatted": "1h 20m 46s",
+        "totalKcalBurn": 1241,
+        "totalCarbsGrams": 202,
+        "carbRateGramsPerHour": 150,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "01:48",
+        "preRideMealTime": "02:03",
+        "hardDepartureTime": "02:48",
+        "gateArrivalTime": "04:30",
+        "shiftStartTime": "05:00",
+        "pureMovingMinutes": 81,
+        "totalDoorToDeskMinutes": 192,
+        "bufferMinutes": 21,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 19,
+      "name": "French Natural Language Commute Prompt",
+      "category": "COMMUTE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.4,
+        "legWatts": 244,
+        "aeroWatts": 174,
+        "rollingWatts": 39,
+        "gravityWatts": 19,
+        "movingTimeFormatted": "48m 53s",
+        "totalKcalBurn": 814,
+        "totalCarbsGrams": 135,
+        "carbRateGramsPerHour": 166,
+        "goStatus": "CAUTION",
+        "goStatusReason": "La puissance soutenue requise (244W) dépasse le tempo d'endurance habituel."
+      },
+      "timeline": {
+        "wakeUpTime": "06:18",
+        "preRideMealTime": "06:33",
+        "hardDepartureTime": "07:18",
+        "gateArrivalTime": "08:25",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 49,
+        "totalDoorToDeskMinutes": 157,
+        "bufferMinutes": 18,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "nlpFeedback": {
+        "extractedCount": 8,
+        "detectedSpeed": 27,
+        "detectedDist": 22,
+        "detectedArrival": "08:25",
+        "detectedRollout": "07:21"
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 20,
+      "name": "Bilingual Mixed Commute Prompt",
+      "category": "COMMUTE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 300,
+        "aeroWatts": 230,
+        "rollingWatts": 37,
+        "gravityWatts": 19,
+        "movingTimeFormatted": "41m 32s",
+        "totalKcalBurn": 852,
+        "totalCarbsGrams": 153,
+        "carbRateGramsPerHour": 221,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Stiff headwind (15 km/h). +144W aerodynamic surcharge on exposed segments."
+      },
+      "timeline": {
+        "wakeUpTime": "06:27",
+        "preRideMealTime": "06:42",
+        "hardDepartureTime": "07:27",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 42,
+        "totalDoorToDeskMinutes": 153,
+        "bufferMinutes": 21,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "nlpFeedback": {
+        "extractedCount": 6,
+        "detectedSpeed": 26,
+        "detectedDist": 18
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 21,
+      "name": "Extended Executive Shower & Groom Protocol",
+      "category": "COMMUTE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 244,
+        "aeroWatts": 174,
+        "rollingWatts": 39,
+        "gravityWatts": 19,
+        "movingTimeFormatted": "48m 53s",
+        "totalKcalBurn": 814,
+        "totalCarbsGrams": 136,
+        "carbRateGramsPerHour": 167,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (244W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "06:23",
+        "preRideMealTime": "06:38",
+        "hardDepartureTime": "07:23",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 49,
+        "totalDoorToDeskMinutes": 157,
+        "bufferMinutes": 18,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 22,
+      "name": "Ultra-Compressed 5-Minute Locker Turnaround",
+      "category": "COMMUTE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 225,
+        "aeroWatts": 158,
+        "rollingWatts": 37,
+        "gravityWatts": 19,
+        "movingTimeFormatted": "41m 32s",
+        "totalKcalBurn": 638,
+        "totalCarbsGrams": 104,
+        "carbRateGramsPerHour": 150,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "06:31",
+        "preRideMealTime": "06:46",
+        "hardDepartureTime": "07:31",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 42,
+        "totalDoorToDeskMinutes": 149,
+        "bufferMinutes": 17,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 23,
+      "name": "Cross-Headwind Estuary Bridge Crossing",
+      "category": "COMMUTE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 337,
+        "aeroWatts": 264,
+        "rollingWatts": 37,
+        "gravityWatts": 19,
+        "movingTimeFormatted": "55m 23s",
+        "totalKcalBurn": 1275,
+        "totalCarbsGrams": 239,
+        "carbRateGramsPerHour": 259,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Stiff headwind (18 km/h). +181W aerodynamic surcharge on exposed segments."
+      },
+      "timeline": {
+        "wakeUpTime": "06:07",
+        "preRideMealTime": "06:22",
+        "hardDepartureTime": "07:07",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 55,
+        "totalDoorToDeskMinutes": 173,
+        "bufferMinutes": 28,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 24,
+      "name": "Commute with NLP Puncture Margin & Tubeless Kit",
+      "category": "COMMUTE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 264,
+        "aeroWatts": 191,
+        "rollingWatts": 40,
+        "gravityWatts": 20,
+        "movingTimeFormatted": "55m 42s",
+        "totalKcalBurn": 1004,
+        "totalCarbsGrams": 172,
+        "carbRateGramsPerHour": 185,
+        "goStatus": "CAUTION",
+        "goStatusReason": "La puissance soutenue requise (264W) dépasse le tempo d'endurance habituel."
+      },
+      "timeline": {
+        "wakeUpTime": "06:06",
+        "preRideMealTime": "06:21",
+        "hardDepartureTime": "07:06",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "08:30",
+        "pureMovingMinutes": 56,
+        "totalDoorToDeskMinutes": 174,
+        "bufferMinutes": 28,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "nlpFeedback": {
+        "extractedCount": 7,
+        "detectedSpeed": 28,
+        "detectedDist": 26,
+        "detectedArrival": "08:30",
+        "detectedRollout": "07:09"
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 25,
+      "name": "Commute with Bakery Coffee Stop Added",
+      "category": "COMMUTE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 225,
+        "aeroWatts": 158,
+        "rollingWatts": 37,
+        "gravityWatts": 19,
+        "movingTimeFormatted": "50m 46s",
+        "totalKcalBurn": 780,
+        "totalCarbsGrams": 127,
+        "carbRateGramsPerHour": 150,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "06:06",
+        "preRideMealTime": "06:21",
+        "hardDepartureTime": "07:06",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 51,
+        "totalDoorToDeskMinutes": 174,
+        "bufferMinutes": 33,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "nlpFeedback": {
+        "extractedCount": 8,
+        "detectedSpeed": 26,
+        "detectedDist": 22,
+        "detectedArrival": "08:30",
+        "detectedRollout": "07:09"
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 26,
+      "name": "Standard Gran Fondo Fast Pace",
+      "category": "SPORT",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 290,
+        "aeroWatts": 219,
+        "rollingWatts": 39,
+        "gravityWatts": 23,
+        "movingTimeFormatted": "1h 20m 00s",
+        "totalKcalBurn": 1583,
+        "totalCarbsGrams": 280,
+        "carbRateGramsPerHour": 210,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (290W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "08:23",
+        "preRideMealTime": "08:38",
+        "hardDepartureTime": "09:23",
+        "gateArrivalTime": "11:00",
+        "shiftStartTime": "11:30",
+        "pureMovingMinutes": 80,
+        "totalDoorToDeskMinutes": 187,
+        "bufferMinutes": 17,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 27,
+      "name": "Elite Aero Time Trial Posture",
+      "category": "SPORT",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 350,
+        "aeroWatts": 274,
+        "rollingWatts": 38,
+        "gravityWatts": 27,
+        "movingTimeFormatted": "1h 18m 56s",
+        "totalKcalBurn": 1724,
+        "totalCarbsGrams": 328,
+        "carbRateGramsPerHour": 249,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (350W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "07:26",
+        "preRideMealTime": "07:41",
+        "hardDepartureTime": "08:26",
+        "gateArrivalTime": "10:00",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 79,
+        "totalDoorToDeskMinutes": 184,
+        "bufferMinutes": 15,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 28,
+      "name": "High Threshold Wattage Surge (>300W)",
+      "category": "SPORT",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 498,
+        "aeroWatts": 323,
+        "rollingWatts": 50,
+        "gravityWatts": 100,
+        "movingTimeFormatted": "1h 0m 00s",
+        "totalKcalBurn": 2041,
+        "totalCarbsGrams": 434,
+        "carbRateGramsPerHour": 434,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (498W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "07:16",
+        "preRideMealTime": "07:31",
+        "hardDepartureTime": "08:16",
+        "gateArrivalTime": "09:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 60,
+        "totalDoorToDeskMinutes": 164,
+        "bufferMinutes": 14,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 29,
+      "name": "Gran Fondo Mountain Pass (6.5% Climbing)",
+      "category": "SPORT",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 77,
+        "legWatts": 426,
+        "aeroWatts": 93,
+        "rollingWatts": 26,
+        "gravityWatts": 286,
+        "movingTimeFormatted": "3h 5m 42s",
+        "totalKcalBurn": 5406,
+        "totalCarbsGrams": 1120,
+        "carbRateGramsPerHour": 362,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (426W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "08:20",
+        "preRideMealTime": "08:35",
+        "hardDepartureTime": "09:20",
+        "gateArrivalTime": "13:00",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 186,
+        "totalDoorToDeskMinutes": 310,
+        "bufferMinutes": 34,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 30,
+      "name": "Steep Wall Assault (12% Gradient Sector)",
+      "category": "SPORT",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 516,
+        "aeroWatts": 42,
+        "rollingWatts": 21,
+        "gravityWatts": 427,
+        "movingTimeFormatted": "48m 00s",
+        "totalKcalBurn": 1690,
+        "totalCarbsGrams": 359,
+        "carbRateGramsPerHour": 449,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (516W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "08:53",
+        "preRideMealTime": "09:08",
+        "hardDepartureTime": "09:53",
+        "gateArrivalTime": "11:00",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 48,
+        "totalDoorToDeskMinutes": 157,
+        "bufferMinutes": 19,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 31,
+      "name": "High-Speed Mountain Descent (-4% Gradient)",
+      "category": "SPORT",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 422,
+        "aeroWatts": 790,
+        "rollingWatts": 69,
+        "gravityWatts": -458,
+        "movingTimeFormatted": "37m 30s",
+        "totalKcalBurn": 1082,
+        "totalCarbsGrams": 223,
+        "carbRateGramsPerHour": 357,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (422W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "12:11",
+        "preRideMealTime": "12:26",
+        "hardDepartureTime": "13:11",
+        "gateArrivalTime": "14:00",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 38,
+        "totalDoorToDeskMinutes": 139,
+        "bufferMinutes": 11,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 32,
+      "name": "Metric Century Endurance (100 km)",
+      "category": "SPORT",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 285,
+        "aeroWatts": 208,
+        "rollingWatts": 42,
+        "gravityWatts": 21,
+        "movingTimeFormatted": "3h 26m 53s",
+        "totalKcalBurn": 4027,
+        "totalCarbsGrams": 707,
+        "carbRateGramsPerHour": 205,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (285W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "08:34",
+        "preRideMealTime": "08:49",
+        "hardDepartureTime": "09:34",
+        "gateArrivalTime": "13:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 207,
+        "totalDoorToDeskMinutes": 326,
+        "bufferMinutes": 29,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 33,
+      "name": "Double Metric Century Ultra (200 km)",
+      "category": "SPORT",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 264,
+        "aeroWatts": 191,
+        "rollingWatts": 40,
+        "gravityWatts": 20,
+        "movingTimeFormatted": "7h 8m 34s",
+        "totalKcalBurn": 7723,
+        "totalCarbsGrams": 1321,
+        "carbRateGramsPerHour": 185,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (264W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "07:01",
+        "preRideMealTime": "07:16",
+        "hardDepartureTime": "08:01",
+        "gateArrivalTime": "16:00",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 429,
+        "totalDoorToDeskMinutes": 569,
+        "bufferMinutes": 50,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 34,
+      "name": "Blistering Summer Fast Sunrise Ride (34°C)",
+      "category": "SPORT",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 322,
+        "aeroWatts": 235,
+        "rollingWatts": 47,
+        "gravityWatts": 24,
+        "movingTimeFormatted": "1h 49m 05s",
+        "totalKcalBurn": 2398,
+        "totalCarbsGrams": 442,
+        "carbRateGramsPerHour": 243,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (322W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "05:26",
+        "preRideMealTime": "05:41",
+        "hardDepartureTime": "06:26",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 109,
+        "totalDoorToDeskMinutes": 214,
+        "bufferMinutes": 15,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 35,
+      "name": "Freezing Winter Tempo Miles (-3°C)",
+      "category": "SPORT",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 369,
+        "aeroWatts": 291,
+        "rollingWatts": 40,
+        "gravityWatts": 20,
+        "movingTimeFormatted": "2h 30m 00s",
+        "totalKcalBurn": 3783,
+        "totalCarbsGrams": 735,
+        "carbRateGramsPerHour": 294,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Stiff headwind (15 km/h). +176W aerodynamic surcharge on exposed segments."
+      },
+      "timeline": {
+        "wakeUpTime": "04:21",
+        "preRideMealTime": "04:36",
+        "hardDepartureTime": "05:21",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 150,
+        "totalDoorToDeskMinutes": 279,
+        "bufferMinutes": 39,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 7,
+        "criticalCount": 7,
+        "hasThermalKit": true,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 36,
+      "name": "Featherweight Climber on Carbon Superlight",
+      "category": "SPORT",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 59.3,
+        "legWatts": 388,
+        "aeroWatts": 143,
+        "rollingWatts": 24,
+        "gravityWatts": 202,
+        "movingTimeFormatted": "1h 48m 00s",
+        "totalKcalBurn": 2864,
+        "totalCarbsGrams": 569,
+        "carbRateGramsPerHour": 316,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (388W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "05:21",
+        "preRideMealTime": "05:36",
+        "hardDepartureTime": "06:21",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 108,
+        "totalDoorToDeskMinutes": 219,
+        "bufferMinutes": 21,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 37,
+      "name": "Heavy Flatland Rouleur on Deep Section Wheels",
+      "category": "SPORT",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 104,
+        "legWatts": 414,
+        "aeroWatts": 302,
+        "rollingWatts": 61,
+        "gravityWatts": 31,
+        "movingTimeFormatted": "1h 48m 20s",
+        "totalKcalBurn": 3066,
+        "totalCarbsGrams": 627,
+        "carbRateGramsPerHour": 347,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (414W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "05:24",
+        "preRideMealTime": "05:39",
+        "hardDepartureTime": "06:24",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 108,
+        "totalDoorToDeskMinutes": 216,
+        "bufferMinutes": 18,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 38,
+      "name": "Mud-Clogged Drivetrain Efficiency Drop (88%)",
+      "category": "SPORT",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 296,
+        "aeroWatts": 191,
+        "rollingWatts": 50,
+        "gravityWatts": 20,
+        "movingTimeFormatted": "1h 47m 08s",
+        "totalKcalBurn": 2168,
+        "totalCarbsGrams": 388,
+        "carbRateGramsPerHour": 217,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (296W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "05:23",
+        "preRideMealTime": "05:38",
+        "hardDepartureTime": "06:23",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 107,
+        "totalDoorToDeskMinutes": 217,
+        "bufferMinutes": 20,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 39,
+      "name": "Sub-Par Metabolic Efficiency Rider (17%)",
+      "category": "SPORT",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 307,
+        "aeroWatts": 227,
+        "rollingWatts": 43,
+        "gravityWatts": 21,
+        "movingTimeFormatted": "1h 20m 00s",
+        "totalKcalBurn": 2074,
+        "totalCarbsGrams": 375,
+        "carbRateGramsPerHour": 281,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (307W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "05:53",
+        "preRideMealTime": "06:08",
+        "hardDepartureTime": "06:53",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 80,
+        "totalDoorToDeskMinutes": 187,
+        "bufferMinutes": 17,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 40,
+      "name": "World-Class Efficiency Pro (24% GME)",
+      "category": "SPORT",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 437,
+        "aeroWatts": 340,
+        "rollingWatts": 50,
+        "gravityWatts": 25,
+        "movingTimeFormatted": "2h 17m 08s",
+        "totalKcalBurn": 3580,
+        "totalCarbsGrams": 750,
+        "carbRateGramsPerHour": 328,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (437W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "04:53",
+        "preRideMealTime": "05:08",
+        "hardDepartureTime": "05:53",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 137,
+        "totalDoorToDeskMinutes": 247,
+        "bufferMinutes": 20,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 41,
+      "name": "French Gran Fondo NLP Prompt with Noon Finish",
+      "category": "SPORT",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 355,
+        "aeroWatts": 269,
+        "rollingWatts": 46,
+        "gravityWatts": 23,
+        "movingTimeFormatted": "1h 43m 07s",
+        "totalKcalBurn": 2503,
+        "totalCarbsGrams": 480,
+        "carbRateGramsPerHour": 279,
+        "goStatus": "CAUTION",
+        "goStatusReason": "La puissance soutenue requise (355W) dépasse le tempo d'endurance habituel."
+      },
+      "timeline": {
+        "wakeUpTime": "08:59",
+        "preRideMealTime": "09:14",
+        "hardDepartureTime": "09:59",
+        "gateArrivalTime": "12:00",
+        "shiftStartTime": "12:00",
+        "pureMovingMinutes": 103,
+        "totalDoorToDeskMinutes": 211,
+        "bufferMinutes": 18,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "nlpFeedback": {
+        "extractedCount": 7,
+        "detectedSpeed": 32,
+        "detectedDist": 55,
+        "detectedArrival": "12:00",
+        "detectedRollout": "09:52"
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 42,
+      "name": "Sport Ride with Fast Sunrise NLP Phrasing",
+      "category": "SPORT",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 85.4,
+        "legWatts": 379,
+        "aeroWatts": 291,
+        "rollingWatts": 46,
+        "gravityWatts": 23,
+        "movingTimeFormatted": "1h 58m 10s",
+        "totalKcalBurn": 3062,
+        "totalCarbsGrams": 603,
+        "carbRateGramsPerHour": 306,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (379W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "05:13",
+        "preRideMealTime": "05:28",
+        "hardDepartureTime": "06:13",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 118,
+        "totalDoorToDeskMinutes": 227,
+        "bufferMinutes": 19,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "nlpFeedback": {
+        "extractedCount": 4,
+        "detectedSpeed": 33,
+        "detectedDist": 65
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 43,
+      "name": "High Altitude Pass Simulation (rho 0.95 kg/m³)",
+      "category": "SPORT",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 367,
+        "aeroWatts": 81,
+        "rollingWatts": 32,
+        "gravityWatts": 236,
+        "movingTimeFormatted": "2h 2m 43s",
+        "totalKcalBurn": 3072,
+        "totalCarbsGrams": 595,
+        "carbRateGramsPerHour": 291,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (367W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "05:02",
+        "preRideMealTime": "05:17",
+        "hardDepartureTime": "06:02",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 123,
+        "totalDoorToDeskMinutes": 238,
+        "bufferMinutes": 25,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 44,
+      "name": "Sea Level Dense Coastal Air (rho 1.26 kg/m³)",
+      "category": "SPORT",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 363,
+        "aeroWatts": 277,
+        "rollingWatts": 46,
+        "gravityWatts": 23,
+        "movingTimeFormatted": "1h 33m 45s",
+        "totalKcalBurn": 2327,
+        "totalCarbsGrams": 450,
+        "carbRateGramsPerHour": 288,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (363W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "05:39",
+        "preRideMealTime": "05:54",
+        "hardDepartureTime": "06:39",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 94,
+        "totalDoorToDeskMinutes": 201,
+        "bufferMinutes": 17,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 45,
+      "name": "Paceline Aerodynamic Drafting (CdA 0.22)",
+      "category": "SPORT",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 311,
+        "aeroWatts": 216,
+        "rollingWatts": 53,
+        "gravityWatts": 26,
+        "movingTimeFormatted": "2h 1m 37s",
+        "totalKcalBurn": 2587,
+        "totalCarbsGrams": 470,
+        "carbRateGramsPerHour": 232,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (311W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "05:10",
+        "preRideMealTime": "05:25",
+        "hardDepartureTime": "06:10",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 122,
+        "totalDoorToDeskMinutes": 230,
+        "bufferMinutes": 18,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 46,
+      "name": "Violent Coastal Crosswind Blast (32 km/h wind)",
+      "category": "SPORT",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 581,
+        "aeroWatts": 494,
+        "rollingWatts": 39,
+        "gravityWatts": 19,
+        "movingTimeFormatted": "1h 28m 53s",
+        "totalKcalBurn": 3524,
+        "totalCarbsGrams": 748,
+        "carbRateGramsPerHour": 505,
+        "goStatus": "NO-GO",
+        "goStatusReason": "Severe estuary gale (32 km/h). Cross-bridge gust hazard."
+      },
+      "timeline": {
+        "wakeUpTime": "05:02",
+        "preRideMealTime": "05:17",
+        "hardDepartureTime": "06:02",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 89,
+        "totalDoorToDeskMinutes": 238,
+        "bufferMinutes": 59,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 47,
+      "name": "Short Explosive Criterium Prep (15 km)",
+      "category": "SPORT",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 530,
+        "aeroWatts": 422,
+        "rollingWatts": 54,
+        "gravityWatts": 27,
+        "movingTimeFormatted": "23m 41s",
+        "totalKcalBurn": 858,
+        "totalCarbsGrams": 182,
+        "carbRateGramsPerHour": 462,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (530W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "06:25",
+        "preRideMealTime": "06:40",
+        "hardDepartureTime": "07:25",
+        "gateArrivalTime": "08:00",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 24,
+        "totalDoorToDeskMinutes": 125,
+        "bufferMinutes": 11,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 48,
+      "name": "Low-Intensity Zone 1 Recovery Spin",
+      "category": "SPORT",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 123,
+        "aeroWatts": 76,
+        "rollingWatts": 27,
+        "gravityWatts": 14,
+        "movingTimeFormatted": "1h 18m 56s",
+        "totalKcalBurn": 665,
+        "totalCarbsGrams": 93,
+        "carbRateGramsPerHour": 71,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "13:20",
+        "preRideMealTime": "13:35",
+        "hardDepartureTime": "14:20",
+        "gateArrivalTime": "16:00",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 79,
+        "totalDoorToDeskMinutes": 190,
+        "bufferMinutes": 21,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 49,
+      "name": "Combined 8% Gradient & 20 km/h Headwind",
+      "category": "SPORT",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 459,
+        "aeroWatts": 109,
+        "rollingWatts": 23,
+        "gravityWatts": 305,
+        "movingTimeFormatted": "1h 15m 00s",
+        "totalKcalBurn": 2353,
+        "totalCarbsGrams": 500,
+        "carbRateGramsPerHour": 400,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Stiff headwind (20 km/h). +92W aerodynamic surcharge on exposed segments."
+      },
+      "timeline": {
+        "wakeUpTime": "05:20",
+        "preRideMealTime": "05:35",
+        "hardDepartureTime": "06:20",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 75,
+        "totalDoorToDeskMinutes": 220,
+        "bufferMinutes": 55,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 50,
+      "name": "Evening Gran Fondo Finishing at Dusk (20:30)",
+      "category": "SPORT",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 307,
+        "aeroWatts": 227,
+        "rollingWatts": 43,
+        "gravityWatts": 21,
+        "movingTimeFormatted": "2h 20m 00s",
+        "totalKcalBurn": 2938,
+        "totalCarbsGrams": 532,
+        "carbRateGramsPerHour": 228,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (307W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "16:48",
+        "preRideMealTime": "17:03",
+        "hardDepartureTime": "17:48",
+        "gateArrivalTime": "20:30",
+        "shiftStartTime": "21:00",
+        "pureMovingMinutes": 140,
+        "totalDoorToDeskMinutes": 252,
+        "bufferMinutes": 22,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 51,
+      "name": "Loire Estuary 2-Day Adventure Stage 1",
+      "category": "BIKEPACKING",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 96.5,
+        "legWatts": 164,
+        "aeroWatts": 102,
+        "rollingWatts": 38,
+        "gravityWatts": 17,
+        "movingTimeFormatted": "3h 14m 17s",
+        "totalKcalBurn": 2180,
+        "totalCarbsGrams": 324,
+        "carbRateGramsPerHour": 100,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "12:56",
+        "preRideMealTime": "13:11",
+        "hardDepartureTime": "13:56",
+        "gateArrivalTime": "18:00",
+        "shiftStartTime": "19:00",
+        "pureMovingMinutes": 194,
+        "totalDoorToDeskMinutes": 334,
+        "bufferMinutes": 50,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 52,
+      "name": "Heavy Expedition Trans-Continental Rig",
+      "category": "BIKEPACKING",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 123.5,
+        "legWatts": 147,
+        "aeroWatts": 72,
+        "rollingWatts": 50,
+        "gravityWatts": 18,
+        "movingTimeFormatted": "4h 51m 25s",
+        "totalKcalBurn": 2921,
+        "totalCarbsGrams": 423,
+        "carbRateGramsPerHour": 87,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "11:27",
+        "preRideMealTime": "11:42",
+        "hardDepartureTime": "12:27",
+        "gateArrivalTime": "18:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 291,
+        "totalDoorToDeskMinutes": 453,
+        "bufferMinutes": 72,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 53,
+      "name": "Ultralight Fastpack Bivouac Setup",
+      "category": "BIKEPACKING",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 88.5,
+        "legWatts": 191,
+        "aeroWatts": 129,
+        "rollingWatts": 35,
+        "gravityWatts": 17,
+        "movingTimeFormatted": "3h 57m 30s",
+        "totalKcalBurn": 3092,
+        "totalCarbsGrams": 479,
+        "carbRateGramsPerHour": 121,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "13:11",
+        "preRideMealTime": "13:26",
+        "hardDepartureTime": "14:11",
+        "gateArrivalTime": "19:00",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 238,
+        "totalDoorToDeskMinutes": 379,
+        "bufferMinutes": 51,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 54,
+      "name": "Chunky Gravel Knobby Tire Resistance (Crr 0.012)",
+      "category": "BIKEPACKING",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 97.4,
+        "legWatts": 124,
+        "aeroWatts": 52,
+        "rollingWatts": 53,
+        "gravityWatts": 13,
+        "movingTimeFormatted": "2h 54m 32s",
+        "totalKcalBurn": 1477,
+        "totalCarbsGrams": 207,
+        "carbRateGramsPerHour": 71,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "12:41",
+        "preRideMealTime": "12:56",
+        "hardDepartureTime": "13:41",
+        "gateArrivalTime": "17:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 175,
+        "totalDoorToDeskMinutes": 319,
+        "bufferMinutes": 54,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 55,
+      "name": "Sunset Dusk Cutoff Rush (Target 17:45)",
+      "category": "BIKEPACKING",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 126,
+        "aeroWatts": 77,
+        "rollingWatts": 28,
+        "gravityWatts": 14,
+        "movingTimeFormatted": "3h 10m 46s",
+        "totalKcalBurn": 1636,
+        "totalCarbsGrams": 229,
+        "carbRateGramsPerHour": 72,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "12:42",
+        "preRideMealTime": "12:57",
+        "hardDepartureTime": "13:42",
+        "gateArrivalTime": "17:45",
+        "shiftStartTime": "18:00",
+        "pureMovingMinutes": 191,
+        "totalDoorToDeskMinutes": 333,
+        "bufferMinutes": 52,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 56,
+      "name": "Late Night Bivouac Arrival (21:30 Pitch)",
+      "category": "BIKEPACKING",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 132,
+        "aeroWatts": 82,
+        "rollingWatts": 29,
+        "gravityWatts": 14,
+        "movingTimeFormatted": "4h 24m 00s",
+        "totalKcalBurn": 2378,
+        "totalCarbsGrams": 339,
+        "carbRateGramsPerHour": 77,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "15:05",
+        "preRideMealTime": "15:20",
+        "hardDepartureTime": "16:05",
+        "gateArrivalTime": "21:30",
+        "shiftStartTime": "22:00",
+        "pureMovingMinutes": 264,
+        "totalDoorToDeskMinutes": 415,
+        "bufferMinutes": 61,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 57,
+      "name": "Mountain Singletrack Bikepacking (4.8% Grade)",
+      "category": "BIKEPACKING",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 99.4,
+        "legWatts": 253,
+        "aeroWatts": 36,
+        "rollingWatts": 23,
+        "gravityWatts": 182,
+        "movingTimeFormatted": "3h 12m 51s",
+        "totalKcalBurn": 3329,
+        "totalCarbsGrams": 563,
+        "carbRateGramsPerHour": 175,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (253W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "11:42",
+        "preRideMealTime": "11:57",
+        "hardDepartureTime": "12:42",
+        "gateArrivalTime": "17:00",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 193,
+        "totalDoorToDeskMinutes": 348,
+        "bufferMinutes": 65,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 58,
+      "name": "Exposed Coastal Headwind Bikepacking",
+      "category": "BIKEPACKING",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 98.4,
+        "legWatts": 218,
+        "aeroWatts": 165,
+        "rollingWatts": 28,
+        "gravityWatts": 14,
+        "movingTimeFormatted": "3h 8m 34s",
+        "totalKcalBurn": 2807,
+        "totalCarbsGrams": 453,
+        "carbRateGramsPerHour": 144,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Stiff headwind (22 km/h). +139W aerodynamic surcharge on exposed segments."
+      },
+      "timeline": {
+        "wakeUpTime": "11:32",
+        "preRideMealTime": "11:47",
+        "hardDepartureTime": "12:32",
+        "gateArrivalTime": "18:00",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 189,
+        "totalDoorToDeskMinutes": 418,
+        "bufferMinutes": 139,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 59,
+      "name": "Multi-Day Stage 2 Dawn Departure (06:00 Rollout)",
+      "category": "BIKEPACKING",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 120,
+        "aeroWatts": 73,
+        "rollingWatts": 27,
+        "gravityWatts": 14,
+        "movingTimeFormatted": "5h 47m 22s",
+        "totalKcalBurn": 2835,
+        "totalCarbsGrams": 394,
+        "carbRateGramsPerHour": 68,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "05:57",
+        "preRideMealTime": "06:12",
+        "hardDepartureTime": "06:57",
+        "gateArrivalTime": "14:00",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 347,
+        "totalDoorToDeskMinutes": 513,
+        "bufferMinutes": 76,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 60,
+      "name": "Heavy Rain & Mud Bikepacking Stage",
+      "category": "BIKEPACKING",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 127,
+        "aeroWatts": 86,
+        "rollingWatts": 23,
+        "gravityWatts": 11,
+        "movingTimeFormatted": "3h 15m 00s",
+        "totalKcalBurn": 1688,
+        "totalCarbsGrams": 237,
+        "carbRateGramsPerHour": 73,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Stiff headwind (16 km/h). +68W aerodynamic surcharge on exposed segments."
+      },
+      "timeline": {
+        "wakeUpTime": "10:26",
+        "preRideMealTime": "10:41",
+        "hardDepartureTime": "11:26",
+        "gateArrivalTime": "16:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 195,
+        "totalDoorToDeskMinutes": 394,
+        "bufferMinutes": 109,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 7,
+        "criticalCount": 7,
+        "hasThermalKit": true,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 61,
+      "name": "French Bikepacking NLP Prompt with Filtration",
+      "category": "BIKEPACKING",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 97.4,
+        "legWatts": 124,
+        "aeroWatts": 73,
+        "rollingWatts": 30,
+        "gravityWatts": 15,
+        "movingTimeFormatted": "3h 56m 50s",
+        "totalKcalBurn": 2011,
+        "totalCarbsGrams": 280,
+        "carbRateGramsPerHour": 71,
+        "goStatus": "GO",
+        "goStatusReason": "Brise modérée (8 km/h). Toute la télémétrie est dans l'enveloppe optimale de vélotaf."
+      },
+      "timeline": {
+        "wakeUpTime": "07:26",
+        "preRideMealTime": "07:41",
+        "hardDepartureTime": "08:26",
+        "gateArrivalTime": "13:22",
+        "shiftStartTime": "13:22",
+        "pureMovingMinutes": 237,
+        "totalDoorToDeskMinutes": 386,
+        "bufferMinutes": 59,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "nlpFeedback": {
+        "extractedCount": 7,
+        "detectedSpeed": 19,
+        "detectedDist": 75,
+        "detectedArrival": "13:22",
+        "detectedRollout": "09:00"
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 62,
+      "name": "English Self-Supported Adventure NLP Prompt",
+      "category": "BIKEPACKING",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 95.4,
+        "legWatts": 112,
+        "aeroWatts": 64,
+        "rollingWatts": 28,
+        "gravityWatts": 14,
+        "movingTimeFormatted": "4h 43m 20s",
+        "totalKcalBurn": 2159,
+        "totalCarbsGrams": 298,
+        "carbRateGramsPerHour": 63,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "01:38",
+        "preRideMealTime": "01:53",
+        "hardDepartureTime": "02:38",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 283,
+        "totalDoorToDeskMinutes": 442,
+        "bufferMinutes": 69,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "nlpFeedback": {
+        "extractedCount": 4,
+        "detectedSpeed": 18,
+        "detectedDist": 85
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 63,
+      "name": "Heavy Cargo Rig with 30 kg Equipment",
+      "category": "BIKEPACKING",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 120,
+        "legWatts": 90,
+        "aeroWatts": 42,
+        "rollingWatts": 29,
+        "gravityWatts": 15,
+        "movingTimeFormatted": "2h 40m 00s",
+        "totalKcalBurn": 987,
+        "totalCarbsGrams": 131,
+        "carbRateGramsPerHour": 49,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "11:25",
+        "preRideMealTime": "11:40",
+        "hardDepartureTime": "12:25",
+        "gateArrivalTime": "16:00",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 160,
+        "totalDoorToDeskMinutes": 305,
+        "bufferMinutes": 55,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 64,
+      "name": "Frame Bags Only (Zero Backpack Comfort)",
+      "category": "BIKEPACKING",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 83.4,
+        "legWatts": 130,
+        "aeroWatts": 82,
+        "rollingWatts": 27,
+        "gravityWatts": 14,
+        "movingTimeFormatted": "3h 15m 00s",
+        "totalKcalBurn": 1728,
+        "totalCarbsGrams": 244,
+        "carbRateGramsPerHour": 75,
+        "goStatus": "GO",
+        "goStatusReason": "Brise modérée (8 km/h). Toute la télémétrie est dans l'enveloppe optimale de vélotaf."
+      },
+      "timeline": {
+        "wakeUpTime": "03:23",
+        "preRideMealTime": "03:38",
+        "hardDepartureTime": "04:23",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 195,
+        "totalDoorToDeskMinutes": 337,
+        "bufferMinutes": 52,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "nlpFeedback": {
+        "extractedCount": 4,
+        "detectedSpeed": 20,
+        "detectedDist": 65
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 65,
+      "name": "Century Stage Bikepacking Expedition (140 km)",
+      "category": "BIKEPACKING",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 94.4,
+        "legWatts": 149,
+        "aeroWatts": 93,
+        "rollingWatts": 32,
+        "gravityWatts": 16,
+        "movingTimeFormatted": "6h 40m 00s",
+        "totalKcalBurn": 4064,
+        "totalCarbsGrams": 593,
+        "carbRateGramsPerHour": 89,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "10:33",
+        "preRideMealTime": "10:48",
+        "hardDepartureTime": "11:33",
+        "gateArrivalTime": "19:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 400,
+        "totalDoorToDeskMinutes": 567,
+        "bufferMinutes": 77,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 66,
+      "name": "Desert Gravel Summer Expedition (36°C)",
+      "category": "BIKEPACKING",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 120,
+        "aeroWatts": 73,
+        "rollingWatts": 27,
+        "gravityWatts": 14,
+        "movingTimeFormatted": "3h 56m 50s",
+        "totalKcalBurn": 1933,
+        "totalCarbsGrams": 268,
+        "carbRateGramsPerHour": 68,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "11:04",
+        "preRideMealTime": "11:19",
+        "hardDepartureTime": "12:04",
+        "gateArrivalTime": "17:00",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 237,
+        "totalDoorToDeskMinutes": 386,
+        "bufferMinutes": 59,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 67,
+      "name": "Alpine Valley Descent with Loaded Rig",
+      "category": "BIKEPACKING",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 101.4,
+        "legWatts": 23,
+        "aeroWatts": 158,
+        "rollingWatts": 43,
+        "gravityWatts": -180,
+        "movingTimeFormatted": "1h 43m 50s",
+        "totalKcalBurn": 160,
+        "totalCarbsGrams": 19,
+        "carbRateGramsPerHour": 11,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "11:41",
+        "preRideMealTime": "11:56",
+        "hardDepartureTime": "12:41",
+        "gateArrivalTime": "15:00",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 104,
+        "totalDoorToDeskMinutes": 229,
+        "bufferMinutes": 35,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 68,
+      "name": "Bikepacking with Spare Derailleur Hanger Check",
+      "category": "BIKEPACKING",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 132,
+        "aeroWatts": 82,
+        "rollingWatts": 29,
+        "gravityWatts": 14,
+        "movingTimeFormatted": "3h 30m 00s",
+        "totalKcalBurn": 1892,
+        "totalCarbsGrams": 270,
+        "carbRateGramsPerHour": 77,
+        "goStatus": "GO",
+        "goStatusReason": "Brise modérée (8 km/h). Toute la télémétrie est dans l'enveloppe optimale de vélotaf."
+      },
+      "timeline": {
+        "wakeUpTime": "03:06",
+        "preRideMealTime": "03:21",
+        "hardDepartureTime": "04:06",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 210,
+        "totalDoorToDeskMinutes": 354,
+        "bufferMinutes": 54,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 69,
+      "name": "Bikepacking Expedition with 20,000mAh Power Staging",
+      "category": "BIKEPACKING",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 126,
+        "aeroWatts": 77,
+        "rollingWatts": 28,
+        "gravityWatts": 14,
+        "movingTimeFormatted": "4h 6m 09s",
+        "totalKcalBurn": 2111,
+        "totalCarbsGrams": 295,
+        "carbRateGramsPerHour": 72,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "02:24",
+        "preRideMealTime": "02:39",
+        "hardDepartureTime": "03:24",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 246,
+        "totalDoorToDeskMinutes": 396,
+        "bufferMinutes": 60,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 70,
+      "name": "Bikepacking Stove & Warm Recovery Nutrition Check",
+      "category": "BIKEPACKING",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 114,
+        "aeroWatts": 68,
+        "rollingWatts": 26,
+        "gravityWatts": 13,
+        "movingTimeFormatted": "3h 14m 35s",
+        "totalKcalBurn": 1510,
+        "totalCarbsGrams": 208,
+        "carbRateGramsPerHour": 64,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "13:06",
+        "preRideMealTime": "13:21",
+        "hardDepartureTime": "14:06",
+        "gateArrivalTime": "18:15",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 195,
+        "totalDoorToDeskMinutes": 339,
+        "bufferMinutes": 54,
+        "stepCount": 6,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 6,
+        "criticalCount": 6,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 71,
+      "name": "Weekend Escapade to Clisson (Hôtel Villa Saint-Antoine)",
+      "category": "ESCAPADE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 89.3,
+        "legWatts": 191,
+        "aeroWatts": 129,
+        "rollingWatts": 35,
+        "gravityWatts": 18,
+        "movingTimeFormatted": "1h 35m 00s",
+        "totalKcalBurn": 1240,
+        "totalCarbsGrams": 192,
+        "carbRateGramsPerHour": 121,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "11:49",
+        "preRideMealTime": "12:04",
+        "hardDepartureTime": "12:49",
+        "gateArrivalTime": "15:00",
+        "shiftStartTime": "16:00",
+        "pureMovingMinutes": 95,
+        "totalDoorToDeskMinutes": 221,
+        "bufferMinutes": 36,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 72,
+      "name": "Vineyard Country Hotel Tour to Vallet",
+      "category": "ESCAPADE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 145,
+        "aeroWatts": 93,
+        "rollingWatts": 30,
+        "gravityWatts": 15,
+        "movingTimeFormatted": "1h 31m 25s",
+        "totalKcalBurn": 906,
+        "totalCarbsGrams": 131,
+        "carbRateGramsPerHour": 86,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "11:22",
+        "preRideMealTime": "11:37",
+        "hardDepartureTime": "12:22",
+        "gateArrivalTime": "14:30",
+        "shiftStartTime": "15:30",
+        "pureMovingMinutes": 91,
+        "totalDoorToDeskMinutes": 218,
+        "bufferMinutes": 37,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 73,
+      "name": "Coastal Resort Getaway to Pornichet",
+      "category": "ESCAPADE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 182,
+        "aeroWatts": 122,
+        "rollingWatts": 34,
+        "gravityWatts": 17,
+        "movingTimeFormatted": "2h 28m 05s",
+        "totalKcalBurn": 1841,
+        "totalCarbsGrams": 281,
+        "carbRateGramsPerHour": 114,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "11:50",
+        "preRideMealTime": "12:05",
+        "hardDepartureTime": "12:50",
+        "gateArrivalTime": "16:00",
+        "shiftStartTime": "17:00",
+        "pureMovingMinutes": 148,
+        "totalDoorToDeskMinutes": 280,
+        "bufferMinutes": 42,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 74,
+      "name": "Medieval Ramparts Boutique Gîte in Guérande",
+      "category": "ESCAPADE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 159,
+        "aeroWatts": 104,
+        "rollingWatts": 32,
+        "gravityWatts": 16,
+        "movingTimeFormatted": "2h 10m 54s",
+        "totalKcalBurn": 1423,
+        "totalCarbsGrams": 209,
+        "carbRateGramsPerHour": 96,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "12:38",
+        "preRideMealTime": "12:53",
+        "hardDepartureTime": "13:38",
+        "gateArrivalTime": "16:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 131,
+        "totalDoorToDeskMinutes": 262,
+        "bufferMinutes": 41,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 75,
+      "name": "Scenic River Bank Tour to Ancenis Bistro",
+      "category": "ESCAPADE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 132,
+        "aeroWatts": 82,
+        "rollingWatts": 29,
+        "gravityWatts": 14,
+        "movingTimeFormatted": "1h 48m 00s",
+        "totalKcalBurn": 973,
+        "totalCarbsGrams": 139,
+        "carbRateGramsPerHour": 77,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "09:02",
+        "preRideMealTime": "09:17",
+        "hardDepartureTime": "10:02",
+        "gateArrivalTime": "12:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 108,
+        "totalDoorToDeskMinutes": 238,
+        "bufferMinutes": 40,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 76,
+      "name": "Tidal Passage Crossing to Noirmoutier Island",
+      "category": "ESCAPADE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 174,
+        "aeroWatts": 116,
+        "rollingWatts": 33,
+        "gravityWatts": 16,
+        "movingTimeFormatted": "2h 15m 39s",
+        "totalKcalBurn": 1614,
+        "totalCarbsGrams": 244,
+        "carbRateGramsPerHour": 108,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "09:19",
+        "preRideMealTime": "09:34",
+        "hardDepartureTime": "10:19",
+        "gateArrivalTime": "13:15",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 136,
+        "totalDoorToDeskMinutes": 266,
+        "bufferMinutes": 40,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 77,
+      "name": "Early Check-In Escapade (13:00 Arrival)",
+      "category": "ESCAPADE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 190,
+        "aeroWatts": 129,
+        "rollingWatts": 34,
+        "gravityWatts": 17,
+        "movingTimeFormatted": "1h 27m 30s",
+        "totalKcalBurn": 1136,
+        "totalCarbsGrams": 176,
+        "carbRateGramsPerHour": 121,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "09:58",
+        "preRideMealTime": "10:13",
+        "hardDepartureTime": "10:58",
+        "gateArrivalTime": "13:00",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 88,
+        "totalDoorToDeskMinutes": 212,
+        "bufferMinutes": 34,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 78,
+      "name": "Late Evening Dining Escapade (19:30 Check-In)",
+      "category": "ESCAPADE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 207,
+        "aeroWatts": 143,
+        "rollingWatts": 36,
+        "gravityWatts": 18,
+        "movingTimeFormatted": "2h 36m 00s",
+        "totalKcalBurn": 2205,
+        "totalCarbsGrams": 348,
+        "carbRateGramsPerHour": 134,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "15:12",
+        "preRideMealTime": "15:27",
+        "hardDepartureTime": "16:12",
+        "gateArrivalTime": "19:30",
+        "shiftStartTime": "20:30",
+        "pureMovingMinutes": 156,
+        "totalDoorToDeskMinutes": 288,
+        "bufferMinutes": 42,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 79,
+      "name": "French Escapade NLP Prompt with Hotel Check-in",
+      "category": "ESCAPADE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 89.4,
+        "legWatts": 160,
+        "aeroWatts": 104,
+        "rollingWatts": 32,
+        "gravityWatts": 16,
+        "movingTimeFormatted": "1h 43m 38s",
+        "totalKcalBurn": 1134,
+        "totalCarbsGrams": 168,
+        "carbRateGramsPerHour": 97,
+        "goStatus": "GO",
+        "goStatusReason": "Brise modérée (8 km/h). Toute la télémétrie est dans l'enveloppe optimale de vélotaf."
+      },
+      "timeline": {
+        "wakeUpTime": "05:09",
+        "preRideMealTime": "05:24",
+        "hardDepartureTime": "06:09",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 104,
+        "totalDoorToDeskMinutes": 231,
+        "bufferMinutes": 37,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "nlpFeedback": {
+        "extractedCount": 6,
+        "detectedSpeed": 22,
+        "detectedDist": 38
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 80,
+      "name": "English Weekend Getaway NLP Prompt",
+      "category": "ESCAPADE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 190,
+        "aeroWatts": 129,
+        "rollingWatts": 34,
+        "gravityWatts": 17,
+        "movingTimeFormatted": "1h 52m 30s",
+        "totalKcalBurn": 1461,
+        "totalCarbsGrams": 227,
+        "carbRateGramsPerHour": 121,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "12:30",
+        "preRideMealTime": "12:45",
+        "hardDepartureTime": "13:30",
+        "gateArrivalTime": "16:00",
+        "shiftStartTime": "16:00",
+        "pureMovingMinutes": 113,
+        "totalDoorToDeskMinutes": 240,
+        "bufferMinutes": 37,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "nlpFeedback": {
+        "extractedCount": 6,
+        "detectedSpeed": 24,
+        "detectedDist": 45,
+        "detectedArrival": "16:00",
+        "detectedRollout": "13:52"
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 81,
+      "name": "Gentle Couples Touring Pace (18 km/h)",
+      "category": "ESCAPADE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 108,
+        "aeroWatts": 64,
+        "rollingWatts": 26,
+        "gravityWatts": 13,
+        "movingTimeFormatted": "1h 33m 20s",
+        "totalKcalBurn": 688,
+        "totalCarbsGrams": 93,
+        "carbRateGramsPerHour": 60,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "11:17",
+        "preRideMealTime": "11:32",
+        "hardDepartureTime": "12:17",
+        "gateArrivalTime": "14:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 93,
+        "totalDoorToDeskMinutes": 223,
+        "bufferMinutes": 40,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 82,
+      "name": "Autumn Rain Winery Tour (12°C, 75% Rain)",
+      "category": "ESCAPADE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 145,
+        "aeroWatts": 93,
+        "rollingWatts": 30,
+        "gravityWatts": 15,
+        "movingTimeFormatted": "1h 37m 08s",
+        "totalKcalBurn": 963,
+        "totalCarbsGrams": 139,
+        "carbRateGramsPerHour": 86,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "11:45",
+        "preRideMealTime": "12:00",
+        "hardDepartureTime": "12:45",
+        "gateArrivalTime": "15:00",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 97,
+        "totalDoorToDeskMinutes": 225,
+        "bufferMinutes": 38,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 83,
+      "name": "Escapade with 45-Minute Mid-Route Gourmet Picnic",
+      "category": "ESCAPADE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 254,
+        "aeroWatts": 182,
+        "rollingWatts": 39,
+        "gravityWatts": 20,
+        "movingTimeFormatted": "1h 31m 38s",
+        "totalKcalBurn": 1588,
+        "totalCarbsGrams": 269,
+        "carbRateGramsPerHour": 176,
+        "goStatus": "CAUTION",
+        "goStatusReason": "La puissance soutenue requise (254W) dépasse le tempo d'endurance habituel."
+      },
+      "timeline": {
+        "wakeUpTime": "05:25",
+        "preRideMealTime": "05:40",
+        "hardDepartureTime": "06:25",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 92,
+        "totalDoorToDeskMinutes": 215,
+        "bufferMinutes": 33,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "nlpFeedback": {
+        "extractedCount": 3,
+        "detectedDist": 42
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 84,
+      "name": "Escapade with Locked Bike Storage Flag",
+      "category": "ESCAPADE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 174,
+        "aeroWatts": 116,
+        "rollingWatts": 33,
+        "gravityWatts": 16,
+        "movingTimeFormatted": "1h 44m 20s",
+        "totalKcalBurn": 1241,
+        "totalCarbsGrams": 188,
+        "carbRateGramsPerHour": 108,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "05:08",
+        "preRideMealTime": "05:23",
+        "hardDepartureTime": "06:08",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 104,
+        "totalDoorToDeskMinutes": 232,
+        "bufferMinutes": 38,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 85,
+      "name": "Escapade Return Leg (Hotel to Home Base)",
+      "category": "ESCAPADE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 198,
+        "aeroWatts": 136,
+        "rollingWatts": 35,
+        "gravityWatts": 18,
+        "movingTimeFormatted": "1h 33m 03s",
+        "totalKcalBurn": 1261,
+        "totalCarbsGrams": 197,
+        "carbRateGramsPerHour": 127,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "14:52",
+        "preRideMealTime": "15:07",
+        "hardDepartureTime": "15:52",
+        "gateArrivalTime": "18:00",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 93,
+        "totalDoorToDeskMinutes": 218,
+        "bufferMinutes": 35,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 86,
+      "name": "Boundary: Zero Distance (0.0 km)",
+      "category": "BOUNDARY_EDGE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 207,
+        "aeroWatts": 143,
+        "rollingWatts": 36,
+        "gravityWatts": 18,
+        "movingTimeFormatted": "0m 00s",
+        "totalKcalBurn": 0,
+        "totalCarbsGrams": 0,
+        "carbRateGramsPerHour": 0,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "07:17",
+        "preRideMealTime": "07:32",
+        "hardDepartureTime": "08:17",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 0,
+        "totalDoorToDeskMinutes": 103,
+        "bufferMinutes": 13,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 87,
+      "name": "Boundary: Micro-Commute (0.5 km)",
+      "category": "BOUNDARY_EDGE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 132,
+        "aeroWatts": 82,
+        "rollingWatts": 29,
+        "gravityWatts": 14,
+        "movingTimeFormatted": "1m 30s",
+        "totalKcalBurn": 14,
+        "totalCarbsGrams": 2,
+        "carbRateGramsPerHour": 77,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "07:15",
+        "preRideMealTime": "07:30",
+        "hardDepartureTime": "08:15",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 2,
+        "totalDoorToDeskMinutes": 105,
+        "bufferMinutes": 13,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 88,
+      "name": "Boundary: Minimal Target Speed (5.0 km/h walking clamp)",
+      "category": "BOUNDARY_EDGE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 16,
+        "aeroWatts": 4,
+        "rollingWatts": 7,
+        "gravityWatts": 4,
+        "movingTimeFormatted": "4h 0m 00s",
+        "totalKcalBurn": 262,
+        "totalCarbsGrams": 32,
+        "carbRateGramsPerHour": 8,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "03:17",
+        "preRideMealTime": "03:32",
+        "hardDepartureTime": "04:17",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 240,
+        "totalDoorToDeskMinutes": 343,
+        "bufferMinutes": 13,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 89,
+      "name": "Boundary: Extreme Pro Speed (60.0 km/h)",
+      "category": "BOUNDARY_EDGE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 1669,
+        "aeroWatts": 1457,
+        "rollingWatts": 86,
+        "gravityWatts": 43,
+        "movingTimeFormatted": "29m 59s",
+        "totalKcalBurn": 3420,
+        "totalCarbsGrams": 726,
+        "carbRateGramsPerHour": 1453,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (1669W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "06:46",
+        "preRideMealTime": "07:01",
+        "hardDepartureTime": "07:46",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 30,
+        "totalDoorToDeskMinutes": 134,
+        "bufferMinutes": 14,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 90,
+      "name": "Boundary: Ultra-Endurance Audax (350.0 km)",
+      "category": "BOUNDARY_EDGE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 225,
+        "aeroWatts": 158,
+        "rollingWatts": 37,
+        "gravityWatts": 19,
+        "movingTimeFormatted": "13h 27m 41s",
+        "totalKcalBurn": 12406,
+        "totalCarbsGrams": 2019,
+        "carbRateGramsPerHour": 150,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "05:57",
+        "preRideMealTime": "06:12",
+        "hardDepartureTime": "06:57",
+        "gateArrivalTime": "22:00",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 808,
+        "totalDoorToDeskMinutes": 993,
+        "bufferMinutes": 95,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 91,
+      "name": "Boundary: Featherweight System Mass (Rider 40kg, Bike 5kg, Gear 0kg)",
+      "category": "BOUNDARY_EDGE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 45,
+        "legWatts": 224,
+        "aeroWatts": 182,
+        "rollingWatts": 20,
+        "gravityWatts": 10,
+        "movingTimeFormatted": "48m 00s",
+        "totalKcalBurn": 733,
+        "totalCarbsGrams": 119,
+        "carbRateGramsPerHour": 149,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "06:24",
+        "preRideMealTime": "06:39",
+        "hardDepartureTime": "07:24",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 48,
+        "totalDoorToDeskMinutes": 156,
+        "bufferMinutes": 18,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 92,
+      "name": "Boundary: Super-Heavy Cargo Rig (Rider 130kg, Bike 28kg, Gear 35kg)",
+      "category": "BOUNDARY_EDGE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 193,
+        "legWatts": 329,
+        "aeroWatts": 182,
+        "rollingWatts": 87,
+        "gravityWatts": 43,
+        "movingTimeFormatted": "48m 00s",
+        "totalKcalBurn": 1077,
+        "totalCarbsGrams": 200,
+        "carbRateGramsPerHour": 250,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (329W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "06:24",
+        "preRideMealTime": "06:39",
+        "hardDepartureTime": "07:24",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 48,
+        "totalDoorToDeskMinutes": 156,
+        "bufferMinutes": 18,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 93,
+      "name": "Boundary: Extreme Negative Gradient (-12.0% Steep Descent)",
+      "category": "BOUNDARY_EDGE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 0,
+        "aeroWatts": 664,
+        "rollingWatts": 64,
+        "gravityWatts": -1280,
+        "movingTimeFormatted": "33m 20s",
+        "totalKcalBurn": 0,
+        "totalCarbsGrams": 0,
+        "carbRateGramsPerHour": 0,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "06:42",
+        "preRideMealTime": "06:57",
+        "hardDepartureTime": "07:42",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 33,
+        "totalDoorToDeskMinutes": 138,
+        "bufferMinutes": 15,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 94,
+      "name": "Boundary: Extreme Wall Climb (+16.0% Gradient)",
+      "category": "BOUNDARY_EDGE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 521,
+        "aeroWatts": 25,
+        "rollingWatts": 17,
+        "gravityWatts": 453,
+        "movingTimeFormatted": "50m 00s",
+        "totalKcalBurn": 1779,
+        "totalCarbsGrams": 378,
+        "carbRateGramsPerHour": 454,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (521W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "06:14",
+        "preRideMealTime": "06:29",
+        "hardDepartureTime": "07:14",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 50,
+        "totalDoorToDeskMinutes": 166,
+        "bufferMinutes": 26,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 95,
+      "name": "Boundary: Hurricane Storm Gale (75 km/h Wind, 95 km/h Gusts)",
+      "category": "BOUNDARY_EDGE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 1659,
+        "aeroWatts": 1517,
+        "rollingWatts": 39,
+        "gravityWatts": 20,
+        "movingTimeFormatted": "48m 00s",
+        "totalKcalBurn": 5439,
+        "totalCarbsGrams": 1156,
+        "carbRateGramsPerHour": 1445,
+        "goStatus": "NO-GO",
+        "goStatusReason": "Severe estuary gale (75 km/h). Cross-bridge gust hazard."
+      },
+      "timeline": {
+        "wakeUpTime": "04:32",
+        "preRideMealTime": "04:47",
+        "hardDepartureTime": "05:32",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 48,
+        "totalDoorToDeskMinutes": 268,
+        "bufferMinutes": 130,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 96,
+      "name": "Boundary: Dead Sea Dense Atmosphere (rho 1.35 kg/m³, -10°C, 1045 hPa)",
+      "category": "BOUNDARY_EDGE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 273,
+        "aeroWatts": 201,
+        "rollingWatts": 39,
+        "gravityWatts": 20,
+        "movingTimeFormatted": "48m 00s",
+        "totalKcalBurn": 896,
+        "totalCarbsGrams": 155,
+        "carbRateGramsPerHour": 194,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (273W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "06:24",
+        "preRideMealTime": "06:39",
+        "hardDepartureTime": "07:24",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 48,
+        "totalDoorToDeskMinutes": 156,
+        "bufferMinutes": 18,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 9,
+        "criticalCount": 9,
+        "hasThermalKit": true,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 97,
+      "name": "Boundary: Extreme High-Altitude Air (rho 0.82 kg/m³ at 4200m)",
+      "category": "BOUNDARY_EDGE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 190,
+        "aeroWatts": 122,
+        "rollingWatts": 39,
+        "gravityWatts": 20,
+        "movingTimeFormatted": "48m 00s",
+        "totalKcalBurn": 624,
+        "totalCarbsGrams": 97,
+        "carbRateGramsPerHour": 121,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "06:24",
+        "preRideMealTime": "06:39",
+        "hardDepartureTime": "07:24",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 48,
+        "totalDoorToDeskMinutes": 156,
+        "bufferMinutes": 18,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 98,
+      "name": "Boundary: Midnight Minute Crossing (Shift 00:10, 2h Ride)",
+      "category": "BOUNDARY_EDGE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 207,
+        "aeroWatts": 143,
+        "rollingWatts": 36,
+        "gravityWatts": 18,
+        "movingTimeFormatted": "2h 0m 00s",
+        "totalKcalBurn": 1696,
+        "totalCarbsGrams": 268,
+        "carbRateGramsPerHour": 134,
+        "goStatus": "GO",
+        "goStatusReason": "Manageable breeze (8 km/h). All telemetry within nominal commuting envelope."
+      },
+      "timeline": {
+        "wakeUpTime": "20:19",
+        "preRideMealTime": "20:34",
+        "hardDepartureTime": "21:19",
+        "gateArrivalTime": "23:45",
+        "shiftStartTime": "00:10",
+        "pureMovingMinutes": 120,
+        "totalDoorToDeskMinutes": 236,
+        "bufferMinutes": 26,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 99,
+      "name": "Boundary: Missing/Empty Text Strings & Edge Flags",
+      "category": "BOUNDARY_EDGE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.6,
+        "legWatts": 254,
+        "aeroWatts": 182,
+        "rollingWatts": 39,
+        "gravityWatts": 20,
+        "movingTimeFormatted": "43m 38s",
+        "totalKcalBurn": 756,
+        "totalCarbsGrams": 128,
+        "carbRateGramsPerHour": 176,
+        "goStatus": "CAUTION",
+        "goStatusReason": "Sustained power demand (254W) exceeds typical endurance tempo."
+      },
+      "timeline": {
+        "wakeUpTime": "06:29",
+        "preRideMealTime": "06:44",
+        "hardDepartureTime": "07:29",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 44,
+        "totalDoorToDeskMinutes": 151,
+        "bufferMinutes": 17,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "anomalies": [],
+      "warnings": []
+    },
+    {
+      "id": 100,
+      "name": "Boundary: Complex Jargon Bilingual French Slang NLP Stress Test",
+      "category": "BOUNDARY_EDGE",
+      "status": "PASS",
+      "physics": {
+        "systemMassKg": 87.9,
+        "legWatts": 244,
+        "aeroWatts": 174,
+        "rollingWatts": 39,
+        "gravityWatts": 19,
+        "movingTimeFormatted": "53m 20s",
+        "totalKcalBurn": 889,
+        "totalCarbsGrams": 148,
+        "carbRateGramsPerHour": 167,
+        "goStatus": "CAUTION",
+        "goStatusReason": "La puissance soutenue requise (244W) dépasse le tempo d'endurance habituel."
+      },
+      "timeline": {
+        "wakeUpTime": "06:08",
+        "preRideMealTime": "06:23",
+        "hardDepartureTime": "07:08",
+        "gateArrivalTime": "08:30",
+        "shiftStartTime": "09:00",
+        "pureMovingMinutes": 53,
+        "totalDoorToDeskMinutes": 172,
+        "bufferMinutes": 29,
+        "stepCount": 9,
+        "hasMidnightCrossing": false
+      },
+      "checklist": {
+        "totalItems": 8,
+        "criticalCount": 8,
+        "hasThermalKit": false,
+        "hasPunctureKit": true
+      },
+      "nlpFeedback": {
+        "extractedCount": 11,
+        "detectedSpeed": 27,
+        "detectedDist": 24,
+        "detectedArrival": "08:30",
+        "detectedRollout": "07:17"
+      },
+      "anomalies": [],
+      "warnings": []
+    }
+  ],
+  "globalAnomalies": []
+}

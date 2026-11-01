@@ -4,68 +4,452 @@
 
 @layer base {
   :root {
-    color-scheme: dark light;
+    /* ── LIGHT MODE: Daytime Peloton Shell & Warm Stone Tarmac ── */
+    --ds-canvas: 229 227 221;       /* #E5E3DD — Warm grey outer canvas */
+    --ds-well: 219 216 209;         /* #DBD8D1 — Recessed track well */
+    --ds-card: 255 255 255;         /* #FFFFFF — Crisp borderless cards */
+    --ds-pod: 244 243 239;          /* #F4F3EF — Soft warm nested sub-cards */
+    --ds-chip: 235 233 227;         /* #EBE9E3 — Interactive pill on white card */
+    --ds-chip-hover: 224 221 213;   /* #E0DDD5 — Interactive pill hover */
+    --ds-elevated: 17 17 17;        /* #111111 — Active primary dark pill */
+
+    /* High-Contrast Nuances of Black & Charcoal Grey (WCAG AAA/AA) */
+    --ds-ink: 17 17 17;             /* #111111 — Primary text (18.8:1) */
+    --ds-ink-secondary: 61 60 56;   /* #3D3C38 — Secondary text (10.9:1) */
+    --ds-ink-muted: 102 100 94;     /* #66645E — Muted labels (5.8:1) */
+    --ds-ink-inverse: 255 255 255;  /* #FFFFFF — Inverse text */
+
+    /* Road Lane & Tarmac Graphical Tokens */
+    --lane-dash: rgba(17, 17, 17, 0.13);
+    --lane-dash-strong: rgba(17, 17, 17, 0.24);
+    --tarmac-hatch-stroke: rgba(17, 17, 17, 0.11);
+    --tarmac-hatch-border: rgba(17, 17, 17, 0.12);
+
+    /* Keyline Icons Rounded Duotone: Unified-Hue 4-Layer Token System */
+    --icon-secondary: currentColor;
+    --icon-secondary-opacity: 0.3;
   }
 
+  .dark {
+    /* ── DARK MODE: Layered Neutral Carbon Grey Nightwear & Subtle Beacons ── */
+    --ds-canvas: 0 0 0;             /* #000000 — Full pitch black canvas */
+    --ds-well: 13 13 15;            /* #0D0D0F — Step 1: Recessed container well */
+    --ds-card: 22 22 24;            /* #161618 — Step 2: Primary borderless card */
+    --ds-pod: 32 32 35;             /* #202023 — Step 3: Nested inner card / pod */
+    --ds-chip: 44 44 48;            /* #2C2C30 — Step 4: Interactive pill / input */
+    --ds-chip-hover: 56 56 61;      /* #38383D — Step 5: Hover state */
+    --ds-elevated: 48 48 52;        /* #303034 — Active tab / elevated capsule */
+
+    /* High-Contrast Night Hierarchy (WCAG AAA/AA) */
+    --ds-ink: 245 245 247;          /* #F5F5F7 — Crisp primary white (16.5:1) */
+    --ds-ink-secondary: 168 168 174;/* #A8A8AE — Readable technical grey (7.8:1) */
+    --ds-ink-muted: 132 132 140;    /* #84848C — Accessible muted grey (4.9:1) */
+    --ds-ink-inverse: 12 12 14;     /* #0C0C0E — Inverse dark ink */
+
+    /* Night Road Lane & Tarmac Graphical Tokens */
+    --lane-dash: rgba(255, 255, 255, 0.11);
+    --lane-dash-strong: rgba(255, 255, 255, 0.22);
+    --tarmac-hatch-stroke: rgba(255, 255, 255, 0.09);
+    --tarmac-hatch-border: rgba(255, 255, 255, 0.10);
+
+    /* Keyline Icons Rounded Duotone: Unified-Hue 4-Layer Token System */
+    --icon-secondary: currentColor;
+    --icon-secondary-opacity: 0.3;
+  }
+
+  html,
   body {
-    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    background-color: rgb(var(--ds-canvas));
+    color: rgb(var(--ds-ink));
+    /* Rounded voice is the default for headers, labels, metrics & data: SF Pro Rounded on Mac, Nunito fallback */
+    font-family: ui-rounded, -apple-system-rounded, 'SF Pro Rounded', Nunito, Inter, sans-serif;
+    letter-spacing: 0;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-text-size-adjust: 100%;
+    overflow-x: clip;
   }
 
-  /* Custom scrollbar */
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+  button,
+  a,
+  input,
+  select,
+  textarea,
+  label,
+  [role='button'],
+  [role='checkbox'] {
+    touch-action: manipulation;
   }
-  ::-webkit-scrollbar-track {
-    background: transparent;
+
+  /* Normalize WebKit native date & time controls so iOS Safari pickers never overflow grid cells */
+  input[type='date'],
+  input[type='time'] {
+    min-width: 0;
+    max-width: 100%;
+    -webkit-appearance: none;
+    appearance: none;
   }
-  ::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 9999px;
+
+  input[type='date']::-webkit-date-and-time-value,
+  input[type='time']::-webkit-date-and-time-value {
+    text-align: left;
   }
-  .dark ::-webkit-scrollbar-thumb {
-    background: #27272a;
+
+  /* Inter is reserved for comfortable reading text: paragraphs, buttons & form text/placeholders */
+  p,
+  button,
+  input,
+  textarea,
+  select,
+  option {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+    letter-spacing: -0.01em;
   }
-  ::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
-  }
-  .dark ::-webkit-scrollbar-thumb:hover {
-    background: #3f3f46;
+
+  /* Headers use the rounded voice at 700/800 */
+  h1, h2, h3, h4 {
+    letter-spacing: -0.01em;
+    font-weight: 700;
   }
 }
 
-/* Print flight sheet styles */
+/* Tabular figures for crisp alignment of KPIs, watts, distances, and times */
+.tnum,
+.font-mono {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* ── DESIGN SYSTEM COMPONENTS & ASPHALT GRAPHICAL ELEMENTS ── */
+@layer components {
+  /* Horizontal dashed asphalt lane divider — used ONLY where same-surface contrast requires it */
+  .lane-divider {
+    height: 1px;
+    width: 100%;
+    background-image: repeating-linear-gradient(
+      to right,
+      var(--lane-dash) 0px,
+      var(--lane-dash) 6px,
+      transparent 6px,
+      transparent 12px
+    );
+  }
+
+  /* Vertical dashed road center-line for timeline spines */
+  .lane-spine {
+    width: 2px;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      var(--lane-dash-strong) 0px,
+      var(--lane-dash-strong) 7px,
+      transparent 7px,
+      transparent 14px
+    );
+  }
+
+  /* Diagonal painted asphalt chevron hatch (inspired by road gore markings & LeaseFlow reference) */
+  .tarmac-hatch {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      var(--tarmac-hatch-stroke) 0px,
+      var(--tarmac-hatch-stroke) 1.5px,
+      transparent 1.5px,
+      transparent 7px
+    );
+    box-shadow: inset 0 0 0 1px var(--tarmac-hatch-border);
+  }
+
+  /* Full-radius tire/chain-link range slider */
+  input[type='range'].peloton-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 8px;
+    border-radius: 9999px;
+    background: rgb(var(--ds-chip));
+    cursor: pointer;
+  }
+
+  input[type='range'].peloton-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 9999px;
+    background: #111111;
+    border: 3px solid #FFFFFF;
+    transition: transform 0.15s ease;
+  }
+
+  .dark input[type='range'].peloton-slider::-webkit-slider-thumb {
+    background: #F5F5F7;
+    border: 3px solid #151519;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.65);
+  }
+
+  input[type='range'].peloton-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.1);
+  }
+}
+
+/* ── ROUNDED TYPEFACE ENFORCEMENT ── */
+.font-rounded {
+  font-family: ui-rounded, -apple-system-rounded, 'SF Pro Rounded', Nunito, sans-serif !important;
+}
+
+/* ── ARCHETYPE PRESET CHIPS DESIGN SYSTEM (10-PALETTE LAYERED TOKEN MATRIX) ── */
+.chip-theme-amber {
+  --chip-bg: #FFFBEB;
+  --chip-text: #92400E;
+  --chip-border: rgba(245, 158, 11, 0.35);
+  --chip-circle: #D97706;
+  --chip-ring: #F59E0B;
+  --chip-card-bg: rgba(255, 251, 235, 0.70);
+  --icon-secondary: currentColor;
+  --icon-secondary-opacity: 0.3;
+}
+.dark .chip-theme-amber {
+  --chip-bg: rgba(69, 26, 3, 0.40);
+  --chip-text: #FCD34D;
+  --chip-border: rgba(251, 191, 36, 0.30);
+  --chip-circle: #D97706;
+  --chip-ring: #FBBF24;
+  --chip-card-bg: rgba(69, 26, 3, 0.25);
+  --icon-secondary: currentColor;
+  --icon-secondary-opacity: 0.3;
+}
+
+.chip-theme-blue {
+  --chip-bg: #EFF6FF;
+  --chip-text: #1D4ED8;
+  --chip-border: rgba(37, 99, 235, 0.30);
+  --chip-circle: #2563EB;
+  --chip-ring: #2563EB;
+  --chip-card-bg: rgba(239, 246, 255, 0.70);
+  --icon-secondary: currentColor;
+  --icon-secondary-opacity: 0.3;
+}
+.dark .chip-theme-blue {
+  --chip-bg: rgba(23, 37, 84, 0.40);
+  --chip-text: #93C5FD;
+  --chip-border: rgba(59, 130, 246, 0.30);
+  --chip-circle: #2563EB;
+  --chip-ring: #3B82F6;
+  --chip-card-bg: rgba(23, 37, 84, 0.25);
+  --icon-secondary: currentColor;
+  --icon-secondary-opacity: 0.3;
+}
+
+.chip-theme-purple {
+  --chip-bg: #FAF5FF;
+  --chip-text: #7E22CE;
+  --chip-border: rgba(147, 51, 234, 0.30);
+  --chip-circle: #9333EA;
+  --chip-ring: #9333EA;
+  --chip-card-bg: rgba(250, 245, 255, 0.70);
+  --icon-secondary: currentColor;
+  --icon-secondary-opacity: 0.3;
+}
+.dark .chip-theme-purple {
+  --chip-bg: rgba(59, 7, 100, 0.40);
+  --chip-text: #D8B4FE;
+  --chip-border: rgba(192, 132, 252, 0.30);
+  --chip-circle: #9333EA;
+  --chip-ring: #C084FC;
+  --chip-card-bg: rgba(59, 7, 100, 0.25);
+  --icon-secondary: currentColor;
+  --icon-secondary-opacity: 0.3;
+}
+
+.chip-theme-emerald {
+  --chip-bg: #ECFDF5;
+  --chip-text: #047857;
+  --chip-border: rgba(5, 150, 105, 0.30);
+  --chip-circle: #10B981;
+  --chip-ring: #059669;
+  --chip-card-bg: rgba(236, 253, 245, 0.70);
+  --icon-secondary: currentColor;
+  --icon-secondary-opacity: 0.3;
+}
+.dark .chip-theme-emerald {
+  --chip-bg: rgba(2, 44, 34, 0.40);
+  --chip-text: #6EE7B7;
+  --chip-border: rgba(16, 185, 129, 0.30);
+  --chip-circle: #10B981;
+  --chip-ring: #10B981;
+  --chip-card-bg: rgba(2, 44, 34, 0.25);
+  --icon-secondary: currentColor;
+  --icon-secondary-opacity: 0.3;
+}
+
+.chip-theme-orange {
+  --chip-bg: #FFF7ED;
+  --chip-text: #C2410C;
+  --chip-border: rgba(249, 115, 22, 0.35);
+  --chip-circle: #EA580C;
+  --chip-ring: #F97316;
+  --chip-card-bg: rgba(255, 247, 237, 0.70);
+  --icon-secondary: currentColor;
+  --icon-secondary-opacity: 0.3;
+}
+.dark .chip-theme-orange {
+  --chip-bg: rgba(67, 20, 7, 0.40);
+  --chip-text: #FDBA74;
+  --chip-border: rgba(251, 146, 60, 0.30);
+  --chip-circle: #EA580C;
+  --chip-ring: #FB923C;
+  --chip-card-bg: rgba(67, 20, 7, 0.25);
+  --icon-secondary: currentColor;
+  --icon-secondary-opacity: 0.3;
+}
+
+.chip-theme-teal {
+  --chip-bg: #F0FDFA;
+  --chip-text: #115E59;
+  --chip-border: rgba(13, 148, 136, 0.30);
+  --chip-circle: #0D9488;
+  --chip-ring: #0D9488;
+  --chip-card-bg: rgba(240, 253, 250, 0.70);
+  --icon-secondary: currentColor;
+  --icon-secondary-opacity: 0.3;
+}
+.dark .chip-theme-teal {
+  --chip-bg: rgba(4, 47, 46, 0.40);
+  --chip-text: #5EEAD4;
+  --chip-border: rgba(45, 212, 191, 0.30);
+  --chip-circle: #0D9488;
+  --chip-ring: #2DD4BF;
+  --chip-card-bg: rgba(4, 47, 46, 0.25);
+  --icon-secondary: currentColor;
+  --icon-secondary-opacity: 0.3;
+}
+
+.chip-theme-lime {
+  --chip-bg: #F7FEE7;
+  --chip-text: #3F6212;
+  --chip-border: rgba(101, 163, 13, 0.30);
+  --chip-circle: #65A30D;
+  --chip-ring: #65A30D;
+  --chip-card-bg: rgba(247, 254, 231, 0.70);
+  --icon-secondary: currentColor;
+  --icon-secondary-opacity: 0.3;
+}
+.dark .chip-theme-lime {
+  --chip-bg: rgba(26, 46, 5, 0.40);
+  --chip-text: #BEF264;
+  --chip-border: rgba(163, 230, 53, 0.30);
+  --chip-circle: #65A30D;
+  --chip-ring: #A3E635;
+  --chip-card-bg: rgba(26, 46, 5, 0.25);
+  --icon-secondary: currentColor;
+  --icon-secondary-opacity: 0.3;
+}
+
+.chip-theme-sky {
+  --chip-bg: #F0F9FF;
+  --chip-text: #0369A1;
+  --chip-border: rgba(14, 165, 233, 0.35);
+  --chip-circle: #0284C7;
+  --chip-ring: #0EA5E9;
+  --chip-card-bg: rgba(240, 249, 255, 0.70);
+  --icon-secondary: currentColor;
+  --icon-secondary-opacity: 0.3;
+}
+.dark .chip-theme-sky {
+  --chip-bg: rgba(8, 47, 73, 0.40);
+  --chip-text: #7DD3FC;
+  --chip-border: rgba(56, 189, 248, 0.30);
+  --chip-circle: #0284C7;
+  --chip-ring: #38BDF8;
+  --chip-card-bg: rgba(8, 47, 73, 0.25);
+  --icon-secondary: currentColor;
+  --icon-secondary-opacity: 0.3;
+}
+
+.chip-theme-rose {
+  --chip-bg: #FFF1F2;
+  --chip-text: #BE123C;
+  --chip-border: rgba(244, 63, 94, 0.35);
+  --chip-circle: #E11D48;
+  --chip-ring: #F43F5E;
+  --chip-card-bg: rgba(255, 241, 242, 0.70);
+  --icon-secondary: currentColor;
+  --icon-secondary-opacity: 0.3;
+}
+.dark .chip-theme-rose {
+  --chip-bg: rgba(76, 5, 25, 0.40);
+  --chip-text: #FDA4AF;
+  --chip-border: rgba(251, 113, 133, 0.30);
+  --chip-circle: #E11D48;
+  --chip-ring: #FB7185;
+  --chip-card-bg: rgba(76, 5, 25, 0.25);
+  --icon-secondary: currentColor;
+  --icon-secondary-opacity: 0.3;
+}
+
+.chip-theme-yellow-vest {
+  --chip-bg: #FAFFCB;
+  --chip-text: #4D5200;
+  --chip-border: rgba(163, 179, 0, 0.45);
+  --chip-circle: #A3B300;
+  --chip-ring: #A3B300;
+  --chip-card-bg: rgba(250, 255, 203, 0.65);
+  --icon-secondary: currentColor;
+  --icon-secondary-opacity: 0.3;
+}
+.dark .chip-theme-yellow-vest {
+  --chip-bg: rgba(31, 34, 3, 0.60);
+  --chip-text: #DFFF00;
+  --chip-border: rgba(223, 255, 0, 0.35);
+  --chip-circle: #DFFF00;
+  --chip-ring: #DFFF00;
+  --chip-card-bg: rgba(31, 34, 3, 0.45);
+  --icon-secondary: currentColor;
+  --icon-secondary-opacity: 0.3;
+}
+
+/* Base Chip Element Styles - Strict 4-Layer Tonal Hierarchy (Zero-Shift Inset Ring) */
+.chip-btn {
+  background-color: var(--chip-bg) !important;
+  color: var(--chip-text) !important;
+  box-shadow: inset 0 0 0 2px transparent !important;
+  border-radius: 9999px !important;
+  outline: none !important;
+  transition: all 0.15s ease-out !important;
+}
+.chip-btn:hover {
+  filter: brightness(0.97);
+}
+.dark .chip-btn:hover {
+  filter: brightness(1.15);
+}
+.chip-btn.is-selected {
+  background-color: var(--chip-bg) !important;
+  color: var(--chip-text) !important;
+  box-shadow: inset 0 0 0 2px var(--chip-ring) !important;
+}
+
+/* Rule Card & Badge Elements */
+.chip-rule-card {
+  background-color: var(--chip-card-bg) !important;
+  border-color: var(--chip-border) !important;
+}
+.chip-rule-title {
+  color: var(--chip-text) !important;
+}
+.chip-badge {
+  background-color: var(--chip-bg) !important;
+  color: var(--chip-text) !important;
+  border: 1px solid var(--chip-border) !important;
+}
+
+/* ── PRINT MEDIA ENFORCEMENT ── */
 @media print {
-  @page {
-    size: A4 portrait;
-    margin: 10mm;
-  }
-
-  body {
-    background: #ffffff !important;
-    color: #09090b !important;
-    font-size: 11pt;
-  }
-
-  .no-print {
+  .no-print, [class*="no-print"] {
     display: none !important;
   }
-
   .print-only {
     display: block !important;
-  }
-
-  * {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  .bento-card {
-    border: 1px solid #d4d4d8 !important;
-    background: #fafafa !important;
-    color: #18181b !important;
-    box-shadow: none !important;
-    break-inside: avoid;
   }
 }
 
@@ -74,3 +458,111 @@
     display: none !important;
   }
 }
+
+/* ── FLIGHT DECK PROGRESSIVE FADE IN & MOVE UP ANIMATION ── */
+@keyframes flightDeckFadeInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-flight-deck-in {
+  animation: flightDeckFadeInUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.deck-stagger-1 { animation-delay: 40ms; }
+.deck-stagger-2 { animation-delay: 120ms; }
+.deck-stagger-3 { animation-delay: 200ms; }
+.deck-stagger-4 { animation-delay: 280ms; }
+.deck-stagger-5 { animation-delay: 360ms; }
+.deck-stagger-6 { animation-delay: 440ms; }
+
+/* ── MODERN NO-SCROLLBAR UTILITY ── */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ── KEYLINE ICONS ROUNDED DUOTONE: DUAL-TONE COLOR SYSTEM ── */
+svg.keyline-icon,
+svg[class*="keyline-icon"] {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Secondary tone paths (~30% visual weight in Keyline Duotone & Two-Tone, matching unified hue) */
+svg [fill-opacity="0.4"],
+svg path[fill-opacity="0.4"],
+svg rect[fill-opacity="0.4"],
+svg circle[fill-opacity="0.4"],
+svg polygon[fill-opacity="0.4"] {
+  fill: var(--icon-secondary, currentColor) !important;
+  fill-opacity: var(--icon-secondary-opacity, 0.3) !important;
+  transition: fill 0.2s ease, fill-opacity 0.2s ease;
+}
+
+svg [stroke-opacity="0.4"],
+svg path[stroke-opacity="0.4"],
+svg line[stroke-opacity="0.4"],
+svg polyline[stroke-opacity="0.4"] {
+  stroke: var(--icon-secondary, currentColor) !important;
+  stroke-opacity: var(--icon-secondary-opacity, 0.3) !important;
+  transition: stroke 0.2s ease, stroke-opacity 0.2s ease;
+}
+
+/* Print override: crisp high-contrast monochrome */
+@media print {
+  svg [fill-opacity="0.4"],
+  svg path[fill-opacity="0.4"] {
+    fill: currentColor !important;
+    fill-opacity: 0.25 !important;
+  }
+  svg [stroke-opacity="0.4"],
+  svg path[stroke-opacity="0.4"] {
+    stroke: currentColor !important;
+    stroke-opacity: 0.35 !important;
+  }
+}
+
+/* Unified-Hue Duotone Presets (Secondary layer strictly tracks currentColor at 30% visual weight) */
+.dual-tone-volt,
+.dual-tone-lime,
+.dual-tone-emerald,
+.dual-tone-teal,
+.dual-tone-cyan,
+.dual-tone-sky,
+.dual-tone-blue,
+.dual-tone-cobalt,
+.dual-tone-purple,
+.dual-tone-rose,
+.dual-tone-amber,
+.dual-tone-orange,
+.dual-tone-coral,
+.dual-tone-mono,
+.dual-tone-greyscale {
+  --icon-secondary: currentColor !important;
+  --icon-secondary-opacity: 0.3 !important;
+}
+
+/* ── MOBILE SAFARI AUTO-ZOOM PREVENTION (< 640px) ── */
+@media (max-width: 639px) {
+  input:not([type='range']):not([type='checkbox']):not([type='radio']):not([type='button']):not([type='submit']).text-xs,
+  input:not([type='range']):not([type='checkbox']):not([type='radio']):not([type='button']):not([type='submit']).text-sm,
+  select.text-xs,
+  select.text-sm,
+  textarea.text-xs,
+  textarea.text-sm {
+    font-size: 16px;
+  }
+}
+
+
+

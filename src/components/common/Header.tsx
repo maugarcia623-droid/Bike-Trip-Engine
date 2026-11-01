@@ -1,9 +1,24 @@
-import React from 'react';
-import { Compass, Sliders, LayoutDashboard, Printer, ChevronDown, Plus, Sun, Moon } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Bicycle,
+  Compass,
+  SlidersHorizontal,
+  SquaresFour,
+  HomeSmile,
+  Printer,
+  CaretDown,
+  Plus,
+  Sun,
+  Moon,
+  List,
+  X,
+} from '@/components/icons';
 import { TripProfile } from '../../types/trip';
 import { useTheme } from '../../context/ThemeContext';
+import { useTranslation, getLocalizedTripMeta } from '../../context/LanguageContext';
 
 interface HeaderProps {
+  onOpenSpecs?: () => void;
   currentView: 'home' | 'configurator' | 'dashboard';
   onNavigate: (view: 'home' | 'configurator' | 'dashboard') => void;
   activeTrip: TripProfile;
@@ -20,140 +35,493 @@ export const Header: React.FC<HeaderProps> = ({
   allTrips,
   onSelectTrip,
   onCreateNew,
+  onOpenSpecs,
   onPrint,
 }) => {
-  const { theme, isDark, toggleTheme } = useTheme();
+  const { isDark, toggleTheme } = useTheme();
+  const { lang, setLang, t } = useTranslation();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const headerRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [currentView]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsMobileMenuOpen(false);
+      }
+    };
+    if (isMobileMenuOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isMobileMenuOpen]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (headerRef.current && !headerRef.current.contains(event.target as Node)) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+    if (isMobileMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+        document.removeEventListener('touchstart', handleClickOutside);
+      };
+    }
+  }, [isMobileMenuOpen]);
+
+  const themeToggleLabel = isDark ? t('switchToLight') : t('switchToDark');
 
   return (
-    <header className="sticky top-0 z-50 bg-white/95 dark:bg-[#09090b]/90 backdrop-blur-md border-b border-slate-200 dark:border-zinc-800 w-full px-6 py-4 transition-colors duration-200 no-print">
-      <div className="flex items-center justify-between w-full max-w-7xl mx-auto gap-4">
-        {/* Left: Branding & Mission Identity */}
-        <div className="flex items-center gap-4">
-          <div 
-            onClick={() => onNavigate('home')}
-            className="flex items-center gap-3 cursor-pointer group select-none"
-          >
-            <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex items-center justify-center text-emerald-600 dark:text-emerald-400 group-hover:border-emerald-500/50 transition-all shadow-sm">
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="18.5" cy="17.5" r="3.5"/>
-                <circle cx="5.5" cy="17.5" r="3.5"/>
-                <circle cx="15" cy="5" r="1"/>
-                <path d="M12 17.5V14l-3-3 4-3 2 3h2"/>
-              </svg>
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold tracking-tight text-slate-900 dark:text-white text-base">
-                  BIKE TRIP ENGINE
-                </span>
-                <span className="text-[10px] font-mono uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-semibold">
-                  v2.6
-                </span>
+    <>
+      {isMobileMenuOpen && (
+        <div
+          onClick={() => setIsMobileMenuOpen(false)}
+          className="fixed inset-0 bg-black/45 dark:bg-black/75 backdrop-blur-xs z-40 lg:hidden no-print"
+          aria-hidden="true"
+        />
+      )}
+
+      <header
+        ref={headerRef}
+        className="sticky top-0 z-50 bg-canvas/90 backdrop-blur-md w-full px-4 sm:px-6 lg:px-8 py-3.5 transition-colors duration-200 no-print"
+      >
+        <div className="max-w-7xl mx-auto">
+          {/* ── DESKTOP LAYOUT (lg+) ── */}
+          <div className="hidden lg:flex items-center justify-between w-full gap-4">
+            {/* Left: Chain-Link Brand Mark */}
+            <button
+              type="button"
+              onClick={() => onNavigate('home')}
+              className="flex items-center gap-3 cursor-pointer group select-none text-left focus:outline-none"
+            >
+              <div className="w-10 h-10 rounded-full bg-[#111111] text-volt dark:bg-[#F5F5F7] dark:text-[#111111] flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="7" cy="12" r="3.5" />
+                  <circle cx="17" cy="12" r="3.5" />
+                  <path d="M9.5 9.2c1.6.9 3.4.9 5 0" />
+                  <path d="M9.5 14.8c1.6-.9 3.4-.9 5 0" />
+                </svg>
               </div>
-              <p className="text-[11px] font-mono text-slate-500 dark:text-zinc-400 hidden sm:block">
-                AERO PHYSICS &middot; REVERSE TIMELINE &middot; REAL FOOD
-              </p>
-            </div>
-          </div>
-        </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold tracking-tight text-ink text-[15px]">
+                    {t('appName')}
+                  </span>
+                  <span className="text-[11px] font-medium bg-card text-ink-muted px-2.5 py-0.5 rounded-full tnum">
+                    v2.6
+                  </span>
+                </div>
+                <p className="text-xs text-ink-muted hidden xl:block">
+                  {t('headerTagline')}
+                </p>
+              </div>
+            </button>
 
-        {/* Center: View Navigation Pills */}
-        <nav className="flex items-center bg-slate-100 dark:bg-zinc-900/90 border border-slate-200 dark:border-zinc-800 rounded-lg p-1 text-xs font-medium">
-          <button
-            onClick={() => onNavigate('home')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all ${
-              currentView === 'home'
-                ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-sm font-semibold'
-                : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-200/60 dark:hover:bg-zinc-800/40'
-            }`}
-          >
-            <Compass className="w-3.5 h-3.5 text-slate-500 dark:text-zinc-400" />
-            <span className="hidden sm:inline">Home</span>
-          </button>
-
-          <button
-            onClick={() => onNavigate('configurator')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all ${
-              currentView === 'configurator'
-                ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-sm font-semibold'
-                : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-200/60 dark:hover:bg-zinc-800/40'
-            }`}
-          >
-            <Sliders className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
-            <span className="hidden sm:inline">Configurator</span>
-          </button>
-
-          <button
-            onClick={() => onNavigate('dashboard')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all ${
-              currentView === 'dashboard'
-                ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-sm font-semibold'
-                : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-200/60 dark:hover:bg-zinc-800/40'
-            }`}
-          >
-            <LayoutDashboard className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>Flight Deck</span>
-          </button>
-        </nav>
-
-        {/* Right: Trip Selector, Actions & Theme Toggle */}
-        <div className="flex items-center gap-2.5 sm:gap-4">
-          {/* Trip Selector Dropdown */}
-          <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs font-mono shadow-xs">
-            <span className="text-slate-500 dark:text-zinc-400 text-[10px] uppercase font-bold hidden md:inline">
-              Trip:
-            </span>
-            <div className="relative">
-              <select
-                value={activeTrip.id}
-                onChange={(e) => onSelectTrip(e.target.value)}
-                className="appearance-none bg-transparent text-emerald-600 dark:text-emerald-400 font-semibold cursor-pointer pr-5 focus:outline-none text-xs font-mono w-auto"
+            {/* Center: Full-Radius View Navigation Switcher */}
+            <nav
+              aria-label={t('navPrimaryViewsAria')}
+              className="flex items-center bg-card rounded-full p-1 text-[13px] font-medium"
+            >
+              <button
+                type="button"
+                onClick={() => onNavigate('home')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-200 cursor-pointer ${
+                  currentView === 'home'
+                    ? 'bg-[#111111] text-white dark:bg-chip dark:text-ink font-medium shadow-xs'
+                    : 'text-ink-muted hover:text-ink hover:bg-pod'
+                }`}
               >
-                {allTrips.map((t) => (
-                  <option key={t.id} value={t.id} className="bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100">
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="w-3.5 h-3.5 text-emerald-600/70 dark:text-emerald-400/70 absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <HomeSmile className={`w-4.5 h-4.5 transition-colors duration-200 ${currentView === 'home' ? 'text-volt' : 'text-ink-muted'}`} />
+                <span>{t('navHome')}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onNavigate('configurator')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-200 cursor-pointer ${
+                  currentView === 'configurator'
+                    ? 'bg-[#111111] text-white dark:bg-chip dark:text-ink font-medium shadow-xs'
+                    : 'text-ink-muted hover:text-ink hover:bg-pod'
+                }`}
+              >
+                <SlidersHorizontal className={`w-4.5 h-4.5 transition-colors duration-200 ${currentView === 'configurator' ? 'text-volt' : 'text-ink-muted'}`} />
+                <span>{t('navConfigurator')}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onNavigate('dashboard')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-200 cursor-pointer ${
+                  currentView === 'dashboard'
+                    ? 'bg-[#111111] text-white dark:bg-chip dark:text-ink font-medium shadow-xs'
+                    : 'text-ink-muted hover:text-ink hover:bg-pod'
+                }`}
+              >
+                <SquaresFour className={`w-4.5 h-4.5 transition-colors duration-200 ${currentView === 'dashboard' ? 'text-volt' : 'text-ink-muted'}`} />
+                <span>{t('navFlightDeck')}</span>
+              </button>
+            </nav>
+
+            {/* Right: Full-Radius Trip Selector, Utility Pills & Primary CTA */}
+            <div className="flex items-center gap-2">
+              {/* Trip Selector Capsule */}
+              <div className="flex items-center gap-2 bg-card hover:bg-pod transition-colors rounded-full h-10 px-4 text-[13px]">
+                <span className="w-2 h-2 rounded-full bg-beacon-green dark:bg-volt dark:shadow-beacon-volt shrink-0" />
+                <div className="relative flex items-center">
+                  <select
+                    aria-label={t('activeTripAria')}
+                    value={activeTrip.id}
+                    onChange={(e) => onSelectTrip(e.target.value)}
+                    className="appearance-none bg-transparent text-ink font-medium cursor-pointer pr-5 focus:outline-none text-[13px] max-w-[135px] xl:max-w-[180px] truncate"
+                  >
+                    {allTrips.map((tripItem) => {
+                      const meta = getLocalizedTripMeta(tripItem, lang);
+                      return (
+                        <option key={tripItem.id} value={tripItem.id} className="bg-card text-ink">
+                          {meta.name}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <CaretDown className="w-4 h-4 text-ink-muted absolute right-0 pointer-events-none" />
+                </div>
+              </div>
+
+              {/* Specs Pill */}
+              {onOpenSpecs && (
+                <button
+                  type="button"
+                  onClick={onOpenSpecs}
+                  className="flex items-center gap-1.5 h-10 px-3.5 rounded-full text-[13px] font-medium text-ink bg-card hover:bg-pod transition-colors cursor-pointer"
+                  title={t('specsButtonTitle')}
+                >
+                  <Bicycle className="w-4 h-4 text-ink-secondary dark:text-ink" />
+                  <span>{t('specsButton')}</span>
+                </button>
+              )}
+
+              {/* Print Circular Button */}
+              <button
+                type="button"
+                onClick={onPrint}
+                title={t('printButtonTitle')}
+                aria-label={t('printButtonTitle')}
+                className="w-10 h-10 rounded-full bg-card hover:bg-pod transition-colors flex items-center justify-center text-ink-secondary hover:text-ink cursor-pointer"
+              >
+                <Printer className="w-4 h-4" />
+              </button>
+
+              {/* Lightweight Language Switch Capsule (EN | FR) */}
+              <div
+                role="group"
+                aria-label={t('switchLanguageAria')}
+                className="flex items-center bg-card rounded-full p-1 h-10 text-xs font-semibold"
+              >
+                <button
+                  type="button"
+                  onClick={() => setLang('en')}
+                  aria-pressed={lang === 'en'}
+                  className={`px-2.5 h-8 rounded-full transition-all cursor-pointer ${
+                    lang === 'en'
+                      ? 'bg-[#111111] text-volt dark:bg-chip dark:text-volt'
+                      : 'text-ink-muted hover:text-ink'
+                  }`}
+                >
+                  EN
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLang('fr')}
+                  aria-pressed={lang === 'fr'}
+                  className={`px-2.5 h-8 rounded-full transition-all cursor-pointer ${
+                    lang === 'fr'
+                      ? 'bg-[#111111] text-volt dark:bg-chip dark:text-volt'
+                      : 'text-ink-muted hover:text-ink'
+                  }`}
+                >
+                  FR
+                </button>
+              </div>
+
+              {/* Circular Theme Toggle Button */}
+              <button
+                type="button"
+                onClick={toggleTheme}
+                aria-label={themeToggleLabel}
+                title={themeToggleLabel}
+                className="w-10 h-10 rounded-full bg-card hover:bg-pod transition-colors flex items-center justify-center text-ink cursor-pointer"
+              >
+                {isDark ? (
+                  <Sun size={20} className="w-5 h-5 text-volt transition-transform hover:rotate-45" weight="bold" />
+                ) : (
+                  <Moon size={20} className="w-5 h-5 text-[#111111] transition-transform hover:-rotate-12" weight="bold" />
+                )}
+              </button>
+
+              {/* Primary Solid Pill CTA */}
+              <button
+                type="button"
+                onClick={onCreateNew}
+                className="flex items-center gap-1.5 h-10 px-4 rounded-full bg-[#111111] hover:bg-[#262626] text-white dark:bg-[#F5F5F7] dark:hover:bg-white dark:text-[#111111] text-[13px] font-medium transition-all cursor-pointer"
+              >
+                <Plus className="w-4 h-4 stroke-[2.2]" />
+                <span>{t('newTripButton')}</span>
+              </button>
             </div>
           </div>
 
-          {/* New Trip Button */}
-          <button
-            onClick={onCreateNew}
-            title="Create New Trip"
-            className="p-2 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 hover:bg-slate-200/60 dark:hover:bg-zinc-800/50 rounded-lg transition-colors flex items-center justify-center"
-          >
-            <Plus className="w-4 h-4" />
-          </button>
+          {/* ── MOBILE / TABLET LAYOUT (< lg) ── */}
+          <div className="lg:hidden flex flex-col w-full">
+            <div className="flex items-center justify-between w-full gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  onNavigate('home');
+                  setIsMobileMenuOpen(false);
+                }}
+                className="flex items-center gap-2.5 cursor-pointer select-none min-w-0 text-left"
+              >
+                <div className="w-9 h-9 rounded-full bg-[#111111] text-volt dark:bg-[#F5F5F7] dark:text-[#111111] flex items-center justify-center shrink-0">
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="7" cy="12" r="3.5" />
+                    <circle cx="17" cy="12" r="3.5" />
+                    <path d="M9.5 9.2c1.6.9 3.4.9 5 0" />
+                    <path d="M9.5 14.8c1.6-.9 3.4-.9 5 0" />
+                  </svg>
+                </div>
+                <span className="font-semibold tracking-tight text-ink text-sm sm:text-base truncate">
+                  {t('appName')}
+                </span>
+              </button>
 
-          {/* Print Button */}
-          <button
-            onClick={onPrint}
-            title="Export / Print Flight Sheet (A4)"
-            className="hidden lg:flex items-center gap-1.5 px-3 py-2 text-xs font-mono text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 hover:bg-slate-200/60 dark:hover:bg-zinc-800/50 rounded-lg transition-colors"
-          >
-            <Printer className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
-            <span>Print</span>
-          </button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                {/* Mobile EN / FR Segmented Switch */}
+                <div
+                  role="group"
+                  aria-label={t('switchLanguageAria')}
+                  className="flex items-center bg-card rounded-full p-0.5 h-9 text-[11px] font-semibold"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setLang('en')}
+                    aria-pressed={lang === 'en'}
+                    className={`px-2 h-8 rounded-full transition-all cursor-pointer ${
+                      lang === 'en'
+                        ? 'bg-[#111111] text-volt dark:bg-chip dark:text-volt'
+                        : 'text-ink-muted hover:text-ink'
+                    }`}
+                  >
+                    EN
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLang('fr')}
+                    aria-pressed={lang === 'fr'}
+                    className={`px-2 h-8 rounded-full transition-all cursor-pointer ${
+                      lang === 'fr'
+                        ? 'bg-[#111111] text-volt dark:bg-chip dark:text-volt'
+                        : 'text-ink-muted hover:text-ink'
+                    }`}
+                  >
+                    FR
+                  </button>
+                </div>
 
-          {/* Sleek Theme Toggle Button */}
-          <button
-            type="button"
-            onClick={toggleTheme}
-            aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
-            title={`Switch to ${isDark ? 'Light' : 'Dark'} mode`}
-            className="p-2 rounded-lg border border-slate-200 dark:border-zinc-800 hover:bg-slate-200/60 dark:hover:bg-zinc-800/50 transition-colors flex items-center justify-center text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-zinc-900 cursor-pointer shadow-xs"
-          >
-            {isDark ? (
-              <Sun className="w-4 h-4 text-amber-400 transition-transform hover:rotate-45" />
-            ) : (
-              <Moon className="w-4 h-4 text-slate-700 transition-transform hover:-rotate-12" />
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  aria-label={themeToggleLabel}
+                  className="w-9 h-9 rounded-full bg-card hover:bg-pod transition-colors flex items-center justify-center text-ink cursor-pointer"
+                >
+                  {isDark ? (
+                    <Sun size={20} className="w-5 h-5 text-volt" weight="bold" />
+                  ) : (
+                    <Moon size={20} className="w-5 h-5 text-[#111111]" weight="bold" />
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                  aria-expanded={isMobileMenuOpen}
+                  aria-controls="mobile-navigation-drawer"
+                  aria-label={isMobileMenuOpen ? t('menuCloseAria') : t('menuOpenAria')}
+                  className={`flex items-center gap-1.5 h-9 px-3.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                    isMobileMenuOpen
+                      ? 'bg-[#111111] text-white dark:bg-[#F5F5F7] dark:text-[#111111]'
+                      : 'bg-card text-ink hover:bg-pod'
+                  }`}
+                >
+                  {isMobileMenuOpen ? <X className="w-4 h-4" /> : <List className="w-4 h-4" />}
+                  <span>{isMobileMenuOpen ? t('menuClose') : t('menuOpen')}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Always-Visible Mobile View Switcher */}
+            <nav
+              aria-label={t('navMobileViewsAria')}
+              className="mt-3 grid grid-cols-3 gap-1 bg-card rounded-full p-1 text-xs font-medium"
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  onNavigate('home');
+                  setIsMobileMenuOpen(false);
+                }}
+                className={`flex items-center justify-center gap-1.5 py-2 rounded-full transition-all cursor-pointer ${
+                  currentView === 'home'
+                    ? 'bg-[#111111] text-white dark:bg-chip dark:text-ink font-medium'
+                    : 'text-ink-muted hover:text-ink'
+                }`}
+              >
+                <HomeSmile className={`w-4 h-4 ${currentView === 'home' ? 'text-volt' : 'text-ink-muted'}`} />
+                <span>{t('navHome')}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onNavigate('configurator');
+                  setIsMobileMenuOpen(false);
+                }}
+                className={`flex items-center justify-center gap-1.5 py-2 rounded-full transition-all cursor-pointer ${
+                  currentView === 'configurator'
+                    ? 'bg-[#111111] text-white dark:bg-chip dark:text-ink font-medium'
+                    : 'text-ink-muted hover:text-ink'
+                }`}
+              >
+                <SlidersHorizontal className={`w-4 h-4 ${currentView === 'configurator' ? 'text-volt' : 'text-ink-muted'}`} />
+                <span>{t('navConfigShort')}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onNavigate('dashboard');
+                  setIsMobileMenuOpen(false);
+                }}
+                className={`flex items-center justify-center gap-1.5 py-2 rounded-full transition-all cursor-pointer ${
+                  currentView === 'dashboard'
+                    ? 'bg-[#111111] text-white dark:bg-chip dark:text-ink font-medium'
+                    : 'text-ink-muted hover:text-ink'
+                }`}
+              >
+                <SquaresFour className={`w-4 h-4 ${currentView === 'dashboard' ? 'text-volt' : 'text-ink-muted'}`} />
+                <span>{t('navFlightDeck')}</span>
+              </button>
+            </nav>
+
+            {/* Mobile Drawer */}
+            {isMobileMenuOpen && (
+              <div
+                id="mobile-navigation-drawer"
+                className="mt-3 p-5 rounded-card bg-card flex flex-col gap-4 max-h-[calc(100vh-140px)] overflow-y-auto"
+              >
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-xs font-medium text-ink-muted">
+                      {t('activeTripAria')}
+                    </span>
+                    <span className="text-xs font-medium bg-pod text-ink-secondary px-2.5 py-0.5 rounded-full tnum">
+                      {t('savedCountBadge', { count: allTrips.length })}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1 min-w-0">
+                      <select
+                        value={activeTrip.id}
+                        onChange={(e) => {
+                          onSelectTrip(e.target.value);
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className="w-full appearance-none bg-pod text-ink font-medium rounded-full h-10 px-4 pr-9 text-xs focus:outline-none focus:ring-2 focus:ring-ink/20 cursor-pointer truncate"
+                      >
+                        {allTrips.map((tripItem) => {
+                          const meta = getLocalizedTripMeta(tripItem, lang);
+                          return (
+                            <option key={tripItem.id} value={tripItem.id} className="bg-card text-ink">
+                              {meta.name}
+                            </option>
+                          );
+                        })}
+                      </select>
+                      <CaretDown className="w-4 h-4 text-ink-muted absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onCreateNew();
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="flex items-center gap-1.5 h-10 px-4 bg-[#111111] text-white dark:bg-[#F5F5F7] dark:text-[#111111] font-medium text-xs rounded-full transition-all cursor-pointer shrink-0"
+                    >
+                      <Plus className="w-4 h-4 stroke-[2.2]" />
+                      <span>{t('newTripButton')}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {onOpenSpecs && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onOpenSpecs();
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="flex items-center gap-3 pl-2 pr-4 py-2 rounded-full text-xs text-ink bg-pod hover:bg-chip transition-colors cursor-pointer text-left"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-card flex items-center justify-center shrink-0">
+                        <Bicycle className="w-4 h-4 text-ink" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-semibold text-ink truncate">{t('drawerSpecsTitle')}</div>
+                        <div className="text-[11px] text-ink-muted truncate">{t('drawerSpecsSub')}</div>
+                      </div>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onPrint();
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="flex items-center gap-3 pl-2 pr-4 py-2 rounded-full text-xs text-ink bg-pod hover:bg-chip transition-colors cursor-pointer text-left"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-card flex items-center justify-center shrink-0">
+                      <Printer className="w-4 h-4 text-ink" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-semibold text-ink truncate">{t('drawerPrintTitle')}</div>
+                      <div className="text-[11px] text-ink-muted truncate">{t('drawerPrintSub')}</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
             )}
-          </button>
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
+    </>
   );
 };

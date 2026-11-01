@@ -1,4 +1,9 @@
 export interface WeatherCondition {
+  source?: "live" | "planned" | "simulated";
+  airDensityRho?: number;
+  effectiveHeadwindKmH?: number;
+  isBeyondForecastWindow?: boolean;
+  targetTimestampFormatted?: string;
   isHeadwindActive: boolean;
   baseWindSpeedKmH: number;
   windDirection: 'headwind' | 'cross-headwind' | 'tailwind' | 'calm';
@@ -7,9 +12,16 @@ export interface WeatherCondition {
   precipitationRiskPercent: number;
   estuaryGustKmH: number;
   visibilityKm: number;
+  weatherCode?: number;
+  isDay?: boolean;
+  sunrise?: string;
+  sunset?: string;
 }
 
 export interface PhysicsParams {
+  clothesWeightKg?: number;
+  luggageWeightKg?: number;
+  mechanicalLossFraction?: number;
   riderWeightKg: number;
   bikeWeightKg: number;
   gearWeightKg: number;
@@ -22,16 +34,22 @@ export interface PhysicsParams {
 }
 
 export interface RouteParams {
+  elevationGainM?: number;
   origin?: string;
   destination?: string;
   distanceKm: number;
   targetSpeedKmH: number;
+  pacingMode?: 'speed' | 'effort';
+  targetEffortWatts?: number;
   urbanTrafficDelayMinutes: number;
   gateSecurityDelayMinutes: number;
   coordinates?: [number, number][];
 }
 
 export interface OfficeConstraints {
+  deskSetupMinutes?: number;
+  showerBufferMinutes?: number;
+  walkFromGateMinutes?: number;
   shiftStartTime: string;
   targetGateArrivalTime: string;
   gateName: string;
@@ -83,7 +101,22 @@ export interface ChecklistItem {
   critical: boolean;
 }
 
+export interface TripStage {
+  id: string;
+  dayNumber: number;
+  departureDate: string;
+  departureTime: string;
+  targetMode?: 'arrive' | 'depart';
+  route: RouteParams;
+  office: OfficeConstraints;
+  weather: WeatherCondition;
+  customChips: string[];
+  accommodationNote?: string;
+}
+
 export interface TripProfile {
+  departureDate?: string;
+  departureTime?: string;
   id: string;
   name: string;
   tag: string;
@@ -95,17 +128,31 @@ export interface TripProfile {
   office: OfficeConstraints;
   weather: WeatherCondition;
   checklist: ChecklistItem[];
+  customChips?: string[];
+  ruleSettings?: Record<string, any>;
+  arriveAtMode?: boolean;
+  stages?: TripStage[];
+  activeStageIndex?: number;
 }
 
 export interface PhysicsCalculationResult {
   systemMassKg: number;
   groundSpeedMs: number;
   airSpeedMs: number;
+  effectiveSpeedKmH: number;
+  calmSpeedKmH: number;
+  baselineLegWatts: number;
   rollingResistanceWatts: number;
   aerodynamicDragWatts: number;
   gravityWatts: number;
   wheelWatts: number;
   legWatts: number;
+  wattsPerKg: number;
+  ftpWatts: number;
+  ftpPercent: number;
+  powerZone: 'Z1' | 'Z2' | 'Z3' | 'Z4' | 'Z5';
+  pacingMode: 'speed' | 'effort';
+  windDelayMinutes: number;
   movingTimeSeconds: number;
   movingTimeFormatted: string;
   totalWorkKj: number;
@@ -116,4 +163,430 @@ export interface PhysicsCalculationResult {
   powerDeltaWatts: number;
   goStatus: 'GO' | 'CAUTION' | 'NO-GO';
   goStatusReason: string;
+}
+
+export type PhysicsParameters = PhysicsParams;
+
+export function generateTripChecklist(
+  tag: string = "VÉLOTAF",
+  distanceKm: number = 35,
+  weather?: WeatherCondition,
+  options?: {
+    lang?: 'en' | 'fr';
+    includePunctureKit?: boolean;
+    includeExtraRavito?: boolean;
+    customChips?: string[];
+    totalDays?: number;
+  }
+): ChecklistItem[] {
+  const isFr = options?.lang === 'fr';
+  const totalDays = options?.totalDays || 1;
+  const t = (tag || "")
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase();
+  const isCommute = t.includes("VELOTAF") || t.includes("COMMUTE") || t.includes("TAF") || t.includes("BOULOT") || t.includes("WORK") || t.includes("OFFICE");
+  const isEscapade = !isCommute && (t.includes("ESCAPADE") || t.includes("HOTEL") || t.includes("LEISURE") || t.includes("WEEKEND") || t.includes("WEEK-END") || t.includes("TOURING") || t.includes("SEJOUR") || t.includes("ECHAPPEE"));
+  const isSport = !isCommute && (t.includes("SPORT") || t.includes("TRAINING") || t.includes("RACE") || t.includes("FONDO") || t.includes("TEMPO"));
+  const isBikepacking = !isCommute && (t.includes("BIKEPACKING") || t.includes("BIVOUAC"));
+
+  const bar = distanceKm > 60 ? "3.0" : "3.2";
+
+  const items: ChecklistItem[] = [
+    {
+      id: "mech-pressure",
+      label: isFr
+        ? `Pression des pneus calibrée à ${bar.replace('.', ',')} bar`
+        : `Tire pressure calibrated to ${bar} bar`,
+      checked: false,
+      category: "mechanics",
+      critical: true,
+    },
+    {
+      id: "mech-spares",
+      label: isFr
+        ? distanceKm > 50
+          ? "Multi-outil, 2 démonte-pneus, chambre à air & mini-pompe (kit anti-crève)"
+          : "Multi-outil & kit anti-crève (chambre à air)"
+        : distanceKm > 50
+        ? "Multi-tool, 2x tire levers, spare tube & mini pump"
+        : "Multi-tool & spare tube",
+      checked: false,
+      category: "mechanics",
+      critical: true,
+    },
+  ];
+
+  if (options?.includePunctureKit) {
+    items.push({
+      id: "mech-puncture-kit",
+      label: isFr
+        ? "Kit anti-crève renforcé : mèches tubeless, cartouche CO2 & chambre à air"
+        : "Full anti-puncture kit: tubeless plugs, CO2 cartridge & spare tube",
+      checked: false,
+      category: "mechanics",
+      critical: true,
+    });
+  }
+
+  if (weather?.temperatureC !== undefined && weather.temperatureC < 9) {
+    items.push({
+      id: "gear-thermal",
+      label: isFr
+        ? "Gants thermiques coupe-vent & tour de cou"
+        : "Thermal windproof gloves & neck gaiter",
+      checked: false,
+      category: "gear",
+      critical: true,
+    });
+  }
+
+  if (isEscapade) {
+    items.push(
+      { id: "esc-id", label: isFr ? "Confirmation de réservation d'hôtel & pièce d'identité" : "Hotel reservation booking & national ID", checked: false, category: "logistics", critical: true },
+      { id: "esc-clothes", label: isFr ? "Tenue civile pour le soir & chaussures de marche légères" : "Casual off-bike evening clothes & walking shoes", checked: false, category: "gear", critical: true },
+      { id: "esc-charge", label: isFr ? "Chargeur téléphone & batterie externe" : "Phone charger & portable power bank", checked: false, category: "gear", critical: true },
+      { id: "esc-lock", label: isFr ? "Antivol compact pour le local vélo de l’hôtel" : "Compact bike lock for hotel storage", checked: false, category: "mechanics", critical: true },
+      { id: "esc-fuel", label: isFr ? (distanceKm > 40 ? "2 bidons de 650 ml + encas ravito" : "1 bidon + encas ravito") : (distanceKm > 40 ? "2x 650ml bidons + energy snacks" : "1x Bidon + snack"), checked: false, category: "nutrition", critical: true },
+      { id: "esc-lights", label: isFr ? "Éclairage avant & feu arrière flash de sécurité" : "Front headlight & rear safety flasher", checked: false, category: "mechanics", critical: true }
+    );
+  } else if (isSport) {
+    items.push(
+      { id: "sport-fuel", label: isFr ? "Boisson glucidique en bidons (~60g/h) & gels ravito" : "Carb mix in bottles (~60g/hr) & energy gels", checked: false, category: "nutrition", critical: true },
+      { id: "sport-computer", label: isFr ? "Compteur GPS synchronisé avec capteurs" : "GPS computer synced with sensors", checked: false, category: "gear", critical: true },
+      { id: "sport-kit", label: isFr ? "Tenue aéro ajustée & gilet coupe-vent léger" : "Aero kit & lightweight wind gilet", checked: false, category: "gear", critical: true },
+      { id: "sport-plugs", label: isFr ? "Kit mèches tubeless anti-crève & gonfleur CO2" : "Tubeless plug kit & CO2 inflator", checked: false, category: "mechanics", critical: true }
+    );
+  } else if (isBikepacking) {
+    items.push(
+      { id: "bp-sleep", label: isFr ? "Sac de bivouac / tente compacte & matelas isolant" : "Bivouac bag / compact tent & sleeping pad", checked: false, category: "gear", critical: true },
+      { id: "bp-power", label: isFr ? "Batterie externe haute capacité 20 000 mAh & câbles" : "High-capacity 20,000mAh power bank & cables", checked: false, category: "gear", critical: true },
+      { id: "bp-water", label: isFr ? "Flasque filtrante + capacité hydrique de 2 L" : "Water filtration flask + 2L hydration capacity", checked: false, category: "nutrition", critical: true },
+      { id: "bp-chain", label: isFr ? "Dérive-chaîne, maillons rapides & patte de dérailleur" : "Chain tool, quick-links & spare hanger", checked: false, category: "mechanics", critical: true }
+    );
+
+    if (totalDays > 1) {
+      items.push(
+        {
+          id: "bp-kit-rotation",
+          label: isFr
+            ? `Rotation textile (${totalDays} jours) : rechanges cuissard, crème chamois & tenue de soir en sac étanche`
+            : `Multi-day kit rotation: ${totalDays}x base layers / chamois cream & evening camp clothes in dry-bag`,
+          checked: false,
+          category: "gear",
+          critical: true,
+        },
+        {
+          id: "bp-charging-autonomy",
+          label: isFr
+            ? `Autonomie électrique (${totalDays} jours) : chargeur secteur multi-ports USB-C pour GPS, radar & phares 800-1000lm`
+            : `Charging autonomy for ${totalDays} days: wall plug adapter + multi-port USB-C splitter for GPS, radar & 800-1000lm lights`,
+          checked: false,
+          category: "gear",
+          critical: true,
+        },
+        {
+          id: "bp-multiday-logistics",
+          label: isFr
+            ? `Réservations hébergements & billet train vélo téléchargés hors-ligne (${totalDays} étapes)`
+            : `Accommodation & transit confirmations saved offline (${totalDays} stages + TER train bike reservation)`,
+          checked: false,
+          category: "logistics",
+          critical: true,
+        }
+      );
+    }
+  } else {
+    items.push(
+      { id: "com-badge", label: isFr ? "Badge d'accès entreprise & identifiants" : "Facility security badge & credentials", checked: false, category: "logistics", critical: true },
+      { id: "com-laptop", label: isFr ? "Ordinateur portable pro & chargeur USB-C" : "Work laptop & USB-C charger", checked: false, category: "gear", critical: true },
+      { id: "com-clothes", label: isFr ? "Tenue de travail propre rangée en sac étanche" : "Clean work clothes packed in dry-bag", checked: false, category: "gear", critical: true },
+      { id: "com-shower", label: isFr ? "Trousse de douche & serviette microfibre séchage rapide" : "Shower kit & microfiber quick-dry towel", checked: false, category: "gear", critical: true },
+      { id: "com-lock", label: isFr ? "Antivol U haute sécurité pour le parking vélo" : "Heavy-duty U-Lock for bike shelter", checked: false, category: "mechanics", critical: true },
+      { id: "com-recovery", label: isFr ? "Ravito de récupération vestiaire prêt dans le sac" : "Post-arrival recovery nutrition packed", checked: false, category: "nutrition", critical: true }
+    );
+  }
+
+  if (options?.includeExtraRavito) {
+    items.push({
+      id: "ravito-extra",
+      label: isFr
+        ? "Rations ravito supplémentaires (pâtes de fruits, dattes & électrolytes)"
+        : "Extra whole-food fueling rations & electrolytes packed",
+      checked: false,
+      category: "nutrition",
+      critical: false,
+    });
+  }
+
+  const activeChips = options?.customChips || [];
+
+  if (activeChips.includes('mountain-adventure')) {
+    items.push(
+      {
+        id: 'chip-mountain-plugs',
+        label: isFr
+          ? 'Mèches tubeless haute montagne, plaquettes de rechange & cartouches CO2'
+          : 'High-mountain tubeless plug darts, spare brake pads & CO2 canisters',
+        checked: false,
+        category: 'mechanics',
+        critical: true,
+      },
+      {
+        id: 'chip-mountain-topo',
+        label: isFr
+          ? 'Tracés GPS topographiques hors-ligne & secours montagne'
+          : 'Offline topographic GPS trail maps & emergency contacts',
+        checked: false,
+        category: 'gear',
+        critical: true,
+      }
+    );
+  }
+
+  if (activeChips.includes('night-ride')) {
+    items.push(
+      {
+        id: 'chip-night-beam',
+        label: isFr
+          ? 'Phare avant 800+ lumens chargé & feu arrière clignotant puissant'
+          : 'High-beam headlight (800+ lumens) fully charged & rear flasher',
+        checked: false,
+        category: 'mechanics',
+        critical: true,
+      },
+      {
+        id: 'chip-night-hivis',
+        label: isFr
+          ? 'Baudrier / gilet haute visibilité & bandes réfléchissantes de cheville'
+          : 'Reflective sash/vest & reflective ankle bands',
+        checked: false,
+        category: 'gear',
+        critical: true,
+      }
+    );
+  }
+
+  if (activeChips.includes('coffee-stop')) {
+    items.push({
+      id: 'chip-coffee-lock',
+      label: isFr
+        ? 'Antivol de cadre rapide & moyen de paiement pour la pause café'
+        : 'Compact cafe frame lock & contactless payment for coffee pause',
+      checked: false,
+      category: 'logistics',
+      critical: false,
+    });
+  }
+
+  if (activeChips.includes('picnic-outing')) {
+    items.push({
+      id: 'chip-picnic-pannier',
+      label: isFr
+        ? 'Sacoche isotherme avec victuailles fraîches, couverts & couteau pliant'
+        : 'Insulated picnic pannier with fresh provisions, cutlery & folding knife',
+      checked: false,
+      category: 'gear',
+      critical: true,
+    });
+  }
+
+  if (activeChips.includes('wine-tasting') || activeChips.includes('local-gastronomy')) {
+    items.push({
+      id: 'chip-wine-sleeves',
+      label: isFr
+        ? 'Manchons de protection matelassés pour bouteilles de vin en sacoche'
+        : 'Padded bottle protective sleeves for pannier wine transport',
+      checked: false,
+      category: 'gear',
+      critical: false,
+    });
+  }
+
+  if (activeChips.includes('emergency-first-aid')) {
+    items.push({
+      id: 'chip-first-aid',
+      label: isFr
+        ? 'Trousse de secours : pansements compressifs, antiseptique & couverture de survie'
+        : 'Wilderness trauma kit: sterile dressings, antiseptic & space blanket',
+      checked: false,
+      category: 'gear',
+      critical: true,
+    });
+  }
+
+  if (activeChips.includes('solar-power-recharge')) {
+    items.push({
+      id: 'chip-solar-bank',
+      label: isFr
+        ? 'Batterie externe 20 000 mAh renforcée & faisceau de câbles étanches'
+        : 'Rugged 20,000mAh battery pack & weatherproof charging cables',
+      checked: false,
+      category: 'gear',
+      critical: true,
+    });
+  }
+
+  if (activeChips.includes('bad-weather-prep')) {
+    items.push({
+      id: 'chip-bad-weather',
+      label: isFr
+        ? 'Garde-boue intégraux vérifiés & veste pluie Gore-Tex Shakedry'
+        : 'Full mudguards inspected & Gore-Tex Shakedry rain shell stowed',
+      checked: false,
+      category: 'gear',
+      critical: true,
+    });
+  }
+
+  if (activeChips.includes('bivouac-camp')) {
+    items.push({
+      id: 'chip-bivouac-kit',
+      label: isFr
+        ? 'Abri bivouac ultraléger, matelas gonflable isolant & flasque filtrante'
+        : 'Ultralight bivouac shelter, insulated sleeping pad & water filter flask',
+      checked: false,
+      category: 'gear',
+      critical: true,
+    });
+  }
+
+  if (activeChips.includes('hydration-electrolytes')) {
+    items.push({
+      id: 'chip-hydration-fuel',
+      label: isFr
+        ? 'Mélange glucidique haute dose (80-90g/h) & capsules de sodium'
+        : 'High-concentration carb drink mix (80-90g/hr) & sodium salt tabs',
+      checked: false,
+      category: 'nutrition',
+      critical: true,
+    });
+  }
+
+  if (activeChips.includes('cargo-laptop-pack')) {
+    items.push({
+      id: 'chip-cargo-laptop',
+      label: isFr
+        ? 'Ordinateur pro 15" dans housse étanche IPX6 & chargeur USB-C'
+        : '15" Work laptop inside IPX6 waterproof dry sleeve & USB-C charger',
+      checked: false,
+      category: 'gear',
+      critical: true,
+    });
+  }
+
+  if (activeChips.includes('gravel-trail-master') || activeChips.includes('off-road-exploration')) {
+    items.push({
+      id: 'chip-gravel-pressure',
+      label: isFr
+        ? 'Pression tout-terrain ajustée à 2,4–2,8 bar & outil mèches prêt'
+        : 'Trail tire pressure lowered to 2.4-2.8 bar & plug tool mounted',
+      checked: false,
+      category: 'mechanics',
+      critical: true,
+    });
+  }
+
+  if (activeChips.includes('paceline-drafting') || activeChips.includes('fast-group-ride')) {
+    items.push({
+      id: 'chip-paceline-radar',
+      label: isFr
+        ? 'Radar arrière Garmin Varia chargé & signaux de peloton synchronisés'
+        : 'Rear Garmin Varia radar charged & peloton hand signals briefed',
+      checked: false,
+      category: 'gear',
+      critical: true,
+    });
+  }
+
+  if (activeChips.includes('shower-locker')) {
+    items.push({
+      id: 'chip-shower-kit',
+      label: isFr
+        ? 'Serviette microfibre, trousse de toilette & tenue propre sous sac étanche'
+        : 'Microfiber quick-dry towel, toiletries & fresh change of clothes in dry bag',
+      checked: false,
+      category: 'gear',
+      critical: true,
+    });
+  }
+
+  if (activeChips.includes('historical-tour')) {
+    items.push({
+      id: 'chip-historical-shoes',
+      label: isFr
+        ? 'Chaussures confortables pour la marche & antivol sécurisé de visite'
+        : 'Comfortable walking shoes & secure bike lock for monuments',
+      checked: false,
+      category: 'logistics',
+      critical: false,
+    });
+  }
+
+  if (activeChips.includes('photography-spots')) {
+    items.push({
+      id: 'chip-camera-bag',
+      label: isFr
+        ? 'Sacoche appareil photo étanche de guidon & lingette microfibre'
+        : 'Handlebar weatherproof camera bag, lens cloth & spare battery',
+      checked: false,
+      category: 'gear',
+      critical: false,
+    });
+  }
+
+  if (activeChips.includes('spa-wellness')) {
+    items.push({
+      id: 'chip-spa-pack',
+      label: isFr
+        ? 'Maillot de bain, sandales & chaussettes de récupération pour le spa'
+        : 'Swimsuit, sandals & recovery compression socks for thermal spa',
+      checked: false,
+      category: 'gear',
+      critical: false,
+    });
+  }
+
+  if (activeChips.includes('interval-training')) {
+    items.push({
+      id: 'chip-interval-workout',
+      label: isFr
+        ? 'Séance de fractionné par intervalles synchronisée sur le compteur GPS'
+        : 'Structured threshold interval workout synced to GPS head unit',
+      checked: false,
+      category: 'gear',
+      critical: false,
+    });
+  }
+
+  if (activeChips.includes('climbing-kom-hunt')) {
+    items.push({
+      id: 'chip-kom-climb',
+      label: isFr
+        ? 'Grand pignon de montagne vérifié (32/34D) & chaîne dégraissée'
+        : 'Low-ratio climbing cog checked (32/34T) & freshly waxed chain',
+      checked: false,
+      category: 'mechanics',
+      critical: true,
+    });
+  }
+
+  // Weather-triggered low-visibility & darkness safety items
+  const isLowVisibilityOrDark =
+    (weather?.visibilityKm !== undefined && weather.visibilityKm < 5) ||
+    weather?.isDay === false;
+
+  if (isLowVisibilityOrDark && !items.some((i) => i.id === 'chip-night-beam' || i.id === 'chk-lights')) {
+    items.push({
+      id: 'vis-lowlight-beam',
+      label: isFr
+        ? 'Éclairage puissant 800–1000 lm & équipement réfléchissant (visibilité réduite météo)'
+        : 'High-output 800–1000 lm headlight & reflective gear (low weather visibility)',
+      checked: false,
+      category: 'gear',
+      critical: true,
+    });
+  }
+
+  return items;
 }

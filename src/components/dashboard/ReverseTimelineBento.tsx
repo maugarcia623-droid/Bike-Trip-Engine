@@ -1,142 +1,236 @@
 import React from 'react';
-import { Clock, ShieldAlert, CheckCircle2, Coffee, Shield, Zap, Navigation, ShowerHead, AlarmClock, Utensils } from 'lucide-react';
+import {
+  Clock,
+  CheckCircle,
+  Coffee,
+  ShieldCheck,
+  Lightning,
+  NavigationArrow,
+  Shower,
+  Alarm,
+  ForkKnife,
+  Briefcase,
+  Backpack,
+  Compass,
+  Wind,
+  Trophy,
+  Flame,
+  Users,
+  Mountains,
+  Landmark,
+  Wine,
+  Camera,
+  Moon,
+} from '@/components/icons';
+import type { TripProfile } from '../../types/trip';
 import { Card } from '../common/Card';
+import { Badge } from '../common/Badge';
+import { IconBadge } from '../common/IconBadge';
+import {
+  CHIP_RING_BASE,
+  CHIP_RING_UNSELECTED,
+  CHIP_TOKENS,
+  ChipTheme,
+} from '../../tokens/chipTokens';
 import { ReverseTimelineCalculation } from '../../utils/timeline';
+import { TimelineContextualBanner, getTripArchetype } from './TimelineContextualBanner';
+import { useTranslation } from '../../context/LanguageContext';
 
 interface ReverseTimelineBentoProps {
+  trip?: TripProfile;
   timeline: ReverseTimelineCalculation;
-  gateName: string;
+  gateName?: string;
+}
+
+function getTimelineStepTokenSpec(
+  iconName: string,
+  isHardDeparture: boolean
+): { icon: React.ElementType; theme: ChipTheme } {
+  const resolveIconAndTheme = (): { icon: React.ElementType; theme: ChipTheme } => {
+    switch (iconName) {
+      case 'AlarmClock':
+        return { icon: Alarm, theme: 'purple' };
+      case 'Utensils':
+      case 'UtensilsCrossed':
+        return { icon: ForkKnife, theme: 'orange' };
+      case 'CheckCircle2':
+        return { icon: CheckCircle, theme: 'emerald' };
+      case 'Navigation':
+        return { icon: NavigationArrow, theme: 'yellow-vest' };
+      case 'Wind':
+        return { icon: Wind, theme: 'sky' };
+      case 'ShieldCheck':
+        return { icon: ShieldCheck, theme: 'teal' };
+      case 'Zap':
+        return { icon: Lightning, theme: 'lime' };
+      case 'ShowerHead':
+        return { icon: Shower, theme: 'sky' };
+      case 'Coffee':
+        return { icon: Coffee, theme: 'amber' };
+      case 'Briefcase':
+        return { icon: Briefcase, theme: 'blue' };
+      case 'Backpack':
+        return { icon: Backpack, theme: 'orange' };
+      case 'Compass':
+        return { icon: Compass, theme: 'teal' };
+      case 'Trophy':
+        return { icon: Trophy, theme: 'amber' };
+      case 'Flame':
+        return { icon: Flame, theme: 'rose' };
+      case 'Users':
+        return { icon: Users, theme: 'blue' };
+      case 'Mountain':
+        return { icon: Mountains, theme: 'emerald' };
+      case 'Landmark':
+        return { icon: Landmark, theme: 'amber' };
+      case 'Wine':
+        return { icon: Wine, theme: 'rose' };
+      case 'Camera':
+        return { icon: Camera, theme: 'purple' };
+      case 'Moon':
+        return { icon: Moon, theme: 'purple' };
+      default:
+        return { icon: Clock, theme: 'amber' };
+    }
+  };
+
+  const resolved = resolveIconAndTheme();
+  if (isHardDeparture) {
+    return { icon: resolved.icon, theme: 'yellow-vest' };
+  }
+  return resolved;
 }
 
 export const ReverseTimelineBento: React.FC<ReverseTimelineBentoProps> = ({
   timeline,
+  trip,
 }) => {
-  const getIcon = (iconName: string) => {
-    switch (iconName) {
-      case 'AlarmClock':
-        return <AlarmClock className="w-3.5 h-3.5 text-slate-500 dark:text-zinc-400" />;
-      case 'Utensils':
-        return <Utensils className="w-3.5 h-3.5 text-amber-500" />;
-      case 'CheckCircle2':
-        return <CheckCircle2 className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />;
-      case 'Navigation':
-        return <Navigation className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />;
-      case 'Wind':
-        return <Clock className="w-3.5 h-3.5 text-amber-500" />;
-      case 'ShieldCheck':
-        return <Shield className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />;
-      case 'Zap':
-        return <Zap className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />;
-      case 'ShowerHead':
-        return <ShowerHead className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />;
-      case 'Coffee':
-        return <Coffee className="w-3.5 h-3.5 text-amber-500" />;
-      default:
-        return <Clock className="w-3.5 h-3.5 text-slate-500 dark:text-zinc-400" />;
-    }
-  };
+  const { t } = useTranslation();
+
+  const archetype = getTripArchetype(trip?.tag, trip?.name);
+
+  const cardTitle =
+    archetype === 'sport'
+      ? t('timelineTitleSport')
+      : archetype === 'bikepacking'
+      ? t('timelineTitleBikepacking')
+      : archetype === 'escapade'
+      ? t('timelineTitleEscapade')
+      : t('timelineTitleCommute');
+
+  const cardSubtitle =
+    archetype === 'sport'
+      ? t('timelineSubSport')
+      : archetype === 'bikepacking'
+      ? t('timelineSubBikepacking')
+      : archetype === 'escapade'
+      ? t('timelineSubEscapade')
+      : t('timelineSubCommute');
 
   return (
     <Card
-      title="REVERSE TIMELINE STEPPER &middot; OFFICE CONSTRAINTS"
-      subtitle="Working backwards from shift start and gate arrival checkpoints"
-      icon={<Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />}
+      title={cardTitle}
+      subtitle={cardSubtitle}
       badge={
-        <span className="text-[10px] font-mono uppercase bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded font-bold">
-          HARD DEPARTURE: {timeline.hardDepartureTime}
-        </span>
+        <Badge variant="yellow-vest" size="md" dot className="py-1.5 px-3.5 tnum">
+          {t('rolloutBadgeTime', { time: timeline.hardDepartureTime })}
+        </Badge>
       }
-      glow="emerald"
-      className="col-span-1 lg:col-span-3"
+      className="w-full"
     >
-      {/* Strict Office Mandate Alert Bar */}
-      <div className="bg-amber-50/80 dark:bg-zinc-950/90 border border-amber-300 dark:border-amber-500/30 rounded-xl p-3.5 mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-600 dark:text-amber-400 flex-shrink-0">
-            <ShieldAlert className="w-4 h-4" />
-          </div>
-          <div>
-            <span className="text-amber-900 dark:text-amber-300 font-bold uppercase tracking-wider">
-              OFFICE POLICY MANDATE: ZERO FOOD IN OPEN-SPACE
-            </span>
-            <p className="text-[11px] text-slate-600 dark:text-zinc-400 mt-0.5">
-              Phase 1 Locker Refuel strictly at 08:30 (bench). Phase 2 Break Room Breakfast at 08:50 before 09:00 shift lock.
-            </p>
-          </div>
-        </div>
+      {/* Contextual Directive Capsule / Expandable Pod */}
+      <TimelineContextualBanner trip={trip} timeline={timeline} />
 
-        <div className="flex items-center gap-3 text-slate-600 dark:text-zinc-400 text-[11px]">
-          <span>Moving: <strong className="text-slate-900 dark:text-white">{timeline.pureMovingMinutes}m</strong></span>
-          <span>Buffers: <strong className="text-cyan-700 dark:text-cyan-400">{timeline.bufferMinutes}m</strong></span>
-          <span>Door-to-Desk: <strong className="text-emerald-700 dark:text-emerald-400">{timeline.totalDoorToDeskMinutes}m</strong></span>
-        </div>
-      </div>
+      {/* Stepper Timeline with Asphalt Dashed Center-Line */}
+      <div className="relative mt-4 space-y-3 sm:space-y-3.5">
+        {/* Continuous vertical dashed road center-line */}
+        <div
+          className="lane-spine absolute left-[17px] sm:left-[19px] top-4 sm:top-5 bottom-4 sm:bottom-5 pointer-events-none"
+          aria-hidden="true"
+        />
 
-      {/* Stepper Timeline: Clean Visual Flow */}
-      <div className="relative pl-6 space-y-4 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200 dark:before:bg-zinc-800">
         {timeline.steps.map((step) => {
-          const isHardDeparture = step.id === 'hard-departure';
-          const isGateArrival = step.id === 'gate-security' || step.id === 'locker-refuel';
-          const isShiftStart = step.id === 'shift-start';
-          const isBreakRoom = step.id === 'breakroom-breakfast';
+          const isHardDeparture =
+            step.id === 'hard-departure' ||
+            step.id === 'sport-rollout' ||
+            step.id === 'bp-departure';
 
-          let dotColor = 'bg-slate-400 border-white dark:bg-zinc-700 dark:border-zinc-900';
-          let borderHighlight = 'border-slate-200 dark:border-zinc-800/80 bg-slate-50/60 dark:bg-zinc-950/40';
-
-          if (isHardDeparture) {
-            dotColor = 'bg-emerald-500 border-white dark:border-emerald-950 ring-4 ring-emerald-500/20';
-            borderHighlight = 'border-emerald-400 dark:border-emerald-500/40 bg-emerald-50/60 dark:bg-emerald-950/10 shadow-glow-emerald';
-          } else if (isGateArrival) {
-            dotColor = 'bg-cyan-500 border-white dark:border-cyan-950 ring-4 ring-cyan-500/20';
-            borderHighlight = 'border-cyan-400 dark:border-cyan-500/40 bg-cyan-50/60 dark:bg-cyan-950/10';
-          } else if (isShiftStart) {
-            dotColor = 'bg-slate-900 dark:bg-white border-white dark:border-zinc-900 ring-4 ring-slate-400/20 dark:ring-white/10';
-            borderHighlight = 'border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900/60 shadow-xs';
-          } else if (isBreakRoom) {
-            dotColor = 'bg-amber-500 border-white dark:border-amber-950';
-            borderHighlight = 'border-amber-300 dark:border-amber-500/30 bg-amber-50/60 dark:bg-amber-950/10';
-          }
+          const { icon: StepIcon, theme: stepTheme } = getTimelineStepTokenSpec(
+            step.iconName,
+            isHardDeparture
+          );
 
           return (
-            <div key={step.id} className="relative group">
-              {/* Timeline Node Dot */}
-              <div
-                className={`absolute -left-[1.85rem] top-3 w-3.5 h-3.5 rounded-full border-2 transition-all ${dotColor}`}
+            <div key={step.id} className="relative flex items-start sm:items-center gap-2.5 sm:gap-4 group">
+              {/* Circular Layered Token Badge on Spine (Opaque card backing blocks dashed spine bleed in Dark Mode) */}
+              <IconBadge
+                theme={stepTheme}
+                icon={StepIcon}
+                size="spine"
+                isSelected={isHardDeparture}
+                solidBacker
+                className="relative z-10 mt-2.5 sm:mt-0 transition-transform duration-200 group-hover:scale-105"
               />
 
-              {/* Step Card */}
-              <div
-                className={`border rounded-xl p-3.5 transition-all flex flex-col md:flex-row md:items-center justify-between gap-3 ${borderHighlight}`}
-              >
-                <div className="flex items-start md:items-center gap-3">
-                  {/* Time Badge */}
-                  <div className="font-mono text-base font-extrabold tracking-tight text-slate-900 dark:text-white min-w-[58px] bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 px-2 py-1 rounded text-center shadow-xs">
-                    {step.time}
+              {/* Step Pod Card */}
+              <div className="flex-1 min-w-0 rounded-pod p-3 sm:p-4 lg:p-4.5 bg-pod text-ink transition-colors flex flex-col items-stretch sm:flex-row sm:items-center gap-2.5 sm:gap-4 border border-transparent dark:border-white/[0.03]">
+                {/* Top Row on Mobile / Left Column on Desktop: Full-Radius Time Pill + Mobile Checkpoint Badge */}
+                <div className="flex items-center justify-between gap-2 sm:shrink-0">
+                  <div
+                    className={`min-w-[74px] sm:min-w-[96px] px-3 py-1 sm:px-4 sm:py-2 rounded-full flex items-center justify-center shrink-0 ${CHIP_RING_BASE} ${
+                      isHardDeparture
+                        ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
+                        : `bg-card text-ink dark:text-zinc-100 ${CHIP_RING_UNSELECTED} border border-black/[0.04] dark:border-white/[0.04]`
+                    }`}
+                  >
+                    <span className="font-mono text-lg sm:text-[23px] lg:text-[25px] font-bold tracking-tight tnum">
+                      {step.time}
+                    </span>
                   </div>
 
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-slate-900 dark:text-zinc-200">
-                        {getIcon(step.iconName)}
-                        <span>{step.title}</span>
-                      </div>
-                      {step.isCrucialCheckpoint && (
-                        <span className="text-[9px] font-mono uppercase bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700 px-1.5 py-0.2 rounded font-bold">
-                          CRITICAL CHECKPOINT
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-slate-600 dark:text-zinc-400 mt-0.5">
-                      {step.description}
-                    </p>
-                  </div>
+                  {isHardDeparture ? (
+                    <Badge variant="yellow-vest" size="sm" dot className="sm:hidden shrink-0">
+                      {t('rolloutPill')}
+                    </Badge>
+                  ) : step.isCrucialCheckpoint ? (
+                    <Badge variant="emerald" size="sm" dot className="sm:hidden shrink-0">
+                      {t('checkpointPill')}
+                    </Badge>
+                  ) : null}
                 </div>
 
-                {/* Location & Category Tag */}
-                <div className="flex items-center gap-2 text-right self-end md:self-center font-mono text-[11px] text-slate-500 dark:text-zinc-400">
-                  <span className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 px-2 py-1 rounded text-slate-700 dark:text-zinc-300 shadow-xs">
-                    {step.location}
-                  </span>
+                {/* Center: Title, Checkpoint Badge (Desktop), Description & Location Chip */}
+                <div className="min-w-0 flex-1 flex flex-col justify-center">
+                  <div className="flex items-center justify-between gap-2 sm:gap-2.5 flex-wrap">
+                    <span className="text-sm sm:text-base font-semibold text-ink dark:text-white leading-snug">
+                      {step.title}
+                    </span>
+
+                    {isHardDeparture ? (
+                      <Badge variant="yellow-vest" size="sm" dot className="hidden sm:inline-flex shrink-0">
+                        {t('rolloutPill')}
+                      </Badge>
+                    ) : step.isCrucialCheckpoint ? (
+                      <Badge variant="emerald" size="sm" dot className="hidden sm:inline-flex shrink-0">
+                        {t('checkpointPill')}
+                      </Badge>
+                    ) : null}
+                  </div>
+
+                  <p className="text-xs sm:text-[13px] text-ink-secondary dark:text-zinc-400 mt-1 leading-relaxed">
+                    {step.description}
+                  </p>
+
+                  {step.location && (
+                    <div className="mt-2 sm:mt-2.5">
+                      <span
+                        title={step.location}
+                        className="inline-flex items-center px-3 py-1 sm:px-3.5 sm:py-1 rounded-full text-[11px] sm:text-xs font-medium bg-card dark:bg-[#161618] text-ink-secondary dark:text-zinc-300 border border-black/5 dark:border-white/[0.04] max-w-full"
+                      >
+                        <span className="truncate">{step.location}</span>
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

@@ -1,195 +1,187 @@
-import React, { useState } from 'react';
-import { CheckSquare, Square, CheckCircle, RotateCcw, Wrench, Shield, Utensils, Briefcase } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Check, ArrowCounterClockwise } from '@/components/icons';
 import { Card } from '../common/Card';
-import { ChecklistItem } from '../../types/trip';
+import { Badge } from '../common/Badge';
+import { IconBadge } from '../common/IconBadge';
+import {
+  CHIP_DUOTONE_ISOLATION_CLASSES,
+  CHIP_TOKENS,
+  GREYSCALE_TOKENS,
+} from '../../tokens/chipTokens';
+import { TripProfile, ChecklistItem, generateTripChecklist } from '../../types/trip';
+import { useTranslation, getChecklistItemLabel } from '../../context/LanguageContext';
+import { getArchetypeFromTag } from '../../utils/archetypeChips';
 
 interface PreFlightChecklistBentoProps {
-  checklist: ChecklistItem[];
-  onToggleItem: (id: string) => void;
-  onCheckAll: () => void;
-  onResetAll: () => void;
+  trip: TripProfile;
+  onUpdateTrip?: (updated: TripProfile) => void;
 }
 
 export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = ({
-  checklist,
-  onToggleItem,
-  onCheckAll,
-  onResetAll,
+  trip,
+  onUpdateTrip,
 }) => {
-  const [filter, setFilter] = useState<'all' | 'mechanics' | 'gear' | 'nutrition' | 'logistics'>('all');
+  const { lang, t } = useTranslation();
 
-  const filteredItems = checklist.filter((item) => {
-    if (filter === 'all') return true;
-    return item.category === filter;
-  });
+  const effectiveMode = getArchetypeFromTag(trip.tag, trip.name);
+  const effectiveTag = effectiveMode === 'COMMUTE' ? 'VÉLOTAF' : effectiveMode;
+  const totalDays = trip.stages?.length || 1;
 
-  const checkedCount = checklist.filter((c) => c.checked).length;
-  const totalCount = checklist.length;
-  const percent = Math.round((checkedCount / Math.max(1, totalCount)) * 100);
-  const isFullyCleared = checkedCount === totalCount;
+  const getInitialItems = (): ChecklistItem[] => {
+    const fresh = generateTripChecklist(effectiveTag, trip.route?.distanceKm, trip.weather, {
+      lang,
+      customChips: trip.customChips,
+      totalDays,
+    });
 
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'mechanics':
-        return <Wrench className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />;
-      case 'gear':
-        return <Shield className="w-3.5 h-3.5 text-slate-500 dark:text-zinc-400" />;
-      case 'nutrition':
-        return <Utensils className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />;
-      case 'logistics':
-        return <Briefcase className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />;
-      default:
-        return null;
+    const existing = trip.checklist || [];
+    if (existing.length === 0) {
+      return fresh;
+    }
+
+    const checkedMap = new Map(existing.map((item) => [item.id, item.checked]));
+    return fresh.map((item) => ({
+      ...item,
+      checked: checkedMap.has(item.id) ? Boolean(checkedMap.get(item.id)) : item.checked,
+    }));
+  };
+
+  const [items, setItems] = useState<ChecklistItem[]>(getInitialItems);
+
+  useEffect(() => {
+    setItems(getInitialItems());
+  }, [trip.id, trip.tag, trip.name, trip.route?.distanceKm, JSON.stringify(trip.customChips), trip.stages?.length]);
+
+  const completedCount = items.filter((i) => i.checked).length;
+  const pendingCount = items.length - completedCount;
+  const isAllReady = items.length > 0 && completedCount === items.length;
+  const segmentTotal = Math.max(5, Math.min(8, items.length || 6));
+  const activeSegments = Math.round((completedCount / Math.max(1, items.length)) * segmentTotal);
+
+  const handleToggle = (id: string) => {
+    const updatedChecklist = items.map((item) =>
+      item.id === id ? { ...item, checked: !item.checked } : item
+    );
+    setItems(updatedChecklist);
+    if (onUpdateTrip) {
+      onUpdateTrip({ ...trip, checklist: updatedChecklist });
+    }
+  };
+
+  const handleRegenerate = () => {
+    const fresh = generateTripChecklist(effectiveTag, trip.route?.distanceKm, trip.weather, {
+      lang,
+      customChips: trip.customChips,
+      totalDays,
+    });
+    setItems(fresh);
+    if (onUpdateTrip) {
+      onUpdateTrip({ ...trip, checklist: fresh });
     }
   };
 
   return (
     <Card
-      title="PRE-FLIGHT SYSTEMS CHECKLIST &middot; STATEFUL PERSISTENCE"
-      subtitle="Complete before departing home base &middot; Stored locally in browser"
-      icon={<CheckSquare className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />}
+      title={t('checklistTitle')}
+      subtitle={t('checklistSub', { done: completedCount, total: items.length, tag: effectiveTag })}
       badge={
-        <span
-          className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded font-bold ${
-            isFullyCleared
-              ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
-              : 'bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300'
-          }`}
-        >
-          {checkedCount} / {totalCount} ({percent}%) CLEARED
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleRegenerate}
+            title={t('resetChecklistTitle')}
+            className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full hover:brightness-[0.97] dark:hover:brightness-110 transition-all cursor-pointer ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+          >
+            <ArrowCounterClockwise className="w-4 h-4 text-current" />
+            <span>{t('resetBtn')}</span>
+          </button>
+
+          <Badge
+            variant={isAllReady ? 'emerald' : 'yellow-vest'}
+            size="md"
+            dot
+            className="py-1.5 px-3 tnum"
+          >
+            {isAllReady ? t('readyStatus') : t('pendingCountStatus', { count: pendingCount })}
+          </Badge>
+        </div>
       }
-      glow={isFullyCleared ? 'emerald' : 'none'}
-      className="col-span-1 lg:col-span-3"
     >
-      {/* Top Filter and Progress Row */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 pb-3 border-b border-slate-200 dark:border-zinc-800">
-        {/* Category Pills */}
-        <div className="flex flex-wrap items-center gap-1.5 text-xs font-mono">
-          <button
-            onClick={() => setFilter('all')}
-            className={`px-2.5 py-1 rounded transition-colors ${
-              filter === 'all'
-                ? 'bg-slate-900 text-white dark:bg-zinc-700 font-bold'
-                : 'bg-slate-100 text-slate-600 hover:text-slate-900 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:text-white border border-slate-200 dark:border-transparent'
-            }`}
-          >
-            All ({checklist.length})
-          </button>
-          <button
-            onClick={() => setFilter('mechanics')}
-            className={`px-2.5 py-1 rounded transition-colors ${
-              filter === 'mechanics'
-                ? 'bg-cyan-500/20 text-cyan-800 dark:text-cyan-300 border border-cyan-500/40 font-bold'
-                : 'bg-slate-100 text-slate-600 hover:text-slate-900 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:text-white border border-slate-200 dark:border-transparent'
-            }`}
-          >
-            Mechanics
-          </button>
-          <button
-            onClick={() => setFilter('gear')}
-            className={`px-2.5 py-1 rounded transition-colors ${
-              filter === 'gear'
-                ? 'bg-slate-900 text-white dark:bg-zinc-700 font-bold'
-                : 'bg-slate-100 text-slate-600 hover:text-slate-900 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:text-white border border-slate-200 dark:border-transparent'
-            }`}
-          >
-            Kit &amp; Gear
-          </button>
-          <button
-            onClick={() => setFilter('nutrition')}
-            className={`px-2.5 py-1 rounded transition-colors ${
-              filter === 'nutrition'
-                ? 'bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border border-emerald-500/40 font-bold'
-                : 'bg-slate-100 text-slate-600 hover:text-slate-900 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:text-white border border-slate-200 dark:border-transparent'
-            }`}
-          >
-            Real Food Pack
-          </button>
-          <button
-            onClick={() => setFilter('logistics')}
-            className={`px-2.5 py-1 rounded transition-colors ${
-              filter === 'logistics'
-                ? 'bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/40 font-bold'
-                : 'bg-slate-100 text-slate-600 hover:text-slate-900 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:text-white border border-slate-200 dark:border-transparent'
-            }`}
-          >
-            Gate Logistics
-          </button>
-        </div>
-
-        {/* Action buttons */}
-        <div className="flex items-center gap-2 text-xs font-mono">
-          <button
-            onClick={onCheckAll}
-            className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white rounded transition-colors"
-          >
-            Check All
-          </button>
-          <button
-            onClick={onResetAll}
-            className="flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 rounded transition-colors"
-          >
-            <RotateCcw className="w-3 h-3" />
-            <span>Clear</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Progress Bar */}
-      <div className="w-full bg-slate-100 dark:bg-zinc-900 h-2 rounded-full overflow-hidden mb-4 border border-slate-200 dark:border-zinc-800">
-        <div
-          style={{ width: `${percent}%` }}
-          className={`h-full transition-all duration-300 ${
-            isFullyCleared ? 'bg-emerald-500' : 'bg-cyan-500'
-          }`}
-        />
-      </div>
-
-      {/* Interactive Checkbox List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-        {filteredItems.map((item) => (
+      {/* Segmented Asphalt Road-Lane Progress Dashes */}
+      <div className="flex items-center gap-1.5 mb-4" aria-hidden="true">
+        {Array.from({ length: segmentTotal }).map((_, idx) => (
           <div
-            key={item.id}
-            onClick={() => onToggleItem(item.id)}
-            className={`cursor-pointer rounded-lg p-3 border transition-all flex items-start gap-3 select-none ${
-              item.checked
-                ? 'bg-emerald-50/70 dark:bg-emerald-950/10 border-emerald-300 dark:border-emerald-500/30 text-slate-800 dark:text-zinc-200'
-                : 'bg-white dark:bg-zinc-950/40 border-slate-200 dark:border-zinc-800/80 hover:border-slate-300 dark:hover:border-zinc-700 text-slate-700 dark:text-zinc-400 shadow-xs'
+            key={idx}
+            className={`h-1.5 flex-1 rounded-full transition-colors ${
+              idx < activeSegments
+                ? isAllReady
+                  ? CHIP_TOKENS.emerald.dot
+                  : CHIP_TOKENS['yellow-vest'].dot
+                : 'bg-pod dark:bg-chip'
             }`}
-          >
-            <button
-              type="button"
-              className={`mt-0.5 rounded transition-colors flex-shrink-0 ${
-                item.checked ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-zinc-600'
+          />
+        ))}
+      </div>
+
+      {/* Full-Radius Chain-Link Checklist Capsules */}
+      <div className="space-y-2">
+        {items.map((item) => {
+          const displayLabel = getChecklistItemLabel(item, trip.route?.distanceKm, lang);
+          return (
+            <div
+              key={item.id}
+              role="checkbox"
+              aria-checked={item.checked}
+              tabIndex={0}
+              onClick={() => handleToggle(item.id)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleToggle(item.id);
+                }
+              }}
+              className={`flex items-start sm:items-center gap-3 pl-3 pr-3.5 sm:pr-5 py-2.5 rounded-2xl sm:rounded-full text-[13px] cursor-pointer select-none transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30 ${
+                item.checked
+                  ? 'bg-pod/70 text-ink-secondary hover:bg-pod'
+                  : 'bg-pod hover:bg-chip/80 text-ink'
               }`}
             >
+              {/* Concentric Chain-Pin Check Circle (4-Layer Token Matrix) */}
               {item.checked ? (
-                <CheckCircle className="w-4 h-4 fill-emerald-500/20" />
+                <IconBadge
+                  theme="emerald"
+                  icon={Check}
+                  size="xs"
+                  isSelected
+                  solidBacker
+                  className="mt-0.5 sm:mt-0"
+                  iconClassName="stroke-[2.8]"
+                />
               ) : (
-                <Square className="w-4 h-4" />
+                <span className="w-6 h-6 mt-0.5 sm:mt-0 rounded-full flex items-center justify-center shrink-0 bg-card ring-2 ring-inset ring-zinc-300/70 dark:bg-chip dark:ring-zinc-600/60 transition-colors" />
               )}
-            </button>
 
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <span className={`text-xs font-mono ${item.checked ? 'text-slate-500 dark:text-zinc-300 line-through opacity-80' : 'text-slate-900 dark:text-zinc-100 font-medium'}`}>
-                  {item.label}
+              <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
+                <span className={`leading-snug ${item.checked ? 'text-ink-muted' : 'font-medium text-ink'}`}>
+                  {displayLabel}
                 </span>
-              </div>
-              <div className="flex items-center gap-2 mt-1 text-[10px] font-mono text-slate-500 dark:text-zinc-500 uppercase">
-                <span className="flex items-center gap-1">
-                  {getCategoryIcon(item.category)}
-                  {item.category}
-                </span>
-                {item.critical && (
-                  <span className="text-amber-600 dark:text-amber-500 font-bold">&middot; CRITICAL</span>
+                {item.critical && !item.checked && (
+                  <Badge variant="orange" size="xs" className="shrink-0">
+                    {t('requiredBadge')}
+                  </Badge>
                 )}
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
+
+      {items.length > 6 && (
+        <div className="mt-3 pt-2.5 border-t border-dashed border-ink/10 dark:border-white/10 flex items-center justify-between text-xs text-ink-muted">
+          <span>{t('checklistFooterHint')}</span>
+          <span className="font-mono tnum">{completedCount}/{items.length}</span>
+        </div>
+      )}
     </Card>
   );
 };
