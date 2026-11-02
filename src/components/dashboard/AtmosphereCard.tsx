@@ -22,6 +22,7 @@ import { TripProfile, PhysicsCalculationResult } from '../../types/trip';
 import { getKitRecommendation } from '../../utils/kitAdvisor';
 import { Badge } from '../common/Badge';
 import { IconBadge } from '../common/IconBadge';
+import { Collapsible, DisclosureChevron } from '../common/Collapsible';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
   CHIP_RING_BASE,
@@ -65,6 +66,11 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isManualOverride, setIsManualOverride] = useState(false);
+  // Collapsed summary view by default when opening the Cockpit
+  const [isCardExpanded, setIsCardExpanded] = useState<boolean>(false);
+  const [isKitOpen, setIsKitOpen] = useState<boolean>(false);
+  const toggleCardExpanded = () => setIsCardExpanded((prev) => !prev);
+  const toggleKitOpen = () => setIsKitOpen((prev) => !prev);
 
   // Measure stage width dynamically so SVG coordinates and CSS pixels align 1:1 without distortion
   const stageRef = useRef<HTMLDivElement>(null);
@@ -73,7 +79,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
   useEffect(() => {
     if (!stageRef.current) return;
     const updateWidth = () => {
-      if (stageRef.current) {
+      if (stageRef.current && stageRef.current.clientWidth > 0) {
         setStageWidth(stageRef.current.clientWidth);
       }
     };
@@ -81,7 +87,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
     const ro = new ResizeObserver(updateWidth);
     ro.observe(stageRef.current);
     return () => ro.disconnect();
-  }, [activeTab]);
+  }, [activeTab, isCardExpanded]);
 
   useEffect(() => {
     const checkDark = () => setIsDarkMode(document.documentElement.classList.contains('dark'));
@@ -367,11 +373,11 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
 
   return (
     <div className="rounded-card bg-card text-ink p-4 flex flex-col justify-between transition-colors">
-      {/* ── 1. HEADER (TITLE, SUBTITLE, SYNC BUTTON) ── */}
-      <div className="flex items-start justify-between gap-3 mb-3">
-        <div>
+      {/* ── 1. HEADER (TITLE, SUBTITLE, SYNC + COLLAPSE BUTTONS) ── */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-base sm:text-[17px] font-semibold tracking-tight text-ink">
+            <h2 className="text-base sm:text-[17px] font-semibold font-rounded tracking-tight text-ink">
               {t('weatherCardTitle')}
             </h2>
 
@@ -399,18 +405,64 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={handleSyncForecast}
-          disabled={isSyncing}
-          title={t('syncForecastTitle')}
-          className={`shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium hover:brightness-[0.97] dark:hover:brightness-110 transition-all cursor-pointer select-none disabled:opacity-50 ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
-        >
-          <ArrowsClockwise className={`w-4 h-4 text-current ${isSyncing ? 'animate-spin' : ''}`} />
-          <span>{isSyncing ? t('syncingBtn') : t('syncBtn')}</span>
-        </button>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={handleSyncForecast}
+            disabled={isSyncing}
+            title={t('syncForecastTitle')}
+            className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium hover:brightness-[0.97] dark:hover:brightness-110 transition-all cursor-pointer select-none disabled:opacity-50 ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+          >
+            <ArrowsClockwise className={`w-4 h-4 text-current ${isSyncing ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">{isSyncing ? t('syncingBtn') : t('syncBtn')}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={toggleCardExpanded}
+            aria-expanded={isCardExpanded}
+            aria-label={isCardExpanded ? t('bannerHide') : t('bannerDetails')}
+            className="rounded-full bg-pod hover:bg-chip p-0.5 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
+          >
+            <DisclosureChevron open={isCardExpanded} />
+          </button>
+        </div>
       </div>
 
+      {/* Compact Collapsed Summary Strip */}
+      <Collapsible open={!isCardExpanded} innerClassName="pt-3">
+        <button
+          type="button"
+          onClick={toggleCardExpanded}
+          className="w-full p-2.5 px-3 rounded-pod bg-pod hover:bg-chip/60 transition-colors flex items-center justify-between gap-2 text-left cursor-pointer"
+        >
+          <div className="flex items-center gap-2 min-w-0 flex-wrap tnum text-xs">
+            <Badge
+              variant={
+                goStatus === 'GO' ? 'emerald' : goStatus === 'CAUTION' ? 'yellow-vest' : 'rose'
+              }
+              size="xs"
+              dot
+            >
+              {goStatus}
+            </Badge>
+            <span className="font-semibold text-ink">{temperature}&deg;C</span>
+            <span className="text-ink-muted">&middot;</span>
+            <span className="font-mono text-ink-secondary">
+              {windSpeed} km/h {windCardinal}
+            </span>
+            <span className="text-ink-muted hidden min-[400px]:inline">&middot;</span>
+            <Badge variant={kitAdvice.tierTheme} size="xs" className="hidden min-[400px]:inline-flex">
+              {kitAdvice.tierBadge}
+            </Badge>
+          </div>
+          <span className="text-xs font-rounded font-semibold text-ink-secondary shrink-0">
+            {t('bannerDetails')}
+          </span>
+        </button>
+      </Collapsible>
+
+      <Collapsible open={isCardExpanded} innerClassName="pt-3">
       {/* ── 2. ELEGANT CONCENTRIC TAB SWITCHER: [ WIND & AERO ] / [ LIGHT & VISIBILITY ] ── */}
       <div className="grid grid-cols-2 sm:inline-flex items-center gap-1 p-1 rounded-2xl sm:rounded-full bg-pod mb-4 w-full sm:w-auto self-stretch sm:self-start">
         <button
@@ -944,13 +996,18 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
         </div>
       )}
 
-      {/* ── 5. WEATHER-DRIVEN KIT & LAYERING DIRECTIVE (ALWAYS VISIBLE IN ATMOSPHERE DOCK) ── */}
+      {/* ── 5. WEATHER-DRIVEN KIT & LAYERING DIRECTIVE (COLLAPSIBLE POD) ── */}
       <div className="mt-4 pt-3.5 border-t border-dashed border-ink/10 dark:border-white/10">
-        <div className="p-3.5 rounded-pod bg-pod space-y-2.5">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="rounded-pod bg-pod overflow-hidden">
+          <button
+            type="button"
+            onClick={toggleKitOpen}
+            aria-expanded={isKitOpen}
+            className="w-full p-3 sm:p-3.5 flex items-center justify-between gap-2 hover:bg-chip/60 transition-colors cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
+          >
             <div className="flex items-center gap-2 min-w-0">
               <IconBadge theme={kitAdvice.tierTheme} icon={Shield} size="sm" solidBacker />
-              <span className="text-xs font-bold text-ink tracking-tight">
+              <span className="text-xs font-bold font-rounded text-ink tracking-tight truncate">
                 {t('kitDirectiveTitle')}
               </span>
             </div>
@@ -958,13 +1015,17 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
               <Badge variant={kitAdvice.tierTheme} size="xs" className="tnum">
                 {kitAdvice.tierBadge}
               </Badge>
-              <span className="text-[11px] font-semibold text-ink-muted tnum">
+              <span className="text-[11px] font-semibold text-ink-muted tnum hidden min-[380px]:inline">
                 {t('kitFeelsLike', { temp: kitAdvice.feelsLikeC })}
               </span>
+              <DisclosureChevron open={isKitOpen} />
             </div>
-          </div>
+          </button>
 
-          <div className="text-xs space-y-1.5 pt-0.5">
+          <Collapsible
+            open={isKitOpen}
+            innerClassName="px-3.5 pb-3.5 pt-2.5 border-t border-dashed border-ink/10 dark:border-white/10 text-xs space-y-1.5"
+          >
             <div className="flex items-baseline gap-2">
               <span className="text-[10px] font-mono uppercase tracking-wider text-ink-muted w-20 shrink-0">
                 {t('kitUpperShort')}
@@ -983,9 +1044,10 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
               </span>
               <span className="text-ink-secondary leading-snug">{kitAdvice.opticsAndShield}</span>
             </div>
-          </div>
+          </Collapsible>
         </div>
       </div>
+      </Collapsible>
     </div>
   );
 };

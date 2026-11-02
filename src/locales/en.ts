@@ -767,6 +767,70 @@ export const en = {
   terrainClimb: "Climbs",
   terrainMaxGrade: "Max {pct}%",
   terrainAltitudeSpan: "{min}m – {max}m alt.",
+
+  // ── Progressive Disclosure: Cockpit Action Bar & Quick-Jump ──
+  cockpitActionBarLabel: "Cockpit",
+  cockpitCollapseAll: "Collapse All",
+  cockpitExpandAll: "Expand All",
+  cockpitDensityHint: "Switch between a streamlined summary cockpit and full diagnostic mode",
+  cockpitJumpAria: "Jump to cockpit section",
+  cockpitJumpOverview: "Overview",
+  cockpitJumpTimeline: "Timeline",
+  cockpitJumpChecklist: "Checklist",
+  cockpitJumpNutrition: "Nutrition",
+  cockpitJumpPhysics: "Physics",
+
+  // ── Progressive Disclosure: Reverse Timeline ──
+  timelineFilterAria: "Timeline step filter",
+  timelineFilterCrucial: "Crucial Only",
+  timelineFilterAll: "All Steps ({count})",
+  timelineHiddenSteps: "{count} secondary steps hidden",
+  timelineShowAllBtn: "Show all",
+  timelineStepDetails: "Details",
+  timelineStepLess: "Less",
+  bannerMovingPill: "Moving {min}m",
+  bannerBufferPill: "Buffers +{min}m",
+
+  // ── Progressive Disclosure: Readiness Checklist ──
+  checklistFilterAria: "Checklist category filter",
+  checklistFilterAll: "All ({count})",
+  checklistFilterCritical: "Critical ({count})",
+  checklistFilterMechanics: "Mechanics",
+  checklistFilterGear: "Gear",
+  checklistFilterFood: "Food",
+  checklistFilterSecurity: "Security",
+  checklistHideChecked: "Hide checked",
+  checklistShowChecked: "Show checked ({count})",
+  checklistEmptyCategory: "No items in this category for this trip.",
+  checklistEmptyAllPacked: "All packed here — {count} checked items hidden.",
+
+  // ── Progressive Disclosure: Physics Engine ──
+  physicsKpiLegPower: "Target leg power",
+  physicsKpiWork: "Total work",
+  physicsKpiBurn: "Est. burn",
+  physicsKpiCarb: "Carb burn",
+  physicsKpiCarbSub: "~{total}g total",
+  physicsKpiWorkSub: "GME {pct}%",
+  physicsKpiBurnSub: "Metabolic",
+  physicsTelemetryDrawer: "Detailed Drag & Mass Telemetry",
+  physicsTelemetryDrawerSub: "P_aero · P_rolling · P_gravity · drivetrain loss · system mass",
+
+  // ── Telemetry Share Receipt Modal ──
+  shareReceiptBtn: "Share Receipt",
+  shareModalTitle: "Peloton Flight Receipt",
+  shareModalSub: "Generate 1080×1920px Peloton Flight Receipt for Instagram Story, Strava & photo overlays.",
+  shareModeManifest: "Flight Receipt",
+  shareModeManifestDesc: "Tactile Peloton receipt with ticket cutouts & timeline on #E5E3DD warm stone",
+  shareModeSticker: "Photo Sticker",
+  shareModeStickerDesc: "Alpha transparent ticket cutout with crisp contrast for photo overlay",
+  shareExportBtn: "Export / Share",
+  shareDownloadBtn: "Download 1080×1920 PNG",
+  shareSavePngBtn: "Save PNG",
+  shareCopyBtn: "Copy Image",
+  shareCopiedBtn: "Copied to Clipboard!",
+  shareNativeBtn: "Share",
+  shareSpecsBadge: "1080 × 1920 px · 9:16 Story",
+  shareGenerating: "Rendering Receipt...",
 };
 
 export type TranslationKey = keyof typeof en;

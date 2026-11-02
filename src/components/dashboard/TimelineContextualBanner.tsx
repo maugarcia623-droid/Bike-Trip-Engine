@@ -8,9 +8,9 @@ import {
   ThermometerSimple,
   CloudRain,
   Info,
-  CaretDown,
-  CaretUp,
   Sparkle,
+  Timer,
+  Clock,
 } from '@/components/icons';
 import { TripProfile } from '../../types/trip';
 import { RiderBikeSpecs } from '../../types/specs';
@@ -20,6 +20,7 @@ import { useTranslation, getLocalizedTripMeta } from '../../context/LanguageCont
 import { findChipDef, CHIP_ICONS, getArchetypeFromTag } from '../../utils/archetypeChips';
 import { Badge } from '../common/Badge';
 import { IconBadge } from '../common/IconBadge';
+import { Collapsible, DisclosureChevron } from '../common/Collapsible';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
   CHIP_TOKENS,
@@ -59,29 +60,12 @@ export const TimelineContextualBanner: React.FC<TimelineContextualBannerProps> =
   const { lang, t } = useTranslation();
   const effectiveSpecs = riderSpecsProp || loadRiderBikeSpecs();
   const carbTarget = effectiveSpecs.carbTargetGPerHr || 60;
+  const panelId = React.useId();
 
-  const [isExpanded, setIsExpanded] = React.useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem('bike_trip_contextual_banner_expanded');
-      if (saved !== null) {
-        return saved === 'true';
-      }
-    } catch {
-      // fallback
-    }
-    return defaultExpanded;
-  });
+  const [isExpanded, setIsExpanded] = React.useState<boolean>(defaultExpanded);
 
   const toggleExpanded = () => {
-    setIsExpanded((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem('bike_trip_contextual_banner_expanded', String(next));
-      } catch {
-        // ignore
-      }
-      return next;
-    });
+    setIsExpanded((prev) => !prev);
   };
 
   const archetype = getTripArchetype(trip?.tag, trip?.name);
@@ -241,61 +225,63 @@ export const TimelineContextualBanner: React.FC<TimelineContextualBannerProps> =
   const IconComponent = config.icon;
 
   return (
-    <div>
-      {/* Full-Radius Chain-Link Callout Bar */}
+    <div className="rounded-pod bg-pod overflow-hidden transition-colors">
+      {/* Compact 1-line Mandate Header: icon · title · key metric pills · chevron */}
       <button
         type="button"
         onClick={toggleExpanded}
         aria-expanded={isExpanded}
-        className="w-full flex items-center justify-between gap-2.5 sm:gap-3 pl-2.5 pr-2.5 sm:pr-3 py-2.5 rounded-2xl sm:rounded-full bg-pod hover:bg-chip/70 transition-colors cursor-pointer text-left focus:outline-none"
+        aria-controls={panelId}
+        title={config.summaryLine}
+        className="w-full flex items-center gap-2 sm:gap-2.5 p-2 pr-2.5 hover:bg-chip/60 transition-colors cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
       >
-        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-          <IconBadge
-            theme={config.theme}
-            icon={IconComponent}
-            size="spine"
-            solidBacker
-            className="w-9 h-9 sm:w-9 sm:h-9 shrink-0"
-          />
+        <IconBadge
+          theme={config.theme}
+          icon={IconComponent}
+          size="spine"
+          solidBacker
+          className="w-8 h-8 sm:w-8 sm:h-8 shrink-0"
+        />
 
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm font-semibold text-ink leading-tight">
-                {config.directiveTitle}
-              </span>
-              <Badge variant={config.theme} size="sm" dot className="hidden sm:inline-flex">
-                {config.badgeValue}
-              </Badge>
-            </div>
-            <p className="text-xs text-ink-muted mt-0.5 truncate">
-              {config.summaryLine}
-            </p>
-          </div>
-        </div>
+        <span className="flex-1 min-w-0 truncate text-[13px] sm:text-sm font-semibold font-rounded text-ink leading-tight">
+          {config.directiveTitle}
+        </span>
 
-        <div className="flex items-center gap-2 shrink-0">
-          {!isExpanded && isHeadwind && (
+        <span className="flex items-center gap-1.5 shrink-0">
+          <Badge variant="zinc" size="sm" icon={Timer} className="tnum">
+            {t('bannerMovingPill', { min: timeline.pureMovingMinutes })}
+          </Badge>
+          <Badge
+            variant={config.theme}
+            size="sm"
+            icon={Clock}
+            className="tnum hidden min-[440px]:inline-flex"
+          >
+            {t('bannerBufferPill', { min: timeline.bufferMinutes })}
+          </Badge>
+          {isHeadwind && (
             <Badge variant="amber" size="sm" icon={Wind} className="hidden md:inline-flex tnum">
               +{headwindImpactMin}m
             </Badge>
           )}
+        </span>
 
-          {/* Crisp White/Elevated Pill Action */}
-          <span className="inline-flex items-center gap-1 px-3 sm:px-3.5 py-1.5 rounded-full text-xs font-medium bg-card text-ink whitespace-nowrap shrink-0">
-            <span>{isExpanded ? t('bannerHide') : t('bannerDetails')}</span>
-            {isExpanded ? (
-              <CaretUp className="w-4 h-4 text-zinc-500 dark:text-zinc-400 shrink-0" />
-            ) : (
-              <CaretDown className="w-4 h-4 text-zinc-500 dark:text-zinc-400 shrink-0" />
-            )}
-          </span>
-        </div>
+        <DisclosureChevron open={isExpanded} />
       </button>
 
-      {/* Expandable Nested Pod */}
-      {isExpanded && (
-        <div className="mt-2.5 rounded-pod bg-pod p-4 sm:p-5 animate-fade-in space-y-4">
+      {/* Expandable Mandate Drawer */}
+      <Collapsible
+        open={isExpanded}
+        id={panelId}
+        innerClassName="px-3.5 sm:px-4 pb-3.5 sm:pb-4 pt-3 border-t border-dashed border-ink/10 dark:border-white/10 space-y-3.5"
+      >
           <div className="space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge variant={config.theme} size="sm" dot className="tnum">
+                {config.badgeValue}
+              </Badge>
+              <span className="text-xs text-ink-muted tnum">{config.summaryLine}</span>
+            </div>
             <p className="text-[13px] text-ink leading-relaxed">
               {config.primaryAdvice}
             </p>
@@ -377,8 +363,7 @@ export const TimelineContextualBanner: React.FC<TimelineContextualBannerProps> =
               </div>
             </div>
           )}
-        </div>
-      )}
+      </Collapsible>
     </div>
   );
 };

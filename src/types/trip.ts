@@ -192,6 +192,76 @@ export interface PhysicsCalculationResult {
 
 export type PhysicsParameters = PhysicsParams;
 
+export type PowerZoneCode = 'Z1' | 'Z2' | 'Z3' | 'Z4' | 'Z5';
+
+export type TelemetryCardMode = 'solid' | 'transparent';
+
+export interface TelemetryShareData {
+  /** Route name / sortie title */
+  routeName?: string;
+  name?: string;
+
+  /** Total route distance in km (e.g. 42.5) */
+  distance?: number | string;
+  distanceKm?: number;
+
+  /** Total elevation gain in meters (e.g. 680) */
+  elevation?: number | string;
+  elevationGainM?: number;
+  elevationM?: number;
+
+  /** Average mechanical power in watts (e.g. 215) */
+  avgPower?: number;
+  avgPowerWatts?: number;
+  averagePower?: number;
+
+  /** Wind tax / aero penalty in watts (e.g. +34 or -12) */
+  windTax?: number;
+  windTaxWatts?: number;
+  powerDeltaWatts?: number;
+
+  /** Air density (rho) in kg/m³ (e.g. 1.204 or 1.225) */
+  airDensity?: number;
+  rho?: number;
+  airDensityRho?: number;
+
+  /** Carb burn / oxidation rate in g/h (e.g. 65) */
+  carbBurn?: number;
+  carbBurnGramsPerHour?: number;
+  carbBurnGPerHour?: number;
+
+  /** Total mechanical crank work in kJ (e.g. 1450) */
+  totalKj?: number;
+  totalWorkKj?: number;
+
+  /** Optional timestamp or date string */
+  timestamp?: string;
+
+  /** Optional rider FTP in watts */
+  ftpWatts?: number;
+
+  /** Optional explicit power zone override */
+  powerZone?: PowerZoneCode;
+
+  /** Optional elevation profile array */
+  elevationProfile?: ElevationProfilePoint[] | Array<{ distKm: number; eleM: number; gradePct?: number }>;
+
+  /** Optional route coordinates array for spatial vector trace */
+  coordinates?: [number, number][] | Array<{ lat: number; lon: number; ele?: number }>;
+
+  /** Optional date override */
+  departureDate?: string;
+
+  /** Primary hero metric choice: 'work' (total kJ) or 'power' (avg watts) */
+  heroMetric?: 'work' | 'power';
+
+  /** Optional moving time formatted (e.g. "1h 42m") */
+  movingTimeFormatted?: string;
+
+  /** Optional average ground speed in km/h */
+  avgSpeedKmH?: number;
+}
+
 export function generateTripChecklist(
   tag: string = "VÉLOTAF",
   distanceKm: number = 35,

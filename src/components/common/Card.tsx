@@ -34,7 +34,7 @@ export const Card: React.FC<CardProps> = ({
             )}
             <div className="min-w-0">
               {title && (
-                <h3 className="text-base sm:text-[17px] font-semibold tracking-tight text-ink leading-snug">
+                <h3 className="text-base sm:text-[17px] font-semibold font-rounded tracking-tight text-ink leading-snug">
                   {title}
                 </h3>
               )}

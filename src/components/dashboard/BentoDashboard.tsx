@@ -13,6 +13,7 @@ import { ReverseTimelineBento } from './ReverseTimelineBento';
 import { getTripArchetype } from './TimelineContextualBanner';
 import { PreFlightChecklistBento } from './PreFlightChecklistBento';
 import { NutritionBento } from './NutritionBento';
+import { ShareTelemetryModal } from '../ShareTelemetryModal';
 import { useTranslation, getLocalizedTripMeta } from '../../context/LanguageContext';
 import { switchActiveStage, getExpeditionTotals } from '../../utils/stageManager';
 import { CHIP_TOKENS } from '../../tokens/chipTokens';
@@ -22,6 +23,7 @@ interface BentoDashboardProps {
   onUpdateTrip: (updated: TripProfile) => void;
   onToggleHeadwind: () => void;
   onPrint: () => void;
+  onShareReceipt?: () => void;
   riderSpecs?: RiderBikeSpecs;
   onUpdateRiderSpecs?: (updated: RiderBikeSpecs) => void;
   onSelectBike?: (bikeId: string) => void;
@@ -32,6 +34,7 @@ interface BentoDashboardProps {
 export const BentoDashboard: React.FC<BentoDashboardProps> = ({
   trip,
   onUpdateTrip,
+  onShareReceipt: onShareReceiptProp,
   riderSpecs,
   onUpdateRiderSpecs,
   onSelectBike,
@@ -39,6 +42,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
   onOpenConfigurator,
 }) => {
   const { lang, t } = useTranslation();
+  const [isShareModalOpen, setIsShareModalOpen] = React.useState<boolean>(false);
   const effectiveSpecs = riderSpecs || loadRiderBikeSpecs();
   const viewMode: CockpitViewMode =
     effectiveSpecs.cockpitViewMode ??
@@ -258,6 +262,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
           onOpenSpecs={onOpenSpecs}
           onOpenConfigurator={onOpenConfigurator}
           onUploadGpxFile={handleUploadGpxInCockpit}
+          onShareReceipt={onShareReceiptProp || (() => setIsShareModalOpen(true))}
         />
       </div>
 
@@ -319,6 +324,14 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* ── Sortie Telemetry Share Receipt Modal ── */}
+      <ShareTelemetryModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        trip={trip}
+        physicsResult={physicsResult}
+      />
     </div>
   );
 };

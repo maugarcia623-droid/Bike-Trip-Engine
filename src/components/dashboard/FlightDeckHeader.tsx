@@ -1,6 +1,12 @@
 import React from 'react';
 import { Wind, Printer, Warning, CheckCircle, ShieldCheck, Bicycle, Pulse } from '@/components/icons';
+import { Share2 } from 'lucide-react';
 import { TripProfile, PhysicsCalculationResult } from '../../types/trip';
+import {
+  CHIP_TOKENS,
+  CHIP_RING_BASE,
+  CHIP_DUOTONE_ISOLATION_CLASSES,
+} from '../../tokens/chipTokens';
 
 export type DashboardViewMode = 'commuter' | 'telemetry';
 
@@ -10,6 +16,7 @@ interface FlightDeckHeaderProps {
   hardDepartureTime: string;
   onToggleHeadwind: () => void;
   onPrint: () => void;
+  onShareReceipt?: () => void;
   checklistProgress: { checked: number; total: number; percent: number };
   viewMode: DashboardViewMode;
   onViewModeChange: (mode: DashboardViewMode) => void;
@@ -21,6 +28,7 @@ export const FlightDeckHeader: React.FC<FlightDeckHeaderProps> = ({
   hardDepartureTime,
   onToggleHeadwind,
   onPrint,
+  onShareReceipt,
   viewMode,
   onViewModeChange,
 }) => {
@@ -119,6 +127,17 @@ export const FlightDeckHeader: React.FC<FlightDeckHeaderProps> = ({
             <Printer className="w-4 h-4 text-ink-secondary dual-tone-sky" />
             <span>Print A4</span>
           </button>
+
+          {onShareReceipt && (
+            <button
+              onClick={onShareReceipt}
+              title="Share Telemetry Receipt"
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-rounded font-semibold transition-all cursor-pointer ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} hover:brightness-[0.98] dark:hover:brightness-110 shadow-xs`}
+            >
+              <Share2 className="w-4 h-4 shrink-0 text-current" />
+              <span>Share Receipt</span>
+            </button>
+          )}
         </div>
       </div>
 

@@ -16,6 +16,7 @@ import {
   X,
   Check,
 } from '@/components/icons';
+import { Share2 } from 'lucide-react';
 import { TripProfile, PhysicsCalculationResult } from '../../types/trip';
 import { RiderBikeSpecs } from '../../types/specs';
 import { getActiveBike, loadRiderBikeSpecs } from '../../utils/specsStorage';
@@ -50,6 +51,7 @@ interface HeroRouteCardProps {
   onOpenSpecs?: () => void;
   onOpenConfigurator?: () => void;
   onUploadGpxFile?: (file: File) => void;
+  onShareReceipt?: () => void;
 }
 
 type ActiveHeroPopover = 'bike' | 'target' | 'route' | 'pace' | 'elevation' | null;
@@ -116,6 +118,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
   onOpenSpecs,
   onOpenConfigurator,
   onUploadGpxFile,
+  onShareReceipt,
 }) => {
   const { lang, t } = useTranslation();
   const isFr = lang === 'fr';
@@ -894,6 +897,18 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
               <Badge variant="yellow-vest" size="md" className="py-1.5 px-3 sm:px-3.5 backdrop-blur-md">
                 {trip.tag || 'BIKEPACKING'}
               </Badge>
+
+              {onShareReceipt && (
+                <button
+                  type="button"
+                  onClick={onShareReceipt}
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-rounded font-semibold transition-all cursor-pointer pointer-events-auto ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} hover:brightness-[0.98] dark:hover:brightness-110 shadow-xs hover:shadow-md`}
+                  title={t('shareReceiptBtn')}
+                >
+                  <Share2 className="w-3.5 h-3.5 shrink-0 text-current" />
+                  <span>{t('shareReceiptBtn')}</span>
+                </button>
+              )}
             </div>
           </div>
 
