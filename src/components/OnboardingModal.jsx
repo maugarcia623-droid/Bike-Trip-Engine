@@ -1141,7 +1141,7 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
       role="dialog"
       aria-modal="true"
       aria-labelledby="onboarding-modal-title"
-      className="fixed inset-0 z-50 bg-[#F5F4EF]/95 dark:bg-[#111113]/95 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-apple-fade-in"
+      className="fixed inset-0 z-50 bg-[#F5F4EF]/95 dark:bg-[#111113]/95 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 pt-[max(0.75rem,calc(env(safe-area-inset-top,0px)+0.75rem))] pb-[max(1rem,calc(env(safe-area-inset-bottom,0px)+1rem))] overflow-y-auto animate-apple-fade-in"
     >
       <div className="relative w-full max-w-4xl my-auto bg-card text-ink rounded-card shadow-2xl border border-black/5 dark:border-white/10 flex flex-col overflow-hidden animate-apple-modal max-h-[92vh] max-h-[92dvh]">
         {/* Top Header Bar with 4-Segment Progress Bar and Close / Skip Button */}

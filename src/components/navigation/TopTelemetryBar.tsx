@@ -198,7 +198,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
     : 'bg-emerald-500';
 
   return (
-    <header className="w-full px-4 sm:px-8 lg:px-12 py-3 sm:py-5 transition-colors duration-200 select-none no-print relative z-40">
+    <header className="w-full px-4 sm:px-8 lg:px-12 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-3 sm:pt-[calc(env(safe-area-inset-top,0px)+1.25rem)] sm:pb-5 transition-colors duration-200 select-none no-print relative z-40">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-6">
         {/* Left: Chain-Link Brand Identifier */}
         <button

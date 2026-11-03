@@ -190,7 +190,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="feedback-modal-title"
-      className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-5 pb-[max(2.5rem,calc(env(safe-area-inset-bottom)+2.5rem))] bg-black/75 dark:bg-black/85 backdrop-blur-sm animate-apple-fade-in overflow-y-auto"
+      className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-5 pt-[max(1rem,calc(env(safe-area-inset-top,0px)+1rem))] pb-[max(2.5rem,calc(env(safe-area-inset-bottom)+2.5rem))] bg-black/75 dark:bg-black/85 backdrop-blur-sm animate-apple-fade-in overflow-y-auto"
       onClick={(e) => {
         if (e.target === e.currentTarget) handleClose();
       }}

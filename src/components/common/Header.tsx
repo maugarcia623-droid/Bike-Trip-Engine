@@ -99,7 +99,7 @@ export const Header: React.FC<HeaderProps> = ({
 
       <header
         ref={headerRef}
-        className="sticky top-0 z-50 bg-canvas/90 backdrop-blur-md w-full px-4 sm:px-6 lg:px-8 py-3.5 transition-colors duration-200 no-print"
+        className="sticky top-0 z-50 bg-canvas/90 backdrop-blur-md w-full px-4 sm:px-6 lg:px-8 pt-[calc(env(safe-area-inset-top,0px)+0.875rem)] pb-3.5 sm:pt-[calc(env(safe-area-inset-top,0px)+0.875rem)] sm:pb-3.5 transition-colors duration-200 no-print"
       >
         <div className="max-w-7xl mx-auto">
           {/* ── DESKTOP LAYOUT (lg+) ── */}
