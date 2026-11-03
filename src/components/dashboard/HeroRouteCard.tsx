@@ -11,9 +11,7 @@ import {
   MapPin,
   Bicycle,
   BikeFast,
-  Receipt,
   Timer,
-  Send,
   CaretDown,
   CaretUp,
   CircleChevronDown,
@@ -1060,30 +1058,6 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
               <Badge variant="yellow-vest" size="md" className="py-1.5 px-3 sm:px-3.5 backdrop-blur-md">
                 {trip.tag || 'BIKEPACKING'}
               </Badge>
-
-              {onShareReceipt && (
-                <button
-                  type="button"
-                  onClick={onShareReceipt}
-                  className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-rounded font-semibold transition-all duration-150 active:scale-[0.98] cursor-pointer pointer-events-auto ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} hover:brightness-[0.98] dark:hover:brightness-110 shadow-xs hover:shadow-md`}
-                  title={t('shareReceiptBtn')}
-                >
-                  <Receipt className="w-3.5 h-3.5 shrink-0 text-current" />
-                  <span>{t('shareReceiptBtn')}</span>
-                </button>
-              )}
-
-              {onOpenFeedback && (
-                <button
-                  type="button"
-                  onClick={onOpenFeedback}
-                  className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-rounded font-semibold transition-all duration-150 active:scale-[0.98] cursor-pointer pointer-events-auto ${CHIP_TOKENS.purple.surface} ${CHIP_TOKENS.purple.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.purple.selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} hover:brightness-[0.98] dark:hover:brightness-110 shadow-xs hover:shadow-md`}
-                  title={t('sendFeedbackBtn')}
-                >
-                  <Send className="w-3.5 h-3.5 shrink-0 text-current" />
-                  <span>{t('sendFeedbackBtn')}</span>
-                </button>
-              )}
             </div>
           </div>
 

@@ -30,6 +30,9 @@ import { BentoDashboard } from './components/dashboard/BentoDashboard';
 import { DashboardEmptyState } from './components/dashboard/DashboardEmptyState';
 import { PrintFlightSheet } from './components/print/PrintFlightSheet';
 import { OnboardingModal } from './components/OnboardingModal';
+import { FeedbackModal } from './components/FeedbackModal';
+import { ShareTelemetryModal } from './components/ShareTelemetryModal';
+import { calculatePhysics } from './utils/physics';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AuthModal } from './components/auth/AuthModal';
 import { ResetPasswordModal } from './components/auth/ResetPasswordModal';
@@ -136,6 +139,9 @@ function AppContent() {
   );
   const [riderSpecs, setRiderSpecs] = useState(loadRiderBikeSpecs);
   const [isSpecsModalOpen, setIsSpecsModalOpen] = useState(false);
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isTopMenuOpen, setIsTopMenuOpen] = useState(false);
 
   const isCloudApplyingRef = React.useRef(false);
   const saveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -712,7 +718,11 @@ function AppContent() {
         }}
         onOpenSpecs={() => setIsSpecsModalOpen(true)}
         onPrint={handlePrint}
+        onShareReceipt={() => setIsShareModalOpen(true)}
+        onOpenFeedback={() => setIsFeedbackModalOpen(true)}
         riderSpecs={riderSpecs}
+        isMenuOpen={isTopMenuOpen}
+        onMenuOpenChange={setIsTopMenuOpen}
       />
 
       {/* Screen Views (with ample bottom padding for the floating navigation island & iOS safe area) */}
@@ -777,29 +787,33 @@ function AppContent() {
                 onSelectBike={handleQuickSelectBike}
                 onOpenSpecs={() => setIsSpecsModalOpen(true)}
                 onOpenConfigurator={() => handleEditTrip(activeTrip)}
+                onShareReceipt={() => setIsShareModalOpen(true)}
+                onOpenFeedback={() => setIsFeedbackModalOpen(true)}
               />
             </CockpitErrorBoundary>
           )
         )}
       </main>
 
-      {/* Floating Dynamic Island Navigation Pill */}
-      <DynamicIslandNav
-        currentView={currentView}
-        onNavigate={(view) => {
-          if (view === 'configurator' && !isNewTrip) {
-            setConfiguratorTrip(activeTrip);
-          }
-          setCurrentView(view);
-        }}
-        activeTrip={activeTrip}
-        allTrips={trips}
-        onSelectTrip={handleSelectTrip}
-        onCreateNew={handleCreateNewTrip}
-        onPrint={handlePrint}
-        onOpenSpecs={() => setIsSpecsModalOpen(true)}
-        onResetDefaults={handleResetDefaults}
-      />
+      {/* Floating Dynamic Island Navigation Pill (Hidden when top settings menu overlay is open) */}
+      {!isTopMenuOpen && (
+        <DynamicIslandNav
+          currentView={currentView}
+          onNavigate={(view) => {
+            if (view === 'configurator' && !isNewTrip) {
+              setConfiguratorTrip(activeTrip);
+            }
+            setCurrentView(view);
+          }}
+          activeTrip={activeTrip}
+          allTrips={trips}
+          onSelectTrip={handleSelectTrip}
+          onCreateNew={handleCreateNewTrip}
+          onPrint={handlePrint}
+          onOpenSpecs={() => setIsSpecsModalOpen(true)}
+          onResetDefaults={handleResetDefaults}
+        />
+      )}
 
       {/* Printable A4 Flight Sheet Layout (Hidden on Screen, Active on Print) */}
       <RiderBikeSpecsModal
@@ -821,6 +835,31 @@ function AppContent() {
 
       {/* Supabase Password Recovery Modal */}
       <ResetPasswordModal />
+
+      {/* Flight Deck Feedback Modal */}
+      <FeedbackModal
+        isOpen={isFeedbackModalOpen}
+        onClose={() => setIsFeedbackModalOpen(false)}
+        tripName={activeTrip?.name}
+      />
+
+      {/* Sortie Telemetry Share Receipt Modal */}
+      <ShareTelemetryModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        trip={activeTrip || undefined}
+        physicsResult={
+          activeTrip
+            ? calculatePhysics(
+                activeTrip.physics,
+                activeTrip.route,
+                activeTrip.weather,
+                lang,
+                riderSpecs?.ftpWatts
+              )
+            : undefined
+        }
+      />
 
       {activeTrip && (
         <div className="hidden print:block print-only">

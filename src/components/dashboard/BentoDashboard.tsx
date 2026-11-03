@@ -30,6 +30,7 @@ interface BentoDashboardProps {
   onToggleHeadwind: () => void;
   onPrint: () => void;
   onShareReceipt?: () => void;
+  onOpenFeedback?: () => void;
   riderSpecs?: RiderBikeSpecs;
   onUpdateRiderSpecs?: (updated: RiderBikeSpecs) => void;
   onSelectBike?: (bikeId: string) => void;
@@ -41,6 +42,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
   trip,
   onUpdateTrip,
   onShareReceipt: onShareReceiptProp,
+  onOpenFeedback,
   riderSpecs,
   onUpdateRiderSpecs,
   onSelectBike,
@@ -269,8 +271,6 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
           onOpenSpecs={onOpenSpecs}
           onOpenConfigurator={onOpenConfigurator}
           onUploadGpxFile={handleUploadGpxInCockpit}
-          onShareReceipt={onShareReceiptProp || (() => setIsShareModalOpen(true))}
-          onOpenFeedback={() => setIsFeedbackModalOpen(true)}
         />
       </div>
 
@@ -341,25 +341,11 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
         </div>
         <button
           type="button"
-          onClick={() => setIsFeedbackModalOpen(true)}
+          onClick={onOpenFeedback || (() => setIsFeedbackModalOpen(true))}
           className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-rounded font-semibold transition-all cursor-pointer ${CHIP_TOKENS.purple.surface} ${CHIP_TOKENS.purple.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.purple.selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} hover:brightness-[0.98] dark:hover:brightness-110 shadow-xs hover:shadow-sm`}
           title={t('sendFeedbackBtn')}
         >
           <BadgeInfo size={15} className="w-4 h-4 shrink-0 text-current" />
-          <span>{t('sendFeedbackBtn')}</span>
-        </button>
-      </div>
-
-      {/* ── Floating Bottom Corner Feedback Trigger ── */}
-      <div className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-40 print:hidden hidden sm:block">
-        <button
-          type="button"
-          onClick={() => setIsFeedbackModalOpen(true)}
-          className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-rounded font-semibold transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-md hover:shadow-lg backdrop-blur-md ${CHIP_TOKENS.purple.surface} ${CHIP_TOKENS.purple.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.purple.selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
-          title={t('sendFeedbackBtn')}
-          aria-label={t('sendFeedbackBtn')}
-        >
-          <BadgeInfo size={16} className="w-4 h-4 text-current shrink-0" />
           <span>{t('sendFeedbackBtn')}</span>
         </button>
       </div>

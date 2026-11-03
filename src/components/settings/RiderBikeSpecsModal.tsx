@@ -153,7 +153,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="specs-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/55 dark:bg-black/75 backdrop-blur-xs animate-apple-fade-in"
+      className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-5 bg-black/55 dark:bg-black/75 backdrop-blur-xs animate-apple-fade-in"
     >
       <div className="relative w-full max-w-4xl max-h-[92vh] max-h-[92dvh] flex flex-col bg-card text-ink rounded-card p-4 sm:p-6 overflow-hidden animate-apple-modal shadow-2xl border border-ink/10 dark:border-white/10">
         {/* Header */}

@@ -77,7 +77,7 @@ export const ResetPasswordModal: React.FC = () => {
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-apple-fade-in"
+      className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-apple-fade-in"
       onClick={(e) => {
         if (e.target === e.currentTarget && !isLoading) setIsPasswordRecoveryOpen(false);
       }}

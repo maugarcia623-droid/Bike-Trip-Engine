@@ -1,0 +1,27 @@
+{
+  "name": "FlightDeck",
+  "short_name": "FlightDeck",
+  "description": "High-Precision Bike Trip Cockpit & Ride Metrics Telemetry",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111111",
+  "theme_color": "#111111",
+  "icons": [
+    {
+      "src": "/favicon.png?v=2",
+      "sizes": "64x64 32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/apple-touch-icon.png?v=2",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/app-icon.png?v=2",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
