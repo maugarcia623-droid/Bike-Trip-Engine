@@ -32,6 +32,9 @@ import {
   Briefcase as PhBriefcase,
   ShieldCheck as PhShieldCheck,
   Flashlight as PhFlashlight,
+  BikeFast as PhBikeFast,
+  Flame2 as PhFlame2,
+  CloudSun as PhCloudSun,
   IconProps,
 } from '@/components/icons';
 import { TripProfile, generateTripChecklist } from '../types/trip';
@@ -223,6 +226,9 @@ export const CHIP_ICONS: Record<
   Briefcase: createDuotone(PhBriefcase),
   Shield: createDuotone(PhShieldCheck),
   Flashlight: createDuotone(PhFlashlight),
+  BikeFast: createDuotone(PhBikeFast),
+  Flame2: createDuotone(PhFlame2),
+  CloudSun: createDuotone(PhCloudSun),
 };
 
 export interface ChipPresetSetting {
@@ -1158,7 +1164,7 @@ export const ARCHETYPE_CHIP_DEFINITIONS: Record<ArchetypeMode, ArchetypeChipDef[
       labelEn: 'Threshold intervals',
       labelFr: 'Fractionné au seuil',
       archetype: 'SPORT',
-      iconName: 'Flame',
+      iconName: 'Flame2',
       colorKey: 'rose',
       descriptionEn: 'Structured high-intensity sweetspot / VO2max intervals with high glycogen demand',
       descriptionFr: 'Intervalles au seuil / VO2max avec forte dépense glycogénique',
@@ -1254,10 +1260,10 @@ export const ARCHETYPE_CHIP_DEFINITIONS: Record<ArchetypeMode, ArchetypeChipDef[
     },
     {
       id: 'fast-group-ride',
-      labelEn: 'Chain gang peloton',
-      labelFr: 'Sortie rapide peloton',
+      labelEn: 'Grand Fondo pacing',
+      labelFr: 'Allure Gran Fondo',
       archetype: 'SPORT',
-      iconName: 'Zap',
+      iconName: 'BikeFast',
       colorKey: 'sky',
       descriptionEn: 'High-tempo Saturday group training ride maintaining 33-36 km/h on flats',
       descriptionFr: 'Entraînement de club à haute allure maintenant 33-36 km/h sur le plat',

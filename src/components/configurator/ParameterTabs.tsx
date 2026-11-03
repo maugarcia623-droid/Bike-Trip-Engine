@@ -149,7 +149,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1.5 sm:px-4 py-2 text-[11px] sm:text-[13px] font-semibold text-center leading-tight sm:whitespace-nowrap transition-all duration-150 rounded-xl sm:rounded-full cursor-pointer min-w-0 ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+              className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1.5 sm:px-4 py-2 text-[11px] sm:text-[13px] font-semibold text-center leading-tight sm:whitespace-nowrap transition-all duration-150 active:scale-[0.97] rounded-xl sm:rounded-full cursor-pointer min-w-0 ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
                 isActive
                   ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
                   : `${CHIP_RING_UNSELECTED} text-zinc-500 hover:text-zinc-800 hover:bg-card/40 dark:text-zinc-400 dark:hover:text-zinc-200`
@@ -166,7 +166,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
       <div>
         {/* ── TAB 1: Physics & mass ── */}
         {activeTab === 'physics' && (
-          <div className="space-y-6 animate-fade-in">
+          <div className="space-y-6 animate-apple-step-in">
             {/* Full-Radius System Mass Callout */}
             <div className="bg-pod rounded-2xl sm:rounded-full pl-2.5 pr-4 sm:pr-5 py-2.5 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
@@ -400,7 +400,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
 
         {/* ── TAB 2: Route & pace ── */}
         {activeTab === 'route' && (
-          <div className="space-y-5 animate-fade-in">
+          <div className="space-y-5 animate-apple-step-in">
             {/* Pacing Strategy Selector: Hold Speed vs Hold Effort (Cap Watts) */}
             <div className="rounded-pod bg-pod p-3.5 space-y-3">
               <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -563,7 +563,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
 
         {/* ── TAB 3: Wind & weather ── */}
         {activeTab === 'weather' && (
-          <div className="space-y-6 animate-fade-in">
+          <div className="space-y-6 animate-apple-step-in">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="bg-pod rounded-pod p-4 flex flex-col justify-between">
                 <div className="flex items-center justify-between mb-1.5">

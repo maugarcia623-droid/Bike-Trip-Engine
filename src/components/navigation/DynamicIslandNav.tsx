@@ -4,8 +4,8 @@ import {
   SlidersHorizontal,
   HomeSmile,
   Plus,
-  CaretUp,
-  CaretDown,
+  CircleChevronUp,
+  CircleChevronDown,
   Check,
 } from '@/components/icons';
 import { TripProfile } from '../../types/trip';
@@ -93,8 +93,8 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
 
   const activeMeta = activeTrip ? getLocalizedTripMeta(activeTrip, lang) : null;
   const yellowVest = CHIP_TOKENS['yellow-vest'];
-  const navBtnBase = `inline-flex items-center justify-center gap-2 h-9 w-9 sm:w-auto sm:h-10 px-0 sm:px-4.5 rounded-full text-xs sm:text-[13.5px] font-semibold whitespace-nowrap transition-all duration-150 cursor-pointer focus:outline-none shrink-0 ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES}`;
-  const navBtnActive = `${yellowVest.surface} ${yellowVest.primary} ${yellowVest.selectedRing}`;
+  const navBtnBase = `inline-flex items-center justify-center gap-2 h-9 w-9 sm:w-auto sm:h-10 px-0 sm:px-4.5 rounded-full text-xs sm:text-[13.5px] font-semibold whitespace-nowrap transition-all duration-150 active:scale-[0.96] cursor-pointer focus:outline-none shrink-0 ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES}`;
+  const navBtnActive = `${yellowVest.surface} ${yellowVest.primary} ${yellowVest.selectedRing} shadow-xs`;
   const navBtnInactive = `${CHIP_RING_UNSELECTED} text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-zinc-200 dark:hover:bg-zinc-800/70`;
 
   return (
@@ -190,9 +190,9 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
                 {activeMeta.name}
               </span>
               {isSwitcherOpen ? (
-                <CaretDown className="w-4 h-4 shrink-0 text-current stroke-[2.2]" />
+                <CircleChevronUp className="w-4 h-4 shrink-0 text-current" />
               ) : (
-                <CaretUp className="w-4 h-4 shrink-0 text-zinc-500 dark:text-zinc-400 stroke-[2.2]" />
+                <CircleChevronDown className="w-4 h-4 shrink-0 text-zinc-500 dark:text-zinc-400" />
               )}
             </button>
           ) : (
@@ -211,7 +211,7 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
             <div
               role="listbox"
               aria-label={t('activeTripAria')}
-              className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:right-0 sm:min-w-full w-[min(20rem,calc(100vw-1.5rem))] sm:w-84 max-w-[calc(100vw-1.5rem)] bg-white dark:bg-[#161618] rounded-[24px] p-3 text-ink dark:text-white shadow-[0_20px_50px_rgba(0,0,0,0.18)] dark:shadow-[0_24px_55px_rgba(0,0,0,0.7)] z-50 animate-fade-in"
+              className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:right-0 sm:min-w-full w-[min(20rem,calc(100vw-1.5rem))] sm:w-84 max-w-[calc(100vw-1.5rem)] bg-white dark:bg-[#161618] rounded-[24px] p-3 text-ink dark:text-white shadow-[0_20px_50px_rgba(0,0,0,0.18)] dark:shadow-[0_24px_55px_rgba(0,0,0,0.7)] z-50 animate-apple-popover"
             >
               {/* Header with Active Trip Count & New Trip Action */}
               <div className="flex items-center justify-between gap-2 pb-2.5 mb-2.5 border-b border-[#E5E3DD] dark:border-[#2C2C30] px-1">
@@ -225,7 +225,7 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
                     onCreateNew();
                     setIsSwitcherOpen(false);
                   }}
-                  className={`text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shrink-0 whitespace-nowrap cursor-pointer transition-all hover:brightness-[0.97] dark:hover:brightness-110 ${yellowVest.surface} ${yellowVest.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                  className={`text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shrink-0 whitespace-nowrap cursor-pointer transition-all duration-150 active:scale-[0.96] hover:brightness-[0.97] dark:hover:brightness-110 ${yellowVest.surface} ${yellowVest.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
                 >
                   <Plus className="w-3.5 h-3.5 text-current stroke-[2.5] shrink-0" />
                   <span>{t('newTripButton')}</span>
@@ -248,7 +248,7 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
                         onSelectTrip(tripItem.id);
                         setIsSwitcherOpen(false);
                       }}
-                      className={`w-full flex items-center justify-between px-3 sm:px-3.5 py-2.5 rounded-xl text-[13px] text-left transition-all duration-150 cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                      className={`w-full flex items-center justify-between px-3 sm:px-3.5 py-2.5 rounded-xl text-[13px] text-left transition-all duration-150 active:scale-[0.98] cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
                         isSelected
                           ? `${yellowVest.surface} ${yellowVest.primary} ${yellowVest.selectedRing}`
                           : `${CHIP_RING_UNSELECTED} bg-[#F4F3EF] hover:bg-[#EBE9E3] text-[#111111] dark:bg-[#202023] dark:hover:bg-[#2C2C30] dark:text-[#F5F5F7]`
@@ -267,7 +267,9 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
                         </div>
                       </div>
                       {isSelected && (
-                        <Check className="w-4 h-4 shrink-0 text-current stroke-[2.5]" />
+                        <div className="animate-apple-check-pop shrink-0">
+                          <Check className="w-4 h-4 text-current stroke-[2.5]" />
+                        </div>
                       )}
                     </button>
                   );

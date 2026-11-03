@@ -22,6 +22,8 @@ import {
   Upload,
   MapPin,
   X,
+  Map as MapIcon,
+  Settings,
 } from '@/components/icons';
 import {
   fetchHourlyWeather,
@@ -704,14 +706,14 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-8 animate-fade-in space-y-5">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-8 space-y-5">
       {/* ── Top Page Header Bar with Editable Title & Summary ── */}
-      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 animate-apple-in stagger-1">
         <div className="flex-1 min-w-0">
           <button
             type="button"
             onClick={onCancel}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-secondary hover:text-ink bg-card hover:bg-pod px-3.5 py-1.5 rounded-full transition-colors mb-2.5 cursor-pointer"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-secondary hover:text-ink bg-card hover:bg-pod px-3.5 py-1.5 rounded-full transition-all duration-150 active:scale-[0.98] mb-2.5 cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>{t('backToFlightDeck')}</span>
@@ -751,15 +753,15 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
           <button
             type="button"
             onClick={handleSave}
-            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 h-10 px-4 text-[13px] font-medium text-ink bg-card hover:bg-pod rounded-full transition-all duration-150 cursor-pointer whitespace-nowrap"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 h-10 px-4 text-[13px] font-medium text-ink bg-card hover:bg-pod rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer whitespace-nowrap"
           >
             {hasSaved ? (
-              <div className={`flex items-center gap-2 animate-fade-in ${CHIP_TOKENS.emerald.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}>
+              <div className={`flex items-center gap-2 animate-apple-check-pop ${CHIP_TOKENS.emerald.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}>
                 <CheckCircle className="w-4 h-4 text-current" />
                 <span>{t('savedBtn')}</span>
               </div>
             ) : (
-              <div className="flex items-center gap-2 animate-fade-in">
+              <div className="flex items-center gap-2">
                 <FloppyDisk className={`w-4 h-4 ${GREYSCALE_TOKENS.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
                 <span>{t('saveProfileBtn')}</span>
               </div>
@@ -769,7 +771,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
           <button
             type="button"
             onClick={handleLaunchDirect}
-            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 h-10 px-4 sm:px-5 text-[13px] font-medium bg-[#111111] hover:bg-[#262626] text-white dark:bg-[#F5F5F7] dark:hover:bg-white dark:text-[#111111] rounded-full transition-all cursor-pointer whitespace-nowrap"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 h-10 px-4 sm:px-5 text-[13px] font-medium bg-[#111111] hover:bg-[#262626] text-white dark:bg-[#F5F5F7] dark:hover:bg-white dark:text-[#111111] rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer whitespace-nowrap"
           >
             <span>{t('saveAndOpenBtn')}</span>
             <ArrowUpRight className="w-4 h-4 shrink-0" />
@@ -778,7 +780,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
       </div>
 
       {/* ── BENTO ROW 1: Route Generator (Left) + Schedule & Weather Sync (Right) ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 animate-apple-in stagger-2">
         {/* Card 1: Route Generator */}
         <div className="rounded-card bg-card text-ink p-4 flex flex-col justify-between transition-colors">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2.5 mb-4">
@@ -1103,7 +1105,10 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
 
                   <div className="rounded-pod bg-pod p-3 border border-ink/5 dark:border-white/5">
                     <div className="flex items-center justify-between text-xs font-semibold text-ink mb-1.5">
-                      <span>{t('routeDistInputLabel')}</span>
+                      <span className="flex items-center gap-1.5">
+                        <MapIcon className={`w-3.5 h-3.5 text-beacon-red dark:text-rose-400 dual-tone-rose shrink-0 ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
+                        {t('routeDistInputLabel')}
+                      </span>
                       <span className="font-mono font-bold tnum">{trip.route.distanceKm} km</span>
                     </div>
                     <input
@@ -1438,7 +1443,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
       </div>
 
       {/* ── BENTO ROW 2: Ride Archetype & Identity with Nested Constraints & Rules ── */}
-      <div className="rounded-card bg-card text-ink p-4 transition-colors space-y-6">
+      <div className="rounded-card bg-card text-ink p-4 transition-colors space-y-6 animate-apple-in stagger-3">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-base sm:text-[17px] font-semibold tracking-tight text-ink">
@@ -1823,7 +1828,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
       </div>
 
       {/* ── BENTO ROW 3: Parameter Tabs (Physics, Route, Weather) + Live Telemetry Sidebar ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 animate-apple-in stagger-4">
         <div className="lg:col-span-2">
           <ParameterTabs
             trip={trip}
@@ -1951,7 +1956,10 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                 )}
                 <div className="lane-divider" aria-hidden="true" />
                 <div className="flex items-center justify-between pt-2">
-                  <span className="text-ink-secondary">{t('drivetrainLossRow')}</span>
+                  <span className="text-ink-secondary flex items-center gap-1.5">
+                    <Settings className="w-3.5 h-3.5 text-ink-secondary shrink-0" />
+                    {t('drivetrainLossRow')}
+                  </span>
                   <span className="text-ink font-semibold tnum">{Math.round(physicsResult.legWatts - physicsResult.wheelWatts)} W</span>
                 </div>
                 {trip.weather.isHeadwindActive && (

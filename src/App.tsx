@@ -35,6 +35,7 @@ import { AuthModal } from './components/auth/AuthModal';
 import { ResetPasswordModal } from './components/auth/ResetPasswordModal';
 import { fetchCloudUserState, saveCloudUserState, isCloudDataEmpty } from './services/cloudSync';
 import { AppDataPayload } from './types/auth';
+import { loadUserProfile, saveUserProfile } from './utils/userProfileStorage';
 
 const STORAGE_KEY_ONBOARDED = 'bike_trip_engine_onboarded_v1';
 
@@ -222,11 +223,13 @@ function AppContent() {
         if (cloudEmpty) {
           // If logged in and cloud account is empty, upload local data into cloud account ONLY if user actually has trips
           if (trips.length > 0) {
+            const currentUserProf = loadUserProfile();
             const initialPayload: AppDataPayload = {
               trips,
               riderSpecs,
               activeTripId,
               updatedAt: new Date().toISOString(),
+              userProfile: currentUserProf || undefined,
             };
 
             const { error: uploadError } = await saveCloudUserState(currentUserId, initialPayload);
@@ -259,6 +262,10 @@ function AppContent() {
           if (incomingSpecs && typeof incomingSpecs === 'object') {
             setRiderSpecs(incomingSpecs);
             saveRiderBikeSpecs(incomingSpecs);
+          }
+
+          if (cloudAppData.userProfile && cloudAppData.userProfile.name) {
+            saveUserProfile(cloudAppData.userProfile);
           }
 
           const resolvedActiveId =
@@ -317,11 +324,13 @@ function AppContent() {
 
     saveTimeoutRef.current = setTimeout(async () => {
       try {
+        const currentUserProf = loadUserProfile();
         const payload: AppDataPayload = {
           trips,
           riderSpecs,
           activeTripId,
           updatedAt: new Date().toISOString(),
+          userProfile: currentUserProf || undefined,
         };
 
         const { error } = await saveCloudUserState(currentUserId, payload);
@@ -353,11 +362,13 @@ function AppContent() {
       const currentUserId = user.id;
       setSyncStatus('saving');
       try {
+        const currentUserProf = loadUserProfile();
         const payload: AppDataPayload = {
           trips,
           riderSpecs,
           activeTripId,
           updatedAt: new Date().toISOString(),
+          userProfile: currentUserProf || undefined,
         };
         const { error } = await saveCloudUserState(currentUserId, payload);
         if (error) {

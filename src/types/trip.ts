@@ -236,6 +236,7 @@ export interface TelemetryShareData {
 
   /** Optional timestamp or date string */
   timestamp?: string;
+  departureDate?: string;
 
   /** Optional rider FTP in watts */
   ftpWatts?: number;
@@ -243,22 +244,19 @@ export interface TelemetryShareData {
   /** Optional explicit power zone override */
   powerZone?: PowerZoneCode;
 
+  /** Which metric to showcase: 'work' (kJ) or 'power' (Watts) */
+  heroMetric?: 'work' | 'power';
+
   /** Optional elevation profile array */
   elevationProfile?: ElevationProfilePoint[] | Array<{ distKm: number; eleM: number; gradePct?: number }>;
 
   /** Optional route coordinates array for spatial vector trace */
   coordinates?: [number, number][] | Array<{ lat: number; lon: number; ele?: number }>;
 
-  /** Optional date override */
-  departureDate?: string;
-
-  /** Primary hero metric choice: 'work' (total kJ) or 'power' (avg watts) */
-  heroMetric?: 'work' | 'power';
-
-  /** Optional moving time formatted (e.g. "1h 42m") */
+  /** Optional moving time formatted (e.g. "2h 14m") */
   movingTimeFormatted?: string;
 
-  /** Optional average ground speed in km/h */
+  /** Optional ground speed in km/h */
   avgSpeedKmH?: number;
 }
 

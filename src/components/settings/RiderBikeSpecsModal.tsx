@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, User, Bicycle, Check, Plus, Trash, Sparkle, Lightning } from '@/components/icons';
 import { RiderBikeSpecs, BikeSpec, NutritionPreference, RiderLevel } from '../../types/specs';
 import { saveRiderBikeSpecs, getActiveBike } from '../../utils/specsStorage';
+import { saveUserProfile } from '../../utils/userProfileStorage';
 import { useTranslation } from '../../context/LanguageContext';
 import { IconBadge } from '../common/IconBadge';
 import { Badge } from '../common/Badge';
@@ -136,6 +137,9 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
 
   const handleSave = () => {
     saveRiderBikeSpecs(localSpecs);
+    if (localSpecs.riderName) {
+      saveUserProfile({ name: localSpecs.riderName });
+    }
     onSave(localSpecs);
     setHasSaved(true);
     setTimeout(() => {
@@ -149,16 +153,16 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="specs-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/55 dark:bg-black/75 backdrop-blur-xs"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/55 dark:bg-black/75 backdrop-blur-xs animate-apple-fade-in"
     >
-      <div className="relative w-full max-w-4xl max-h-[92vh] max-h-[92dvh] flex flex-col bg-card text-ink rounded-card p-4 sm:p-6 overflow-hidden animate-fade-in shadow-xl">
+      <div className="relative w-full max-w-4xl max-h-[92vh] max-h-[92dvh] flex flex-col bg-card text-ink rounded-card p-4 sm:p-6 overflow-hidden animate-apple-modal shadow-2xl border border-ink/10 dark:border-white/10">
         {/* Header */}
-        <div className="flex items-start justify-between gap-3 mb-4 shrink-0">
+        <div className="flex items-start justify-between gap-3 mb-4 shrink-0 animate-apple-in stagger-1">
           <div className="flex items-center gap-3 min-w-0">
             <IconBadge theme="yellow-vest" icon={User} size="lg" isSelected solidBacker />
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 id="specs-modal-title" className="text-base sm:text-lg font-semibold text-ink tracking-tight">
+                <h2 id="specs-modal-title" className="text-base sm:text-lg font-semibold text-ink tracking-tight font-rounded">
                   {isFr ? 'Profil Cycliste & Garage Vélo' : 'Rider Profile & Bike Garage'}
                 </h2>
                 <Badge variant="emerald" size="xs" className="tnum">
@@ -176,7 +180,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
             type="button"
             onClick={onClose}
             aria-label={t('closeModalAria')}
-            className={`w-9 h-9 shrink-0 rounded-full hover:text-ink hover:bg-chip flex items-center justify-center transition-colors cursor-pointer ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+            className={`w-9 h-9 shrink-0 rounded-full hover:text-ink hover:bg-chip flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
           >
             <X className="w-4 h-4 text-current" />
           </button>
@@ -235,6 +239,24 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
               <Badge variant="zinc" size="xs" className="tnum font-mono">
                 {currentWkg} W/kg
               </Badge>
+            </div>
+
+            {/* Rider Call-Sign / Name */}
+            <div className="space-y-1.5 rounded-pod bg-card p-3 border border-ink/5 dark:border-white/5">
+              <label className="text-[11px] font-bold text-ink uppercase tracking-wider flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5 text-ink-muted" />
+                <span>{isFr ? 'Prénom / Nom du cycliste' : 'Rider Name / Call-Sign'}</span>
+              </label>
+              <input
+                type="text"
+                value={localSpecs.riderName || ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setLocalSpecs((prev) => ({ ...prev, riderName: val }));
+                }}
+                placeholder={isFr ? 'ex. Mauricio' : 'e.g. Mauricio'}
+                className="w-full h-9 px-3 rounded-xl bg-pod border border-black/10 dark:border-white/10 text-xs font-semibold text-ink outline-none focus:border-[#a3b300] dark:focus:border-[#dfff00]"
+              />
             </div>
 
             {/* Rider Level Selector */}
@@ -786,20 +808,20 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 sm:flex-initial h-10 px-5 text-[13px] font-medium rounded-full text-ink-secondary bg-pod hover:bg-chip transition-colors cursor-pointer"
+              className="flex-1 sm:flex-initial h-10 px-5 text-[13px] font-medium rounded-full text-ink-secondary bg-pod hover:bg-chip transition-all duration-150 active:scale-[0.98] cursor-pointer"
             >
               {t('cancelBtn')}
             </button>
             <button
               type="button"
               onClick={handleSave}
-              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 h-10 px-5 text-[13px] font-medium rounded-full bg-[#111111] hover:bg-[#262626] text-white dark:bg-[#F5F5F7] dark:hover:bg-white dark:text-[#111111] transition-colors cursor-pointer"
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 h-10 px-5 text-[13px] font-medium rounded-full bg-[#111111] hover:bg-[#262626] text-white dark:bg-[#F5F5F7] dark:hover:bg-white dark:text-[#111111] transition-all duration-150 active:scale-[0.98] cursor-pointer"
             >
               {hasSaved ? (
-                <>
+                <div className="flex items-center gap-1.5 animate-apple-check-pop">
                   <Check className="w-4 h-4" />
                   <span>{t('savedBtn')}</span>
-                </>
+                </div>
               ) : (
                 <span>{t('saveSpecsBtn')}</span>
               )}

@@ -459,11 +459,26 @@
   }
 }
 
-/* ── FLIGHT DECK PROGRESSIVE FADE IN & MOVE UP ANIMATION ── */
-@keyframes flightDeckFadeInUp {
+/* ── APPLE MOTION GRAPHICS: SUBTLE, REFINED & CONSISTENT ANIMATION SYSTEM ── */
+:root {
+  --ease-apple: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-apple-spring: cubic-bezier(0.2, 0.9, 0.3, 1);
+  --ease-apple-snappy: cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+@keyframes appleFadeIn {
   0% {
     opacity: 0;
-    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes appleFadeInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
   }
   100% {
     opacity: 1;
@@ -471,16 +486,166 @@
   }
 }
 
-.animate-flight-deck-in {
-  animation: flightDeckFadeInUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+@keyframes appleModalEnter {
+  0% {
+    opacity: 0;
+    transform: scale(0.96) translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
-.deck-stagger-1 { animation-delay: 40ms; }
-.deck-stagger-2 { animation-delay: 120ms; }
-.deck-stagger-3 { animation-delay: 200ms; }
-.deck-stagger-4 { animation-delay: 280ms; }
-.deck-stagger-5 { animation-delay: 360ms; }
-.deck-stagger-6 { animation-delay: 440ms; }
+@keyframes applePopoverEnter {
+  0% {
+    opacity: 0;
+    transform: scale(0.95) translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes appleStepSlide {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.995);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes appleReceiptFloat {
+  0% {
+    opacity: 0;
+    transform: scale(0.95) translateY(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes appleTitleReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes appleCheckPop {
+  0% {
+    transform: scale(0.75);
+    opacity: 0;
+  }
+  65% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes appleBeaconBreath {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(1.06);
+  }
+}
+
+/* Primary progressive entrance classes */
+.animate-apple-in {
+  animation: appleFadeInUp 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-apple-fade-in {
+  animation: appleFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-apple-modal {
+  animation: appleModalEnter 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-apple-popover {
+  animation: applePopoverEnter 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-apple-step-in {
+  animation: appleStepSlide 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-apple-receipt {
+  animation: appleReceiptFloat 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-apple-title {
+  animation: appleTitleReveal 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-apple-check-pop {
+  animation: appleCheckPop 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-beacon-breath {
+  animation: appleBeaconBreath 2.4s ease-in-out infinite;
+}
+
+/* Unified progressive reveals: Flight Deck and across all screens */
+.animate-flight-deck-in {
+  animation: appleFadeInUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.stagger-1, .deck-stagger-1 { animation-delay: 35ms; }
+.stagger-2, .deck-stagger-2 { animation-delay: 80ms; }
+.stagger-3, .deck-stagger-3 { animation-delay: 130ms; }
+.stagger-4, .deck-stagger-4 { animation-delay: 180ms; }
+.stagger-5, .deck-stagger-5 { animation-delay: 230ms; }
+.stagger-6, .deck-stagger-6 { animation-delay: 280ms; }
+.stagger-7 { animation-delay: 330ms; }
+.stagger-8 { animation-delay: 380ms; }
+
+/* Interactive Tactile Classes (Apple-Style physical response) */
+.apple-card-hover {
+  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.24s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.18s ease;
+}
+.apple-card-hover:hover {
+  transform: translateY(-2px);
+}
+.apple-card-hover:active {
+  transform: translateY(0px) scale(0.99);
+}
+
+.apple-interactive-btn {
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), filter 0.15s ease, background-color 0.15s ease;
+}
+.apple-interactive-btn:active {
+  transform: scale(0.97);
+}
+
+/* Reduced Motion: Industry standard accessibility override */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
 
 /* ── MODERN NO-SCROLLBAR UTILITY ── */
 .no-scrollbar::-webkit-scrollbar {
@@ -584,6 +749,13 @@ svg polyline[stroke-opacity="0.4"] {
     font-size: 16px;
   }
 }
+
+/* ── LEAFLET CONTAINER SMOOTH THEME BACKGROUND (PREVENTS DEFAULT #DDD WHITE FLASH) ── */
+.leaflet-container {
+  background-color: transparent !important;
+  outline: none;
+}
+
 
 
 

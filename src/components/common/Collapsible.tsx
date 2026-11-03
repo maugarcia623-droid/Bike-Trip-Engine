@@ -34,7 +34,7 @@ export const Collapsible: React.FC<CollapsibleProps> = ({
   <div
     id={id}
     aria-hidden={!open}
-    className={`grid transition-[grid-template-rows,opacity,visibility] duration-300 ease-out motion-reduce:transition-none ${
+    className={`grid transition-[grid-template-rows,opacity,visibility] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${
       open ? 'grid-rows-[1fr] opacity-100 visible' : 'grid-rows-[0fr] opacity-0 invisible'
     } ${className}`}
   >

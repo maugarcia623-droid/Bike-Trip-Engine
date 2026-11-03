@@ -8,6 +8,9 @@ import {
   Gauge,
   Flame,
   Wind,
+  HandClosed,
+  CircleArrowUpRight,
+  Settings,
 } from '@/components/icons';
 import { TripProfile, PhysicsCalculationResult } from '../../types/trip';
 import { CockpitViewMode } from '../../types/specs';
@@ -235,9 +238,15 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
             <span className="text-[11px] font-rounded font-semibold uppercase tracking-wide text-ink-muted truncate">
               {t('physicsKpiLegPower')}
             </span>
-            <span
-              className={`w-2 h-2 rounded-full shrink-0 ${CHIP_TOKENS[zoneTheme].dot}`}
-              aria-hidden="true"
+            <InfoTooltip
+              title={t('targetLegPowerTooltipTitle')}
+              content={t('targetLegPowerTooltipContent', {
+                wkg: wattsPerKg,
+                ftpPct: ftpPercent,
+                ftp: ftpWatts,
+                zone: zoneLabel,
+              })}
+              size="sm"
             />
           </div>
           <div className="flex items-baseline gap-1 tnum">
@@ -588,7 +597,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
                 <span
                   className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary}`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full ${CHIP_TOKENS['yellow-vest'].dot}`} />
+                  <HandClosed className="w-3.5 h-3.5 shrink-0 text-current" />
                   <span>{t('aeroDragPill')}</span>
                   <InfoTooltip
                     title={t('aeroDragTooltipTitle')}
@@ -633,7 +642,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
                 <span
                   className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary}`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full ${CHIP_TOKENS.emerald.dot}`} />
+                  <CircleArrowUpRight className="w-3.5 h-3.5 shrink-0 text-current" />
                   <span>{t('tireRollingPill')}</span>
                   <InfoTooltip
                     title={t('rollingTooltipTitle')}
@@ -681,7 +690,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
                 <span
                   className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary}`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full ${CHIP_TOKENS.amber.dot}`} />
+                  <Settings className="w-3.5 h-3.5 shrink-0 text-current" />
                   <span>{t('drivetrainPill')}</span>
                   <InfoTooltip
                     title={t('drivetrainTooltipTitle')}

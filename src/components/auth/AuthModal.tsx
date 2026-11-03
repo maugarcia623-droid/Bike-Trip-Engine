@@ -157,7 +157,7 @@ export const AuthModal: React.FC = () => {
 
   return (
     <div
-      className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-fade-in"
+      className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-apple-fade-in"
       onClick={(e) => {
         if (e.target === e.currentTarget) closeAuthModal();
       }}
@@ -165,19 +165,19 @@ export const AuthModal: React.FC = () => {
       aria-modal="true"
       aria-labelledby="auth-modal-title"
     >
-      <div className="bg-card text-ink border border-ink/10 dark:border-white/10 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative my-auto transition-transform">
+      <div className="bg-card text-ink border border-ink/10 dark:border-white/10 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative my-auto animate-apple-modal">
         {/* Dismiss Button */}
         <button
           type="button"
           onClick={closeAuthModal}
-          className="absolute top-5 right-5 w-9 h-9 rounded-full bg-pod dark:bg-canvas hover:bg-chip flex items-center justify-center text-ink-muted hover:text-ink transition-colors cursor-pointer focus:outline-none"
+          className="absolute top-5 right-5 w-9 h-9 rounded-full bg-pod dark:bg-canvas hover:bg-chip flex items-center justify-center text-ink-muted hover:text-ink transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer focus:outline-none"
           aria-label="Close modal"
         >
           <X className="w-4.5 h-4.5" />
         </button>
 
         {/* Brand Icon Header */}
-        <div className="flex items-center gap-3 mb-5">
+        <div className="flex items-center gap-3 mb-5 animate-apple-in stagger-1">
           <div
             className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-xs ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
           >

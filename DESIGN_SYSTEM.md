@@ -657,32 +657,52 @@ The command deck uses a 12-column responsive grid on large screens:
 
 ---
 
-## 11. Staggered Entrance Animations
+## 11. Motion Graphics & Animation Architecture (Apple-Inspired)
 
-The Flight Deck uses a customized progressive reveal animation when views mount:
+The application uses an **Apple-inspired motion graphics system** for typography, graphic elements, and progressive reveals. Motion is subtle, elegant, expressive, and refined, adhering strictly to industry standards for high-performance web applications.
+
+### Core Motion Principles
+1. **Fluid Spring Deceleration (`cubic-bezier(0.16, 1, 0.3, 1)`)**: Immediate velocity that settles naturally with zero abrupt stops.
+2. **Subtle Amplitudes**: Translations use subtle offsets (8px–14px, never floaty 20px+ jumps) so content feels grounded and fast.
+3. **Where to Animate**:
+   - **View & Screen Transitions**: Cascading staggered entrance across Home, Configurator, and Flight Deck (`animate-apple-in stagger-1` ... `stagger-6`).
+   - **Modals & Dialogs**: Backdrops fade smoothly (`animate-apple-fade-in`), dialog windows scale up gently (`animate-apple-modal`, `scale(0.96) translateY(12px) → scale(1) translateY(0)`).
+   - **Multi-Step Wizards (Onboarding)**: Seamless step changes with `animate-apple-step-in`.
+   - **Receipt Window (`ShareTelemetryModal`)**: Floating 9:16 canvas preview (`animate-apple-receipt`) with realistic ambient depth and smooth mode transitions.
+   - **Dropdowns & Popovers**: Gentle scale and slide (`animate-apple-popover`).
+   - **Interactive Tactile Feedback**: `active:scale-[0.98]` or `active:scale-[0.97]` on buttons and chips for tactile physical response.
+   - **Checkmarks & Toggles**: Micro-pop bounce (`animate-apple-check-pop`) on checklist completion or copy actions.
+4. **Where to Keep UI Elements Static (Crucial Best Practices)**:
+   - **Live Telemetry & Figures**: Numeric readouts (watts, air density, wind tax, calories) during slider drag MUST remain static without CSS transition lag to guarantee 60fps real-time physics calculation.
+   - **Fixed Navigation Chrome**: The top bar and dynamic island shell remain anchored without constant re-animation.
+   - **No Ambient Eye-Distractions**: No continuous bouncing or swinging; live status beacons use a slow, gentle luminous breathing (`beacon-pulse` 2.4s).
+   - **Accessibility**: Full `@media (prefers-reduced-motion: reduce)` override disables all transforms and animations for users with motion sensitivity.
+
+### Animation Token Reference
 
 ```css
-@keyframes flightDeckFadeInUp {
-  0% {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+/* Curves */
+--ease-apple:        cubic-bezier(0.16, 1, 0.3, 1);
+--ease-apple-spring: cubic-bezier(0.2, 0.9, 0.3, 1);
+--ease-apple-snappy: cubic-bezier(0.25, 1, 0.5, 1);
 
-.animate-flight-deck-in {
-  animation: flightDeckFadeInUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
+/* Utility Classes */
+.animate-apple-in       /* Staggered page block reveal (0.42s) */
+.animate-apple-fade-in  /* Clean backdrop fade (0.22s) */
+.animate-apple-modal    /* Modal scale & slide entrance (0.34s) */
+.animate-apple-popover  /* Popover / dropdown reveal (0.22s) */
+.animate-apple-step-in  /* Wizard step / tab transition (0.28s) */
+.animate-apple-receipt  /* Floating receipt card entrance (0.45s) */
+.animate-apple-check-pop/* Checkmark micro-spring bounce (0.25s) */
+.animate-beacon-breath  /* Luminous beacon breathing (2.4s infinite) */
 
-.deck-stagger-1 { animation-delay: 40ms; }
-.deck-stagger-2 { animation-delay: 120ms; }
-.deck-stagger-3 { animation-delay: 200ms; }
-.deck-stagger-4 { animation-delay: 280ms; }
-.deck-stagger-5 { animation-delay: 360ms; }
-.deck-stagger-6 { animation-delay: 440ms; }
+/* Progressive Stagger System */
+.stagger-1 { animation-delay: 35ms; }
+.stagger-2 { animation-delay: 80ms; }
+.stagger-3 { animation-delay: 130ms; }
+.stagger-4 { animation-delay: 180ms; }
+.stagger-5 { animation-delay: 230ms; }
+.stagger-6 { animation-delay: 280ms; }
 ```
 
 ---

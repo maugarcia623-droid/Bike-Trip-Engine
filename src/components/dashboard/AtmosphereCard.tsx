@@ -17,6 +17,7 @@ import {
   Lightning,
   Shield,
   FaceSmile,
+  CloudSun,
 } from '@/components/icons';
 import { TripProfile, PhysicsCalculationResult } from '../../types/trip';
 import { getKitRecommendation } from '../../utils/kitAdvisor';
@@ -390,7 +391,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
                 {t('badgeBaseline')}
               </Badge>
             ) : (
-              <Badge variant="emerald" size="sm" dot>
+              <Badge variant="emerald" size="sm" icon={CloudSun}>
                 {t('badgeLive')}
               </Badge>
             )}
@@ -499,7 +500,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
           TAB 1: WIND CONDITIONS & HEADWIND MODELING
          ════════════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'wind' && (
-        <div className="animate-fade-in flex flex-col justify-between">
+        <div className="animate-apple-step-in flex flex-col justify-between">
           {/* Status Chain-Link Capsule Callout */}
           <div className="flex items-start sm:items-center gap-3 pl-3 pr-4 sm:pr-5 py-3 sm:py-2.5 rounded-2xl sm:rounded-full bg-pod mb-3">
             <IconBadge
@@ -777,7 +778,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
           TAB 2: SOLAR ELEVATION & VISIBILITY DIRECTIVES (EXACT MOCKUP IMPLEMENTATION)
          ════════════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'visibility' && (
-        <div className="animate-fade-in flex flex-col justify-between">
+        <div className="animate-apple-step-in flex flex-col justify-between">
           {/* Section Header: Keyline Duotone Sun + Title */}
           <div className="flex items-center gap-2 mb-2 px-0.5">
             <Sun className={`w-4 h-4 shrink-0 ${CHIP_TOKENS.amber.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />

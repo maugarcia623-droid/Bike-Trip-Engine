@@ -12,6 +12,7 @@ export interface BikeSpec {
 }
 
 export interface RiderBikeSpecs {
+  riderName?: string;
   riderWeightKg: number;
   riderHeightCm: number;
   ftpWatts: number;

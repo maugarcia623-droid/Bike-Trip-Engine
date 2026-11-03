@@ -41,6 +41,8 @@ import {
   Target,
   Upload,
   User,
+  BookOpen2,
+  BikeFast,
 } from '@/components/icons';
 import { Cloud } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
@@ -66,6 +68,11 @@ import { POPULAR_CYCLING_HUBS } from '../services/locationService';
 import { parseGpxFileContent } from '../utils/gpxParser';
 import { getActiveBike, loadRiderBikeSpecs } from '../utils/specsStorage';
 import { calculateAutoBikeRoute } from '../utils/routing';
+import {
+  loadUserProfile,
+  saveUserProfile,
+  isPersonalisationCompleted,
+} from '../utils/userProfileStorage';
 
 // Map trip archetype tags to ArchetypeMode keys used in archetypeChips.ts
 const ARCHETYPE_MODE_MAP = {
@@ -106,7 +113,7 @@ const ARCHETYPES = [
     nameFr: 'Sport (Gran Fondo)',
     subtitleEn: 'High Tempo & Aero Efficiency',
     subtitleFr: 'Haute cadence & aérodynamisme',
-    icon: Trophy,
+    icon: BikeFast,
     descriptionEn:
       'Aggressive drops posture, sustained tempo watts, rapid carbohydrate oxidation, and minimal transit delays.',
     descriptionFr:
@@ -214,6 +221,62 @@ const BIKE_PRESETS = [
     descriptionFr: 'Cadre robuste avec porte-bagages, garde-boues et forte capacité de charge.',
     tagEn: 'STURDY & LOADED',
     tagFr: 'ROBUSTE & CHARGÉ',
+  },
+];
+
+// 4 Hyperpersonalisation Bike Categories
+const PERSONALISATION_BIKE_CATEGORIES = [
+  {
+    id: 'gravel',
+    nameEn: 'Gravel / All-Road Commuter',
+    nameFr: 'Gravel / Vélotaf Tout-Chemin',
+    subEn: 'Versatile all-weather · 38mm tires',
+    subFr: 'Polyvalent tout-temps · Pneus 38mm',
+    weightKg: 9.8,
+    cda: 0.38,
+    crr: 0.0055,
+    icon: Bicycle,
+    theme: 'yellow-vest',
+    defaultModel: 'Van Rysel GRVL AF SWORD',
+  },
+  {
+    id: 'road',
+    nameEn: 'Road Bike (Aero / Race)',
+    nameFr: 'Vélo de Route (Aéro / Course)',
+    subEn: 'Drops posture · 28mm slick tires',
+    subFr: 'Position basse aéro · Pneus 28mm',
+    weightKg: 8.2,
+    cda: 0.32,
+    crr: 0.0040,
+    icon: BikeFast,
+    theme: 'amber',
+    defaultModel: 'Canyon Aeroad CF SLX',
+  },
+  {
+    id: 'tourer',
+    nameEn: 'Touring / Heavy Utility Rig',
+    nameFr: 'Randonnée / Trekking',
+    subEn: 'Upright cockpit · 42mm reinforced tires',
+    subFr: 'Position relevée · Pneus 42mm renforcés',
+    weightKg: 12.5,
+    cda: 0.44,
+    crr: 0.0070,
+    icon: Compass,
+    theme: 'emerald',
+    defaultModel: 'Trek 520 Touring',
+  },
+  {
+    id: 'urban',
+    nameEn: 'Urban / Utility / Cargo',
+    nameFr: 'Urbain / Utilitaire / Cargo',
+    subEn: 'Upright city riding · Flat pedals',
+    subFr: 'Position droite ville · Pédales plates',
+    weightKg: 13.5,
+    cda: 0.46,
+    crr: 0.0075,
+    icon: Buildings,
+    theme: 'blue',
+    defaultModel: 'Omnium Urban Utility',
   },
 ];
 
@@ -370,8 +433,77 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
     }
   }, [user, isOpen, onClose]);
 
-  // Wizard internal step: 0 = Welcome & Fork, 1 = Archetype & Chips, 2 = Route, 3 = Equipment, 4 = Contextual Constraints, 5 = Cloud Access
-  const [step, setStep] = useState(0);
+  // Wizard internal step:
+  // 'personalisation' = Initial Personalisation screen (Pilot name, height/weight, bike specs)
+  // 0 = Welcome & Fork, 1 = Archetype & Chips, 2 = Route, 3 = Equipment, 4 = Contextual Constraints, 5 = Cloud Access
+  const [step, setStep] = useState(() => (isPersonalisationCompleted() ? 0 : 'personalisation'));
+
+  // When modal is opened, if personalisation was already completed, open to normal onboarding (step 0)
+  useEffect(() => {
+    if (isOpen) {
+      if (isPersonalisationCompleted()) {
+        setStep(0);
+      } else {
+        setStep('personalisation');
+      }
+    }
+  }, [isOpen]);
+
+  // PERSONALISATION STATE
+  const [personName, setPersonName] = useState(() => loadUserProfile()?.name || '');
+  const [personHeightCm, setPersonHeightCm] = useState(() => loadUserProfile()?.heightCm || loadRiderBikeSpecs().riderHeightCm || 178);
+  const [personWeightKg, setPersonWeightKg] = useState(() => loadUserProfile()?.weightKg || loadRiderBikeSpecs().riderWeightKg || 68);
+  const [personBikeType, setPersonBikeType] = useState(() => loadUserProfile()?.bikeType || 'gravel');
+  const [personBikeName, setPersonBikeName] = useState(() => loadUserProfile()?.bikeName || 'Van Rysel GRVL AF SWORD');
+  const [personBikeWeightKg, setPersonBikeWeightKg] = useState(() => loadUserProfile()?.bikeWeightKg || 9.8);
+  const [personIsTubeless, setPersonIsTubeless] = useState(() => loadUserProfile()?.isTubeless ?? true);
+
+  // Synchronize state when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      const prof = loadUserProfile();
+      if (prof) {
+        if (prof.name) setPersonName(prof.name);
+        if (prof.heightCm) setPersonHeightCm(prof.heightCm);
+        if (prof.weightKg) setPersonWeightKg(prof.weightKg);
+        if (prof.bikeType) setPersonBikeType(prof.bikeType);
+        if (prof.bikeName) setPersonBikeName(prof.bikeName);
+        if (prof.bikeWeightKg) setPersonBikeWeightKg(prof.bikeWeightKg);
+        if (typeof prof.isTubeless === 'boolean') setPersonIsTubeless(prof.isTubeless);
+      }
+    }
+  }, [isOpen]);
+
+  const handleSavePersonalisation = () => {
+    const finalName = (personName || '').trim();
+    const height = personHeightCm ? Number(personHeightCm) : undefined;
+    const weight = personWeightKg ? Number(personWeightKg) : undefined;
+
+    saveUserProfile({
+      name: finalName || (isFr ? 'Pilote' : 'Rider'),
+      heightCm: height,
+      weightKg: weight,
+      bikeType: personBikeType,
+      bikeName: (personBikeName || '').trim() || 'Custom Bike',
+      bikeWeightKg: Number(personBikeWeightKg) || 9.8,
+      isTubeless: Boolean(personIsTubeless),
+    });
+
+    if (weight) setRiderWeightKg(weight);
+    setIsTubeless(Boolean(personIsTubeless));
+    if (personBikeType === 'road') setSelectedBikeId('road');
+    else if (personBikeType === 'tourer') setSelectedBikeId('tourer');
+    else setSelectedBikeId('gravel');
+
+    setStep(0);
+  };
+
+  const handleSkipPersonalisation = () => {
+    saveUserProfile({
+      name: '',
+    });
+    setStep(0);
+  };
 
   // STEP 1 STATE: Starts BLANK to avoid orienting the user
   const [archetype, setArchetype] = useState(null);
@@ -436,10 +568,28 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
   // Shared nutrition toggle
   const [realFoodNutrition, setRealFoodNutrition] = useState(true);
 
-  // Refs for interactive radius map & GPX input (declared before conditional return)
+  // Refs for scroll management, interactive radius map & GPX input (declared before conditional return)
+  const contentBodyRef = useRef(null);
+  const outerDialogRef = useRef(null);
   const radiusMapContainerRef = useRef(null);
   const radiusMapInstanceRef = useRef(null);
   const gpxFileInputRef = useRef(null);
+
+  // Always reset scroll to the top whenever moving between wizard steps or opening the modal
+  useEffect(() => {
+    const scrollToTop = () => {
+      if (contentBodyRef.current) {
+        contentBodyRef.current.scrollTop = 0;
+      }
+      if (outerDialogRef.current) {
+        outerDialogRef.current.scrollTop = 0;
+      }
+    };
+
+    scrollToTop();
+    const frameId = requestAnimationFrame(scrollToTop);
+    return () => cancelAnimationFrame(frameId);
+  }, [step, isOpen]);
 
   const resolvedManualStartCoords = (() => {
     if (
@@ -987,19 +1137,22 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
 
   return (
     <div
+      ref={outerDialogRef}
       role="dialog"
       aria-modal="true"
       aria-labelledby="onboarding-modal-title"
-      className="fixed inset-0 z-50 bg-[#F5F4EF]/95 dark:bg-[#111113]/95 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 bg-[#F5F4EF]/95 dark:bg-[#111113]/95 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-apple-fade-in"
     >
-      <div className="relative w-full max-w-4xl my-auto bg-card text-ink rounded-card shadow-2xl border border-black/5 dark:border-white/10 flex flex-col overflow-hidden animate-fade-in max-h-[92vh] max-h-[92dvh]">
+      <div className="relative w-full max-w-4xl my-auto bg-card text-ink rounded-card shadow-2xl border border-black/5 dark:border-white/10 flex flex-col overflow-hidden animate-apple-modal max-h-[92vh] max-h-[92dvh]">
         {/* Top Header Bar with 4-Segment Progress Bar and Close / Skip Button */}
         <div className="px-4 sm:px-8 pt-4 sm:pt-5 pb-3 sm:pb-3.5 border-b border-black/5 dark:border-white/10 shrink-0">
           <div className="flex items-center justify-between gap-2.5 sm:gap-4">
             <div className="flex items-center gap-2 min-w-0">
-              <span className={`w-2.5 h-2.5 shrink-0 rounded-full ${CHIP_TOKENS['yellow-vest'].dot} animate-beacon-pulse`} />
+              <BookOpen2 className="w-3.5 h-3.5 shrink-0 text-current" />
               <span className="text-[11px] sm:text-xs font-bold tracking-wider uppercase text-ink-muted leading-tight">
-                {step === 0
+                {step === 'personalisation'
+                  ? t('personalisationHeaderTag')
+                  : step === 0
                   ? (isFr ? 'Bienvenue · Assistant de calibrage' : 'Welcome · Calibration Wizard')
                   : `${isFr ? 'Étape' : 'Step'} ${step} / 5 · ${
                       step === 1
@@ -1081,32 +1234,295 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
             </div>
           </div>
 
-          {/* 5-Segment Progress Bar */}
-          <div className="grid grid-cols-5 gap-2 mt-3.5">
-            {[1, 2, 3, 4, 5].map((segIndex) => {
-              const isFilled = step >= segIndex;
-              const isCurrent = step === segIndex;
-              return (
-                <div
-                  key={segIndex}
-                  className={`h-2 rounded-full transition-all duration-300 ${
-                    isFilled
-                      ? 'bg-[#a3b300] dark:bg-[#dfff00]'
-                      : isCurrent
-                      ? 'bg-[#a3b300]/50 dark:bg-[#dfff00]/50'
-                      : 'bg-zinc-200 dark:bg-zinc-800'
-                  }`}
-                />
-              );
-            })}
-          </div>
+          {/* Progress Bar: Setup progress during personalisation, 5-segments during calibration */}
+          {step === 'personalisation' ? (
+            <div className="flex items-center gap-2 mt-3.5">
+              <div className="h-2 flex-1 rounded-full bg-linear-to-r from-[#a3b300] to-emerald-400 dark:from-[#dfff00] dark:to-emerald-300 transition-all duration-300" />
+              <span className="text-[10.5px] font-bold text-ink-muted uppercase tracking-wider">
+                {isFr ? 'Profil Pilote' : 'Pilot Profile'}
+              </span>
+            </div>
+          ) : (
+            <div className="grid grid-cols-5 gap-2 mt-3.5">
+              {[1, 2, 3, 4, 5].map((segIndex) => {
+                const isFilled = typeof step === 'number' && step >= segIndex;
+                const isCurrent = step === segIndex;
+                return (
+                  <div
+                    key={segIndex}
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      isFilled
+                        ? 'bg-[#a3b300] dark:bg-[#dfff00]'
+                        : isCurrent
+                        ? 'bg-[#a3b300]/50 dark:bg-[#dfff00]/50'
+                        : 'bg-zinc-200 dark:bg-zinc-800'
+                    }`}
+                  />
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Wizard Step Content Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-7 space-y-5 sm:space-y-6">
+        <div
+          ref={contentBodyRef}
+          className="flex-1 overflow-y-auto p-4 sm:p-7 space-y-5 sm:space-y-6"
+        >
+          {/* SCREEN PERSONALISATION: GREET USER & ASK NAME, HEIGHT/WEIGHT, BIKE SPECS */}
+          {step === 'personalisation' && (
+            <div className="space-y-6 animate-apple-step-in max-w-2xl mx-auto">
+              <div className="text-center space-y-3 pt-1">
+                <div className="flex justify-center">
+                  <div
+                    className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} flex items-center justify-center shadow-sm`}
+                  >
+                    <User className="w-7 h-7 sm:w-8 sm:h-8 text-current" />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <h1 className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">
+                    {t('personalisationTitle')}
+                  </h1>
+                  <div className="flex justify-center">
+                    <Badge variant="yellow-vest" size="sm">
+                      {isFr ? '1ère Connexion' : 'First Connection'}
+                    </Badge>
+                  </div>
+                </div>
+
+                <p className="text-xs sm:text-sm text-ink-muted leading-relaxed max-w-xl mx-auto">
+                  {t('personalisationSubtitle')}
+                </p>
+              </div>
+
+              {/* Form Card 1: Pilot Name */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-pod border border-black/5 dark:border-white/10 space-y-3 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="onboarding-pilot-name" className="text-xs font-bold uppercase tracking-wider text-ink flex items-center gap-2">
+                    <User className="w-4 h-4 text-ink-muted" />
+                    <span>{t('personalisationNameLabel')}</span>
+                  </label>
+                  <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                    {isFr ? 'Requis pour saluer' : 'Greets you in cockpit'}
+                  </span>
+                </div>
+
+                <div className="relative">
+                  <input
+                    id="onboarding-pilot-name"
+                    type="text"
+                    value={personName}
+                    onChange={(e) => setPersonName(e.target.value)}
+                    placeholder={t('personalisationNamePlaceholder')}
+                    autoFocus
+                    className="w-full h-12 px-4 rounded-xl bg-card border border-black/10 dark:border-white/15 focus:border-[#a3b300] dark:focus:border-[#dfff00] focus:ring-2 focus:ring-[#a3b300]/20 dark:focus:ring-[#dfff00]/20 text-base font-semibold text-ink placeholder:text-ink-muted/50 outline-none transition-all shadow-xs"
+                  />
+                  {personName.trim().length > 0 && (
+                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-500">
+                      <CheckCircle className="w-5 h-5 text-current" />
+                    </div>
+                  )}
+                </div>
+                <p className="text-[11px] text-ink-muted">
+                  {t('personalisationNameHelper')}
+                </p>
+              </div>
+
+              {/* Form Card 2: Pilot Height & Weight (Optional) */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-pod border border-black/5 dark:border-white/10 space-y-3 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-ink flex items-center gap-2">
+                    <Ruler className="w-4 h-4 text-ink-muted" />
+                    <span>{t('personalisationPhysicalSection')}</span>
+                  </span>
+                  <Badge variant="zinc" size="sm" className="font-bold">
+                    {t('personalisationOptionalTag')}
+                  </Badge>
+                </div>
+                <p className="text-[11px] text-ink-muted">
+                  {t('personalisationPhysicalHelper')}
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  {/* Height (cm) */}
+                  <div className="p-3 rounded-xl bg-card border border-black/5 dark:border-white/10 space-y-1.5">
+                    <div className="flex items-center justify-between text-xs text-ink-muted">
+                      <span className="font-medium">{t('personalisationHeightLabel')}</span>
+                      <span className="font-mono text-[11px] text-ink font-semibold">{personHeightCm || '178'} cm</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="120"
+                        max="230"
+                        value={personHeightCm}
+                        onChange={(e) => setPersonHeightCm(e.target.value ? Number(e.target.value) : '')}
+                        className="w-full h-10 px-3 rounded-lg bg-pod border border-black/10 dark:border-white/15 text-sm font-semibold text-ink outline-none focus:border-[#a3b300] dark:focus:border-[#dfff00]"
+                        placeholder="178"
+                      />
+                      <span className="text-xs text-ink-muted font-bold">cm</span>
+                    </div>
+                  </div>
+
+                  {/* Rider Weight (kg) */}
+                  <div className="p-3 rounded-xl bg-card border border-black/5 dark:border-white/10 space-y-1.5">
+                    <div className="flex items-center justify-between text-xs text-ink-muted">
+                      <span className="font-medium">{t('personalisationWeightLabel')}</span>
+                      <span className="font-mono text-[11px] text-ink font-semibold">{personWeightKg || '68'} kg</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="35"
+                        max="160"
+                        step="0.5"
+                        value={personWeightKg}
+                        onChange={(e) => setPersonWeightKg(e.target.value ? Number(e.target.value) : '')}
+                        className="w-full h-10 px-3 rounded-lg bg-pod border border-black/10 dark:border-white/15 text-sm font-semibold text-ink outline-none focus:border-[#a3b300] dark:focus:border-[#dfff00]"
+                        placeholder="68"
+                      />
+                      <span className="text-xs text-ink-muted font-bold">kg</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Card 3: Machine & Hardware Specs */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-pod border border-black/5 dark:border-white/10 space-y-4 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-ink flex items-center gap-2">
+                    <Bicycle className="w-4 h-4 text-ink-muted" />
+                    <span>{t('personalisationBikeSection')}</span>
+                  </span>
+                  <span className="text-[11px] font-semibold text-ink-muted">
+                    {t('personalisationBikeCategoryLabel')}
+                  </span>
+                </div>
+                <p className="text-[11px] text-ink-muted">
+                  {t('personalisationBikeHelper')}
+                </p>
+
+                {/* 4 Category Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {PERSONALISATION_BIKE_CATEGORIES.map((cat) => {
+                    const isSelected = personBikeType === cat.id;
+                    const CatIcon = cat.icon;
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => {
+                          setPersonBikeType(cat.id);
+                          setPersonBikeWeightKg(cat.weightKg);
+                          setPersonBikeName(cat.defaultModel);
+                        }}
+                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-3 ${
+                          isSelected
+                            ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} shadow-xs`
+                            : 'bg-card border-black/5 dark:border-white/10 hover:border-black/20 text-ink'
+                        }`}
+                      >
+                        <IconBadge theme={cat.theme} icon={CatIcon} size="md" isSelected={isSelected} solidBacker />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-xs font-bold text-ink leading-tight">
+                              {isFr ? cat.nameFr : cat.nameEn}
+                            </span>
+                            {isSelected && <Check className="w-3.5 h-3.5 text-current shrink-0" />}
+                          </div>
+                          <p className="text-[10.5px] text-ink-muted mt-0.5 leading-snug">
+                            {isFr ? cat.subFr : cat.subEn}
+                          </p>
+                          <div className="mt-1 font-mono text-[10px] text-ink-muted font-semibold">
+                            {cat.weightKg} kg · CdA {cat.cda}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Fine-Tuning: Bike Name + Bike Weight */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                  <div className="sm:col-span-2 space-y-1">
+                    <label className="text-[11px] font-medium text-ink-muted">
+                      {t('personalisationBikeNameLabel')}
+                    </label>
+                    <input
+                      type="text"
+                      value={personBikeName}
+                      onChange={(e) => setPersonBikeName(e.target.value)}
+                      placeholder={t('personalisationBikeNamePlaceholder')}
+                      className="w-full h-10 px-3 rounded-lg bg-card border border-black/10 dark:border-white/15 text-xs font-semibold text-ink outline-none focus:border-[#a3b300] dark:focus:border-[#dfff00]"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-medium text-ink-muted">
+                      {t('personalisationBikeWeightLabel')}
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="4"
+                        max="35"
+                        value={personBikeWeightKg}
+                        onChange={(e) => setPersonBikeWeightKg(Number(e.target.value) || 9.8)}
+                        className="w-full h-10 px-3 rounded-lg bg-card border border-black/10 dark:border-white/15 text-xs font-semibold text-ink outline-none focus:border-[#a3b300] dark:focus:border-[#dfff00]"
+                      />
+                      <span className="text-xs text-ink-muted font-bold">kg</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tubeless Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setPersonIsTubeless((prev) => !prev)}
+                  className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer ${
+                    personIsTubeless
+                      ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.emerald.selectedRing}`
+                      : 'bg-card border-black/10 dark:border-white/10 hover:border-black/20 text-ink'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Sparkle className="w-4 h-4 text-current shrink-0" />
+                    <span className="text-xs font-semibold text-left">
+                      {t('personalisationTubelessLabel')}
+                    </span>
+                  </div>
+                  <div
+                    className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
+                      personIsTubeless
+                        ? 'bg-emerald-600 dark:bg-emerald-400 text-white dark:text-zinc-950'
+                        : 'border border-black/20 dark:border-white/20'
+                    }`}
+                  >
+                    {personIsTubeless && <Check className="w-3 h-3 text-current stroke-[3]" />}
+                  </div>
+                </button>
+              </div>
+
+              {/* Bottom Quick Returning User Log In */}
+              <div className="pt-2 text-center">
+                <button
+                  type="button"
+                  onClick={() => openAuthModal('login')}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold bg-pod hover:bg-chip text-ink border border-black/10 dark:border-white/15 transition-all shadow-xs cursor-pointer"
+                >
+                  <User className="w-3.5 h-3.5 text-ink-secondary" />
+                  <span>{t('personalisationAlreadyAccount')}</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* SCREEN 0: WELCOME & FORK SCREEN */}
           {step === 0 && (
-            <div className="space-y-6 animate-fade-in">
+            <div className="space-y-6 animate-apple-step-in">
               <div className="text-center max-w-2xl mx-auto space-y-3 pt-1">
                 <div className="flex justify-center">
                   <div
@@ -1137,6 +1553,20 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
                     v2.6
                   </Badge>
                 </div>
+
+                {personName.trim() && (
+                  <div className="flex justify-center pt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setStep('personalisation')}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-pod hover:bg-chip text-ink text-xs font-medium border border-black/10 dark:border-white/15 transition-all cursor-pointer shadow-xs hover:scale-[1.02] active:scale-[0.98]"
+                      title={isFr ? 'Modifier votre profil et vélo' : 'Edit your profile & bike'}
+                    >
+                      <User className="w-3 h-3 text-ink-muted" />
+                      <span>{t('personalisationEditProfileBadge', { name: personName.trim() })}</span>
+                    </button>
+                  </div>
+                )}
 
                 <p className={`text-xs sm:text-sm font-semibold ${CHIP_TOKENS['yellow-vest'].primary} tracking-wide uppercase`}>
                   {isFr
@@ -1301,7 +1731,7 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
 
           {/* STEP 1: RIDE ARCHETYPE (BLANK INITIALLY) & CONSISTENT CHIP GRID */}
           {step === 1 && (
-            <div className="space-y-6 animate-fade-in">
+            <div className="space-y-6 animate-apple-step-in">
               <div>
                 <h3 className="text-lg sm:text-xl font-bold text-ink tracking-tight">
                   {isFr ? 'Étape 1 : Choisissez votre profil de sortie' : 'Step 1: Choose Your Ride Profile'}
@@ -1439,7 +1869,7 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
 
           {/* STEP 2: ROUTE (EITHER CORRIDOR OR MANUAL KM) & QUIRKY PACING SLIDER */}
           {step === 2 && (
-            <div className="space-y-6 animate-fade-in">
+            <div className="space-y-6 animate-apple-step-in">
               <div>
                 <h3 className="text-lg sm:text-xl font-bold text-ink tracking-tight">
                   {isFr ? 'Étape 2 : Parcours, Horaires & Allure' : 'Step 2: Route, Schedule & Cruising Pace'}
@@ -2039,7 +2469,7 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
 
           {/* STEP 3: PILOT, LUGGAGE CHIPS & BIKE SELECTION (NOT PRE-SELECTED, FIXED PADDING) */}
           {step === 3 && (
-            <div className="space-y-6 animate-fade-in">
+            <div className="space-y-6 animate-apple-step-in">
               <div>
                 <h3 className="text-lg sm:text-xl font-bold text-ink tracking-tight">
                   {isFr ? 'Étape 3 : Cycliste, Bagages & Type de vélo' : 'Step 3: Rider, Luggage & Bike Selection'}
@@ -2390,7 +2820,7 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
 
           {/* STEP 4: CONTEXTUAL OPERATIONAL PROTOCOLS (Strictly tailored to chosen archetype) */}
           {step === 4 && (
-            <div className="space-y-6 animate-fade-in">
+            <div className="space-y-6 animate-apple-step-in">
               {/* Dynamic Title per archetype */}
               <div>
                 <h3 className="text-lg sm:text-xl font-bold text-ink tracking-tight">
@@ -2849,7 +3279,7 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
 
           {/* STEP 5: ACCESS YOUR TRIPS ANYWHERE (FOR NEW USERS) */}
           {step === 5 && (
-            <div className="space-y-6 animate-fade-in">
+            <div className="space-y-6 animate-apple-step-in">
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <IconBadge theme="yellow-vest" icon={Cloud} size="md" solidBacker />
@@ -2988,15 +3418,34 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
 
         {/* Wizard Footer Navigation Controls */}
         <div className="px-4 sm:px-8 py-3 sm:py-3.5 bg-pod border-t border-black/5 dark:border-white/10 flex items-center justify-between gap-2 flex-wrap shrink-0">
-          {step === 0 ? (
+          {step === 'personalisation' ? (
+            <>
+              <button
+                type="button"
+                onClick={handleSkipPersonalisation}
+                className="inline-flex items-center gap-1.5 text-xs text-ink-muted hover:text-ink font-medium transition-colors cursor-pointer py-1.5 px-3.5 rounded-full hover:bg-card"
+              >
+                <span>{t('personalisationSkipBtn')}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSavePersonalisation}
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-full ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} hover:brightness-[0.97] dark:hover:brightness-110 text-xs font-extrabold uppercase tracking-wider transition-all duration-150 active:scale-[0.98] shadow-sm cursor-pointer`}
+              >
+                <span>{t('personalisationSaveBtn')}</span>
+                <ArrowRight className="w-4 h-4 text-current" />
+              </button>
+            </>
+          ) : step === 0 ? (
             <div className="text-xs text-ink-muted">
               {isFr ? 'Choisissez une option pour débuter.' : 'Select an option above to ride or configure.'}
             </div>
           ) : (
             <button
               type="button"
-              onClick={() => setStep((prev) => Math.max(0, prev - 1))}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-full bg-card hover:bg-chip text-ink ${CHIP_RING_BASE} ring-zinc-300 dark:ring-zinc-700 ${CHIP_DUOTONE_ISOLATION_CLASSES} text-xs font-semibold transition-all cursor-pointer`}
+              onClick={() => setStep((prev) => (prev === 1 ? 0 : Math.max(0, prev - 1)))}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-full bg-card hover:bg-chip text-ink ${CHIP_RING_BASE} ring-zinc-300 dark:ring-zinc-700 ${CHIP_DUOTONE_ISOLATION_CLASSES} text-xs font-semibold transition-all duration-150 active:scale-[0.98] cursor-pointer`}
             >
               <ArrowLeft className={`w-4 h-4 ${GREYSCALE_TOKENS.primary}`} />
               <span>
@@ -3012,7 +3461,7 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
               type="button"
               disabled={step === 1 && !archetype}
               onClick={() => setStep((prev) => Math.min(4, prev + 1))}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold transition-all shadow-xs ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold transition-all duration-150 active:scale-[0.98] shadow-xs ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
                 step === 1 && !archetype
                   ? `${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} ${CHIP_RING_UNSELECTED} opacity-50 cursor-not-allowed`
                   : `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing} hover:brightness-[0.97] dark:hover:brightness-110 cursor-pointer`
@@ -3027,7 +3476,7 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
             <button
               type="button"
               onClick={() => setStep(5)}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-full ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} hover:brightness-[0.97] dark:hover:brightness-110 text-xs font-extrabold uppercase tracking-wider transition-all shadow-sm cursor-pointer`}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-full ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} hover:brightness-[0.97] dark:hover:brightness-110 text-xs font-extrabold uppercase tracking-wider transition-all duration-150 active:scale-[0.98] shadow-sm cursor-pointer`}
             >
               <span>{isFr ? 'Continuer : Accès & Sauvegarde' : 'Next: Cloud Access'}</span>
               <ArrowRight className="w-4 h-4 text-current" />

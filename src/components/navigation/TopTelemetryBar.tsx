@@ -5,8 +5,9 @@ import { getActiveBike } from '../../utils/specsStorage';
 import { useTheme } from '../../context/ThemeContext';
 import { useTranslation, getLocalizedTripMeta } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
+import { useUserProfile } from '../../utils/userProfileStorage';
 import { calculatePhysics } from '../../utils/physics';
-import { Sun, Moon, Bicycle, Printer, User, CaretDown } from '@/components/icons';
+import { Sun, Moon, Bicycle, Printer, User, CaretDown, Monitor2Check, CircleChevronDown } from '@/components/icons';
 import { Cloud, LogOut } from 'lucide-react';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
@@ -47,6 +48,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
   const { isDark, toggleTheme } = useTheme();
   const { lang, setLang, t } = useTranslation();
   const { user, openAuthModal, signOut, syncStatus, forceSyncNow } = useAuth();
+  const { username } = useUserProfile();
   const [currentTime, setCurrentTime] = useState<string>('');
   const [utcLabel, setUtcLabel] = useState<string>(() => formatLocalUtcOffset(new Date()));
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -244,7 +246,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
               className="h-9 sm:h-10 px-3 sm:px-3.5 rounded-full bg-card dark:bg-pod hover:bg-chip flex items-center gap-2 text-xs sm:text-[13px] font-medium text-ink transition-all cursor-pointer shadow-xs border border-ink/10 dark:border-white/10 shrink-0 ml-1 group"
               title={lang === 'fr' ? 'Données sur cet appareil — Cliquer pour synchroniser' : 'Data on this device — Click to sync'}
             >
-              <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+              <Monitor2Check className="w-4 h-4 text-beacon-amber dual-tone-amber shrink-0" />
               <span className="hidden min-[540px]:inline whitespace-nowrap">
                 {t('savedOnDeviceClickToSync')}
               </span>
@@ -275,7 +277,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
                   {t('cloudSynced')}
                 </span>
                 <span className="hidden md:inline text-ink-muted text-xs truncate max-w-[120px]">
-                  {user.email?.split('@')[0]}
+                  {username || user.email?.split('@')[0]}
                 </span>
                 <CaretDown className={`w-3.5 h-3.5 text-ink-muted transition-transform duration-150 ${isProfileMenuOpen ? 'rotate-180' : ''}`} />
               </button>

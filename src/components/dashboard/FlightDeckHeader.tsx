@@ -1,6 +1,6 @@
 import React from 'react';
-import { Wind, Printer, Warning, CheckCircle, ShieldCheck, Bicycle, Pulse } from '@/components/icons';
-import { Share2 } from 'lucide-react';
+import { Wind, Printer, Warning, CheckCircle, ShieldCheck, Bicycle, Pulse, BadgeInfo, Receipt, Send } from '@/components/icons';
+import { useTranslation } from '../../context/LanguageContext';
 import { TripProfile, PhysicsCalculationResult } from '../../types/trip';
 import {
   CHIP_TOKENS,
@@ -17,6 +17,7 @@ interface FlightDeckHeaderProps {
   onToggleHeadwind: () => void;
   onPrint: () => void;
   onShareReceipt?: () => void;
+  onOpenFeedback?: () => void;
   checklistProgress: { checked: number; total: number; percent: number };
   viewMode: DashboardViewMode;
   onViewModeChange: (mode: DashboardViewMode) => void;
@@ -29,9 +30,11 @@ export const FlightDeckHeader: React.FC<FlightDeckHeaderProps> = ({
   onToggleHeadwind,
   onPrint,
   onShareReceipt,
+  onOpenFeedback,
   viewMode,
   onViewModeChange,
 }) => {
+  const { t } = useTranslation();
   const isGo = physicsResult.goStatus === 'GO';
   const isCaution = physicsResult.goStatus === 'CAUTION';
 
@@ -122,7 +125,7 @@ export const FlightDeckHeader: React.FC<FlightDeckHeaderProps> = ({
           <button
             onClick={onPrint}
             title="Export Clean A4 Ride Sheet PDF"
-            className="flex items-center gap-2 px-4 py-2 rounded-full bg-pod hover:bg-chip text-xs font-mono font-bold text-ink transition-all cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2 rounded-full bg-pod hover:bg-chip text-xs font-mono font-bold text-ink transition-all duration-150 active:scale-[0.98] cursor-pointer"
           >
             <Printer className="w-4 h-4 text-ink-secondary dual-tone-sky" />
             <span>Print A4</span>
@@ -132,10 +135,21 @@ export const FlightDeckHeader: React.FC<FlightDeckHeaderProps> = ({
             <button
               onClick={onShareReceipt}
               title="Share Telemetry Receipt"
-              className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-rounded font-semibold transition-all cursor-pointer ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} hover:brightness-[0.98] dark:hover:brightness-110 shadow-xs`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-rounded font-semibold transition-all duration-150 active:scale-[0.98] cursor-pointer ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} hover:brightness-[0.98] dark:hover:brightness-110 shadow-xs`}
             >
-              <Share2 className="w-4 h-4 shrink-0 text-current" />
+              <Receipt className="w-4 h-4 shrink-0 text-current" />
               <span>Share Receipt</span>
+            </button>
+          )}
+
+          {onOpenFeedback && (
+            <button
+              onClick={onOpenFeedback}
+              title={t('sendFeedbackBtn')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-rounded font-semibold transition-all duration-150 active:scale-[0.98] cursor-pointer ${CHIP_TOKENS.purple.surface} ${CHIP_TOKENS.purple.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.purple.selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} hover:brightness-[0.98] dark:hover:brightness-110 shadow-xs`}
+            >
+              <Send className="w-4 h-4 shrink-0 text-current" />
+              <span>{t('sendFeedbackBtn')}</span>
             </button>
           )}
         </div>

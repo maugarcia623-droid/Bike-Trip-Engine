@@ -62,6 +62,11 @@ export default {
       backdropBlur: {
         xs: '3px',
       },
+      transitionTimingFunction: {
+        'apple': 'cubic-bezier(0.16, 1, 0.3, 1)',
+        'apple-spring': 'cubic-bezier(0.2, 0.9, 0.3, 1)',
+        'apple-snappy': 'cubic-bezier(0.25, 1, 0.5, 1)',
+      },
       boxShadow: {
         'beacon-volt': '0 0 12px 0 rgba(242, 244, 85, 0.45)',
         'beacon-lime': '0 0 12px 0 rgba(202, 241, 100, 0.45)',
@@ -73,14 +78,34 @@ export default {
           '0%': { opacity: '0', transform: 'translateY(3px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
+        'apple-in': {
+          '0%': { opacity: '0', transform: 'translateY(12px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        'apple-modal': {
+          '0%': { opacity: '0', transform: 'scale(0.96) translateY(12px)' },
+          '100%': { opacity: '1', transform: 'scale(1) translateY(0)' },
+        },
+        'apple-popover': {
+          '0%': { opacity: '0', transform: 'scale(0.95) translateY(6px)' },
+          '100%': { opacity: '1', transform: 'scale(1) translateY(0)' },
+        },
+        'apple-step': {
+          '0%': { opacity: '0', transform: 'translateY(8px) scale(0.995)' },
+          '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+        },
         'beacon-pulse': {
-          '0%, 100%': { opacity: '1' },
-          '50%': { opacity: '0.45' },
+          '0%, 100%': { opacity: '1', transform: 'scale(1)' },
+          '50%': { opacity: '0.5', transform: 'scale(1.06)' },
         },
       },
       animation: {
         'fade-in': 'fade-in 0.18s ease-out',
-        'beacon-pulse': 'beacon-pulse 2.2s ease-in-out infinite',
+        'apple-in': 'apple-in 0.42s cubic-bezier(0.16, 1, 0.3, 1) both',
+        'apple-modal': 'apple-modal 0.34s cubic-bezier(0.16, 1, 0.3, 1) both',
+        'apple-popover': 'apple-popover 0.22s cubic-bezier(0.16, 1, 0.3, 1) both',
+        'apple-step': 'apple-step 0.28s cubic-bezier(0.16, 1, 0.3, 1) both',
+        'beacon-pulse': 'beacon-pulse 2.4s ease-in-out infinite',
       },
     },
   },

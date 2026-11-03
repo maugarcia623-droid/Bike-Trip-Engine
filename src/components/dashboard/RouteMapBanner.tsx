@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useTranslation } from '../../context/LanguageContext';
@@ -35,7 +35,9 @@ export const RouteMapBanner: React.FC<RouteMapBannerProps> = ({
 
   const defaultDest = lang === 'fr' ? 'Porte 17 (Saint-Nazaire)' : 'Gate 17 (Saint-Nazaire)';
   const finalDestination = destinationName || gateName || defaultDest;
-  const activeCoordinates = coordinates && coordinates.length > 0 ? coordinates : DEFAULT_CORRIDOR;
+  const activeCoordinates = useMemo(() => {
+    return coordinates && coordinates.length > 0 ? coordinates : DEFAULT_CORRIDOR;
+  }, [coordinates]);
 
   useEffect(() => {
     if (!mapContainerRef.current) return;

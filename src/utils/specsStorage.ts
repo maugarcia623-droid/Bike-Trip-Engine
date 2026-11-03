@@ -70,10 +70,15 @@ export function loadRiderBikeSpecs(): RiderBikeSpecs {
       parsed.nutritionPreference === 'sports-fuel'
         ? parsed.nutritionPreference
         : DEFAULT_RIDER_BIKE_SPECS.nutritionPreference;
+    const resolvedRiderName =
+      typeof parsed.riderName === 'string' && parsed.riderName.trim().length > 0
+        ? parsed.riderName.trim()
+        : undefined;
 
     return {
       ...DEFAULT_RIDER_BIKE_SPECS,
       ...parsed,
+      riderName: resolvedRiderName,
       riderWeightKg: resolvedWeight,
       riderHeightCm: resolvedHeight,
       ftpWatts: resolvedFtp,

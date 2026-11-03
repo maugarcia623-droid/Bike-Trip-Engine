@@ -66,7 +66,7 @@ export const TripCard: React.FC<TripCardProps> = ({
   const activeSegments = Math.round((checkedCount / totalChecklist) * 5);
 
   return (
-    <div className="group relative rounded-card p-4 bg-card text-ink transition-all duration-200 flex flex-col justify-between h-full">
+    <div className="group relative rounded-card p-4 bg-card text-ink apple-card-hover flex flex-col justify-between h-full shadow-xs hover:shadow-lg border border-ink/5 dark:border-white/5">
       {/* Top Section: Category, Actions, Title, Description, Preset Tags */}
       <div>
         {/* Top Row: Category Pill & Circular Action Buttons */}
@@ -88,7 +88,7 @@ export const TripCard: React.FC<TripCardProps> = ({
               onClick={() => onDuplicate(trip)}
               title={t('duplicateTripTitle')}
               aria-label={t('duplicateTripTitle')}
-              className={`w-9 h-9 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-300 ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+              className={`w-9 h-9 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-300 ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
               <Copy className="w-4 h-4 text-current" />
             </button>
@@ -97,7 +97,7 @@ export const TripCard: React.FC<TripCardProps> = ({
               onClick={() => onEdit(trip)}
               title={t('editParamsTitle')}
               aria-label={t('editParamsTitle')}
-              className={`w-9 h-9 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} hover:bg-sky-50 hover:text-sky-700 dark:hover:bg-sky-950/40 dark:hover:text-sky-300 ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+              className={`w-9 h-9 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} hover:bg-sky-50 hover:text-sky-700 dark:hover:bg-sky-950/40 dark:hover:text-sky-300 ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
               <PencilSimple className="w-4 h-4 text-current" />
             </button>
@@ -106,7 +106,7 @@ export const TripCard: React.FC<TripCardProps> = ({
               onClick={() => onDelete(trip.id)}
               title={t('deleteProfileTitle')}
               aria-label={t('deleteProfileTitle')}
-              className={`w-9 h-9 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/40 dark:hover:text-rose-300 ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+              className={`w-9 h-9 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/40 dark:hover:text-rose-300 ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
               <Trash className="w-4 h-4 text-current" />
             </button>
@@ -242,7 +242,7 @@ export const TripCard: React.FC<TripCardProps> = ({
           <button
             type="button"
             onClick={() => onLaunch(trip.id)}
-            className={`flex-1 flex items-center justify-center gap-1.5 font-semibold text-[13px] h-10 px-4 rounded-full transition-all cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+            className={`flex-1 flex items-center justify-center gap-1.5 font-semibold text-[13px] h-10 px-4 rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
               isActive
                 ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing} hover:brightness-[0.97] dark:hover:brightness-110`
                 : `${CHIP_RING_UNSELECTED} bg-[#111111] hover:bg-[#262626] text-white dark:bg-chip dark:hover:bg-chip-hover dark:text-ink`
@@ -256,7 +256,7 @@ export const TripCard: React.FC<TripCardProps> = ({
             <button
               type="button"
               onClick={() => onSelect(trip.id)}
-              className="text-xs font-medium text-ink-secondary hover:text-ink bg-pod hover:bg-chip h-10 px-4 rounded-full transition-all cursor-pointer"
+              className="text-xs font-medium text-ink-secondary hover:text-ink bg-pod hover:bg-chip h-10 px-4 rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer"
             >
               {t('setActiveBtn')}
             </button>

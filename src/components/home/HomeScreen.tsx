@@ -1,5 +1,5 @@
-import React from 'react';
-import { Plus, ArrowCounterClockwise, ShieldCheck, Sparkle } from '@/components/icons';
+import React, { useState } from 'react';
+import { Plus, ArrowCounterClockwise, ShieldCheck, Sparkle, BadgeInfo, BookOpen2, Send } from '@/components/icons';
 import { TripProfile, WeatherCondition } from '../../types/trip';
 import { TripCard } from './TripCard';
 import { WeatherWidget } from './WeatherWidget';
@@ -13,7 +13,9 @@ import {
 } from '../../tokens/chipTokens';
 import { useTranslation } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
+import { useUserProfile } from '../../utils/userProfileStorage';
 import { Cloud } from 'lucide-react';
+import { FeedbackModal } from '../FeedbackModal';
 
 interface HomeScreenProps {
   trips: TripProfile[];
@@ -28,6 +30,7 @@ interface HomeScreenProps {
   onResetDefaults: () => void;
   onOpenOnboarding?: () => void;
   onLoadDemoTrip?: () => void;
+  onOpenFeedback?: () => void;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -43,8 +46,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onResetDefaults,
   onOpenOnboarding,
   onLoadDemoTrip,
+  onOpenFeedback,
 }) => {
   const { lang, t } = useTranslation();
+  const { userProfile, username } = useUserProfile();
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const { user, openAuthModal, lastSyncedAt } = useAuth();
   const syncedDisplayTime = (lastSyncedAt || new Date()).toLocaleTimeString(lang === 'fr' ? 'fr-FR' : 'en-US', {
     hour: '2-digit',
@@ -52,13 +58,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   });
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-8 animate-fade-in">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-8 space-y-6">
       {/* Top Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 animate-apple-in stagger-1">
         <div>
           <div className="flex items-center gap-2.5 flex-wrap">
             <h1 className="text-2xl sm:text-[28px] font-semibold text-ink tracking-tight leading-tight">
-              {t('homeTitle')}
+              {username ? t('homeGreetingUser', { name: username, username }) : t('homeTitle')}
             </h1>
             <Badge variant="yellow-vest" size="md" className="py-1 px-3 tnum">
               {t('homeProfilesCount', { count: trips.length })}
@@ -71,13 +77,23 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
         {/* Full-Radius Controls */}
         <div className="flex items-center gap-2.5 flex-wrap shrink-0">
+          <button
+            type="button"
+            onClick={onOpenFeedback || (() => setIsFeedbackOpen(true))}
+            title={t('sendFeedbackBtn')}
+            className={`flex items-center gap-2 h-10 px-4 text-[13px] font-semibold rounded-full transition-all duration-150 cursor-pointer ${CHIP_TOKENS.purple.surface} ${CHIP_TOKENS.purple.primary} hover:brightness-[0.98] dark:hover:brightness-110 active:scale-[0.98] ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+          >
+            <Send size={16} className="w-4 h-4 text-current shrink-0" />
+            <span>{t('sendFeedbackBtn')}</span>
+          </button>
+
           {onOpenOnboarding && (
             <button
               type="button"
               onClick={onOpenOnboarding}
-              className={`flex items-center gap-2 h-10 px-4 text-[13px] font-semibold rounded-full transition-all cursor-pointer ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} hover:brightness-[0.98] dark:hover:brightness-110 ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+              className={`flex items-center gap-2 h-10 px-4 text-[13px] font-semibold rounded-full transition-all duration-150 cursor-pointer active:scale-[0.98] ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} hover:brightness-[0.98] dark:hover:brightness-110 ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
-              <Sparkle className="w-4 h-4 text-current shrink-0" />
+              <BookOpen2 className="w-4 h-4 text-current shrink-0" />
               <span>{t('calibrationWizardBtn')}</span>
             </button>
           )}
@@ -86,7 +102,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             type="button"
             onClick={onResetDefaults}
             title={t('resetDefaultsTitle')}
-            className={`flex items-center gap-2 h-10 px-4 text-[13px] font-medium bg-card hover:bg-pod rounded-full transition-all cursor-pointer ${GREYSCALE_TOKENS.primary} hover:text-ink ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+            className={`flex items-center gap-2 h-10 px-4 text-[13px] font-medium bg-card hover:bg-pod rounded-full transition-all duration-150 cursor-pointer active:scale-[0.98] ${GREYSCALE_TOKENS.primary} hover:text-ink ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
           >
             <ArrowCounterClockwise className="w-4 h-4 text-current" />
             <span>{t('resetDefaultsBtn')}</span>
@@ -95,7 +111,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <button
             type="button"
             onClick={onCreateNewTrip}
-            className={`flex items-center gap-1.5 h-10 px-5 bg-[#111111] hover:bg-[#262626] text-white dark:bg-[#F5F5F7] dark:hover:bg-white dark:text-[#111111] font-medium text-[13px] rounded-full transition-all cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+            className={`flex items-center gap-1.5 h-10 px-5 bg-[#111111] hover:bg-[#262626] text-white dark:bg-[#F5F5F7] dark:hover:bg-white dark:text-[#111111] font-medium text-[13px] rounded-full transition-all duration-150 cursor-pointer active:scale-[0.98] ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
           >
             <Plus className="w-4 h-4 text-current stroke-[2.2]" />
             <span>{t('createNewTripBtn')}</span>
@@ -105,16 +121,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
       {/* Quick Weather Check Widget (Only when activeTrip exists) */}
       {activeTrip && (
-        <WeatherWidget
-          trip={activeTrip}
-          weather={activeTrip.weather}
-          onUpdateWeather={onUpdateWeather}
-          speedKmH={activeTrip.route.targetSpeedKmH}
-        />
+        <div className="animate-apple-in stagger-2">
+          <WeatherWidget
+            trip={activeTrip}
+            weather={activeTrip.weather}
+            onUpdateWeather={onUpdateWeather}
+            speedKmH={activeTrip.route.targetSpeedKmH}
+          />
+        </div>
       )}
 
       {/* Section Title */}
-      <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-3">
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-3 animate-apple-in stagger-3">
         <h2 className="text-base font-semibold tracking-tight text-ink">
           {t('savedProfilesHeading')}
         </h2>
@@ -126,21 +144,26 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       {/* Trip Cards Grid / Empty State */}
       {trips.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {trips.map((trip) => (
-            <TripCard
+          {trips.map((trip, idx) => (
+            <div
               key={trip.id}
-              trip={trip}
-              isActive={activeTrip ? trip.id === activeTrip.id : false}
-              onSelect={onSelectTrip}
-              onEdit={onEditTrip}
-              onDuplicate={onDuplicateTrip}
-              onDelete={onDeleteTrip}
-              onLaunch={onLaunchDashboard}
-            />
+              className="animate-apple-in"
+              style={{ animationDelay: `${Math.min(idx * 60 + 130, 480)}ms` }}
+            >
+              <TripCard
+                trip={trip}
+                isActive={activeTrip ? trip.id === activeTrip.id : false}
+                onSelect={onSelectTrip}
+                onEdit={onEditTrip}
+                onDuplicate={onDuplicateTrip}
+                onDelete={onDeleteTrip}
+                onLaunch={onLaunchDashboard}
+              />
+            </div>
           ))}
         </div>
       ) : (
-        <div className="rounded-3xl bg-card border border-ink/10 dark:border-white/10 p-8 sm:p-12 text-center shadow-xs space-y-4">
+        <div className="rounded-3xl bg-card border border-ink/10 dark:border-white/10 p-8 sm:p-12 text-center shadow-xs space-y-4 animate-apple-in stagger-3">
           <div className="w-12 h-12 rounded-full bg-pod flex items-center justify-center mx-auto text-ink-muted">
             <Sparkle className="w-6 h-6 text-volt-dim dark:text-volt" />
           </div>
@@ -158,7 +181,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <button
               type="button"
               onClick={onCreateNewTrip}
-              className={`flex items-center gap-1.5 h-10 px-5 ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} font-semibold text-xs rounded-full transition-all cursor-pointer`}
+              className={`flex items-center gap-1.5 h-10 px-5 ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} font-semibold text-xs rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer`}
             >
               <Plus className="w-4 h-4 text-current stroke-[2.2]" />
               <span>{t('createNewTripBtn')}</span>
@@ -167,7 +190,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <button
                 type="button"
                 onClick={onLoadDemoTrip}
-                className="flex items-center gap-1.5 h-10 px-5 bg-pod hover:bg-chip text-ink border border-black/10 dark:border-white/15 font-semibold text-xs rounded-full transition-all cursor-pointer"
+                className="flex items-center gap-1.5 h-10 px-5 bg-pod hover:bg-chip text-ink border border-black/10 dark:border-white/15 font-semibold text-xs rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer"
               >
                 <Sparkle className="w-4 h-4 text-volt-dim dark:text-volt" />
                 <span>{lang === 'fr' ? 'Charger un trajet démo' : 'Load Sample Trip (Demo)'}</span>
@@ -178,7 +201,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       )}
 
       {/* Full-Radius Chain-Link Persistence Callout */}
-      <div className="mt-10 px-3.5 sm:pl-2.5 sm:pr-4 py-3 sm:py-2.5 rounded-2xl lg:rounded-full bg-card flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 text-xs text-ink-secondary">
+      <div className="mt-10 px-3.5 sm:pl-2.5 sm:pr-4 py-3 sm:py-2.5 rounded-2xl lg:rounded-full bg-card flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 text-xs text-ink-secondary animate-apple-in stagger-6">
         <div className="flex items-center gap-3 min-w-0">
           {user ? (
             <div className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
@@ -205,7 +228,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <Badge
               variant="yellow-vest"
               size="md"
-              icon={Sparkle}
+              icon={BookOpen2}
               interactive
               onClick={onOpenOnboarding}
               className="py-1.5 px-3.5 max-w-full"
@@ -219,6 +242,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </span>
         </div>
       </div>
+
+      {/* Standalone User Feedback Modal */}
+      <FeedbackModal
+        isOpen={isFeedbackOpen}
+        onClose={() => setIsFeedbackOpen(false)}
+        tripName={activeTrip?.name}
+      />
     </div>
   );
 };

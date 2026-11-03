@@ -14,9 +14,15 @@ import { getTripArchetype } from './TimelineContextualBanner';
 import { PreFlightChecklistBento } from './PreFlightChecklistBento';
 import { NutritionBento } from './NutritionBento';
 import { ShareTelemetryModal } from '../ShareTelemetryModal';
+import { FeedbackModal } from '../FeedbackModal';
+import { BadgeInfo } from '@/components/icons';
 import { useTranslation, getLocalizedTripMeta } from '../../context/LanguageContext';
 import { switchActiveStage, getExpeditionTotals } from '../../utils/stageManager';
-import { CHIP_TOKENS } from '../../tokens/chipTokens';
+import {
+  CHIP_TOKENS,
+  CHIP_RING_BASE,
+  CHIP_DUOTONE_ISOLATION_CLASSES,
+} from '../../tokens/chipTokens';
 
 interface BentoDashboardProps {
   trip: TripProfile;
@@ -43,6 +49,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
 }) => {
   const { lang, t } = useTranslation();
   const [isShareModalOpen, setIsShareModalOpen] = React.useState<boolean>(false);
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = React.useState<boolean>(false);
   const effectiveSpecs = riderSpecs || loadRiderBikeSpecs();
   const viewMode: CockpitViewMode =
     effectiveSpecs.cockpitViewMode ??
@@ -263,6 +270,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
           onOpenConfigurator={onOpenConfigurator}
           onUploadGpxFile={handleUploadGpxInCockpit}
           onShareReceipt={onShareReceiptProp || (() => setIsShareModalOpen(true))}
+          onOpenFeedback={() => setIsFeedbackModalOpen(true)}
         />
       </div>
 
@@ -325,12 +333,50 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
         </div>
       </div>
 
+      {/* ── Flight Deck Bottom Telemetry / Feedback Dock Corner ── */}
+      <div className="flex items-center justify-between pt-6 mt-4 text-xs text-ink-muted border-t border-dashed border-ink/10 dark:border-white/10">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-volt-lime animate-pulse" />
+          <span className="font-mono text-[11px] tracking-wider uppercase">{t('feedbackFooterDock')}</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsFeedbackModalOpen(true)}
+          className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-rounded font-semibold transition-all cursor-pointer ${CHIP_TOKENS.purple.surface} ${CHIP_TOKENS.purple.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.purple.selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} hover:brightness-[0.98] dark:hover:brightness-110 shadow-xs hover:shadow-sm`}
+          title={t('sendFeedbackBtn')}
+        >
+          <BadgeInfo size={15} className="w-4 h-4 shrink-0 text-current" />
+          <span>{t('sendFeedbackBtn')}</span>
+        </button>
+      </div>
+
+      {/* ── Floating Bottom Corner Feedback Trigger ── */}
+      <div className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-40 print:hidden hidden sm:block">
+        <button
+          type="button"
+          onClick={() => setIsFeedbackModalOpen(true)}
+          className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-rounded font-semibold transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-md hover:shadow-lg backdrop-blur-md ${CHIP_TOKENS.purple.surface} ${CHIP_TOKENS.purple.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.purple.selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+          title={t('sendFeedbackBtn')}
+          aria-label={t('sendFeedbackBtn')}
+        >
+          <BadgeInfo size={16} className="w-4 h-4 text-current shrink-0" />
+          <span>{t('sendFeedbackBtn')}</span>
+        </button>
+      </div>
+
       {/* ── Sortie Telemetry Share Receipt Modal ── */}
       <ShareTelemetryModal
         isOpen={isShareModalOpen}
         onClose={() => setIsShareModalOpen(false)}
         trip={trip}
         physicsResult={physicsResult}
+      />
+
+      {/* ── Flight Deck Feedback Modal ── */}
+      <FeedbackModal
+        isOpen={isFeedbackModalOpen}
+        onClose={() => setIsFeedbackModalOpen(false)}
+        tripName={trip.name}
       />
     </div>
   );

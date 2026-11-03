@@ -1,6 +1,7 @@
 import { User, Session } from '@supabase/supabase-js';
 import { TripProfile } from './trip';
 import { RiderBikeSpecs } from './specs';
+import { UserProfile } from '../utils/userProfileStorage';
 
 export type SyncStatus = 'idle' | 'loading' | 'saving' | 'synced' | 'error';
 
@@ -9,6 +10,7 @@ export interface AppDataPayload {
   riderSpecs: RiderBikeSpecs;
   activeTripId: string;
   updatedAt?: string;
+  userProfile?: UserProfile;
 }
 
 export interface AuthContextType {

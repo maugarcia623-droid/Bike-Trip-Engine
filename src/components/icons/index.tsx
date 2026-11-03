@@ -184,10 +184,12 @@ export const CircleCheck = createKeylineIcon(Duotone.CircleCheck, 'CircleCheck')
 export const CheckCircle = CircleCheck;
 export const SquareCheck = createKeylineIcon(Duotone.SquareCheck, 'SquareCheck');
 export const CheckSquare = SquareCheck;
-export const CaretDown = createKeylineIcon(Duotone.CaretDown, 'CaretDown');
-export const CaretUp = createKeylineIcon(Duotone.CaretUp, 'CaretUp');
-export const ChevronDown = CaretDown;
-export const ChevronUp = CaretUp;
+export const CircleChevronDown = createKeylineIcon(Duotone.CircleChevronDown, 'CircleChevronDown');
+export const CircleChevronUp = createKeylineIcon(Duotone.CircleChevronUp, 'CircleChevronUp');
+export const CaretDown = CircleChevronDown;
+export const CaretUp = CircleChevronUp;
+export const ChevronDown = CircleChevronDown;
+export const ChevronUp = CircleChevronUp;
 export const ArrowLeft = createKeylineIcon(Duotone.ArrowLeft, 'ArrowLeft');
 export const ArrowRight = createKeylineIcon(Duotone.ArrowRight, 'ArrowRight');
 export const ArrowUp = createKeylineIcon(Duotone.ArrowUp, 'ArrowUp');
@@ -211,6 +213,7 @@ export const FloppyDisk = Save;
 export const LoaderCircle = createKeylineIcon(Duotone.LoaderCircle, 'LoaderCircle');
 export const SpinnerGap = LoaderCircle;
 export const Info = createKeylineIcon(Duotone.Info, 'Info');
+export const BadgeInfo = createKeylineIcon(Duotone.BadgeInfo, 'BadgeInfo');
 
 // Telemetry, Power & Physics
 export const Zap = createKeylineIcon(TwoTone.Zap, 'Zap');
@@ -219,6 +222,7 @@ export const Gauge = createKeylineIcon(Duotone.Gauge, 'Gauge');
 export const Scale = createKeylineIcon(Duotone.Scale, 'Scale');
 export const Scales = Scale;
 export const Flame = createKeylineIcon(Duotone.Flame, 'Flame');
+export const Flame2 = createKeylineIcon(Duotone.Flame2, 'Flame2');
 export const HeartPulse = createKeylineIcon(Duotone.HeartPulse, 'HeartPulse');
 export const Pulse = HeartPulse;
 export const Heartbeat = HeartPulse;
@@ -253,7 +257,7 @@ export const Thermometer = createKeylineIcon(Duotone.Thermometer, 'Thermometer')
 export const ThermometerSimple = Thermometer;
 export const Droplet = createKeylineIcon(TwoTone.Droplet, 'Droplet');
 export const Drop = Droplet;
-export const Droplets = Droplet;
+export const Droplets = createKeylineIcon(Duotone.Droplets, 'Droplets');
 export const Waves = createKeylineIcon(Duotone.Waves, 'Waves');
 export const EyeOff = createKeylineIcon(Duotone.EyeOff, 'EyeOff');
 export const EyeSlash = EyeOff;
@@ -316,13 +320,54 @@ export const HomeSmile = createKeylineIcon(Duotone.HomeSmile, 'HomeSmile');
 export const Home = createKeylineIcon(Duotone.Home, 'Home');
 export const Upload = createKeylineIcon(CustomUploadSvg, 'Upload');
 export const FileArrowUp = Upload;
-export const Eye = createKeylineIcon(CustomEyeSvg, 'Eye');
+export const Eye = createKeylineIcon(Duotone.Eye, 'Eye');
+
+// Keyline Rounded Duotone Icons:
+export const Monitor2Check = createKeylineIcon(Duotone.Monitor2Check, 'Monitor2Check');
+export const MonitorCheck = Monitor2Check;
+export const BikeFast = createKeylineIcon(Duotone.BikeFast, 'BikeFast');
+export const Receipt = createKeylineIcon(Duotone.Receipt, 'Receipt');
+export const CircleZap = createKeylineIcon(Duotone.CircleZap, 'CircleZap');
+export const HandClosed = createKeylineIcon(Duotone.HandClosed, 'HandClosed');
+export const CircleArrowUpRight = createKeylineIcon(Duotone.CircleArrowUpRight, 'CircleArrowUpRight');
+export const Settings = createKeylineIcon(Duotone.Settings, 'Settings');
+export const CloudSun = createKeylineIcon(Duotone.CloudSun, 'CloudSun');
+export const Bug = createKeylineIcon(Duotone.Bug, 'Bug');
+export const Calculator = createKeylineIcon(Duotone.Calculator, 'Calculator');
+export const Lightbulb = createKeylineIcon(Duotone.Lightbulb, 'Lightbulb');
+export const LightbulbSparkles = createKeylineIcon(Duotone.LightbulbSparkles, 'LightbulbSparkles');
+export const CircleUser = createKeylineIcon(Duotone.CircleUser, 'CircleUser');
+export const Mail = createKeylineIcon(Duotone.Mail, 'Mail');
+export const Send = createKeylineIcon(Duotone.Send, 'Send');
+export const BookOpen2 = createKeylineIcon(Duotone.BookOpen2, 'BookOpen2');
+export const BookOpen = BookOpen2;
 
 export default {
   Bike,
   Bicycle,
   HomeSmile,
   Home,
+  Monitor2Check,
+  MonitorCheck,
+  BikeFast,
+  Receipt,
+  Flame2,
+  CircleZap,
+  HandClosed,
+  CircleArrowUpRight,
+  Settings,
+  CloudSun,
+  Bug,
+  Calculator,
+  Lightbulb,
+  LightbulbSparkles,
+  CircleUser,
+  Mail,
+  Send,
+  BookOpen2,
+  BookOpen,
+  CircleChevronDown,
+  CircleChevronUp,
   Flag,
   FinishFlag,
   Sun,
@@ -366,6 +411,7 @@ export default {
   LoaderCircle,
   SpinnerGap,
   Info,
+  BadgeInfo,
   Zap,
   Lightning,
   Gauge,

@@ -4,25 +4,34 @@ import 'leaflet/dist/leaflet.css';
 import {
   Clock,
   Path,
+  Map,
   Flame,
+  Flame2,
   Mountains,
   MapPin,
   Bicycle,
+  BikeFast,
+  Receipt,
+  Timer,
+  Send,
   CaretDown,
   CaretUp,
+  CircleChevronDown,
+  CircleChevronUp,
   ArrowsLeftRight,
   SlidersHorizontal,
   Upload,
   X,
   Check,
+  BadgeInfo,
 } from '@/components/icons';
-import { Share2 } from 'lucide-react';
 import { TripProfile, PhysicsCalculationResult } from '../../types/trip';
 import { RiderBikeSpecs } from '../../types/specs';
 import { getActiveBike, loadRiderBikeSpecs } from '../../utils/specsStorage';
 import { synthesizeRouteElevationProfile } from '../../utils/gpxParser';
 import { ReverseTimelineCalculation } from '../../utils/timeline';
 import { useTranslation } from '../../context/LanguageContext';
+import { useTheme } from '../../context/ThemeContext';
 import { Badge } from '../common/Badge';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
@@ -52,6 +61,7 @@ interface HeroRouteCardProps {
   onOpenConfigurator?: () => void;
   onUploadGpxFile?: (file: File) => void;
   onShareReceipt?: () => void;
+  onOpenFeedback?: () => void;
 }
 
 type ActiveHeroPopover = 'bike' | 'target' | 'route' | 'pace' | 'elevation' | null;
@@ -103,6 +113,12 @@ const formatTimeHHMM = (minutes: number): string => {
   return `${padH}:${padM}`;
 };
 
+function getTileUrl(dark: boolean): string {
+  return dark
+    ? 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}'
+    : 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}';
+}
+
 export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
   trip,
   physicsResult,
@@ -119,6 +135,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
   onOpenConfigurator,
   onUploadGpxFile,
   onShareReceipt,
+  onOpenFeedback,
 }) => {
   const { lang, t } = useTranslation();
   const isFr = lang === 'fr';
@@ -129,8 +146,16 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
   const elevHoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
+  const routeLayersGroupRef = useRef<L.FeatureGroup | null>(null);
+  const vectorLayersRef = useRef<{
+    casingLine?: L.Polyline;
+    routeLine?: L.Polyline;
+    loopCircle?: L.Circle;
+    outerReachCircle?: L.Circle;
+    startMarker?: L.Marker;
+    endMarker?: L.Marker;
+  }>({});
 
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [activePopover, setActivePopover] = useState<ActiveHeroPopover>(null);
   const [isElevationHovered, setIsElevationHovered] = useState<boolean>(false);
   const [hoveredElevCol, setHoveredElevCol] = useState<number | null>(null);
@@ -299,20 +324,46 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
   const isRadiusMode =
     trip.route.routeMode === 'manual-radius' ||
     Boolean(trip.route.radiusMeters && trip.route.radiusMeters > 0);
-  const sanitizedCoords: [number, number][] = Array.isArray(trip.route.coordinates)
-    ? trip.route.coordinates.filter(isValidLatLngTuple)
-    : [];
-  const radiusCenter: [number, number] = isValidLatLngTuple(trip.route.originCoords)
-    ? trip.route.originCoords
-    : sanitizedCoords.length > 0
-    ? sanitizedCoords[0]
-    : [47.2186, -1.5541];
-  const loopRadiusMeters =
-    typeof trip.route.radiusMeters === 'number' &&
-    Number.isFinite(trip.route.radiusMeters) &&
-    trip.route.radiusMeters > 0
+
+  const sanitizedCoords = useMemo<[number, number][]>(() => {
+    return Array.isArray(trip.route.coordinates)
+      ? trip.route.coordinates.filter(isValidLatLngTuple)
+      : [];
+  }, [trip.route.coordinates]);
+
+  const radiusCenter = useMemo<[number, number]>(() => {
+    return isValidLatLngTuple(trip.route.originCoords)
+      ? trip.route.originCoords
+      : sanitizedCoords.length > 0
+      ? sanitizedCoords[0]
+      : [47.2186, -1.5541];
+  }, [trip.route.originCoords, sanitizedCoords]);
+
+  const loopRadiusMeters = useMemo(() => {
+    return typeof trip.route.radiusMeters === 'number' &&
+      Number.isFinite(trip.route.radiusMeters) &&
+      trip.route.radiusMeters > 0
       ? trip.route.radiusMeters
       : Math.max(1000, Math.round(((trip.route.distanceKm || 30) / 2) * 1000));
+  }, [trip.route.radiusMeters, trip.route.distanceKm]);
+
+  const activeCoordinates = useMemo<[number, number][]>(() => {
+    return sanitizedCoords.length > 0 ? sanitizedCoords : DEFAULT_CORRIDOR;
+  }, [sanitizedCoords]);
+
+  const routeFingerprint = useMemo(() => {
+    if (isRadiusMode) {
+      return `radius:${radiusCenter[0].toFixed(5)},${radiusCenter[1].toFixed(5)}:${loopRadiusMeters}`;
+    }
+    const len = activeCoordinates.length;
+    const start =
+      len > 0 ? `${activeCoordinates[0][0].toFixed(5)},${activeCoordinates[0][1].toFixed(5)}` : '';
+    const end =
+      len > 1
+        ? `${activeCoordinates[len - 1][0].toFixed(5)},${activeCoordinates[len - 1][1].toFixed(5)}`
+        : '';
+    return `corridor:${len}:${start}:${end}`;
+  }, [isRadiusMode, radiusCenter, loopRadiusMeters, activeCoordinates]);
 
   const handleSetDistanceKm = (nextDistanceRaw: number) => {
     if (!onUpdateTrip || Number.isNaN(nextDistanceRaw)) return;
@@ -352,8 +403,6 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
     });
   };
 
-  const activeCoordinates =
-    sanitizedCoords.length > 0 ? sanitizedCoords : DEFAULT_CORRIDOR;
 
   const movingMinutes = timelineResult?.pureMovingMinutes ?? 48;
   const bufferMinutes = timelineResult?.bufferMinutes ?? 18;
@@ -479,51 +528,95 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
     return heroTargetLabel.split(' ')[0].toLowerCase();
   })();
 
+  const { theme, isDark: themeIsDark } = useTheme();
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() =>
+    typeof document !== 'undefined'
+      ? document.documentElement.classList.contains('dark')
+      : true
+  );
+
+  useEffect(() => {
+    setIsDarkMode(document.documentElement.classList.contains('dark'));
+  }, [theme, themeIsDark]);
+
   useEffect(() => {
     const checkDark = () => {
       setIsDarkMode(document.documentElement.classList.contains('dark'));
     };
-    checkDark();
     const observer = new MutationObserver(checkDark);
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
     return () => observer.disconnect();
   }, []);
 
+  const latestRouteRef = useRef({
+    isRadiusMode,
+    radiusCenter,
+    activeCoordinates,
+    loopRadiusMeters,
+  });
+
   useEffect(() => {
-    if (!mapContainerRef.current) return;
+    latestRouteRef.current = {
+      isRadiusMode,
+      radiusCenter,
+      activeCoordinates,
+      loopRadiusMeters,
+    };
+  }, [isRadiusMode, radiusCenter, activeCoordinates, loopRadiusMeters]);
 
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.remove();
+  const fitRouteInClearArea = (
+    radiusMode: boolean = latestRouteRef.current.isRadiusMode,
+    center: [number, number] = latestRouteRef.current.radiusCenter,
+    coords: [number, number][] = latestRouteRef.current.activeCoordinates
+  ) => {
+    if (!mapInstanceRef.current || !mapContainerRef.current) return;
+    try {
+      const { outerReachCircle, routeLine } = vectorLayersRef.current;
+      const bounds = radiusMode
+        ? outerReachCircle?.getBounds()
+        : routeLine?.getBounds() || routeLayersGroupRef.current?.getBounds();
+
+      if (!bounds || !bounds.isValid()) return;
+
+      if (bounds.getSouthWest().equals(bounds.getNorthEast())) {
+        mapInstanceRef.current.setView(bounds.getCenter(), 12, { animate: false });
+        return;
+      }
+
+      const containerH = mapContainerRef.current.clientHeight || 480;
+      const lowerH = lowerContentRef.current?.offsetHeight || 240;
+      const isNarrow = window.innerWidth < 640;
+      const padX = isNarrow ? 24 : 40;
+      const padTop = isNarrow ? 48 : 44;
+      const maxBottomPad = Math.max(120, containerH - padTop - 64);
+      const padBottom = Math.min(maxBottomPad, Math.max(160, lowerH + (isNarrow ? 20 : 28)));
+      mapInstanceRef.current.fitBounds(bounds, {
+        paddingTopLeft: [padX, padTop],
+        paddingBottomRight: [padX, padBottom],
+        maxZoom: 13,
+        animate: false,
+      });
+    } catch {
+      mapInstanceRef.current.setView(
+        radiusMode ? center : coords[0] || [47.2184, -1.5536],
+        11,
+        { animate: false }
+      );
     }
+  };
 
-    const isDark = document.documentElement.classList.contains('dark');
-    const initialCenter: [number, number] = isRadiusMode
-      ? radiusCenter
-      : activeCoordinates[0] || [47.2184, -1.5536];
+  const updateVectorLayers = (
+    currentDark: boolean,
+    radiusMode: boolean = latestRouteRef.current.isRadiusMode,
+    center: [number, number] = latestRouteRef.current.radiusCenter,
+    coords: [number, number][] = latestRouteRef.current.activeCoordinates,
+    radiusMeters: number = latestRouteRef.current.loopRadiusMeters
+  ) => {
+    const map = mapInstanceRef.current;
+    const group = routeLayersGroupRef.current;
+    if (!map || !group) return;
 
-    const map = L.map(mapContainerRef.current, {
-      center: initialCenter,
-      zoom: 11,
-      zoomControl: false,
-      attributionControl: false,
-      dragging: !L.Browser.mobile,
-      scrollWheelZoom: false,
-      doubleClickZoom: false,
-    });
-
-    mapInstanceRef.current = map;
-
-    const getTileUrl = (dark: boolean) =>
-      dark
-        ? 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}'
-        : 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}';
-
-    const tileLayer = L.tileLayer(getTileUrl(isDark), {
-      maxZoom: 16,
-      attribution: 'Esri',
-    }).addTo(map);
-
-    tileLayerRef.current = tileLayer;
+    group.clearLayers();
 
     const startIcon = L.divIcon({
       className: 'custom-hero-start-marker',
@@ -546,142 +639,198 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
       iconAnchor: [6.5, 6.5],
     });
 
-    let casingLine: L.Polyline | null = null;
-    let routeLine: L.Polyline | null = null;
-    let loopCircle: L.Circle | null = null;
-    let outerReachCircle: L.Circle | null = null;
-
-    if (isRadiusMode) {
-      L.marker(radiusCenter, { icon: startIcon }).addTo(map);
-      outerReachCircle = L.circle(radiusCenter, {
-        radius: loopRadiusMeters * 2,
-        color: isDark ? '#94A3B8' : '#52525B',
+    if (radiusMode) {
+      const startMarker = L.marker(center, { icon: startIcon });
+      const outerReachCircle = L.circle(center, {
+        radius: radiusMeters * 2,
+        color: currentDark ? '#94A3B8' : '#52525B',
         weight: 1.5,
         dashArray: '6, 6',
-        fillColor: isDark ? '#38BDF8' : '#10B981',
+        fillColor: currentDark ? '#38BDF8' : '#10B981',
         fillOpacity: 0.03,
-      }).addTo(map);
+      });
 
-      loopCircle = L.circle(radiusCenter, {
-        radius: loopRadiusMeters,
-        color: isDark ? '#38BDF8' : '#10B981',
+      const loopCircle = L.circle(center, {
+        radius: radiusMeters,
+        color: currentDark ? '#38BDF8' : '#10B981',
         weight: 2.6,
-        fillColor: isDark ? '#38BDF8' : '#10B981',
-        fillOpacity: isDark ? 0.14 : 0.16,
-      }).addTo(map);
+        fillColor: currentDark ? '#38BDF8' : '#10B981',
+        fillOpacity: currentDark ? 0.14 : 0.16,
+      });
+
+      group.addLayer(startMarker);
+      group.addLayer(outerReachCircle);
+      group.addLayer(loopCircle);
+
+      vectorLayersRef.current = {
+        outerReachCircle,
+        loopCircle,
+        startMarker,
+      };
     } else {
-      casingLine = L.polyline(activeCoordinates, {
-        color: isDark ? '#007AFF' : '#111111',
-        weight: isDark ? 7 : 5,
-        opacity: isDark ? 0.35 : 0.85,
+      const casingLine = L.polyline(coords, {
+        color: currentDark ? '#007AFF' : '#111111',
+        weight: currentDark ? 7 : 5,
+        opacity: currentDark ? 0.35 : 0.85,
         lineCap: 'round',
         lineJoin: 'round',
-      }).addTo(map);
+      });
 
-      routeLine = L.polyline(activeCoordinates, {
-        color: isDark ? '#38BDF8' : '#F2F455',
+      const routeLine = L.polyline(coords, {
+        color: currentDark ? '#38BDF8' : '#F2F455',
         weight: 3.2,
         opacity: 1,
-        dashArray: isDark ? undefined : '7, 5',
+        dashArray: currentDark ? undefined : '7, 5',
         lineCap: 'round',
         lineJoin: 'round',
-      }).addTo(map);
+      });
 
-      if (activeCoordinates.length > 0) {
-        L.marker(activeCoordinates[0], { icon: startIcon }).addTo(map);
-        if (activeCoordinates.length > 1) {
-          L.marker(activeCoordinates[activeCoordinates.length - 1], { icon: endIcon }).addTo(map);
+      group.addLayer(casingLine);
+      group.addLayer(routeLine);
+
+      let startMarker: L.Marker | undefined;
+      let endMarker: L.Marker | undefined;
+
+      if (coords.length > 0) {
+        startMarker = L.marker(coords[0], { icon: startIcon });
+        group.addLayer(startMarker);
+        if (coords.length > 1) {
+          endMarker = L.marker(coords[coords.length - 1], { icon: endIcon });
+          group.addLayer(endMarker);
         }
       }
+
+      vectorLayersRef.current = {
+        casingLine,
+        routeLine,
+        startMarker,
+        endMarker,
+      };
     }
 
-    const observer = new MutationObserver(() => {
-      const currentlyDark = document.documentElement.classList.contains('dark');
-      if (tileLayerRef.current) {
-        tileLayerRef.current.setUrl(getTileUrl(currentlyDark));
-      }
-      if (casingLine && routeLine) {
-        casingLine.setStyle({
-          color: currentlyDark ? '#007AFF' : '#111111',
-          weight: currentlyDark ? 7 : 5,
-          opacity: currentlyDark ? 0.35 : 0.85,
-        });
-        routeLine.setStyle({
-          color: currentlyDark ? '#38BDF8' : '#F2F455',
-          dashArray: currentlyDark ? undefined : '7, 5',
-        });
-      }
-      if (loopCircle && outerReachCircle) {
-        loopCircle.setStyle({
-          color: currentlyDark ? '#38BDF8' : '#10B981',
-          fillColor: currentlyDark ? '#38BDF8' : '#10B981',
-          fillOpacity: currentlyDark ? 0.14 : 0.16,
-        });
-        outerReachCircle.setStyle({
-          color: currentlyDark ? '#94A3B8' : '#52525B',
-          fillColor: currentlyDark ? '#38BDF8' : '#10B981',
-        });
-      }
+    fitRouteInClearArea(radiusMode, center, coords);
+  };
+
+  // 1. Initialize Leaflet map once on mount
+  useEffect(() => {
+    if (!mapContainerRef.current) return;
+
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.remove();
+      mapInstanceRef.current = null;
+    }
+
+    const {
+      isRadiusMode: rMode,
+      radiusCenter: rCenter,
+      activeCoordinates: aCoords,
+      loopRadiusMeters: rMeters,
+    } = latestRouteRef.current;
+
+    const initialCenter: [number, number] = rMode
+      ? rCenter
+      : aCoords[0] || [47.2184, -1.5536];
+
+    const map = L.map(mapContainerRef.current, {
+      center: initialCenter,
+      zoom: 11,
+      zoomControl: false,
+      attributionControl: false,
+      dragging: !L.Browser.mobile,
+      scrollWheelZoom: false,
+      doubleClickZoom: false,
     });
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
-    const fitRouteInClearArea = () => {
-      if (!mapInstanceRef.current || !mapContainerRef.current) return;
-      try {
-        const bounds = isRadiusMode
-          ? outerReachCircle?.getBounds()
-          : activeCoordinates.length > 0
-          ? routeLine?.getBounds()
-          : null;
-        if (!bounds || !bounds.isValid()) return;
+    mapInstanceRef.current = map;
 
-        if (bounds.getSouthWest().equals(bounds.getNorthEast())) {
-          mapInstanceRef.current.setView(bounds.getCenter(), 12, { animate: false });
-          return;
-        }
+    const isDark = document.documentElement.classList.contains('dark');
 
-        const containerH = mapContainerRef.current.clientHeight || 480;
-        const lowerH = lowerContentRef.current?.offsetHeight || 240;
-        const isNarrow = window.innerWidth < 640;
-        const padX = isNarrow ? 24 : 40;
-        const padTop = isNarrow ? 48 : 44;
-        const maxBottomPad = Math.max(120, containerH - padTop - 64);
-        const padBottom = Math.min(maxBottomPad, Math.max(160, lowerH + (isNarrow ? 20 : 28)));
-        mapInstanceRef.current.fitBounds(bounds, {
-          paddingTopLeft: [padX, padTop],
-          paddingBottomRight: [padX, padBottom],
-          maxZoom: 13,
-          animate: false,
-        });
-      } catch {
-        mapInstanceRef.current.setView(initialCenter, 11, { animate: false });
-      }
-    };
+    const tileLayer = L.tileLayer(getTileUrl(isDark), {
+      maxZoom: 16,
+      attribution: 'Esri',
+    }).addTo(map);
 
-    fitRouteInClearArea();
+    tileLayerRef.current = tileLayer;
+
+    const vectorGroup = L.featureGroup().addTo(map);
+    routeLayersGroupRef.current = vectorGroup;
+
+    updateVectorLayers(isDark, rMode, rCenter, aCoords, rMeters);
 
     const resizeObserver = new ResizeObserver(() => {
       if (!mapInstanceRef.current) return;
       mapInstanceRef.current.invalidateSize();
-      fitRouteInClearArea();
+      const current = latestRouteRef.current;
+      fitRouteInClearArea(current.isRadiusMode, current.radiusCenter, current.activeCoordinates);
     });
     resizeObserver.observe(mapContainerRef.current);
 
     const initFitTimer = setTimeout(() => {
       if (mapInstanceRef.current) {
         mapInstanceRef.current.invalidateSize();
-        fitRouteInClearArea();
+        const current = latestRouteRef.current;
+        fitRouteInClearArea(current.isRadiusMode, current.radiusCenter, current.activeCoordinates);
       }
     }, 250);
 
     return () => {
       clearTimeout(initFitTimer);
-      observer.disconnect();
       resizeObserver.disconnect();
       map.remove();
       mapInstanceRef.current = null;
+      tileLayerRef.current = null;
+      routeLayersGroupRef.current = null;
+      vectorLayersRef.current = {};
     };
-  }, [activeCoordinates, isRadiusMode, radiusCenter[0], radiusCenter[1], loopRadiusMeters]);
+  }, []);
+
+  // 2. Update vector route layers ONLY when route geometry/mode changes
+  const hasMountedRef = useRef(false);
+  useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
+    if (!mapInstanceRef.current || !routeLayersGroupRef.current) return;
+    updateVectorLayers(
+      isDarkMode,
+      isRadiusMode,
+      radiusCenter,
+      activeCoordinates,
+      loopRadiusMeters
+    );
+  }, [routeFingerprint]);
+
+  // 3. Update map tiles & layer styles when theme changes (no map recreation)
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+    if (tileLayerRef.current) {
+      tileLayerRef.current.setUrl(getTileUrl(isDarkMode));
+    }
+    const current = vectorLayersRef.current;
+    if (current.casingLine && current.routeLine) {
+      current.casingLine.setStyle({
+        color: isDarkMode ? '#007AFF' : '#111111',
+        weight: isDarkMode ? 7 : 5,
+        opacity: isDarkMode ? 0.35 : 0.85,
+      });
+      current.routeLine.setStyle({
+        color: isDarkMode ? '#38BDF8' : '#F2F455',
+        dashArray: isDarkMode ? undefined : '7, 5',
+      });
+    }
+    if (current.loopCircle && current.outerReachCircle) {
+      current.loopCircle.setStyle({
+        color: isDarkMode ? '#38BDF8' : '#10B981',
+        fillColor: isDarkMode ? '#38BDF8' : '#10B981',
+        fillOpacity: isDarkMode ? 0.14 : 0.16,
+      });
+      current.outerReachCircle.setStyle({
+        color: isDarkMode ? '#94A3B8' : '#52525B',
+        fillColor: isDarkMode ? '#38BDF8' : '#10B981',
+      });
+    }
+  }, [isDarkMode]);
 
   const currentWatts = Math.round(
     trip.route.pacingMode === 'effort'
@@ -710,7 +859,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
         <div className="absolute inset-0 z-0 overflow-hidden">
           <div
             ref={mapContainerRef}
-            className="w-full h-full min-h-[460px] sm:min-h-[490px] lg:min-h-[520px] dark:[filter:brightness(0.82)_contrast(1.22)_saturate(1.15)]"
+            className="w-full h-full min-h-[460px] sm:min-h-[490px] lg:min-h-[520px] bg-[#E5E3DD] dark:bg-[#121214] dark:[filter:brightness(0.82)_contrast(1.22)_saturate(1.15)]"
           />
         </div>
 
@@ -810,7 +959,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
               </button>
 
               {activePopover === 'bike' && (
-                <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 z-40 rounded-pod p-3 bg-card/95 dark:bg-[#16161A]/95 backdrop-blur-xl border border-ink/10 dark:border-white/15 shadow-2xl animate-fade-in">
+                <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 z-40 rounded-pod p-3 bg-card/95 dark:bg-[#16161A]/95 backdrop-blur-xl border border-ink/10 dark:border-white/15 shadow-2xl animate-apple-popover">
                   <div className="flex items-center justify-between gap-2 mb-2 px-0.5">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">
                       {t('bikeGarageHeading', { count: effectiveSpecs.bikes.length })}
@@ -886,9 +1035,23 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
             </div>
 
             <div className="flex items-center gap-2 flex-wrap max-w-full min-w-0">
-              <Badge variant="emerald" size="md" dot className="py-1.5 px-3 sm:px-3.5 backdrop-blur-md">
-                {heroBadge}
-              </Badge>
+              {(() => {
+                const isSportTrip =
+                  (trip.tag || '').toUpperCase().includes('SPORT') ||
+                  (trip.tag || '').toUpperCase().includes('FONDO') ||
+                  heroBadge.toLowerCase().includes('fondo');
+                return (
+                  <Badge
+                    variant="emerald"
+                    size="md"
+                    icon={isSportTrip ? BikeFast : undefined}
+                    dot={!isSportTrip}
+                    className="py-1.5 px-3 sm:px-3.5 backdrop-blur-md"
+                  >
+                    {heroBadge}
+                  </Badge>
+                );
+              })()}
 
               <Badge variant="rose" size="md" icon={MapPin} className="py-1.5 px-3 sm:px-3.5 backdrop-blur-md">
                 {heroTarget}
@@ -902,11 +1065,23 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                 <button
                   type="button"
                   onClick={onShareReceipt}
-                  className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-rounded font-semibold transition-all cursor-pointer pointer-events-auto ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} hover:brightness-[0.98] dark:hover:brightness-110 shadow-xs hover:shadow-md`}
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-rounded font-semibold transition-all duration-150 active:scale-[0.98] cursor-pointer pointer-events-auto ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} hover:brightness-[0.98] dark:hover:brightness-110 shadow-xs hover:shadow-md`}
                   title={t('shareReceiptBtn')}
                 >
-                  <Share2 className="w-3.5 h-3.5 shrink-0 text-current" />
+                  <Receipt className="w-3.5 h-3.5 shrink-0 text-current" />
                   <span>{t('shareReceiptBtn')}</span>
+                </button>
+              )}
+
+              {onOpenFeedback && (
+                <button
+                  type="button"
+                  onClick={onOpenFeedback}
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-rounded font-semibold transition-all duration-150 active:scale-[0.98] cursor-pointer pointer-events-auto ${CHIP_TOKENS.purple.surface} ${CHIP_TOKENS.purple.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.purple.selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} hover:brightness-[0.98] dark:hover:brightness-110 shadow-xs hover:shadow-md`}
+                  title={t('sendFeedbackBtn')}
+                >
+                  <Send className="w-3.5 h-3.5 shrink-0 text-current" />
+                  <span>{t('sendFeedbackBtn')}</span>
                 </button>
               )}
             </div>
@@ -916,7 +1091,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
             {/* 1. Trip Start Time (Hard rollout) */}
             <div className="relative col-span-2 sm:col-span-1">
               {activePopover === 'target' && isInteractive && (
-                <div className="absolute left-0 bottom-full mb-2.5 w-[min(19.5rem,calc(100vw-3rem))] z-40 rounded-pod p-3.5 bg-card/95 dark:bg-[#16161A]/95 backdrop-blur-xl border border-ink/10 dark:border-white/15 shadow-2xl animate-fade-in">
+                <div className="absolute left-0 bottom-full mb-2.5 w-[min(19.5rem,calc(100vw-3rem))] z-40 rounded-pod p-3.5 bg-card/95 dark:bg-[#16161A]/95 backdrop-blur-xl border border-ink/10 dark:border-white/15 shadow-2xl animate-apple-popover">
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <span className="text-xs font-bold text-ink">
                       {isDepartAtMode ? t('rolloutTimeLabel') : t('heroQuickTargetTitle')}
@@ -1031,9 +1206,12 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
             {/* 2. Trip Length */}
             <div className="relative">
               {activePopover === 'route' && isInteractive && (
-                <div className="absolute left-0 bottom-full mb-2.5 w-[min(19.5rem,calc(100vw-3rem))] z-40 rounded-pod p-3.5 bg-card/95 dark:bg-[#16161A]/95 backdrop-blur-xl border border-ink/10 dark:border-white/15 shadow-2xl animate-fade-in">
+                <div className="absolute left-0 bottom-full mb-2.5 w-[min(19.5rem,calc(100vw-3rem))] z-40 rounded-pod p-3.5 bg-card/95 dark:bg-[#16161A]/95 backdrop-blur-xl border border-ink/10 dark:border-white/15 shadow-2xl animate-apple-popover">
                   <div className="flex items-center justify-between gap-2 mb-2.5">
-                    <span className="text-xs font-bold text-ink">{t('heroQuickRouteTitle')}</span>
+                    <span className="text-xs font-bold text-ink flex items-center gap-1.5">
+                      <Map className={`w-3.5 h-3.5 shrink-0 text-beacon-red dark:text-rose-400 dual-tone-rose ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
+                      {t('heroQuickRouteTitle')}
+                    </span>
                     <button
                       type="button"
                       onClick={() => setActivePopover(null)}
@@ -1174,7 +1352,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                         }`}
                       />
                     )}
-                    <Path className={`w-4 h-4 shrink-0 ${GREYSCALE_TOKENS.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
+                    <Map className={`w-4 h-4 shrink-0 text-beacon-red dark:text-rose-400 dual-tone-rose ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
                   </span>
                 </div>
                 <div className="mt-auto pt-2 flex flex-col xl:flex-row items-start xl:items-baseline justify-between gap-1 min-w-0">
@@ -1197,7 +1375,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
             {/* 3. Moving Time — Clarifies Saddle Time (Excl. Pauses) vs Total Time (Incl. Buffer) */}
             <div className="relative">
               {activePopover === 'pace' && isInteractive && (
-                <div className="absolute right-0 lg:left-0 lg:right-auto bottom-full mb-2.5 w-[min(21.5rem,calc(100vw-3rem))] z-40 rounded-pod p-3.5 bg-card/95 dark:bg-[#16161A]/95 backdrop-blur-xl border border-ink/10 dark:border-white/15 shadow-2xl animate-fade-in">
+                <div className="absolute right-0 lg:left-0 lg:right-auto bottom-full mb-2.5 w-[min(21.5rem,calc(100vw-3rem))] z-40 rounded-pod p-3.5 bg-card/95 dark:bg-[#16161A]/95 backdrop-blur-xl border border-ink/10 dark:border-white/15 shadow-2xl animate-apple-popover">
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <span className="text-xs font-bold text-ink">{t('heroQuickPaceTitle')}</span>
                     <button
@@ -1405,7 +1583,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                         }`}
                       />
                     )}
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${CHIP_TOKENS.emerald.dot}`} />
+                    <Timer className={`w-4 h-4 shrink-0 ${CHIP_TOKENS.emerald.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
                   </span>
                 </div>
                 <div className="mt-auto pt-2 flex flex-col xl:flex-row items-start xl:items-baseline justify-between gap-1 min-w-0">
@@ -1425,7 +1603,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
             <div className="rounded-pod p-3.5 sm:p-4.5 bg-pod/90 dark:bg-[#141418]/85 text-ink backdrop-blur-md border border-ink/5 dark:border-white/5 flex flex-col justify-between min-h-[108px] sm:min-h-[114px] transition-all hover:border-ink/15 dark:hover:border-white/15">
               <div className="flex items-center justify-between gap-1.5 text-xs font-medium text-ink-muted shrink-0">
                 <span className="truncate">{t('energyBurn')}</span>
-                <Flame className={`w-4 h-4 shrink-0 ${CHIP_TOKENS.amber.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
+                <Flame2 className={`w-4 h-4 shrink-0 ${CHIP_TOKENS.amber.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
               </div>
               <div className="mt-auto pt-2 flex flex-col xl:flex-row items-start xl:items-baseline justify-between gap-1 min-w-0">
                 <div className="flex items-baseline gap-1 shrink-0">
@@ -1468,7 +1646,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
               }}
             >
               {showElevationOverlay && (
-                <div className="absolute right-0 bottom-full mb-2.5 w-[min(22.5rem,calc(100vw-3rem))] z-40 rounded-pod p-4 sm:p-4.5 bg-[#faffcb] text-[#4d5200] dark:bg-[#191C06] dark:text-[#dfff00] border border-[#8ea000]/30 dark:border-[#dfff00]/25 shadow-2xl animate-fade-in">
+                <div className="absolute right-0 bottom-full mb-2.5 w-[min(22.5rem,calc(100vw-3rem))] z-40 rounded-pod p-4 sm:p-4.5 bg-[#faffcb] text-[#4d5200] dark:bg-[#191C06] dark:text-[#dfff00] border border-[#8ea000]/30 dark:border-[#dfff00]/25 shadow-2xl animate-apple-popover">
                   {/* Top Header Row modeled after reference card (Title left | Primary + Secondary % right) */}
                   <div className="flex items-start justify-between gap-3 mb-3.5">
                     <div className="min-w-0">

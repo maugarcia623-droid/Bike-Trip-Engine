@@ -333,22 +333,24 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
                     handleToggle(item.id);
                   }
                 }}
-                className={`flex items-start sm:items-center gap-3 pl-3 pr-3.5 sm:pr-5 py-2.5 rounded-2xl sm:rounded-full text-[13px] cursor-pointer select-none transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30 ${
+                className={`flex items-start sm:items-center gap-3 pl-3 pr-3.5 sm:pr-5 py-2.5 rounded-2xl sm:rounded-full text-[13px] cursor-pointer select-none transition-all duration-150 active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30 ${
                   item.checked
                     ? 'bg-pod/70 text-ink-secondary hover:bg-pod'
                     : 'bg-pod hover:bg-chip/80 text-ink'
                 }`}
               >
                 {item.checked ? (
-                  <IconBadge
-                    theme="emerald"
-                    icon={Check}
-                    size="xs"
-                    isSelected
-                    solidBacker
-                    className="mt-0.5 sm:mt-0"
-                    iconClassName="stroke-[2.8]"
-                  />
+                  <div className="animate-apple-check-pop">
+                    <IconBadge
+                      theme="emerald"
+                      icon={Check}
+                      size="xs"
+                      isSelected
+                      solidBacker
+                      className="mt-0.5 sm:mt-0"
+                      iconClassName="stroke-[2.8]"
+                    />
+                  </div>
                 ) : (
                   <span className="w-6 h-6 mt-0.5 sm:mt-0 rounded-full flex items-center justify-center shrink-0 bg-card ring-2 ring-inset ring-zinc-300/70 dark:bg-chip dark:ring-zinc-600/60 transition-colors" />
                 )}
