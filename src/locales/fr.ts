@@ -9,7 +9,7 @@ export const fr: TranslationDictionary = {
   nutritionTitle: "Protocole de nutrition & récupération",
 
   // ── Brand & Header Navigation ──
-  appName: "Bike Trip Engine",
+  appName: "Cadence",
   headerTagline: "Physique aéro · Rétro-planning · Ravito",
   navPrimaryViewsAria: "Vues principales",
   navMobileViewsAria: "Vues mobiles",
@@ -629,7 +629,7 @@ export const fr: TranslationDictionary = {
   phaseDaylight: "Plein jour",
 
   // ── Print Flight Sheet ──
-  printHeaderTagline: "BIKE TRIP ENGINE · FEUILLE DE ROUTE & CARNET DE BORD (A4)",
+  printHeaderTagline: "CADENCE · FEUILLE DE ROUTE & CARNET DE BORD (A4)",
   printClassification: "Classification :",
   printDestination: "Destination :",
   printShiftLock: "Prise de poste :",
@@ -840,7 +840,7 @@ export const fr: TranslationDictionary = {
   // ── Feedback Modal ──
   sendFeedbackBtn: "Envoyer un retour",
   feedbackModalTitle: "Envoyer un retour",
-  feedbackModalSub: "Télémétrie et ingénierie du cockpit Flight Deck",
+  feedbackModalSub: "Télémétrie et ingénierie du cockpit Cadence",
   feedbackCategoryLabel: "Catégorie",
   feedbackCategoryBug: "Bug",
   feedbackCategoryBugDesc: "Anomalie ou comportement inattendu",
@@ -864,11 +864,11 @@ export const fr: TranslationDictionary = {
   feedbackDoneBtn: "Terminé",
   feedbackSendAnotherBtn: "Envoyer un autre message",
   feedbackConfirmation: "Merci pour votre retour !",
-  feedbackSuccessSub: "Votre message a bien été transmis. Merci de nous aider à perfectionner l'aérodynamique et les calculs du Flight Deck !",
+  feedbackSuccessSub: "Votre message a bien été transmis. Merci de nous aider à perfectionner l'aérodynamique et les calculs de Cadence !",
   feedbackErrorEmpty: "Veuillez saisir un message avant d'envoyer.",
   feedbackErrorSubmit: "Échec de l'envoi du retour. Veuillez réessayer.",
   feedbackErrorNetwork: "Une erreur réseau est survenue. Veuillez vérifier votre connexion et réessayer.",
-  feedbackFooterDock: "Télémétrie Flight Deck En Ligne",
+  feedbackFooterDock: "Télémétrie Cadence En Ligne",
 
   // ── Personalisation & Onboarding Wizard ──
   personalisationHeaderTag: "Bienvenue · Personnalisation du pilote",

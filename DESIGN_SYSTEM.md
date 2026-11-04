@@ -1,13 +1,13 @@
-# Flight Deck & Peloton Design System Guidelines
+# Cadence Design System Guidelines (Cockpit & Peloton Telemetry)
 > **Target Audience**: AI coding assistants, autonomous frontend agents, and design engineers.
-> **Scope**: Architecture, geometric laws, tokens, color matrix, typography, component blueprints, and code implementation rules for the **Bike Trip Engine (Flight Deck & Telemetry)** application.
-> **Version**: 2.0 (Production Verified)
+> **Scope**: Architecture, geometric laws, tokens, color matrix, typography, component blueprints, tactile flight receipts, and code implementation rules for the **Cadence** application.
+> **Version**: 3.0 (Production Verified)
 
 ---
 
 ## 1. System Philosophy & Metaphor
 
-The **Flight Deck** design system merges two distinct visual disciplines:
+The **Cadence** design system merges two distinct visual disciplines:
 1. **High-Precision Aviation Telemetry**: Dense, scannable, HUD-inspired data presentation where critical metrics (watts, rollouts, headwinds, solar altitude) are prioritized using luminous beacons and tabular figures.
 2. **Professional Peloton & Tarmac Aesthetics**: Warm stone asphalt surfaces, painted lane markers, chevron road hatching, and high-visibility safety apparel (*"yellow-vest"* brand accent).
 
@@ -110,12 +110,12 @@ volt: {
   - Dark Mode: `dark:bg-[#1F2203]/60 dark:text-[#DFFF00] dark:ring-[#DFFF00]`
 
 ### Beacon Status Matrix
-Beacons indicate mechanical clearance, weather cautions, and flight clearance:
+Beacons indicate mechanical clearance, weather cautions, cloud synchronization, and flight clearance:
 
 | Beacon State | Hex Color | Glow Shadow Utility | Meaning |
 | :--- | :--- | :--- | :--- |
-| **Beacon Green** | `#3D9A00` / `#10B981` | — | "GO" Status, cleared checklist, optimal pacing |
-| **Beacon Amber** | `#F59E0B` | `shadow-beacon-amber` | Headwind caution, high temperature, steep gradient |
+| **Beacon Green** | `#3D9A00` / `#10B981` | — | "GO" Status, cleared checklist, optimal pacing, cloud synced |
+| **Beacon Amber** | `#F59E0B` | `shadow-beacon-amber` | Headwind caution, high temperature, cloud syncing in-flight |
 | **Beacon Red** | `#FF3B30` | `shadow-beacon-red` | Critical cutoff violation, night ride missing lumens |
 | **Beacon Volt** | `#F2F455` | `shadow-beacon-volt` | Live telemetry active, current stage underway |
 | **Beacon Lime** | `#CAF164` | `shadow-beacon-lime` | Drivetrain efficiency bonus, aero tuck active |
@@ -148,14 +148,13 @@ Interactive chips and telemetry badges adhere to a strict **4-layer unified-hue 
 | `amber` | `bg-amber-50` | `text-amber-800` | `ring-amber-500` | `dark:bg-amber-950/40` | `dark:text-amber-300` | `dark:ring-amber-400` |
 | `blue` | `bg-blue-50` | `text-blue-700` | `ring-blue-600` | `dark:bg-blue-950/40` | `dark:text-blue-300` | `dark:ring-blue-500` |
 | `purple` | `bg-purple-50` | `text-purple-700` | `ring-purple-600` | `dark:bg-purple-950/40` | `dark:text-purple-300` | `dark:ring-purple-400` |
-| `emerald`| `bg-emerald-50` | `text-emerald-700`| `ring-emerald-600` | `dark:bg-emerald-950/40` | `dark:text-emerald-300` | `dark:ring-emerald-500` |
+| `emerald` | `bg-emerald-50` | `text-emerald-700` | `ring-emerald-600` | `dark:bg-emerald-950/40` | `dark:text-emerald-300` | `dark:ring-emerald-500` |
 | `orange` | `bg-orange-50` | `text-orange-700` | `ring-orange-500` | `dark:bg-orange-950/40` | `dark:text-orange-300` | `dark:ring-orange-400` |
-| `teal` | `bg-teal-50` | `text-teal-800` | `ring-teal-600` | `dark:bg-teal-950/40` | `dark:text-teal-300` | `dark:ring-teal-400` |
-| `lime` | `bg-lime-50` | `text-lime-800` | `ring-lime-600` | `dark:bg-lime-950/40` | `dark:text-lime-300` | `dark:ring-lime-400` |
-| `sky` | `bg-sky-50` | `text-sky-700` | `ring-sky-500` | `dark:bg-sky-950/40` | `dark:text-sky-300` | `dark:ring-sky-400` |
+| `teal` | `bg-teal-50` | `text-teal-700` | `ring-teal-600` | `dark:bg-teal-950/40` | `dark:text-teal-300` | `dark:ring-teal-400` |
+| `lime` | `bg-lime-50` | `text-lime-700` | `ring-lime-500` | `dark:bg-lime-950/40` | `dark:text-lime-300` | `dark:ring-lime-400` |
+| `sky` | `bg-sky-50` | `text-sky-700` | `ring-sky-600` | `dark:bg-sky-950/40` | `dark:text-sky-300` | `dark:ring-sky-400` |
 | `rose` | `bg-rose-50` | `text-rose-700` | `ring-rose-500` | `dark:bg-rose-950/40` | `dark:text-rose-300` | `dark:ring-rose-400` |
-| `yellow-vest`| `bg-[#FAFFCB]` | `text-[#4D5200]` | `ring-[#A3B300]` | `dark:bg-[#1F2203]/60` | `dark:text-[#DFFF00]` | `dark:ring-[#DFFF00]` |
-| `zinc` | `bg-zinc-100` | `text-zinc-700` | `ring-zinc-600` | `dark:bg-zinc-900/50` | `dark:text-zinc-300` | `dark:ring-zinc-400` |
+| `yellow-vest` | `bg-[#FAFFCB]` | `text-[#4D5200]` | `ring-[#A3B300]` | `dark:bg-[#1F2203]/60` | `dark:text-[#DFFF00]` | `dark:ring-[#DFFF00]` |
 
 ---
 
@@ -250,23 +249,12 @@ Tire-inspired full-radius range slider with 20px round thumb:
 
 ## 8. Duotone Icon Token Isolation (Keyline Icons)
 
-The system uses `@keyline-icons/react` (or custom SVG paths) with a 2-tone duotone architecture. To guarantee visual cohesion across color palettes, the secondary backdrop plate MUST be isolated to inherit `currentColor` at 30% opacity.
-
-### The Required Tailwind Duotone Isolation Utility
-Whenever rendering an icon inside a chip, badge, or button, include these classes:
+To guarantee that icon secondaries render at exactly 30% visual weight across browsers, apply `CHIP_DUOTONE_ISOLATION_CLASSES`:
 
 ```typescript
 export const CHIP_DUOTONE_ISOLATION_CLASSES = [
-  '[--icon-secondary:currentColor]',
-  '[--icon-secondary-opacity:0.3]',
-  '[&_svg_[fill-opacity="0.4"]]:fill-current',
-  '[&_svg_[fill-opacity="0.4"]]:[fill-opacity:0.3]',
-  '[&_svg_[stroke-opacity="0.4"]]:stroke-current',
-  '[&_svg_[stroke-opacity="0.4"]]:[stroke-opacity:0.3]',
-  '[&_svg:not(.keyline-icon):not([stroke])_path:first-child]:fill-current',
-  '[&_svg:not(.keyline-icon)[stroke]_path:first-child]:stroke-current',
-  '[&_svg:not(.keyline-icon)_path:first-child]:opacity-100',
-  '[&_svg:not(.keyline-icon)_path:last-child:not(:first-child)]:fill-current',
+  '[&_svg:not(.keyline-icon)_circle:last-child:not(:first-child)]:opacity-30',
+  '[&_svg:not(.keyline-icon)_rect:last-child:not(:first-child)]:opacity-30',
   '[&_svg:not(.keyline-icon)_path:last-child:not(:first-child)]:opacity-30',
 ].join(' ');
 ```
@@ -350,19 +338,18 @@ import React from 'react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import {
-  CHIP_TOKENS,
+  CHIP_DUOTONE_ISOLATION_CLASSES,
   CHIP_RING_BASE,
   CHIP_RING_UNSELECTED,
-  CHIP_DUOTONE_ISOLATION_CLASSES,
-  CHIP_ICON_ROOT_CLASSES,
-  ChipTheme,
+  LayeredTokenTheme,
+  getLayeredThemeTokens,
 } from '@/tokens/chipTokens';
 
 export interface ChipProps {
   label: string;
-  theme: ChipTheme;
+  theme: LayeredTokenTheme;
   icon: React.ElementType;
-  isSelected?: boolean;
+  isSelected: boolean;
   onClick?: () => void;
   disabled?: boolean;
   className?: string;
@@ -372,34 +359,27 @@ export const Chip: React.FC<ChipProps> = ({
   label,
   theme,
   icon: Icon,
-  isSelected = false,
+  isSelected,
   onClick,
   disabled = false,
-  className,
+  className = '',
 }) => {
-  const tokens = CHIP_TOKENS[theme] ?? CHIP_TOKENS.amber;
+  const tokens = getLayeredThemeTokens(theme);
 
   return (
     <button
       type="button"
-      aria-pressed={isSelected}
-      disabled={disabled}
       onClick={onClick}
+      disabled={disabled}
+      aria-pressed={isSelected}
       className={twMerge(
         clsx(
-          // Geometry: 32px height, full pill
-          'inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full',
-          'font-rounded text-xs sm:text-[13px] font-semibold leading-none whitespace-nowrap',
-          'transition-all duration-150 ease-out select-none',
-          // Layer 1 & 2
+          'inline-flex items-center gap-2 h-8 px-3 rounded-full text-xs font-rounded font-bold transition-all duration-150 select-none relative',
           tokens.surface,
           tokens.primary,
-          // Layer 3 (Icon Duotone Isolation)
           CHIP_DUOTONE_ISOLATION_CLASSES,
-          // Layer 4 (Zero-Layout-Shift 2px Ring)
           CHIP_RING_BASE,
           isSelected ? tokens.selectedRing : CHIP_RING_UNSELECTED,
-          // Interaction feedback
           disabled
             ? 'opacity-50 cursor-not-allowed'
             : 'cursor-pointer hover:brightness-[0.97] dark:hover:brightness-110 active:scale-[0.98]',
@@ -408,7 +388,7 @@ export const Chip: React.FC<ChipProps> = ({
         )
       )}
     >
-      <Icon size={20} className={CHIP_ICON_ROOT_CLASSES} aria-hidden="true" />
+      <Icon size={16} className="shrink-0 text-current" aria-hidden="true" />
       <span>{label}</span>
     </button>
   );
@@ -614,6 +594,74 @@ export const Collapsible: React.FC<CollapsibleProps> = ({
 
 ---
 
+### Blueprint 6: Tactile Peloton Flight Receipt (`ShareTelemetryModal` & `renderTelemetryCard`)
+High-resolution 1080×1920 canvas generator rendering vintage thermal cue sheets for Strava and Instagram stories.
+
+#### Visual Architecture
+* **Canvas Geometry**: Exactly 1080px × 1920px (9:16 aspect ratio).
+* **Paper Stock**: `#F4F3EF` with procedural zigzag tear perforations on top and bottom margins (step: 20px, tooth height: 8px).
+* **Rubber Cancellation Seal**: Scalloped postage stamp (36 sinusoidal teeth, $r = 165\text{px}$, tilted $-15^\circ$) in `#DCDBD6` containing circular curved text `• Cadence - Nutrition - Weather / Aerodynamics ` around a central cyclist silhouette.
+* **Dual Modes**:
+  1. `solid` (Manifest Mode): Warm thermal receipt background with perforated edges, barcode, and cancellation stamp.
+  2. `transparent` (Sticker Mode): Zero-background HUD sticker ideal for overlaying onto real cycling photography.
+* **Data Hierarchy**:
+  1. Top metadata pills (Route Distance, Moving Duration, Target Power).
+  2. Main route title (60px Extrabold SF Pro Rounded / Nunito).
+  3. Aspect-corrected GPX route trace with yellow-vest pennant pins.
+  4. Elevation terrain strip ($D+$ ascent / $D-$ descent).
+  5. 6-cell aerodynamic telemetry grid (Speed, Watts, CdA, Crr, Headwind penalty, Work kJ).
+  6. Reverse timeline countdown and real-food nutrition manifest.
+  7. Code-39 barcode and verification clearance sign-off.
+
+---
+
+### Blueprint 7: Pilot Onboarding & Personalization Wizard (`OnboardingModal`)
+Multi-step dialog guiding users through pilot setup with smooth step transitions.
+
+* **Modal Entrance**: `animate-apple-modal` scaling from `scale(0.96) translateY(12px)` to `scale(1) translateY(0)`.
+* **Step Transition**: `animate-apple-step-in` with horizontal slide and fade.
+* **Step Progression Header**: Minimalist dot or pill indicators showing completed and active stages.
+* **Bio-Metric Input Pods**: Concentric pods with inline unit labels (`kg`, `cm`, `km/h`, `W`).
+
+---
+
+### Blueprint 8: Cockpit Diagnostic Feedback System (`FeedbackModal`)
+Subtle diagnostic dock integrated into the cockpit footer.
+
+* **Footer Dock Corner**:
+  ```html
+  <div class="flex items-center gap-2">
+    <span class="w-2 h-2 rounded-full bg-volt-lime animate-pulse"></span>
+    <span class="font-mono text-[11px] tracking-wider uppercase">Cadence Telemetry Online</span>
+  </div>
+  ```
+* **Category Pill Grid**: Bugs, Aerodynamic Math Tweaks, Feature Ideas with zero-layout-shift `ring-2 ring-inset`.
+* **Async Dispatch**: Formspree webhook integration with clean animated confirmation state (`animate-apple-check-pop`).
+
+---
+
+### Blueprint 9: Cloud Sync & Authentication System (`TopTelemetryBar` & `AuthModal`)
+Account management and synchronization state machine.
+
+* **Cloud Sync Beacon States**:
+  - **Synced**: `bg-emerald-500` solid dot + "Synced" caption.
+  - **Syncing**: `bg-amber-400` pulsing beacon (`animate-pulse`) + "Syncing...".
+  - **Offline / Local-First**: `bg-ink-muted/50` muted dot + "Local".
+* **Graceful Degradation**: Zero crashes or forced logins if Supabase environment variables are missing; persists directly to `localStorage`.
+
+---
+
+### Blueprint 10: iOS Safe Area & PWA Standalone Layout Architecture
+
+* **Viewport Fit**: `<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />`
+* **Safe Area Inset Rule**: Top fixed elements (navigation headers, top telemetry bars, full-screen dialogs) must apply:
+  ```css
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+  ```
+* **Retina Home Screen Icons**: Apple Touch Icon at 180×180px and maskable app icon at 512×512px configured via Web Manifest.
+
+---
+
 ## 10. Page & Bento Grid Layout Hierarchy
 
 ### Standard Two-Column Bento Layout (7 Cols / 5 Cols)
@@ -665,7 +713,7 @@ The application uses an **Apple-inspired motion graphics system** for typography
 1. **Fluid Spring Deceleration (`cubic-bezier(0.16, 1, 0.3, 1)`)**: Immediate velocity that settles naturally with zero abrupt stops.
 2. **Subtle Amplitudes**: Translations use subtle offsets (8px–14px, never floaty 20px+ jumps) so content feels grounded and fast.
 3. **Where to Animate**:
-   - **View & Screen Transitions**: Cascading staggered entrance across Home, Configurator, and Flight Deck (`animate-apple-in stagger-1` ... `stagger-6`).
+   - **View & Screen Transitions**: Cascading staggered entrance across Home, Configurator, and Cockpit (`animate-apple-in stagger-1` ... `stagger-6`).
    - **Modals & Dialogs**: Backdrops fade smoothly (`animate-apple-fade-in`), dialog windows scale up gently (`animate-apple-modal`, `scale(0.96) translateY(12px) → scale(1) translateY(0)`).
    - **Multi-Step Wizards (Onboarding)**: Seamless step changes with `animate-apple-step-in`.
    - **Receipt Window (`ShareTelemetryModal`)**: Floating 9:16 canvas preview (`animate-apple-receipt`) with realistic ambient depth and smooth mode transitions.
@@ -687,14 +735,14 @@ The application uses an **Apple-inspired motion graphics system** for typography
 --ease-apple-snappy: cubic-bezier(0.25, 1, 0.5, 1);
 
 /* Utility Classes */
-.animate-apple-in       /* Staggered page block reveal (0.42s) */
-.animate-apple-fade-in  /* Clean backdrop fade (0.22s) */
-.animate-apple-modal    /* Modal scale & slide entrance (0.34s) */
-.animate-apple-popover  /* Popover / dropdown reveal (0.22s) */
-.animate-apple-step-in  /* Wizard step / tab transition (0.28s) */
-.animate-apple-receipt  /* Floating receipt card entrance (0.45s) */
-.animate-apple-check-pop/* Checkmark micro-spring bounce (0.25s) */
-.animate-beacon-breath  /* Luminous beacon breathing (2.4s infinite) */
+.animate-apple-in        /* Staggered page block reveal (0.42s) */
+.animate-apple-fade-in   /* Clean backdrop fade (0.22s) */
+.animate-apple-modal     /* Modal scale & slide entrance (0.34s) */
+.animate-apple-popover   /* Popover / dropdown reveal (0.22s) */
+.animate-apple-step-in   /* Wizard step / tab transition (0.28s) */
+.animate-apple-receipt   /* Floating receipt card entrance (0.45s) */
+.animate-apple-check-pop /* Checkmark micro-spring bounce (0.25s) */
+.animate-beacon-breath   /* Luminous beacon breathing (2.4s infinite) */
 
 /* Progressive Stagger System */
 .stagger-1 { animation-delay: 35ms; }
@@ -723,3 +771,4 @@ The application uses an **Apple-inspired motion graphics system** for typography
 3. **Use `active:scale-[0.98]`** on interactive pills and buttons for tactile physical feedback.
 4. **Isolate duotone icons with `CHIP_DUOTONE_ISOLATION_CLASSES`** so secondary layers render at 30% visual weight.
 5. **Provide a `solidBacker` for icon badges placed over dashed timeline spines** to prevent background lines showing through translucent dark surfaces.
+6. **Support safe area insets on mobile chrome**: Respect `safe-area-inset-top` on standalone PWA viewports.

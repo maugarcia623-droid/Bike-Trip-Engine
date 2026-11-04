@@ -1547,7 +1547,7 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
 
                 <div className="flex items-center justify-center gap-2">
                   <h1 className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">
-                    Bike Trip Engine
+                    Cadence
                   </h1>
                   <Badge variant="zinc" size="sm">
                     v2.6

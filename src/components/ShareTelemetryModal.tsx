@@ -197,7 +197,7 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
 
   if (!isOpen) return null;
 
-  const triggerFileDownload = (targetBlob: Blob, filename = 'flightdeck-telemetry.png') => {
+  const triggerFileDownload = (targetBlob: Blob, filename = 'cadence-telemetry.png') => {
     const url = URL.createObjectURL(targetBlob);
     const anchor = document.createElement('a');
     anchor.href = url;
@@ -211,7 +211,7 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
   const handleExportOrShare = async () => {
     if (!blob) return;
 
-    const filename = 'flightdeck-telemetry.png';
+    const filename = 'cadence-telemetry.png';
     const file = new File([blob], filename, { type: 'image/png' });
 
     // Check if the browser environment supports file sharing via Web Share API
@@ -232,9 +232,9 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
         await navigator.share({
           files: [file],
           title: telemetryData?.routeName
-            ? `${telemetryData.routeName} // Flight Deck Telemetry`
-            : 'Flight Deck Telemetry',
-          text: `Flight Deck Telemetry receipt · 1080×1920 PNG (9:16 Story / Strava)`,
+            ? `${telemetryData.routeName} // Cadence Telemetry`
+            : 'Cadence Telemetry',
+          text: `Cadence Telemetry receipt · 1080×1920 PNG (9:16 Story / Strava)`,
         });
         return;
       } catch (err) {
@@ -246,7 +246,7 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
       }
     }
 
-    // Fall back to standard <a download="flightdeck-telemetry.png"> file download
+    // Fall back to standard <a download="cadence-telemetry.png"> file download
     triggerFileDownload(blob, filename);
   };
 
@@ -259,11 +259,11 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
         setCopied(true);
         setTimeout(() => setCopied(false), 2500);
       } else {
-        triggerFileDownload(blob, 'flightdeck-telemetry.png');
+        triggerFileDownload(blob, 'cadence-telemetry.png');
       }
     } catch (err) {
       console.warn('Clipboard write failed, downloading instead:', err);
-      triggerFileDownload(blob, 'flightdeck-telemetry.png');
+      triggerFileDownload(blob, 'cadence-telemetry.png');
     }
   };
 
@@ -587,7 +587,7 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
                 {/* Direct Save PNG Button */}
                 <button
                   type="button"
-                  onClick={() => blob && triggerFileDownload(blob, 'flightdeck-telemetry.png')}
+                  onClick={() => blob && triggerFileDownload(blob, 'cadence-telemetry.png')}
                   disabled={isGenerating || !blob}
                   className={`py-2.5 px-3 rounded-xl ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES} hover:bg-chip hover:text-ink text-xs font-semibold font-rounded flex items-center justify-center gap-2 transition-all duration-150 active:scale-[0.97] cursor-pointer disabled:opacity-50 min-w-0 truncate`}
                 >

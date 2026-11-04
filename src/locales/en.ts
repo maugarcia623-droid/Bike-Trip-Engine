@@ -7,7 +7,7 @@ export const en = {
   nutritionTitle: "Nutrition & recovery protocol",
 
   // ── Brand & Header Navigation ──
-  appName: "Bike Trip Engine",
+  appName: "Cadence",
   headerTagline: "Aero physics · Reverse timeline · Fueling",
   navPrimaryViewsAria: "Primary views",
   navMobileViewsAria: "Mobile views",
@@ -627,7 +627,7 @@ export const en = {
   phaseDaylight: "Full daylight",
 
   // ── Print Flight Sheet ──
-  printHeaderTagline: "BIKE TRIP ENGINE · RIDE CUE SHEET & ROAD BOOK (A4)",
+  printHeaderTagline: "CADENCE · RIDE CUE SHEET & ROAD BOOK (A4)",
   printClassification: "Classification:",
   printDestination: "Destination:",
   printShiftLock: "Shift Lock:",
@@ -838,7 +838,7 @@ export const en = {
   // ── Feedback Modal ──
   sendFeedbackBtn: "Send Feedback",
   feedbackModalTitle: "Send Feedback",
-  feedbackModalSub: "Flight Deck cockpit telemetry & engineering",
+  feedbackModalSub: "Cadence cockpit telemetry & engineering",
   feedbackCategoryLabel: "Category",
   feedbackCategoryBug: "Bug",
   feedbackCategoryBugDesc: "Issue or broken behavior",
@@ -862,11 +862,11 @@ export const en = {
   feedbackDoneBtn: "Done",
   feedbackSendAnotherBtn: "Send another",
   feedbackConfirmation: "Thanks for the feeback!",
-  feedbackSuccessSub: "Your message has been dispatched directly. Thank you for helping us fine-tune the Flight Deck aerodynamics and calculations!",
+  feedbackSuccessSub: "Your message has been dispatched directly. Thank you for helping us fine-tune Cadence aerodynamics and calculations!",
   feedbackErrorEmpty: "Please type a message before sending.",
   feedbackErrorSubmit: "Failed to submit feedback. Please try again.",
   feedbackErrorNetwork: "Network error occurred. Please check your connection and try again.",
-  feedbackFooterDock: "Flight Deck Telemetry Online",
+  feedbackFooterDock: "Cadence Telemetry Online",
 
   // ── Personalisation & Onboarding Wizard ──
   personalisationHeaderTag: "Welcome · Pilot Personalisation",

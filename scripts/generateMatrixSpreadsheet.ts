@@ -541,10 +541,10 @@ console.log(`[CSV Generated] ${csvWorkspacePath} (${MATRIX_DATA.length} chips)`)
 const artifactDir = '/Users/mau/.gemini/antigravity/brain/ad4bb82a-53b6-4c93-aa08-dc1012c3f2ba';
 const artifactPath = path.join(artifactDir, 'flight_deck_chip_matrix.md');
 
-let mdContent = `# Flight Deck Customization Matrix: 36 Archetype Chips Reference
+let mdContent = `# Cadence Customization Matrix: 36 Archetype Chips Reference
 
 > [!NOTE]
-> This master spreadsheet documents how **all 36 customizable preset chips** correlate to the 4 Flight Deck command modules:
+> This master spreadsheet documents how **all 36 customizable preset chips** correlate to the 4 Cadence Cockpit command modules:
 > 1. **Reverse Commute Timeline** (\`ReverseTimelineBento\`)
 > 2. **Readiness Checklist** (\`PreFlightChecklistBento\`)
 > 3. **Real-Food Nutrition Bento** (\`NutritionBento\`)
@@ -556,7 +556,7 @@ let mdContent = `# Flight Deck Customization Matrix: 36 Archetype Chips Referenc
 
 ## Summary Overview by Archetype
 
-| Archetype | Chips Count | Primary Focus | Key Flight Deck Interventions |
+| Archetype | Chips Count | Primary Focus | Key Cadence Cockpit Interventions |
 | :--- | :---: | :--- | :--- |
 | **COMMUTE** | 9 | Punctuality, traffic margins, office hygiene & cargo | Cafe pauses, 800lm night checks, tempo surges, shower/skyr timing, waterproof laptop sleeves |
 | **BIKEPACKING** | 9 | Self-sufficiency, alpine terrain, bivouac curfews & battery reserves | Alpine col clearance, leave-no-trace shelter pitch, high-altitude stews, tubeless repair plugs |

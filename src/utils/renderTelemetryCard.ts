@@ -13,7 +13,7 @@
  *    - cx = 875, cy = 385, tilted -15deg, stroke/fill = '#DCDBD6'.
  *    - Outer scalloped postage seal (r = 165px, 36 wave teeth, lineWidth = 2.5).
  *    - Two concentric inner rings (r = 146px and r = 96px, lineWidth = 2).
- *    - Circular curved text along r = 114px: '• Bike trip engine - Nutrition - Weather / Aerodynamics '.
+ *    - Circular curved text along r = 114px: '• Cadence - Nutrition - Weather / Aerodynamics '.
  *    - Geometric cyclist glyph centered in the seal.
  * 4. Centered Editorial Title & Date (y = 495 to 625):
  *    - Route title centered at x = 540 in 60px extrabold rounded #111111 (lineHeight 72px, max 2 lines).
@@ -496,7 +496,7 @@ function drawPassportStamp(ctx: CanvasRenderingContext2D): void {
 
   // 3. Curved Circular Text along r = 114px path (22px bold rounded)
   const textRadius = 120;
-  const stampText = '• Bike trip engine - Nutrition - Weather / Aerodynamics ';
+  const stampText = '• Cadence - Nutrition - Weather / Aerodynamics ';
   ctx.font = `800 20px ${FONT_ROUNDED}`;
   ctx.fillStyle = COLOR_STAMP;
   ctx.textAlign = 'center';
@@ -1194,7 +1194,7 @@ export async function renderTelemetryCardToDataUrl(
 export async function downloadTelemetryCard(
   data: TelemetryShareData,
   modeOrOptions: TelemetryCardMode | RenderTelemetryCardOptions = 'solid',
-  fileName = 'flightdeck-telemetry.png'
+  fileName = 'cadence-telemetry.png'
 ): Promise<void> {
   const blob = await renderTelemetryCard(data, modeOrOptions);
   const url = URL.createObjectURL(blob);

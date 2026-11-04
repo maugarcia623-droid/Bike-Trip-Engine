@@ -1,6 +1,6 @@
 /**
  * 100 Unique Trip Configuration Scenarios Stress Test Suite
- * Bike Trip Engine Commute & Telemetry Platform
+ * Cadence Commute & Telemetry Platform
  */
 
 import { calculatePhysics } from '../src/utils/physics';

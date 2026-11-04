@@ -3139,7 +3139,7 @@ var en = {
   checklistTitle: "Readiness checklist",
   nutritionTitle: "Nutrition & recovery protocol",
   // ── Brand & Header Navigation ──
-  appName: "Bike Trip Engine",
+  appName: "Cadence",
   headerTagline: "Aero physics \xB7 Reverse timeline \xB7 Fueling",
   navPrimaryViewsAria: "Primary views",
   navMobileViewsAria: "Mobile views",
@@ -3572,7 +3572,7 @@ var en = {
   cancelBtn: "Cancel",
   saveSpecsBtn: "Save specs",
   // ── Print Flight Sheet ──
-  printHeaderTagline: "BIKE TRIP ENGINE \xB7 OPERATIONAL FLIGHT SHEET (A4)",
+  printHeaderTagline: "CADENCE \xB7 OPERATIONAL FLIGHT SHEET (A4)",
   printClassification: "Classification:",
   printDestination: "Destination:",
   printShiftLock: "Shift Lock:",
@@ -3610,7 +3610,7 @@ var fr = {
   checklistTitle: "Inspection du mat\xE9riel & rig",
   nutritionTitle: "Protocole de nutrition & r\xE9cup\xE9ration",
   // ── Brand & Header Navigation ──
-  appName: "Bike Trip Engine",
+  appName: "Cadence",
   headerTagline: "Physique a\xE9ro \xB7 R\xE9tro-planning \xB7 Ravito",
   navPrimaryViewsAria: "Vues principales",
   navMobileViewsAria: "Vues mobiles",
@@ -4043,7 +4043,7 @@ var fr = {
   cancelBtn: "Annuler",
   saveSpecsBtn: "Enregistrer",
   // ── Print Flight Sheet ──
-  printHeaderTagline: "BIKE TRIP ENGINE \xB7 FEUILLE DE ROUTE OP\xC9RATIONNELLE (A4)",
+  printHeaderTagline: "CADENCE \xB7 FEUILLE DE ROUTE OP\xC9RATIONNELLE (A4)",
   printClassification: "Classification :",
   printDestination: "Destination :",
   printShiftLock: "Prise de poste :",

@@ -140,7 +140,7 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
             <span className="hidden sm:inline whitespace-nowrap">{t('navConfigurator')}</span>
           </button>
 
-          {/* View 3: Flight Deck */}
+          {/* View 3: Cockpit */}
           <button
             type="button"
             onClick={() => onNavigate('dashboard')}

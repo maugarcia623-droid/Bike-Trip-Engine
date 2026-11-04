@@ -8,7 +8,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Bike Trip Engine — Inline PostCSS Tailwind config ensures live Vite dev server
+// Cadence — Inline PostCSS Tailwind config ensures live Vite dev server
 // reloads design-system tokens immediately without Node ESM module cache staleness.
 export default defineConfig({
   plugins: [react()],

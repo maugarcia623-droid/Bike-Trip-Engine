@@ -34,8 +34,8 @@ export const DashboardEmptyState: React.FC<DashboardEmptyStateProps> = ({
             </h2>
             <p className="text-sm sm:text-base text-ink-muted leading-relaxed">
               {isFr
-                ? 'Votre Flight Deck est prêt. Calibrez votre première sortie avec aérodynamisme CdA, rétro-planning horaire et ravitaillement en aliments bruts, ou explorez immédiatement avec une sortie démo.'
-                : 'Your Flight Deck is ready. Calibrate your first ride with CdA aerodynamics, exact reverse schedule, and whole-food fueling, or instantly explore with a verified demo trip.'}
+                ? 'Votre cockpit Cadence est prêt. Calibrez votre première sortie avec aérodynamisme CdA, rétro-planning horaire et ravitaillement en aliments bruts, ou explorez immédiatement avec une sortie démo.'
+                : 'Your Cadence cockpit is ready. Calibrate your first ride with CdA aerodynamics, exact reverse schedule, and whole-food fueling, or instantly explore with a verified demo trip.'}
             </p>
           </div>
 

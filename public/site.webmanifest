@@ -1,7 +1,7 @@
 {
-  "name": "FlightDeck",
-  "short_name": "FlightDeck",
-  "description": "High-Precision Bike Trip Cockpit & Ride Metrics Telemetry",
+  "name": "Cadence",
+  "short_name": "Cadence",
+  "description": "Cadence — High-Precision Bike Trip Cockpit & Ride Metrics Telemetry",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#111111",

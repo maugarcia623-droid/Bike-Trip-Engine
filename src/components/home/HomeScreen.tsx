@@ -173,8 +173,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </h3>
             <p className="text-xs text-ink-muted max-w-md mx-auto leading-relaxed">
               {lang === 'fr'
-                ? 'Configurez votre première sortie personnalisée ou chargez un profil démo pour explorer le Flight Deck.'
-                : 'Create your first custom ride or load a demo profile to explore the Flight Deck telemetry.'}
+                ? 'Configurez votre première sortie personnalisée ou chargez un profil démo pour explorer le cockpit Cadence.'
+                : 'Create your first custom ride or load a demo profile to explore the Cadence cockpit telemetry.'}
             </p>
           </div>
           <div className="flex items-center justify-center gap-3 pt-2 flex-wrap">

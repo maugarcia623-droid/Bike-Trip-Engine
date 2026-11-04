@@ -836,7 +836,7 @@ function AppContent() {
       {/* Supabase Password Recovery Modal */}
       <ResetPasswordModal />
 
-      {/* Flight Deck Feedback Modal */}
+      {/* Cadence Feedback Modal */}
       <FeedbackModal
         isOpen={isFeedbackModalOpen}
         onClose={() => setIsFeedbackModalOpen(false)}

@@ -135,7 +135,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
         categoryLabel: categories.find((c) => c.id === category)?.label || category,
         message: trimmedMsg,
         language: lang,
-        source: 'FlightDeck',
+        source: 'Cadence',
         submittedAt: new Date().toISOString(),
       };
 

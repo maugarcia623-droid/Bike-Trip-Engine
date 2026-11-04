@@ -333,7 +333,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
         </div>
       </div>
 
-      {/* ── Flight Deck Bottom Telemetry / Feedback Dock Corner ── */}
+      {/* ── Cadence Bottom Telemetry / Feedback Dock Corner ── */}
       <div className="flex items-center justify-between pt-6 mt-4 text-xs text-ink-muted border-t border-dashed border-ink/10 dark:border-white/10">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-volt-lime animate-pulse" />
@@ -358,7 +358,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
         physicsResult={physicsResult}
       />
 
-      {/* ── Flight Deck Feedback Modal ── */}
+      {/* ── Cadence Feedback Modal ── */}
       <FeedbackModal
         isOpen={isFeedbackModalOpen}
         onClose={() => setIsFeedbackModalOpen(false)}
