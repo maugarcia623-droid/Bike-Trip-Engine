@@ -16,52 +16,16 @@ import {
 interface WeatherWidgetProps {
   trip?: TripProfile;
   weather: WeatherCondition;
-  onUpdateWeather: (newWeather: WeatherCondition) => void;
+  onUpdateWeather?: (newWeather: WeatherCondition) => void;
   speedKmH: number;
 }
 
 export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
   trip,
   weather,
-  onUpdateWeather,
   speedKmH,
 }) => {
   const { lang, t } = useTranslation();
-  const [isDark, setIsDark] = useState(true);
-
-  useEffect(() => {
-    const checkDark = () => setIsDark(document.documentElement.classList.contains('dark'));
-    checkDark();
-    const observer = new MutationObserver(checkDark);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-    return () => observer.disconnect();
-  }, []);
-
-  const toggleHeadwind = () => {
-    const nextActive = !weather.isHeadwindActive;
-    const nextSpeed = nextActive && weather.baseWindSpeedKmH === 0 ? 12 : weather.baseWindSpeedKmH;
-    onUpdateWeather({
-      ...weather,
-      source: 'simulated',
-      effectiveHeadwindKmH: undefined,
-      isHeadwindActive: nextActive,
-      baseWindSpeedKmH: nextSpeed,
-      windDirection: nextActive ? 'headwind' : 'calm',
-      estuaryGustKmH: nextActive ? (weather.estuaryGustKmH || Math.round(nextSpeed * 1.5)) : 5,
-    });
-  };
-
-  const handleWindSpeedChange = (speed: number) => {
-    onUpdateWeather({
-      ...weather,
-      source: 'simulated',
-      effectiveHeadwindKmH: undefined,
-      baseWindSpeedKmH: speed,
-      isHeadwindActive: speed > 0,
-      windDirection: speed > 0 ? 'headwind' : 'calm',
-      estuaryGustKmH: speed > 0 ? Math.round(speed * 1.5) : 5,
-    });
-  };
 
   const rhoNum = weather.airDensityRho ?? trip?.physics.rho ?? 1.225;
   const effectivePhysics = {
@@ -94,9 +58,6 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
 
   const isHighWind = effectiveWindSpeed >= 32 || (weather.isHeadwindActive && peakGust >= 52);
   const isCaution = !isHighWind && weather.isHeadwindActive && effectiveWindSpeed >= 20;
-  const fillPercent = Math.min(100, Math.max(0, (weather.baseWindSpeedKmH / 35) * 100));
-  const activeBarColor = isHighWind ? '#FF3B30' : isDark ? '#F2F455' : '#111111';
-  const trackEmptyColor = isDark ? '#2D2D34' : '#EBE9E3';
 
   return (
     <div className="bg-card rounded-card p-4 mb-7 transition-colors">
@@ -122,7 +83,7 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
           </p>
         </div>
 
-        {/* Full-Radius Status Callout & Toggle */}
+        {/* Full-Radius Status Callout */}
         <div className="flex items-center gap-2 flex-wrap">
           {isHighWind ? (
             <Badge variant="rose" size="lg" icon={Warning} className="py-2 px-3.5 text-xs">
@@ -137,23 +98,6 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
               {t('statusGoOptimal')}
             </Badge>
           )}
-
-          <button
-            type="button"
-            onClick={toggleHeadwind}
-            className={`px-4 py-2 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer tnum ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
-              weather.isHeadwindActive
-                ? `${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary} ${CHIP_TOKENS.amber.selectedRing}`
-                : `${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} ${CHIP_RING_UNSELECTED} hover:brightness-[0.97] dark:hover:brightness-110`
-            }`}
-          >
-            <Wind className="w-4 h-4 text-current" />
-            <span>
-              {weather.isHeadwindActive
-                ? t('headwindSpeedToggle', { speed: weather.baseWindSpeedKmH })
-                : t('calmModeToggle')}
-            </span>
-          </button>
         </div>
       </div>
 
@@ -248,32 +192,18 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
         </div>
       </div>
 
-      {/* Full-Radius Wind Tuning Capsule */}
-      <div className="rounded-pod lg:rounded-full bg-pod px-4 sm:px-5 py-3 flex flex-col lg:flex-row lg:items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-3 flex-1 w-full lg:max-w-md min-w-0">
-          <span className="text-ink-secondary font-medium shrink-0">{t('windSpeedSliderLabel')}</span>
-          <input
-            type="range"
-            aria-label={t('windSimulationAria')}
-            min="0"
-            max="35"
-            step="1"
-            value={weather.baseWindSpeedKmH}
-            onChange={(e) => handleWindSpeedChange(Number(e.target.value))}
-            style={{
-              background: `linear-gradient(to right, ${activeBarColor} 0%, ${activeBarColor} ${fillPercent}%, ${trackEmptyColor} ${fillPercent}%, ${trackEmptyColor} 100%)`,
-            }}
-            className="w-full min-w-[72px] peloton-slider focus:outline-none"
-          />
-          <span className="px-3 py-1 rounded-full bg-card font-semibold text-ink min-w-[68px] text-center tnum shrink-0 whitespace-nowrap">
-            {weather.baseWindSpeedKmH} km/h
+      {/* Full-Radius Telemetry Summary Capsule */}
+      <div className="rounded-pod lg:rounded-full bg-pod px-4 sm:px-5 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <span className="text-ink-secondary font-medium shrink-0">
+            {lang === 'fr' ? 'Allure cible & aérodynamique :' : 'Cruising pace & aerodynamics:'}
+          </span>
+          <span className="px-3 py-1 rounded-full bg-card font-semibold text-ink tnum shrink-0 whitespace-nowrap">
+            {speedKmH} km/h
           </span>
         </div>
 
         <div className="flex items-center justify-between sm:justify-start gap-2 flex-wrap">
-          <span className="text-ink-muted tnum">
-            {t('cruisingPaceLabel')} <strong className="text-ink font-semibold">{speedKmH} km/h</strong>
-          </span>
           {weather.isHeadwindActive && effectiveWindSpeed > 0 ? (
             <Badge variant="amber" size="md" className="tnum">
               {t('aeroDragFactoredPill', { watts: aeroDeltaWatts })}
