@@ -101,6 +101,7 @@ export const FlightDeckHeader: React.FC<FlightDeckHeaderProps> = ({
                 ? 'bg-volt text-[#111111] dark:bg-beacon-amber/15 dark:text-beacon-amber'
                 : 'bg-beacon-red text-white dark:bg-beacon-red/15 dark:text-beacon-red'
             }`}
+            title={`${t('rideFeasibility')}: ${physicsResult.goStatus} — ${physicsResult.goStatusReason}`}
           >
             {isGo ? (
               <CheckCircle className="w-4 h-4 dual-tone-emerald" />

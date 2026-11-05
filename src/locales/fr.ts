@@ -353,6 +353,12 @@ export const fr: TranslationDictionary = {
   goReasonPower: "Puissance soutenue tonique ({watts}W) — réduisez légèrement l'allure pour garder un souffle confortable.",
   goReasonBreeze: "Brise légère ({wind} km/h) — conditions très agréables, déjà intégrées à votre horaire.",
   goReasonCalm: "Air calme et porteur — pédalage fluide et sans contrainte.",
+  rideFeasibility: "Faisabilité du trajet",
+  feasibilityStatus: "Statut de faisabilité",
+  feasibilityLegend: "Statut évalué selon le vent, la puissance requise & le FTP",
+  feasibilityOptimal: "Conditions optimales",
+  feasibilityCaution: "Conditions exigeantes",
+  feasibilitySevere: "Conditions sévères",
 
   // ── Atmosphere & Weather Conditions Card ──
   atmosphereTitle: "Conditions météo & atmosphère",

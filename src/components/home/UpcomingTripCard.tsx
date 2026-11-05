@@ -134,10 +134,14 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
   const archetype = getArchetypeFromTag(trip.tag, trip.name);
   const dateInfo = useMemo(() => getTripDateDetails(trip, lang), [trip, lang]);
 
+  // Active rider garage specs
+  const specs = useMemo(() => loadRiderBikeSpecs(), []);
+  const activeBike = useMemo(() => getActiveBike(specs), [specs]);
+
   // Solved physics calculations
   const physicsResult = useMemo(
-    () => calculatePhysics(trip.physics, trip.route, trip.weather, lang),
-    [trip.physics, trip.route, trip.weather, lang]
+    () => calculatePhysics(trip.physics, trip.route, trip.weather, lang, specs?.ftpWatts),
+    [trip.physics, trip.route, trip.weather, lang, specs?.ftpWatts]
   );
 
   // Solved reverse timeline
@@ -163,10 +167,6 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
     [trip, physicsResult, extraBufferMinutes, lang]
   );
 
-  // Active rider garage specs
-  const specs = useMemo(() => loadRiderBikeSpecs(), []);
-  const activeBike = useMemo(() => getActiveBike(specs), [specs]);
-
   // Solar and visibility ephemeris
   const visibility = useMemo(() => {
     try {
@@ -188,8 +188,8 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
   const peakGust = trip.weather.estuaryGustKmH || Math.round(trip.weather.baseWindSpeedKmH * 1.4);
   const aeroDeltaWatts = Math.max(1, Math.round(physicsResult.powerDeltaWatts));
 
-  const isHighWind = trip.weather.baseWindSpeedKmH >= 32 || peakGust >= 52;
-  const isCaution = !isHighWind && (trip.weather.baseWindSpeedKmH >= 20 || peakGust >= 35 || trip.weather.precipitationRiskPercent >= 40);
+  const isHighWind = physicsResult.goStatus === 'NO-GO';
+  const isCaution = physicsResult.goStatus === 'CAUTION';
 
   // Archetype color styling
   const archetypeBadgeVariant =
@@ -229,15 +229,21 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
               {trip.tag}
             </Badge>
 
-            <span
-              className={`w-2 h-2 rounded-full animate-beacon-pulse shrink-0 ${
-                isHighWind
-                  ? CHIP_TOKENS.rose.dot
-                  : isCaution
-                  ? CHIP_TOKENS.amber.dot
-                  : CHIP_TOKENS.emerald.dot
-              }`}
-            />
+            <Badge
+              variant={
+                physicsResult.goStatus === 'GO'
+                  ? 'emerald'
+                  : physicsResult.goStatus === 'CAUTION'
+                  ? 'amber'
+                  : 'rose'
+              }
+              size="sm"
+              dot
+              title={`${t('rideFeasibility')}: ${physicsResult.goStatus} — ${physicsResult.goStatusReason}`}
+              className="h-9 px-3 text-xs font-semibold"
+            >
+              {physicsResult.goStatus}
+            </Badge>
 
             {/* Profile Switcher dropdown if multiple profiles exist */}
             {allTrips.length > 1 && (
@@ -253,7 +259,7 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
                 </button>
 
                 {isSwitcherOpen && (
-                  <div className="absolute left-0 mt-2 w-64 rounded-2xl bg-card border border-ink/15 dark:border-white/15 shadow-xl py-1.5 z-30 animate-apple-in">
+                  <div className="absolute left-0 mt-2 w-72 rounded-2xl bg-card border border-ink/15 dark:border-white/15 shadow-xl py-1.5 z-30 animate-apple-in">
                     <div className="px-3 py-1 text-[11px] font-semibold text-ink-muted uppercase tracking-wider border-b border-ink/5 dark:border-white/5">
                       {t('switchActiveProfile')}
                     </div>
@@ -261,6 +267,9 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
                       const pMeta = getLocalizedTripMeta(p, lang);
                       const isCurrent = p.id === trip.id;
                       const pDate = getTripDateDetails(p, lang);
+                      const pPhysics = calculatePhysics(p.physics, p.route, p.weather, lang, specs?.ftpWatts);
+                      const pIsGo = pPhysics.goStatus === 'GO';
+                      const pIsCaution = pPhysics.goStatus === 'CAUTION';
                       return (
                         <button
                           key={p.id}
@@ -269,14 +278,27 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
                             onSelectTrip(p.id);
                             setIsSwitcherOpen(false);
                           }}
+                          title={`${pMeta.name} — ${pPhysics.goStatus}: ${pPhysics.goStatusReason}`}
                           className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between gap-2 hover:bg-pod transition-colors cursor-pointer ${
                             isCurrent ? 'font-semibold text-ink bg-pod/60' : 'text-ink-secondary'
                           }`}
                         >
                           <div className="min-w-0 flex-1">
-                            <span className="block font-medium truncate">{pMeta.name}</span>
+                            <div className="flex items-center gap-1.5 font-medium truncate">
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                  pIsGo
+                                    ? CHIP_TOKENS.emerald.dot
+                                    : pIsCaution
+                                    ? CHIP_TOKENS.amber.dot
+                                    : CHIP_TOKENS.rose.dot
+                                }`}
+                              />
+                              <span className="truncate">{pMeta.name}</span>
+                            </div>
                             <span className="text-[10px] text-ink-muted">
-                              {pDate.formattedDate} · {p.route.distanceKm} km · {p.tag}
+                              <span className="font-semibold uppercase mr-1">{pPhysics.goStatus}</span>
+                              · {pDate.formattedDate} · {p.route.distanceKm} km · {p.tag}
                             </span>
                           </div>
                           {isCurrent && (
@@ -310,15 +332,15 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
         {/* Readiness Badge, Cockpit Launch CTA & Collapse Button */}
         <div className="flex items-center gap-2.5 flex-wrap shrink-0">
           {isHighWind ? (
-            <Badge variant="rose" size="md" icon={Warning} className="py-2 px-3 text-xs">
+            <Badge variant="rose" size="md" icon={Warning} className="py-2 px-3 text-xs" title={`${t('rideFeasibility')}: ${physicsResult.goStatus} — ${physicsResult.goStatusReason}`}>
               {t('statusNoGoGale')}
             </Badge>
           ) : isCaution ? (
-            <Badge variant="amber" size="md" icon={Warning} className="py-2 px-3 text-xs">
+            <Badge variant="amber" size="md" icon={Warning} className="py-2 px-3 text-xs" title={`${t('rideFeasibility')}: ${physicsResult.goStatus} — ${physicsResult.goStatusReason}`}>
               {t('statusCautionHeadwind')}
             </Badge>
           ) : (
-            <Badge variant="emerald" size="md" icon={CheckCircle} className="py-2 px-3 text-xs">
+            <Badge variant="emerald" size="md" icon={CheckCircle} className="py-2 px-3 text-xs" title={`${t('rideFeasibility')}: ${physicsResult.goStatus} — ${physicsResult.goStatusReason}`}>
               {t('statusGoOptimal')}
             </Badge>
           )}

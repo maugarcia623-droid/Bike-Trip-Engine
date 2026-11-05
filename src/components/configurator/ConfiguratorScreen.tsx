@@ -1849,14 +1849,42 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                   physicsResult.goStatus === 'GO'
                     ? 'emerald'
                     : physicsResult.goStatus === 'CAUTION'
-                    ? 'yellow-vest'
+                    ? 'amber'
                     : 'rose'
                 }
                 size="md"
                 dot
+                title={`${t('rideFeasibility')}: ${physicsResult.goStatus} — ${physicsResult.goStatusReason}`}
               >
                 {physicsResult.goStatus}
               </Badge>
+            </div>
+
+            {/* Live Feasibility Status Banner */}
+            <div
+              className={`p-2.5 rounded-pod text-xs flex items-start gap-2 border ${
+                physicsResult.goStatus === 'GO'
+                  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-900 dark:text-emerald-200'
+                  : physicsResult.goStatus === 'CAUTION'
+                  ? 'bg-amber-500/10 border-amber-500/20 text-amber-900 dark:text-amber-200'
+                  : 'bg-rose-500/10 border-rose-500/20 text-rose-900 dark:text-rose-200'
+              }`}
+            >
+              <span
+                className={`w-2 h-2 rounded-full mt-0.5 shrink-0 ${
+                  physicsResult.goStatus === 'GO'
+                    ? CHIP_TOKENS.emerald.dot
+                    : physicsResult.goStatus === 'CAUTION'
+                    ? CHIP_TOKENS.amber.dot
+                    : CHIP_TOKENS.rose.dot
+                }`}
+              />
+              <div className="min-w-0 flex-1">
+                <span className="font-semibold block">{t('rideFeasibility')}: {physicsResult.goStatus}</span>
+                <p className="mt-0.5 text-[11px] opacity-90 leading-relaxed">
+                  {physicsResult.goStatusReason}
+                </p>
+              </div>
             </div>
 
             {/* Hero Hard Departure Pod (4-Layer Yellow-Vest Brand Surface) */}

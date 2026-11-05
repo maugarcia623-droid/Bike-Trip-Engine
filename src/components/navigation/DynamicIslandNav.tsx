@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Compass,
   SlidersHorizontal,
@@ -10,6 +10,7 @@ import {
 } from '@/components/icons';
 import { TripProfile } from '../../types/trip';
 import { useTranslation, getLocalizedTripMeta } from '../../context/LanguageContext';
+import { loadRiderBikeSpecs } from '../../utils/specsStorage';
 import { calculatePhysics } from '../../utils/physics';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
@@ -39,12 +40,19 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
   onCreateNew,
 }) => {
   const { lang, t } = useTranslation();
+  const riderSpecs = useMemo(() => loadRiderBikeSpecs(), []);
   const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
   const switcherRef = useRef<HTMLDivElement>(null);
 
   // Calculate live physics for dynamic telemetry status dot (if activeTrip is defined)
   const physics = activeTrip
-    ? calculatePhysics(activeTrip.physics, activeTrip.route, activeTrip.weather, lang)
+    ? calculatePhysics(
+        activeTrip.physics,
+        activeTrip.route,
+        activeTrip.weather,
+        lang,
+        riderSpecs?.ftpWatts
+      )
     : null;
   const isGo = physics?.goStatus === 'GO';
   const isCaution = physics?.goStatus === 'CAUTION';
@@ -173,7 +181,7 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
                   ? `${yellowVest.surface} ${yellowVest.primary} ${yellowVest.selectedRing}`
                   : `${CHIP_RING_UNSELECTED} bg-zinc-100 hover:bg-zinc-200/80 text-zinc-800 dark:bg-zinc-800/70 dark:hover:bg-zinc-800 dark:text-zinc-200`
               }`}
-              title="Open Trip Selector"
+              title={`${activeMeta.name} — ${t('feasibilityStatus')}: ${physics?.goStatus || 'GO'} (${physics?.goStatusReason || ''})`}
               aria-expanded={isSwitcherOpen}
               aria-haspopup="listbox"
             >
@@ -185,9 +193,21 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
                     ? CHIP_TOKENS.amber.dot
                     : CHIP_TOKENS.rose.dot
                 }`}
+                aria-hidden="true"
               />
               <span className="truncate max-w-[96px] min-[360px]:max-w-[145px] min-[400px]:max-w-[180px] sm:max-w-[220px] md:max-w-[280px]">
                 {activeMeta.name}
+              </span>
+              <span
+                className={`hidden min-[480px]:inline-flex text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${
+                  isGo
+                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                    : isCaution
+                    ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+                    : 'bg-rose-500/15 text-rose-700 dark:text-rose-300'
+                }`}
+              >
+                {physics?.goStatus || 'GO'}
               </span>
               {isSwitcherOpen ? (
                 <CircleChevronUp className="w-4 h-4 shrink-0 text-current" />
@@ -209,71 +229,149 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
           {/* ── TRIP SWITCHER / SELECTOR (CENTERED ABOVE PILL ON MOBILE, ANCHORED ABOVE BUTTON ON SM+) ── */}
           {isSwitcherOpen && (
             <div
-              role="listbox"
-              aria-label={t('activeTripAria')}
-              className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:right-0 sm:min-w-full w-[min(20rem,calc(100vw-1.5rem))] sm:w-84 max-w-[calc(100vw-1.5rem)] bg-white dark:bg-[#161618] rounded-[24px] p-3 text-ink dark:text-white shadow-[0_20px_50px_rgba(0,0,0,0.18)] dark:shadow-[0_24px_55px_rgba(0,0,0,0.7)] z-50 animate-apple-popover"
+              className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:right-0 w-[min(22rem,calc(100vw-1.5rem))] sm:w-96 max-w-[calc(100vw-1.5rem)] z-50 pointer-events-auto"
             >
-              {/* Header with Active Trip Count & New Trip Action */}
-              <div className="flex items-center justify-between gap-2 pb-2.5 mb-2.5 border-b border-[#E5E3DD] dark:border-[#2C2C30] px-1">
-                <span className="text-[11px] font-mono uppercase tracking-wider text-ink-muted dark:text-zinc-400 font-bold truncate">
-                  {t('activeTripAria')} ({allTrips.length})
-                </span>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onCreateNew();
-                    setIsSwitcherOpen(false);
-                  }}
-                  className={`text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shrink-0 whitespace-nowrap cursor-pointer transition-all duration-150 active:scale-[0.96] hover:brightness-[0.97] dark:hover:brightness-110 ${yellowVest.surface} ${yellowVest.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
-                >
-                  <Plus className="w-3.5 h-3.5 text-current stroke-[2.5] shrink-0" />
-                  <span>{t('newTripButton')}</span>
-                </button>
-              </div>
+              <div
+                role="listbox"
+                aria-label={t('activeTripAria')}
+                className="w-full bg-white dark:bg-[#161618] rounded-[24px] p-3 text-ink dark:text-white shadow-[0_20px_50px_rgba(0,0,0,0.18)] dark:shadow-[0_24px_55px_rgba(0,0,0,0.7)] border border-black/5 dark:border-white/10 animate-apple-popover"
+              >
+                {/* Header with Active Trip Count & New Trip Action */}
+                <div className="flex items-center justify-between gap-2 pb-2.5 mb-2.5 border-b border-[#E5E3DD] dark:border-[#2C2C30] px-1">
+                  <span className="text-[11px] font-mono uppercase tracking-wider text-ink-muted dark:text-zinc-400 font-bold truncate">
+                    {t('activeTripAria')} ({allTrips.length})
+                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onCreateNew();
+                      setIsSwitcherOpen(false);
+                    }}
+                    className={`text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shrink-0 whitespace-nowrap cursor-pointer transition-all duration-150 active:scale-[0.96] hover:brightness-[0.97] dark:hover:brightness-110 ${yellowVest.surface} ${yellowVest.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                  >
+                    <Plus className="w-3.5 h-3.5 text-current stroke-[2.5] shrink-0" />
+                    <span>{t('newTripButton')}</span>
+                  </button>
+                </div>
 
-              {/* Scrollable Trip Options (Constant dimensions in all states) */}
-              <div className="max-h-56 sm:max-h-60 overflow-y-auto space-y-1.5 pr-0.5 no-scrollbar">
-                {allTrips.map((tripItem) => {
-                  const meta = getLocalizedTripMeta(tripItem, lang);
-                  const isSelected = activeTrip ? tripItem.id === activeTrip.id : false;
-                  return (
-                    <button
-                      key={tripItem.id}
-                      type="button"
-                      role="option"
-                      aria-selected={isSelected}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelectTrip(tripItem.id);
-                        setIsSwitcherOpen(false);
-                      }}
-                      className={`w-full flex items-center justify-between px-3 sm:px-3.5 py-2.5 rounded-xl text-[13px] text-left transition-all duration-150 active:scale-[0.98] cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
-                        isSelected
-                          ? `${yellowVest.surface} ${yellowVest.primary} ${yellowVest.selectedRing}`
-                          : `${CHIP_RING_UNSELECTED} bg-[#F4F3EF] hover:bg-[#EBE9E3] text-[#111111] dark:bg-[#202023] dark:hover:bg-[#2C2C30] dark:text-[#F5F5F7]`
-                      }`}
-                    >
-                      <div className="min-w-0 flex-1 pr-2">
-                        <div className="font-semibold whitespace-normal break-words leading-snug">
-                          {meta.name}
-                        </div>
-                        <div
-                          className={`text-[11px] font-mono mt-0.5 truncate ${
-                            isSelected ? 'opacity-80' : 'text-ink-muted dark:text-zinc-400'
+                {/* Active Trip Feasibility Insight Capsule */}
+                {physics && activeTrip && (
+                  <div className="mb-2.5 p-2.5 rounded-2xl bg-zinc-50 dark:bg-zinc-900/70 border border-ink/5 dark:border-white/5">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-ink-muted dark:text-zinc-400 font-bold">
+                        {t('rideFeasibility')}
+                      </span>
+                      <span
+                        className={`inline-flex items-center gap-1.5 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${
+                          isGo
+                            ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                            : isCaution
+                            ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+                            : 'bg-rose-500/15 text-rose-700 dark:text-rose-300'
+                        }`}
+                      >
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                            isGo
+                              ? CHIP_TOKENS.emerald.dot
+                              : isCaution
+                              ? CHIP_TOKENS.amber.dot
+                              : CHIP_TOKENS.rose.dot
                           }`}
-                        >
-                          {tripItem.tag} · {tripItem.route.distanceKm} km · {tripItem.route.elevationGainM ?? Math.round(tripItem.route.distanceKm * 6.5)}m+
+                        />
+                        {physics.goStatus}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-ink-secondary dark:text-zinc-300 leading-snug">
+                      {physics.goStatusReason}
+                    </p>
+                  </div>
+                )}
+
+                {/* Scrollable Trip Options (Constant dimensions in all states) */}
+                <div className="max-h-56 sm:max-h-60 overflow-y-auto space-y-1.5 pr-0.5 no-scrollbar">
+                  {allTrips.map((tripItem) => {
+                    const meta = getLocalizedTripMeta(tripItem, lang);
+                    const isSelected = activeTrip ? tripItem.id === activeTrip.id : false;
+                    const itemPhysics = calculatePhysics(
+                      tripItem.physics,
+                      tripItem.route,
+                      tripItem.weather,
+                      lang,
+                      riderSpecs?.ftpWatts
+                    );
+                    const itemIsGo = itemPhysics.goStatus === 'GO';
+                    const itemIsCaution = itemPhysics.goStatus === 'CAUTION';
+
+                    return (
+                      <button
+                        key={tripItem.id}
+                        type="button"
+                        role="option"
+                        aria-selected={isSelected}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectTrip(tripItem.id);
+                          setIsSwitcherOpen(false);
+                        }}
+                        title={`${meta.name} — ${itemPhysics.goStatus}: ${itemPhysics.goStatusReason}`}
+                        className={`w-full flex items-center justify-between px-3 sm:px-3.5 py-2.5 rounded-xl text-[13px] text-left transition-all duration-150 active:scale-[0.98] cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                          isSelected
+                            ? `${yellowVest.surface} ${yellowVest.primary} ${yellowVest.selectedRing}`
+                            : `${CHIP_RING_UNSELECTED} bg-[#F4F3EF] hover:bg-[#EBE9E3] text-[#111111] dark:bg-[#202023] dark:hover:bg-[#2C2C30] dark:text-[#F5F5F7]`
+                        }`}
+                      >
+                        <div className="min-w-0 flex-1 pr-2">
+                          <div className="flex items-center gap-1.5 font-semibold whitespace-normal break-words leading-snug">
+                            <span
+                              className={`w-2 h-2 rounded-full shrink-0 ${
+                                itemIsGo
+                                ? CHIP_TOKENS.emerald.dot
+                                : itemIsCaution
+                                ? CHIP_TOKENS.amber.dot
+                                : CHIP_TOKENS.rose.dot
+                              }`}
+                              aria-hidden="true"
+                            />
+                            <span className="truncate">{meta.name}</span>
+                          </div>
+                          <div
+                            className={`text-[11px] font-mono mt-0.5 truncate ${
+                              isSelected ? 'opacity-80' : 'text-ink-muted dark:text-zinc-400'
+                            }`}
+                          >
+                            <span className="font-semibold uppercase mr-1">
+                              {itemPhysics.goStatus}
+                            </span>
+                            · {tripItem.tag} · {tripItem.route.distanceKm} km · {tripItem.route.elevationGainM ?? Math.round(tripItem.route.distanceKm * 6.5)}m+
+                          </div>
                         </div>
-                      </div>
-                      {isSelected && (
-                        <div className="animate-apple-check-pop shrink-0">
-                          <Check className="w-4 h-4 text-current stroke-[2.5]" />
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
+                        {isSelected && (
+                          <div className="animate-apple-check-pop shrink-0">
+                            <Check className="w-4 h-4 text-current stroke-[2.5]" />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Status Legend Footer */}
+                <div className="mt-2.5 pt-2 border-t border-[#E5E3DD] dark:border-[#2C2C30] px-1 flex items-center justify-between text-[10px] font-mono text-ink-muted dark:text-zinc-400">
+                  <span className="flex items-center gap-1">
+                    <span className={`w-1.5 h-1.5 rounded-full ${CHIP_TOKENS.emerald.dot}`} />
+                    GO
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className={`w-1.5 h-1.5 rounded-full ${CHIP_TOKENS.amber.dot}`} />
+                    CAUTION
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className={`w-1.5 h-1.5 rounded-full ${CHIP_TOKENS.rose.dot}`} />
+                    NO-GO
+                  </span>
+                </div>
               </div>
             </div>
           )}

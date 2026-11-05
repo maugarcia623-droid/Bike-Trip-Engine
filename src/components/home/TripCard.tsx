@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   ArrowUpRight,
   Copy,
@@ -12,6 +12,7 @@ import { calculatePhysics } from '../../utils/physics';
 import { calculateReverseTimeline } from '../../utils/timeline';
 import { getChipsExtraBufferMinutes, findChipDef, CHIP_ICONS } from '../../utils/archetypeChips';
 import { useTranslation, getLocalizedTripMeta } from '../../context/LanguageContext';
+import { loadRiderBikeSpecs } from '../../utils/specsStorage';
 import { Badge } from '../common/Badge';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
@@ -41,7 +42,8 @@ export const TripCard: React.FC<TripCardProps> = ({
   onLaunch,
 }) => {
   const { lang, t } = useTranslation();
-  const physicsResult = calculatePhysics(trip.physics, trip.route, trip.weather, lang);
+  const riderSpecs = useMemo(() => loadRiderBikeSpecs(), []);
+  const physicsResult = calculatePhysics(trip.physics, trip.route, trip.weather, lang, riderSpecs?.ftpWatts);
   const extraBufferMinutes = getChipsExtraBufferMinutes(trip);
   const timelineResult = calculateReverseTimeline(
     trip.route,
@@ -80,6 +82,20 @@ export const TripCard: React.FC<TripCardProps> = ({
                 {t('activeBadge')}
               </Badge>
             )}
+            <Badge
+              variant={
+                physicsResult.goStatus === 'GO'
+                  ? 'emerald'
+                  : physicsResult.goStatus === 'CAUTION'
+                  ? 'amber'
+                  : 'rose'
+              }
+              size="md"
+              dot
+              title={`${t('rideFeasibility')}: ${physicsResult.goStatus} — ${physicsResult.goStatusReason}`}
+            >
+              {physicsResult.goStatus}
+            </Badge>
           </div>
 
           <div className="flex items-center gap-1 shrink-0">
@@ -117,9 +133,30 @@ export const TripCard: React.FC<TripCardProps> = ({
         <h3 className="text-lg font-semibold text-ink tracking-tight leading-snug">
           {meta.name}
         </h3>
-        <p className="text-[13px] text-ink-muted line-clamp-2 mt-1 mb-3 leading-relaxed">
+        <p className="text-[13px] text-ink-muted line-clamp-2 mt-1 mb-2.5 leading-relaxed">
           {meta.description}
         </p>
+
+        {/* Feasibility Alert Capsule when not GO */}
+        {physicsResult.goStatus !== 'GO' && (
+          <div
+            className={`mb-3 px-2.5 py-1.5 rounded-xl text-xs flex items-center gap-2 ${
+              physicsResult.goStatus === 'CAUTION'
+                ? 'bg-amber-500/10 text-amber-800 dark:text-amber-300'
+                : 'bg-rose-500/10 text-rose-800 dark:text-rose-300'
+            }`}
+            title={`${physicsResult.goStatus}: ${physicsResult.goStatusReason}`}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                physicsResult.goStatus === 'CAUTION'
+                  ? CHIP_TOKENS.amber.dot
+                  : CHIP_TOKENS.rose.dot
+              }`}
+            />
+            <span className="truncate font-medium">{physicsResult.goStatusReason}</span>
+          </div>
+        )}
 
         {/* Active Custom Preset Chips as Borderless Colored Pills */}
         {(trip.customChips || []).length > 0 && (

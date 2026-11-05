@@ -351,6 +351,12 @@ export const en = {
   goReasonPower: "Sustained power demand ({watts}W) is brisk — ease speed slightly for an all-day conversational feel.",
   goReasonBreeze: "Light breeze ({wind} km/h) — friendly riding weather, already factored into your timing.",
   goReasonCalm: "Calm, gentle air — smooth and effortless pedaling ahead.",
+  rideFeasibility: "Ride Feasibility",
+  feasibilityStatus: "Feasibility Status",
+  feasibilityLegend: "Status evaluated from wind, sustained watts & rider FTP",
+  feasibilityOptimal: "Optimal conditions",
+  feasibilityCaution: "Conditions require caution",
+  feasibilitySevere: "Severe conditions advisory",
 
   // ── Atmosphere & Weather Conditions Card ──
   atmosphereTitle: "Weather conditions & atmosphere",

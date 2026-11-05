@@ -616,10 +616,13 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
           <button
             type="button"
             onClick={() => onNavigate(breadcrumbTargetView)}
-            title={currentView === 'dashboard' ? t('editParamsTitle') : t('openFlightDeckBtn')}
-            className="hidden lg:flex items-center gap-3 px-4 py-2 bg-card dark:bg-pod hover:bg-pod dark:hover:bg-chip rounded-full text-[13px] sm:text-sm font-mono shadow-xs min-w-0 max-w-md transition-colors cursor-pointer focus:outline-none"
+            title={`${t('rideFeasibility')}: ${physics?.goStatus || 'GO'} — ${physics?.goStatusReason || ''} (${currentView === 'dashboard' ? t('editParamsTitle') : t('openFlightDeckBtn')})`}
+            className="hidden lg:flex items-center gap-2.5 px-4 py-2 bg-card dark:bg-pod hover:bg-pod dark:hover:bg-chip rounded-full text-[13px] sm:text-sm font-mono shadow-xs min-w-0 max-w-lg transition-colors cursor-pointer focus:outline-none"
           >
-            <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${statusDotClass}`} />
+            <span
+              className={`w-2.5 h-2.5 rounded-full shrink-0 ${statusDotClass}`}
+              title={`${physics?.goStatus}: ${physics?.goStatusReason}`}
+            />
             <span className="text-ink-muted uppercase tracking-wider text-xs font-bold shrink-0">
               {activeTrip.tag}
             </span>
@@ -628,6 +631,17 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
             <span className="text-ink-muted shrink-0">·</span>
             <span className="text-ink-secondary tnum font-bold shrink-0">
               {activeTrip.route.distanceKm} km
+            </span>
+            <span
+              className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full uppercase shrink-0 ${
+                physics?.goStatus === 'GO'
+                  ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                  : physics?.goStatus === 'CAUTION'
+                  ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+                  : 'bg-rose-500/15 text-rose-700 dark:text-rose-300'
+              }`}
+            >
+              {physics?.goStatus}
             </span>
           </button>
         )}

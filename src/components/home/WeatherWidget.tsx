@@ -56,8 +56,8 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
     : Math.min(8, weather.estuaryGustKmH || 5);
   const aeroDeltaWatts = Math.max(1, Math.round(physicsResult.powerDeltaWatts));
 
-  const isHighWind = effectiveWindSpeed >= 32 || (weather.isHeadwindActive && peakGust >= 52);
-  const isCaution = !isHighWind && weather.isHeadwindActive && effectiveWindSpeed >= 20;
+  const isHighWind = physicsResult.goStatus === 'NO-GO';
+  const isCaution = physicsResult.goStatus === 'CAUTION';
 
   return (
     <div className="bg-card rounded-card p-4 mb-7 transition-colors">
@@ -73,6 +73,7 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
                   ? CHIP_TOKENS.amber.dot
                   : CHIP_TOKENS.emerald.dot
               }`}
+              title={`${physicsResult.goStatus}: ${physicsResult.goStatusReason}`}
             />
             <h2 className="text-base sm:text-[17px] font-semibold tracking-tight text-ink">
               {t('weatherCheckTitle')}
@@ -86,15 +87,15 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
         {/* Full-Radius Status Callout */}
         <div className="flex items-center gap-2 flex-wrap">
           {isHighWind ? (
-            <Badge variant="rose" size="lg" icon={Warning} className="py-2 px-3.5 text-xs">
+            <Badge variant="rose" size="lg" icon={Warning} className="py-2 px-3.5 text-xs" title={`${t('rideFeasibility')}: ${physicsResult.goStatus} — ${physicsResult.goStatusReason}`}>
               {t('statusNoGoGale')}
             </Badge>
           ) : isCaution ? (
-            <Badge variant="yellow-vest" size="lg" icon={Warning} className="py-2 px-3.5 text-xs">
+            <Badge variant="amber" size="lg" icon={Warning} className="py-2 px-3.5 text-xs" title={`${t('rideFeasibility')}: ${physicsResult.goStatus} — ${physicsResult.goStatusReason}`}>
               {t('statusCautionHeadwind')}
             </Badge>
           ) : (
-            <Badge variant="emerald" size="lg" icon={CheckCircle} className="py-2 px-3.5 text-xs">
+            <Badge variant="emerald" size="lg" icon={CheckCircle} className="py-2 px-3.5 text-xs" title={`${t('rideFeasibility')}: ${physicsResult.goStatus} — ${physicsResult.goStatusReason}`}>
               {t('statusGoOptimal')}
             </Badge>
           )}

@@ -38,6 +38,25 @@ interface BentoDashboardProps {
   onOpenConfigurator?: () => void;
 }
 
+function useIsDesktop(): boolean {
+  const [isDesktop, setIsDesktop] = React.useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.innerWidth >= 1024 : true
+  );
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const media = window.matchMedia('(min-width: 1024px)');
+    const update = (e?: MediaQueryListEvent) => {
+      setIsDesktop(e ? e.matches : media.matches);
+    };
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+
+  return isDesktop;
+}
+
 export const BentoDashboard: React.FC<BentoDashboardProps> = ({
   trip,
   onUpdateTrip,
@@ -50,6 +69,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
   onOpenConfigurator,
 }) => {
   const { lang, t } = useTranslation();
+  const isDesktop = useIsDesktop();
   const [isShareModalOpen, setIsShareModalOpen] = React.useState<boolean>(false);
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = React.useState<boolean>(false);
   const effectiveSpecs = riderSpecs || loadRiderBikeSpecs();
@@ -275,65 +295,113 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
       </div>
 
       {/* ── TWO-COLUMN BENTO COMMAND DECK (7 COLS / 5 COLS) ── */}
-      {/* On desktop (lg+), 2 columns maintain their exact 7/5 split. */}
-      {/* On mobile (<lg), order utility classes sequence the cards: */}
-      {/* 1. Hero Card (above) */}
-      {/* 2. Weather Bento (order-1) */}
-      {/* 3. Reverse Timeline (order-2) */}
-      {/* 4. Readiness Checklist (order-3) */}
-      {/* 5. Nutrition Bento (order-4) */}
-      {/* 6. Aerodynamic Bento (order-5) */}
-      <div className="flex flex-col lg:grid lg:grid-cols-12 gap-5 mt-5">
-        {/* Weather Conditions (Mobile: 2, Desktop: Right Col top) */}
-        <div className="order-1 lg:order-none lg:col-span-5 lg:col-start-8 lg:row-start-1 animate-flight-deck-in deck-stagger-3">
-          <AtmosphereCard
-            trip={trip}
-            physicsResult={physicsResult}
-            onUpdateTrip={onUpdateTrip}
-            hardRolloutTime={timelineResult.hardDepartureTime}
-          />
-        </div>
+      {/* On desktop (lg+), 2 independent vertical columns prevent row-height constraints (eliminating blank spaces when cards collapse). */}
+      {/* On mobile (<lg), a single column presents the optimized chronological sequence: */}
+      {/* 1. Weather Bento, 2. Reverse Timeline, 3. Readiness Checklist, 4. Nutrition Bento, 5. Aerodynamic Bento */}
+      {isDesktop ? (
+        <div className="grid grid-cols-12 gap-5 mt-5 items-start">
+          {/* Left Column (Desktop: 7 cols) - Timeline & Physics Engine */}
+          <div className="col-span-7 flex flex-col gap-5">
+            <div className="animate-flight-deck-in deck-stagger-2">
+              <ReverseTimelineBento
+                trip={trip}
+                timeline={timelineResult}
+                riderSpecs={effectiveSpecs}
+              />
+            </div>
+            <div className="animate-flight-deck-in deck-stagger-4">
+              <PhysicsEngineCard
+                trip={trip}
+                physicsResult={physicsResult}
+                viewMode={viewMode}
+                onToggleViewMode={handleSetViewMode}
+              />
+            </div>
+          </div>
 
-        {/* Dynamic Reverse Timeline (Mobile: 3, Desktop: Left Col top) */}
-        <div className="order-2 lg:order-none lg:col-span-7 lg:col-start-1 lg:row-start-1 animate-flight-deck-in deck-stagger-2">
-          <ReverseTimelineBento
-            trip={trip}
-            timeline={timelineResult}
-            riderSpecs={effectiveSpecs}
-          />
+          {/* Right Column (Desktop: 5 cols) - Weather, Readiness Checklist & Nutrition */}
+          <div className="col-span-5 flex flex-col gap-5">
+            <div className="animate-flight-deck-in deck-stagger-3">
+              <AtmosphereCard
+                trip={trip}
+                physicsResult={physicsResult}
+                onUpdateTrip={onUpdateTrip}
+                hardRolloutTime={timelineResult.hardDepartureTime}
+              />
+            </div>
+            <div className="animate-flight-deck-in deck-stagger-5">
+              <PreFlightChecklistBento
+                trip={trip}
+                onUpdateTrip={onUpdateTrip}
+                riderSpecs={effectiveSpecs}
+              />
+            </div>
+            <div className="animate-flight-deck-in deck-stagger-6">
+              <NutritionBento
+                trip={trip}
+                hardDepartureTime={timelineResult.hardDepartureTime}
+                gateArrivalTime={timelineResult.gateArrivalTime}
+                physicsResult={physicsResult}
+                riderSpecs={effectiveSpecs}
+                onOpenSpecs={onOpenSpecs}
+              />
+            </div>
+          </div>
         </div>
+      ) : (
+        /* Mobile Linear Stack (< 1024px) */
+        <div className="flex flex-col gap-5 mt-5">
+          {/* 1. Weather Bento */}
+          <div className="animate-flight-deck-in deck-stagger-3">
+            <AtmosphereCard
+              trip={trip}
+              physicsResult={physicsResult}
+              onUpdateTrip={onUpdateTrip}
+              hardRolloutTime={timelineResult.hardDepartureTime}
+            />
+          </div>
 
-        {/* Pre-Flight Inspection Checklist (Mobile: 4, Desktop: Right Col middle) */}
-        <div className="order-3 lg:order-none lg:col-span-5 lg:col-start-8 lg:row-start-2 animate-flight-deck-in deck-stagger-5">
-          <PreFlightChecklistBento
-            trip={trip}
-            onUpdateTrip={onUpdateTrip}
-            riderSpecs={effectiveSpecs}
-          />
-        </div>
+          {/* 2. Dynamic Reverse Timeline */}
+          <div className="animate-flight-deck-in deck-stagger-2">
+            <ReverseTimelineBento
+              trip={trip}
+              timeline={timelineResult}
+              riderSpecs={effectiveSpecs}
+            />
+          </div>
 
-        {/* Baseline Dock: Real-Food Nutrition (Mobile: 5, Desktop: Right Col bottom) */}
-        <div className="order-4 lg:order-none lg:col-span-5 lg:col-start-8 lg:row-start-3 animate-flight-deck-in deck-stagger-6">
-          <NutritionBento
-            trip={trip}
-            hardDepartureTime={timelineResult.hardDepartureTime}
-            gateArrivalTime={timelineResult.gateArrivalTime}
-            physicsResult={physicsResult}
-            riderSpecs={effectiveSpecs}
-            onOpenSpecs={onOpenSpecs}
-          />
-        </div>
+          {/* 3. Pre-Flight Inspection Checklist */}
+          <div className="animate-flight-deck-in deck-stagger-5">
+            <PreFlightChecklistBento
+              trip={trip}
+              onUpdateTrip={onUpdateTrip}
+              riderSpecs={effectiveSpecs}
+            />
+          </div>
 
-        {/* Telemetry Dock: Aerodynamic & Rolling Physics Engine (Mobile: 6, Desktop: Left Col bottom) */}
-        <div className="order-5 lg:order-none lg:col-span-7 lg:col-start-1 lg:row-start-2 lg:row-span-2 animate-flight-deck-in deck-stagger-4">
-          <PhysicsEngineCard
-            trip={trip}
-            physicsResult={physicsResult}
-            viewMode={viewMode}
-            onToggleViewMode={handleSetViewMode}
-          />
+          {/* 4. Baseline Dock: Real-Food Nutrition */}
+          <div className="animate-flight-deck-in deck-stagger-6">
+            <NutritionBento
+              trip={trip}
+              hardDepartureTime={timelineResult.hardDepartureTime}
+              gateArrivalTime={timelineResult.gateArrivalTime}
+              physicsResult={physicsResult}
+              riderSpecs={effectiveSpecs}
+              onOpenSpecs={onOpenSpecs}
+            />
+          </div>
+
+          {/* 5. Telemetry Dock: Aerodynamic & Rolling Physics Engine */}
+          <div className="animate-flight-deck-in deck-stagger-4">
+            <PhysicsEngineCard
+              trip={trip}
+              physicsResult={physicsResult}
+              viewMode={viewMode}
+              onToggleViewMode={handleSetViewMode}
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ── Cadence Bottom Telemetry / Feedback Dock Corner ── */}
       <div className="flex items-center justify-between pt-6 mt-4 text-xs text-ink-muted border-t border-dashed border-ink/10 dark:border-white/10">
