@@ -318,7 +318,7 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
         </div>
 
         {/* ── Main Modal Body: Split 2-Column Deck (Zero Horizontal Overflow) ── */}
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 min-h-0 overflow-y-auto overflow-x-hidden no-scrollbar py-1 w-full">
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain touch-pan-y no-scrollbar py-1 w-full">
           {/* ════════ LEFT COLUMN (5 COLS): LIVE IMAGE PREVIEW (9:16) ════════ */}
           <div className="lg:col-span-5 flex flex-col items-center justify-center min-w-0 w-full animate-apple-receipt stagger-2">
             <div

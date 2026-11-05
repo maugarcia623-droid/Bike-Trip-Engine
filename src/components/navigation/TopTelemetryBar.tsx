@@ -17,14 +17,16 @@ import {
   User,
   Send,
   X,
-  Monitor2Check,
 } from '@/components/icons';
-import { Cloud, LogOut, Languages } from 'lucide-react';
+import { Cloud, LogOut, Languages, ChevronRight, RefreshCw } from 'lucide-react';
+import { IconBadge } from '../common/IconBadge';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
   CHIP_RING_BASE,
   CHIP_TOKENS,
   GREYSCALE_TOKENS,
+  YELLOW_VEST_SOLID_CTA_CLASSES,
+  LayeredTokenTheme,
 } from '../../tokens/chipTokens';
 
 interface TopTelemetryBarProps {
@@ -126,12 +128,32 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
     document.body.style.overflow = 'hidden';
     document.documentElement.style.overflow = 'hidden';
 
-    // Intercept touchmove on mobile so background page never scrolls
+    // Intercept touchmove on mobile so background page never scrolls when only the menu is open
     const handleTouchMove = (e: TouchEvent) => {
-      // Allow scrolling inside the mobile card if the touch is inside it
-      if (mobileSheetRef.current && mobileSheetRef.current.contains(e.target as Node)) {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+
+      // Allow scrolling inside any open modal or dialog (Rider Specs, Share Receipt, Feedback, Auth, etc.)
+      if (
+        target.closest('[role="dialog"]') ||
+        target.closest('[aria-modal="true"]') ||
+        target.closest('.overflow-y-auto') ||
+        target.closest('.overflow-auto') ||
+        target.closest('.overflow-scroll')
+      ) {
         return;
       }
+
+      // If any modal dialog is currently mounted in the DOM, let the modal handle all touches
+      if (document.querySelector('[role="dialog"], [aria-modal="true"]')) {
+        return;
+      }
+
+      // Allow scrolling inside the mobile settings sheet
+      if (mobileSheetRef.current && mobileSheetRef.current.contains(target)) {
+        return;
+      }
+
       e.preventDefault();
     };
 
@@ -196,6 +218,354 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
     : syncStatus === 'error'
     ? 'bg-rose-500'
     : 'bg-emerald-500';
+
+  // ── Settings panel (shared by desktop popover + mobile sheet) ──────────────
+  const isFr = lang === 'fr';
+  const yellowVest = CHIP_TOKENS['yellow-vest'];
+
+  const syncStatusLabel = !user
+    ? isFr
+      ? 'Enregistré sur cet appareil'
+      : 'Saved on this device'
+    : syncStatus === 'saving'
+    ? t('syncStatusSaving')
+    : syncStatus === 'error'
+    ? t('syncStatusError')
+    : t('cloudSynced');
+
+  const renderPanel = (m: boolean) => {
+    // Size scale: mobile gets larger type and taller touch targets
+    const rowH = m ? 'min-h-[60px]' : 'min-h-[52px]';
+    const labelCls = m ? 'text-[15px]' : 'text-sm';
+    const subCls = m ? 'text-[13px]' : 'text-xs';
+    const badgeSize = m ? 'lg' : 'md';
+    const dividerInset = m ? 'ml-[68px]' : 'ml-[60px]';
+
+    const SectionLabel = ({ children }: { children: React.ReactNode }) => (
+      <div className="px-2 pt-4 pb-2 text-[11px] font-bold uppercase tracking-[0.09em] text-ink-muted">
+        {children}
+      </div>
+    );
+
+    const Group = ({ children }: { children: React.ReactNode }) => (
+      <div className="rounded-[22px] bg-pod/70 dark:bg-white/[0.045] overflow-hidden">{children}</div>
+    );
+
+    const Divider = () => (
+      <div className={`h-px bg-ink/[0.06] dark:bg-white/[0.06] mr-4 ${dividerInset}`} />
+    );
+
+    const Row = ({
+      theme,
+      icon,
+      label,
+      sub,
+      onClick,
+      trailing,
+      danger = false,
+    }: {
+      theme: LayeredTokenTheme;
+      icon: React.ElementType;
+      label: string;
+      sub?: string;
+      onClick?: () => void;
+      trailing?: React.ReactNode;
+      danger?: boolean;
+    }) => {
+      const content = (
+        <>
+          <IconBadge theme={theme} icon={icon} size={badgeSize} shape="circle" />
+          <div className="min-w-0 flex-1 text-left">
+            <div
+              className={`${labelCls} font-semibold leading-tight truncate ${
+                danger ? 'text-rose-600 dark:text-rose-400' : 'text-ink'
+              }`}
+            >
+              {label}
+            </div>
+            {sub && <div className={`${subCls} text-ink-muted leading-snug truncate mt-0.5`}>{sub}</div>}
+          </div>
+          {trailing !== undefined
+            ? trailing
+            : onClick && <ChevronRight className="w-4 h-4 text-ink-muted/70 shrink-0" aria-hidden="true" />}
+        </>
+      );
+
+      const base = `w-full flex items-center gap-3 px-3.5 ${rowH} py-2.5`;
+
+      return onClick ? (
+        <button
+          type="button"
+          role="menuitem"
+          onClick={onClick}
+          className={`${base} cursor-pointer transition-colors active:scale-[0.99] ${
+            danger
+              ? 'hover:bg-rose-500/[0.07] active:bg-rose-500/10'
+              : 'hover:bg-ink/[0.035] dark:hover:bg-white/[0.04] active:bg-ink/[0.06] dark:active:bg-white/[0.07]'
+          } focus:outline-none focus-visible:bg-ink/[0.05] dark:focus-visible:bg-white/[0.06]`}
+        >
+          {content}
+        </button>
+      ) : (
+        <div className={base}>{content}</div>
+      );
+    };
+
+    const Segmented = <T extends string>({
+      value,
+      options,
+      onChange,
+      ariaLabel,
+    }: {
+      value: T;
+      options: { value: T; label: string; icon?: React.ElementType }[];
+      onChange: (v: T) => void;
+      ariaLabel: string;
+    }) => (
+      <div
+        role="radiogroup"
+        aria-label={ariaLabel}
+        className="flex items-center p-1 gap-0.5 rounded-full bg-card dark:bg-black/30 shrink-0 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.04)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]"
+      >
+        {options.map((opt) => {
+          const active = opt.value === value;
+          const OptIcon = opt.icon;
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              onClick={() => onChange(opt.value)}
+              className={`inline-flex items-center gap-1.5 rounded-full font-semibold transition-all duration-150 cursor-pointer focus:outline-none ${
+                m ? 'h-8 px-3 text-[13px]' : 'h-7 px-2.5 text-xs'
+              } ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                active
+                  ? `${yellowVest.surface} ${yellowVest.primary} ${yellowVest.selectedRing} shadow-xs`
+                  : 'ring-transparent text-ink-muted hover:text-ink'
+              }`}
+            >
+              {OptIcon && <OptIcon className="w-3.5 h-3.5 shrink-0 text-current" aria-hidden="true" />}
+              <span>{opt.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    );
+
+    return (
+      <div className="flex flex-col">
+        {/* ── Identity header ── */}
+        <div className="flex items-center gap-3 px-1.5 pt-1 pb-1">
+          <div
+            className={`relative w-12 h-12 rounded-full flex items-center justify-center shrink-0 font-bold text-lg ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+              user
+                ? `${yellowVest.surface} ${yellowVest.primary} ${yellowVest.selectedRing}`
+                : `${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} ring-transparent`
+            }`}
+          >
+            {user ? userInitial : <User className="w-6 h-6 text-current" />}
+            <span
+              className={`absolute bottom-0 right-0 w-3 h-3 rounded-full ring-[2.5px] ring-card dark:ring-[#18181B] ${syncBeaconClass}`}
+            />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className={`${m ? 'text-[17px]' : 'text-base'} font-semibold text-ink tracking-tight truncate`}>
+              {user ? userDisplayName : isFr ? 'Cycliste invité' : 'Guest rider'}
+            </div>
+            <div className={`${subCls} text-ink-muted truncate mt-0.5`}>
+              {user ? user.email : syncStatusLabel}
+            </div>
+          </div>
+          {m && (
+            <button
+              type="button"
+              onClick={() => setIsMenuOpen(false)}
+              className="w-10 h-10 rounded-full bg-pod dark:bg-white/[0.06] hover:bg-chip text-ink-secondary hover:text-ink flex items-center justify-center cursor-pointer transition-colors shrink-0"
+              aria-label={t('menuCloseAria')}
+            >
+              <X size={18} />
+            </button>
+          )}
+        </div>
+
+        {/* ── Cloud account ── */}
+        <div className="mt-3">
+          {user ? (
+            <Group>
+              <Row
+                theme={syncStatus === 'error' ? 'rose' : 'emerald'}
+                icon={Cloud}
+                label={syncStatusLabel}
+                sub={t('autoSaveActive')}
+                trailing={
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await forceSyncNow();
+                    }}
+                    className={`inline-flex items-center gap-1.5 rounded-full font-semibold cursor-pointer transition-colors shrink-0 bg-card dark:bg-white/[0.08] hover:bg-chip text-ink ${
+                      m ? 'h-9 px-3.5 text-[13px]' : 'h-8 px-3 text-xs'
+                    }`}
+                  >
+                    <RefreshCw
+                      className={`w-3.5 h-3.5 ${syncStatus === 'saving' ? 'animate-spin' : ''}`}
+                      aria-hidden="true"
+                    />
+                    {t('syncNowBtn')}
+                  </button>
+                }
+              />
+            </Group>
+          ) : (
+            <div className={`rounded-[22px] p-4 ${yellowVest.surface}`}>
+              <div className="flex items-start gap-3">
+                <IconBadge theme="yellow-vest" icon={Cloud} size={badgeSize} isSelected solidBacker />
+                <div className="min-w-0">
+                  <div className={`${labelCls} font-semibold ${yellowVest.primary}`}>
+                    {isFr ? 'Synchronisez vos sorties' : 'Sync your rides'}
+                  </div>
+                  <div className={`${subCls} text-ink-secondary leading-snug mt-0.5`}>
+                    {isFr
+                      ? 'Retrouvez trajets, vélos et checklists sur tous vos appareils.'
+                      : 'Keep trips, bikes and checklists on all your devices.'}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => openAuthModal('login')}
+                className={`mt-3.5 w-full inline-flex items-center justify-center gap-2 rounded-full font-semibold cursor-pointer transition-all hover:brightness-[0.97] active:scale-[0.99] shadow-xs ${YELLOW_VEST_SOLID_CTA_CLASSES} ${
+                  m ? 'h-12 text-[15px]' : 'h-10 text-sm'
+                }`}
+              >
+                {t('logInOrSignUp')}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* ── Preferences ── */}
+        <SectionLabel>{isFr ? 'Préférences' : 'Preferences'}</SectionLabel>
+        <Group>
+          <Row
+            theme="amber"
+            icon={isDark ? Moon : Sun}
+            label={t('onboardingThemePrompt')}
+            trailing={
+              <Segmented
+                ariaLabel={t('onboardingThemePrompt')}
+                value={isDark ? 'dark' : 'light'}
+                onChange={(v) => {
+                  if ((v === 'dark') !== isDark) toggleTheme();
+                }}
+                options={[
+                  { value: 'light', label: t('themeLight'), icon: Sun },
+                  { value: 'dark', label: t('themeDark'), icon: Moon },
+                ]}
+              />
+            }
+          />
+          <Divider />
+          <Row
+            theme="teal"
+            icon={Languages}
+            label={t('onboardingLangPrompt')}
+            trailing={
+              <Segmented
+                ariaLabel={t('switchLanguageAria')}
+                value={lang}
+                onChange={(v) => setLang(v)}
+                options={[
+                  { value: 'en', label: 'EN' },
+                  { value: 'fr', label: 'FR' },
+                ]}
+              />
+            }
+          />
+        </Group>
+
+        {/* ── Ride tools ── */}
+        <SectionLabel>{isFr ? 'Sortie' : 'Ride'}</SectionLabel>
+        <Group>
+          {onOpenSpecs && (
+            <Row
+              theme="sky"
+              icon={Bicycle}
+              label={t('specsModalTitle')}
+              sub={
+                riderSpecs && activeBike
+                  ? `${activeBike.name} · ${riderSpecs.ftpWatts} W · ${
+                      activeBike.isTubeless ? 'Tubeless' : isFr ? 'Chambre' : 'Tube'
+                    }`
+                  : undefined
+              }
+              onClick={onOpenSpecs}
+            />
+          )}
+          {onOpenSpecs && (onShareReceipt || onPrint) && <Divider />}
+          {onShareReceipt && (
+            <Row
+              theme="lime"
+              icon={Receipt}
+              label={t('shareReceiptBtn')}
+              sub={isFr ? 'Carte story PNG 1080×1920' : '1080×1920 PNG story card'}
+              onClick={onShareReceipt}
+            />
+          )}
+          {onShareReceipt && onPrint && <Divider />}
+          {onPrint && (
+            <Row
+              theme="blue"
+              icon={Printer}
+              label={t('printButtonTitle')}
+              sub={isFr ? 'Feuille de route A4 imprimable' : 'Printable A4 route summary'}
+              onClick={onPrint}
+            />
+          )}
+        </Group>
+
+        {/* ── Support & account ── */}
+        {(onOpenFeedback || user) && (
+          <>
+            <SectionLabel>{isFr ? 'Assistance' : 'Support'}</SectionLabel>
+            <Group>
+              {onOpenFeedback && (
+                <Row
+                  theme="purple"
+                  icon={Send}
+                  label={t('sendFeedbackBtn')}
+                  sub={isFr ? 'Signaler un bug ou proposer une idée' : 'Report a bug or suggest an idea'}
+                  onClick={onOpenFeedback}
+                />
+              )}
+              {onOpenFeedback && user && <Divider />}
+              {user && (
+                <Row
+                  theme="rose"
+                  icon={LogOut}
+                  label={t('logOut')}
+                  danger
+                  trailing={null}
+                  onClick={async () => {
+                    setIsMenuOpen(false);
+                    await signOut();
+                  }}
+                />
+              )}
+            </Group>
+          </>
+        )}
+
+        {/* ── Footer ── */}
+        <div className="flex items-center justify-center gap-1.5 pt-4 pb-1 text-[11px] text-ink-muted font-mono tnum">
+          <span>{t('appName')}</span>
+          <span aria-hidden="true">·</span>
+          <span>v2.6</span>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <header className="w-full px-4 sm:px-8 lg:px-12 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-3 sm:pt-[calc(env(safe-area-inset-top,0px)+1.25rem)] sm:pb-5 transition-colors duration-200 select-none no-print relative z-40">
@@ -297,533 +667,47 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
             />
           </button>
 
+
           {/* ══════════════════════════════════════════════════════════════════
-              DESKTOP OVERLAY MENU (Anchored floating popover matching ref image)
+              DESKTOP SETTINGS POPOVER (anchored to avatar trigger)
              ══════════════════════════════════════════════════════════════════ */}
           {isMenuOpen && (
-            <div className="hidden sm:block absolute right-4 sm:right-8 lg:right-12 top-full mt-2.5 w-84 bg-card/95 dark:bg-[#16161A]/95 backdrop-blur-2xl border border-ink/10 dark:border-white/15 rounded-2xl p-2.5 shadow-2xl z-50 animate-apple-popover text-xs select-none">
-              {/* 1. Cloud Storage & Account Header Row */}
-              <div className="p-2.5 rounded-xl bg-pod/60 dark:bg-white/5 border border-ink/5 dark:border-white/5 mb-1.5">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div
-                      className={`w-8 h-8 rounded-full font-bold flex items-center justify-center shrink-0 text-xs ${
-                        user
-                          ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-                          : 'bg-amber-500/15 text-amber-500 dark:text-amber-400'
-                      }`}
-                    >
-                      {user ? userInitial : <User size={15} />}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="font-semibold text-ink text-xs truncate">
-                        {user ? userDisplayName : t('savedOnDeviceShort')}
-                      </div>
-                      <div className="flex items-center gap-1.5 text-[11px] text-ink-muted truncate mt-0.5">
-                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${syncBeaconClass}`} />
-                        <span>
-                          {user
-                            ? syncStatus === 'saving'
-                              ? t('syncStatusSaving')
-                              : t('cloudSynced')
-                            : t('localStorageNotice').split('—')[0]}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {user ? (
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await forceSyncNow();
-                      }}
-                      className="px-2.5 py-1 rounded-lg bg-card dark:bg-pod hover:bg-chip text-ink text-[11px] font-mono font-medium transition-colors cursor-pointer shrink-0 border border-ink/5 dark:border-white/10"
-                      title={t('syncNowBtn')}
-                    >
-                      <Cloud className="w-3.5 h-3.5" />
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        openAuthModal('login');
-                      }}
-                      className="px-2.5 py-1 rounded-lg bg-volt text-[#111111] hover:bg-volt-lime text-[11px] font-semibold transition-all cursor-pointer shrink-0 shadow-xs"
-                    >
-                      {t('logIn')}
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* 2. Bike Settings (Rider Profile & Bike Garage) */}
-              {onOpenSpecs && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onOpenSpecs();
-                  }}
-                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-pod/80 dark:hover:bg-white/5 text-ink transition-colors cursor-pointer text-left group"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-8 h-8 rounded-full bg-sky-500/15 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
-                      <Bicycle size={16} className="text-current" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="font-medium text-ink text-xs">{t('specsModalTitle')}</div>
-                      {riderSpecs && activeBike && (
-                        <div className="text-[11px] text-ink-muted truncate">
-                          {activeBike.name} · {riderSpecs.ftpWatts}W
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-pod dark:bg-white/10 text-ink-muted shrink-0 font-medium">
-                    {activeBike?.isTubeless ? 'TL' : 'Tube'}
-                  </span>
-                </button>
-              )}
-
-              {/* 3. Theme Toggle (Segmented inline control) */}
-              <div className="flex items-center justify-between px-3 py-2 rounded-xl hover:bg-pod/80 dark:hover:bg-white/5 text-ink transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-amber-500/15 text-amber-500 dark:text-amber-400 flex items-center justify-center shrink-0">
-                    {isDark ? <Moon size={16} /> : <Sun size={16} />}
-                  </div>
-                  <span className="font-medium text-ink text-xs">{t('onboardingThemePrompt')}</span>
-                </div>
-                <div className="flex items-center p-0.5 rounded-lg bg-card dark:bg-pod border border-ink/5 dark:border-white/10">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (isDark) toggleTheme();
-                    }}
-                    className={`px-2 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer flex items-center gap-1 ${
-                      !isDark
-                        ? 'bg-pod dark:bg-chip text-ink shadow-xs font-semibold'
-                        : 'text-ink-muted hover:text-ink'
-                    }`}
-                  >
-                    <Sun size={12} />
-                    <span>{t('themeLight')}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!isDark) toggleTheme();
-                    }}
-                    className={`px-2 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer flex items-center gap-1 ${
-                      isDark
-                        ? 'bg-pod dark:bg-chip text-ink shadow-xs font-semibold'
-                        : 'text-ink-muted hover:text-ink'
-                    }`}
-                  >
-                    <Moon size={12} />
-                    <span>{t('themeDark')}</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* 4. Language Switcher (Segmented inline control) */}
-              <div className="flex items-center justify-between px-3 py-2 rounded-xl hover:bg-pod/80 dark:hover:bg-white/5 text-ink transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-teal-500/15 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
-                    <Languages className="w-4 h-4 text-current" />
-                  </div>
-                  <span className="font-medium text-ink text-xs">{t('onboardingLangPrompt')}</span>
-                </div>
-                <div className="flex items-center p-0.5 rounded-lg bg-card dark:bg-pod border border-ink/5 dark:border-white/10">
-                  <button
-                    type="button"
-                    onClick={() => setLang('en')}
-                    className={`px-2.5 py-1 rounded-md text-[11px] font-mono transition-all cursor-pointer ${
-                      lang === 'en'
-                        ? 'bg-pod dark:bg-chip text-ink shadow-xs font-bold'
-                        : 'text-ink-muted hover:text-ink'
-                    }`}
-                  >
-                    EN
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setLang('fr')}
-                    className={`px-2.5 py-1 rounded-md text-[11px] font-mono transition-all cursor-pointer ${
-                      lang === 'fr'
-                        ? 'bg-pod dark:bg-chip text-ink shadow-xs font-bold'
-                        : 'text-ink-muted hover:text-ink'
-                    }`}
-                  >
-                    FR
-                  </button>
-                </div>
-              </div>
-
-              {/* Divider */}
-              <div className="my-1.5 border-t border-ink/5 dark:border-white/10" />
-
-              {/* 5. Share Ride Receipt */}
-              {onShareReceipt && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onShareReceipt();
-                  }}
-                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-pod/80 dark:hover:bg-white/5 text-ink transition-colors cursor-pointer text-left group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-lime-500/15 text-lime-600 dark:text-lime-400 flex items-center justify-center shrink-0">
-                      <Receipt size={16} className="text-current" />
-                    </div>
-                    <span className="font-medium text-ink text-xs">{t('shareReceiptBtn')}</span>
-                  </div>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-volt/20 text-volt-lime font-bold shrink-0">
-                    PNG
-                  </span>
-                </button>
-              )}
-
-              {/* 6. Print A4 Cue Sheet */}
-              {onPrint && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onPrint();
-                  }}
-                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-pod/80 dark:hover:bg-white/5 text-ink transition-colors cursor-pointer text-left group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-                      <Printer size={16} className="text-current" />
-                    </div>
-                    <span className="font-medium text-ink text-xs">{t('printButtonTitle')}</span>
-                  </div>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-pod dark:bg-white/10 text-ink-muted shrink-0 font-medium">
-                    A4
-                  </span>
-                </button>
-              )}
-
-              {/* 7. Send Feedback (without green indicator dot) */}
-              {onOpenFeedback && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onOpenFeedback();
-                  }}
-                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-pod/80 dark:hover:bg-white/5 text-ink transition-colors cursor-pointer text-left group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
-                      <Send size={15} className="text-current" />
-                    </div>
-                    <span className="font-medium text-ink text-xs">{t('sendFeedbackBtn')}</span>
-                  </div>
-                </button>
-              )}
-
-              {/* 8. Log Out (If authenticated) */}
-              {user && (
-                <>
-                  <div className="my-1.5 border-t border-ink/5 dark:border-white/10" />
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await signOut();
-                    }}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 transition-colors cursor-pointer text-left font-medium"
-                  >
-                    <div className="w-8 h-8 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
-                      <LogOut className="w-4 h-4 text-current" />
-                    </div>
-                    <span className="text-xs">{t('logOut')}</span>
-                  </button>
-                </>
-              )}
+            <div
+              role="menu"
+              aria-label={isFr ? 'Réglages' : 'Settings'}
+              className="hidden sm:block absolute right-4 sm:right-8 lg:right-12 top-full mt-3 w-[23rem] max-h-[calc(100dvh-6.5rem)] overflow-y-auto overscroll-contain bg-card dark:bg-[#18181B] border border-ink/[0.06] dark:border-white/[0.08] rounded-[28px] p-3 shadow-[0_24px_60px_rgba(0,0,0,0.16)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.6)] z-50 animate-apple-popover select-none"
+            >
+              {renderPanel(false)}
             </div>
           )}
 
           {/* ══════════════════════════════════════════════════════════════════
-              MOBILE OVERLAY MENU (Ergonomic inset floating card matching ref image 3,
-              portaled to body, no blur, dark backdrop, no outline border, rounded-[32px])
+              MOBILE SETTINGS SHEET (inset floating card, portaled to body)
              ══════════════════════════════════════════════════════════════════ */}
           {isMenuOpen &&
             typeof document !== 'undefined' &&
             createPortal(
-              <div className="sm:hidden">
-                {/* Dimmed Dark Backdrop (NO blur effect, deeper darkness) */}
+              <div className="sm:hidden no-print print:hidden">
+                {/* Solid dark backdrop (no blur) */}
                 <div
                   className="fixed inset-0 z-[60] bg-black/85 animate-fade-in touch-none"
                   onClick={() => setIsMenuOpen(false)}
                 />
 
-                {/* Inset Mobile Card Overlay (floating with margins on left, right & bottom, fully rounded, max-w-lg) */}
+                {/* Inset floating card */}
                 <div
                   ref={mobileSheetRef}
-                  className="fixed inset-x-3.5 bottom-[max(1rem,env(safe-area-inset-bottom))] z-[65] max-w-lg mx-auto bg-card dark:bg-[#18181B] border-0 rounded-[32px] p-5 sm:p-6 shadow-2xl max-h-[85vh] max-h-[85dvh] overflow-y-auto overscroll-contain animate-apple-in select-none"
+                  role="menu"
+                  aria-label={isFr ? 'Réglages' : 'Settings'}
+                  className="fixed inset-x-3.5 bottom-[max(1rem,env(safe-area-inset-bottom))] z-[65] max-w-lg mx-auto bg-card dark:bg-[#18181B] border-0 rounded-[32px] px-4 pt-3 pb-4 shadow-2xl max-h-[85vh] max-h-[85dvh] overflow-y-auto overscroll-contain animate-apple-in select-none"
                 >
-                  {/* Pull handle indicator */}
-                  <div className="w-10 h-1 bg-ink/20 dark:bg-white/20 rounded-full mx-auto mb-3.5" />
-
-                {/* Mobile Header (no border line) */}
-                <div className="flex items-center justify-between pb-3.5 mb-3">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-10 h-10 rounded-full font-bold flex items-center justify-center text-sm ${
-                        user
-                          ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-                          : 'bg-amber-500/15 text-amber-500 dark:text-amber-400'
-                      }`}
-                    >
-                      {user ? userInitial : <User size={18} />}
-                    </div>
-                    <div>
-                      <div className="font-semibold text-ink text-sm">
-                        {user ? userDisplayName : t('savedOnDeviceShort')}
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs text-ink-muted">
-                        <span className={`w-2 h-2 rounded-full shrink-0 ${syncBeaconClass}`} />
-                        <span>
-                          {user
-                            ? syncStatus === 'saving'
-                              ? t('syncStatusSaving')
-                              : t('cloudSynced')
-                            : t('localStorageNotice').split('—')[0]}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsMenuOpen(false)}
-                    className="w-10 h-10 rounded-full bg-pod hover:bg-chip text-ink flex items-center justify-center cursor-pointer transition-colors"
-                    aria-label={t('menuCloseAria')}
-                  >
-                    <X size={18} />
-                  </button>
+                  {/* Grabber */}
+                  <div className="w-10 h-1 bg-ink/15 dark:bg-white/20 rounded-full mx-auto mb-3" />
+                  {renderPanel(true)}
                 </div>
-
-                {/* Cloud Sync Status / Sign In Action for Mobile */}
-                <div className="mb-3">
-                  {user ? (
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await forceSyncNow();
-                      }}
-                      className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-pod/60 dark:bg-white/5 border-0 text-ink transition-colors cursor-pointer"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                          <Cloud className="w-5 h-5 text-current" />
-                        </div>
-                        <span className="font-medium text-sm">{t('syncNowBtn')}</span>
-                      </div>
-                      <span className="text-xs font-mono text-ink-muted uppercase font-bold">
-                        {syncStatus}
-                      </span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        openAuthModal('login');
-                      }}
-                      className="w-full flex items-center justify-center gap-2.5 p-3.5 rounded-2xl bg-volt text-[#111111] hover:bg-volt-lime font-semibold text-sm transition-all cursor-pointer shadow-sm border-0"
-                    >
-                      <Monitor2Check className="w-5 h-5 shrink-0" />
-                      <span>{t('logInOrSignUp')}</span>
-                    </button>
-                  )}
-                </div>
-
-                {/* Mobile Menu Action List (All circle containers, all colored, no stroke) */}
-                <div className="space-y-2.5">
-                  {/* Bike Settings */}
-                  {onOpenSpecs && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onOpenSpecs();
-                      }}
-                      className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-pod/60 dark:bg-white/5 hover:bg-pod dark:hover:bg-white/10 border-0 text-ink transition-colors cursor-pointer text-left"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-sky-500/15 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
-                          <Bicycle size={20} className="text-current" />
-                        </div>
-                        <div>
-                          <div className="font-medium text-sm">{t('specsModalTitle')}</div>
-                          {riderSpecs && activeBike && (
-                            <div className="text-xs text-ink-muted">
-                              {activeBike.name} · {riderSpecs.ftpWatts}W
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <span className="text-xs font-mono px-2.5 py-1 rounded-lg bg-card dark:bg-white/10 text-ink-secondary font-semibold">
-                        {activeBike?.isTubeless ? 'TL' : 'Tube'}
-                      </span>
-                    </button>
-                  )}
-
-                  {/* Theme Switcher Mobile */}
-                  <div className="flex items-center justify-between p-3.5 rounded-2xl bg-pod/60 dark:bg-white/5 border-0 text-ink">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-amber-500/15 text-amber-500 dark:text-amber-400 flex items-center justify-center shrink-0">
-                        {isDark ? <Moon size={20} /> : <Sun size={20} />}
-                      </div>
-                      <span className="font-medium text-sm">{t('onboardingThemePrompt')}</span>
-                    </div>
-                    <div className="flex items-center p-1 rounded-xl bg-card dark:bg-pod border-0">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (isDark) toggleTheme();
-                        }}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
-                          !isDark
-                            ? 'bg-pod dark:bg-chip text-ink shadow-sm font-semibold'
-                            : 'text-ink-muted'
-                        }`}
-                      >
-                        <Sun size={14} />
-                        <span>{t('themeLight')}</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!isDark) toggleTheme();
-                        }}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
-                          isDark
-                            ? 'bg-pod dark:bg-chip text-ink shadow-sm font-semibold'
-                            : 'text-ink-muted'
-                        }`}
-                      >
-                        <Moon size={14} />
-                        <span>{t('themeDark')}</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Language Switcher Mobile */}
-                  <div className="flex items-center justify-between p-3.5 rounded-2xl bg-pod/60 dark:bg-white/5 border-0 text-ink">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-teal-500/15 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
-                        <Languages className="w-5 h-5 text-current" />
-                      </div>
-                      <span className="font-medium text-sm">{t('onboardingLangPrompt')}</span>
-                    </div>
-                    <div className="flex items-center p-1 rounded-xl bg-card dark:bg-pod border-0">
-                      <button
-                        type="button"
-                        onClick={() => setLang('en')}
-                        className={`px-3.5 py-1.5 rounded-lg text-xs font-mono transition-all cursor-pointer ${
-                          lang === 'en'
-                            ? 'bg-pod dark:bg-chip text-ink shadow-sm font-bold'
-                            : 'text-ink-muted'
-                        }`}
-                      >
-                        EN
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setLang('fr')}
-                        className={`px-3.5 py-1.5 rounded-lg text-xs font-mono transition-all cursor-pointer ${
-                          lang === 'fr'
-                            ? 'bg-pod dark:bg-chip text-ink shadow-sm font-bold'
-                            : 'text-ink-muted'
-                        }`}
-                      >
-                        FR
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Share Receipt Mobile */}
-                  {onShareReceipt && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onShareReceipt();
-                      }}
-                      className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-pod/60 dark:bg-white/5 hover:bg-pod dark:hover:bg-white/10 border-0 text-ink transition-colors cursor-pointer text-left"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-lime-500/15 text-lime-600 dark:text-lime-400 flex items-center justify-center shrink-0">
-                          <Receipt size={20} className="text-current" />
-                        </div>
-                        <span className="font-medium text-sm">{t('shareReceiptBtn')}</span>
-                      </div>
-                      <span className="text-xs font-mono px-2.5 py-1 rounded-lg bg-volt/20 text-volt-lime font-bold">
-                        PNG
-                      </span>
-                    </button>
-                  )}
-
-                  {/* Print A4 Mobile */}
-                  {onPrint && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onPrint();
-                      }}
-                      className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-pod/60 dark:bg-white/5 hover:bg-pod dark:hover:bg-white/10 border-0 text-ink transition-colors cursor-pointer text-left"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-                          <Printer size={20} className="text-current" />
-                        </div>
-                        <span className="font-medium text-sm">{t('printButtonTitle')}</span>
-                      </div>
-                      <span className="text-xs font-mono px-2.5 py-1 rounded-lg bg-card dark:bg-white/10 text-ink-secondary font-semibold">
-                        A4
-                      </span>
-                    </button>
-                  )}
-
-                  {/* Send Feedback Mobile (NO glowing indicator dot) */}
-                  {onOpenFeedback && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onOpenFeedback();
-                      }}
-                      className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-pod/60 dark:bg-white/5 hover:bg-pod dark:hover:bg-white/10 border-0 text-ink transition-colors cursor-pointer text-left"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
-                          <Send size={18} className="text-current" />
-                        </div>
-                        <span className="font-medium text-sm">{t('sendFeedbackBtn')}</span>
-                      </div>
-                    </button>
-                  )}
-
-                  {/* Log Out Button Mobile */}
-                  {user && (
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await signOut();
-                      }}
-                      className="w-full flex items-center gap-3 p-3.5 mt-2 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold transition-colors cursor-pointer text-left border-0"
-                    >
-                      <div className="w-10 h-10 rounded-full bg-rose-500/20 flex items-center justify-center shrink-0">
-                        <LogOut className="w-5 h-5 text-current" />
-                      </div>
-                      <span className="text-sm">{t('logOut')}</span>
-                    </button>
-                  )}
-                </div>
-
-                {/* Subtle bottom spacer for smooth scroll padding */}
-                <div className="h-2" />
-              </div>
-            </div>,
-            document.body
-          )}
+              </div>,
+              document.body
+            )}
         </div>
       </div>
     </header>

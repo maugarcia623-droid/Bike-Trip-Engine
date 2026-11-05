@@ -826,6 +826,9 @@ export const en = {
   timelineShowAllBtn: "Show all",
   timelineStepDetails: "Details",
   timelineStepLess: "Less",
+  timelinePhasePreRide: "Pre-Ride",
+  timelinePhaseRide: "En Route",
+  timelinePhasePostRide: "Post-Ride",
   bannerMovingPill: "Moving {min}m",
   bannerBufferPill: "Buffers +{min}m",
 

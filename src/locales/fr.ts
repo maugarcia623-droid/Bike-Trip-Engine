@@ -828,6 +828,9 @@ export const fr: TranslationDictionary = {
   timelineShowAllBtn: "Tout afficher",
   timelineStepDetails: "Détails",
   timelineStepLess: "Réduire",
+  timelinePhasePreRide: "Pré-Départ",
+  timelinePhaseRide: "En Selle",
+  timelinePhasePostRide: "Post-Trajet",
   bannerMovingPill: "Roulage {min}m",
   bannerBufferPill: "Marges +{min}m",
 

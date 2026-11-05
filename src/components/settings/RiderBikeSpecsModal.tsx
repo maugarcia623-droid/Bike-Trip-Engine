@@ -215,7 +215,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
         </div>
 
         {/* Dedicated Dual-Column Workspace: Rider Profile ALONGSIDE Bike Profile */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 flex-1 min-h-0 overflow-y-auto pr-0.5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y pr-0.5">
           {/* ── LEFT COLUMN: DEDICATED RIDER PROFILE ── */}
           <div
             className={`space-y-4 rounded-pod bg-pod/45 p-3.5 sm:p-4 border border-ink/5 dark:border-white/5 ${

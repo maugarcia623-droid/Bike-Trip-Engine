@@ -23,7 +23,7 @@ import {
   Moon,
   ChevronDown,
 } from '@/components/icons';
-import type { TripProfile } from '../../types/trip';
+import type { TripProfile, TimelineStep } from '../../types/trip';
 import type { RiderBikeSpecs } from '../../types/specs';
 import { Card } from '../common/Card';
 import { Badge } from '../common/Badge';
@@ -47,6 +47,44 @@ interface ReverseTimelineBentoProps {
 }
 
 type TimelineStepFilter = 'all' | 'crucial';
+export type TimelinePhase = 'pre-ride' | 'ride' | 'post-ride';
+
+const ROLLOUT_STEP_IDS = new Set(['hard-departure', 'sport-rollout', 'bp-departure']);
+const ARRIVAL_STEP_IDS = new Set([
+  'gate-security',
+  'destination-arrival',
+  'bp-destination-arrive',
+  'sport-session-finish',
+]);
+
+const PHASE_BRAND_THEME: Record<TimelinePhase, ChipTheme> = {
+  'pre-ride': 'amber',
+  ride: 'yellow-vest',
+  'post-ride': 'emerald',
+};
+
+function computeStepPhases(steps: TimelineStep[]): Record<string, TimelinePhase> {
+  const rolloutIdx = steps.findIndex((s) => ROLLOUT_STEP_IDS.has(s.id));
+  const arrivalIdx = steps.findIndex((s) => ARRIVAL_STEP_IDS.has(s.id));
+
+  const map: Record<string, TimelinePhase> = {};
+  steps.forEach((step, idx) => {
+    if (rolloutIdx !== -1 && idx < rolloutIdx) {
+      map[step.id] = 'pre-ride';
+    } else if (arrivalIdx !== -1 && idx > arrivalIdx) {
+      map[step.id] = 'post-ride';
+    } else if (rolloutIdx !== -1 && (arrivalIdx === -1 || idx <= arrivalIdx)) {
+      map[step.id] = 'ride';
+    } else if (step.category === 'ride' || step.category === 'transit') {
+      map[step.id] = 'ride';
+    } else if (step.category === 'office') {
+      map[step.id] = 'post-ride';
+    } else {
+      map[step.id] = 'pre-ride';
+    }
+  });
+  return map;
+}
 
 function getTimelineStepTokenSpec(
   iconName: string,
@@ -126,6 +164,8 @@ export const ReverseTimelineBento: React.FC<ReverseTimelineBentoProps> = ({
     setExpandedSteps((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const stepPhaseMap = useMemo(() => computeStepPhases(timeline.steps), [timeline.steps]);
+
   const visibleSteps = useMemo(
     () =>
       stepFilter === 'crucial'
@@ -156,6 +196,17 @@ export const ReverseTimelineBento: React.FC<ReverseTimelineBentoProps> = ({
       ? t('timelineSubEscapade')
       : t('timelineSubCommute');
 
+  const getPhaseLabel = (phase: TimelinePhase): string => {
+    switch (phase) {
+      case 'pre-ride':
+        return t('timelinePhasePreRide');
+      case 'ride':
+        return t('timelinePhaseRide');
+      case 'post-ride':
+        return t('timelinePhasePostRide');
+    }
+  };
+
   return (
     <Card
       title={cardTitle}
@@ -166,13 +217,13 @@ export const ReverseTimelineBento: React.FC<ReverseTimelineBentoProps> = ({
           <div
             role="group"
             aria-label={t('timelineFilterAria')}
-            className="inline-flex items-center gap-0.5 p-1 rounded-full bg-pod"
+            className="inline-flex items-center gap-0.5 p-0.5 rounded-full bg-pod"
           >
             <button
               type="button"
               onClick={() => setStepFilter('crucial')}
               aria-pressed={stepFilter === 'crucial'}
-              className={`px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-rounded font-semibold transition-all cursor-pointer select-none ${CHIP_RING_BASE} ${
+              className={`px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-rounded font-semibold transition-all cursor-pointer select-none active:scale-[0.98] ${CHIP_RING_BASE} ${
                 stepFilter === 'crucial'
                   ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_TOKENS.emerald.selectedRing}`
                   : `${CHIP_RING_UNSELECTED} text-ink-muted hover:text-ink`
@@ -184,7 +235,7 @@ export const ReverseTimelineBento: React.FC<ReverseTimelineBentoProps> = ({
               type="button"
               onClick={() => setStepFilter('all')}
               aria-pressed={stepFilter === 'all'}
-              className={`px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-rounded font-semibold tnum transition-all cursor-pointer select-none ${CHIP_RING_BASE} ${
+              className={`px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-rounded font-semibold tnum transition-all cursor-pointer select-none active:scale-[0.98] ${CHIP_RING_BASE} ${
                 stepFilter === 'all'
                   ? 'bg-card text-ink shadow-xs ring-ink/10 dark:ring-white/10'
                   : `${CHIP_RING_UNSELECTED} text-ink-muted hover:text-ink`
@@ -194,7 +245,7 @@ export const ReverseTimelineBento: React.FC<ReverseTimelineBentoProps> = ({
             </button>
           </div>
 
-          <Badge variant="yellow-vest" size="md" dot className="py-1.5 px-3 tnum">
+          <Badge variant="yellow-vest" size="md" dot className="tnum">
             {t('rolloutBadgeTime', { time: timeline.hardDepartureTime })}
           </Badge>
         </div>
@@ -204,120 +255,183 @@ export const ReverseTimelineBento: React.FC<ReverseTimelineBentoProps> = ({
       {/* Contextual Directive Capsule / Expandable Mandate Pod */}
       <TimelineContextualBanner trip={trip} timeline={timeline} riderSpecs={riderSpecs} />
 
-      {/* Bounded Scrollable Stepper Timeline with Asphalt Dashed Center-Line */}
-      <div className="max-h-[360px] overflow-y-auto pr-1.5 scrollbar-thin mt-3.5">
-        <div className="relative space-y-2.5 sm:space-y-3 py-0.5">
-          {/* Continuous vertical dashed road center-line */}
-          <div
-            className="lane-spine absolute left-[17px] sm:left-[19px] top-4 sm:top-5 bottom-4 sm:bottom-5 pointer-events-none"
-            aria-hidden="true"
-          />
+      {/*
+        Compact Itinerary Rail
+        Columns: [time · 3rem] [spine node · 2rem] [title + location] [phase badge + chevron]
+        Rows sit directly on the card surface (rounded-pod at 16px inset → concentric with rounded-card).
+      */}
+      <div className="max-h-[380px] overflow-y-auto pr-1 scrollbar-thin mt-3">
+        <ol className="relative py-0.5 space-y-0.5" aria-label={cardTitle}>
+          {/* Continuous vertical dashed road center-line, centred on the node column */}
+          {visibleSteps.length > 1 && (
+            <div
+              className="lane-spine absolute left-[83px] top-6 bottom-6 sm:top-[22px] sm:bottom-[22px] pointer-events-none"
+              aria-hidden="true"
+            />
+          )}
 
-          {visibleSteps.map((step) => {
-            const isHardDeparture =
-              step.id === 'hard-departure' ||
-              step.id === 'sport-rollout' ||
-              step.id === 'bp-departure';
+          {visibleSteps.map((step, index) => {
+            const isHardDeparture = ROLLOUT_STEP_IDS.has(step.id);
+            const isCrucial = step.isCrucialCheckpoint || isHardDeparture;
+            const phase: TimelinePhase = stepPhaseMap[step.id] || 'pre-ride';
+            const prevPhase =
+              index > 0 ? stepPhaseMap[visibleSteps[index - 1].id] || 'pre-ride' : null;
+            const isPhaseStart = prevPhase !== phase;
+            const phaseTheme = PHASE_BRAND_THEME[phase];
+            const phaseTokens = CHIP_TOKENS[phaseTheme];
 
             const { icon: StepIcon, theme: stepTheme } = getTimelineStepTokenSpec(
               step.iconName,
               isHardDeparture
             );
 
-            const isStepExpanded = Boolean(expandedSteps[step.id]);
+            const hasDescription = Boolean(step.description);
+            const isStepExpanded = hasDescription && Boolean(expandedSteps[step.id]);
             const descId = `timeline-step-desc-${step.id}`;
+            const showCheckpointDot =
+              stepFilter === 'all' && step.isCrucialCheckpoint && !isHardDeparture;
 
             return (
-              <div
-                key={step.id}
-                className="relative flex items-start sm:items-center gap-2.5 sm:gap-3.5 group"
-              >
-                {/* Circular Layered Token Badge on Spine */}
-                <IconBadge
-                  theme={stepTheme}
-                  icon={StepIcon}
-                  size="spine"
-                  isSelected={isHardDeparture}
-                  solidBacker
-                  className="relative z-10 mt-2 sm:mt-0 transition-transform duration-200 group-hover:scale-105"
-                />
-
-                {/* Compact Clickable Step Pod Card */}
-                <button
-                  type="button"
-                  onClick={() => toggleStep(step.id)}
-                  aria-expanded={isStepExpanded}
-                  aria-controls={descId}
-                  className="flex-1 min-w-0 rounded-pod p-2.5 sm:p-3.5 bg-pod hover:bg-chip/70 text-ink text-left transition-colors flex flex-col items-stretch sm:flex-row sm:items-center gap-2 sm:gap-3.5 border border-transparent dark:border-white/[0.03] cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
-                >
-                  {/* Top Row on Mobile / Left Column on Desktop: Full-Radius Time Pill + Mobile Badges */}
-                  <div className="flex items-center justify-between gap-2 sm:shrink-0">
-                    <div
-                      className={`min-w-[68px] sm:min-w-[88px] px-2.5 py-1 sm:px-3.5 sm:py-1.5 rounded-full flex items-center justify-center shrink-0 ${CHIP_RING_BASE} ${
-                        isHardDeparture
-                          ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
-                          : `bg-card text-ink dark:text-zinc-100 ${CHIP_RING_UNSELECTED} border border-black/[0.04] dark:border-white/[0.04]`
-                      }`}
-                    >
-                      <span className="font-mono text-base sm:text-xl font-bold tracking-tight tnum">
-                        {step.time}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 sm:hidden shrink-0">
-                      {isHardDeparture ? (
-                        <Badge variant="yellow-vest" size="sm" dot>
-                          {t('rolloutPill')}
-                        </Badge>
-                      ) : step.isCrucialCheckpoint ? (
-                        <Badge variant="emerald" size="sm" dot>
-                          {t('checkpointPill')}
-                        </Badge>
-                      ) : null}
-                      <span
-                        aria-hidden="true"
-                        className="w-6 h-6 rounded-full bg-card text-ink-muted flex items-center justify-center shrink-0"
-                      >
-                        <ChevronDown
-                          className={`w-3.5 h-3.5 transition-transform duration-300 ease-out ${
-                            isStepExpanded ? 'rotate-180' : ''
-                          }`}
+              <React.Fragment key={step.id}>
+                {/* Subtle Phase Boundary Divider across Pre-Ride (Amber) → Ride (Yellow-Vest) → Post-Ride (Emerald) */}
+                {isPhaseStart && index > 0 && (
+                  <li aria-hidden="true" className="pt-2 pb-1">
+                    <div className="grid grid-cols-[3rem_2rem_minmax(0,1fr)] items-center gap-x-3 px-2">
+                      <span />
+                      <span className="flex justify-center">
+                        <span
+                          className={`relative z-10 w-2 h-2 rounded-full ring-4 ring-card ${phaseTokens.dot}`}
                         />
                       </span>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-rounded font-bold uppercase tracking-wider shrink-0 ${phaseTokens.surface} ${phaseTokens.primary}`}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${phaseTokens.dot}`} />
+                          {getPhaseLabel(phase)}
+                        </span>
+                        <div className="lane-divider flex-1" />
+                      </div>
                     </div>
-                  </div>
+                  </li>
+                )}
 
-                  {/* Center: Title, Location Chip (always visible), Desktop Badge & Collapsible Description */}
-                  <div className="min-w-0 flex-1 flex flex-col justify-center">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0 flex items-center gap-2 flex-wrap">
-                        <span className="text-sm sm:text-[15px] font-semibold font-rounded text-ink dark:text-white leading-snug">
+                <li className="group">
+                  <button
+                    type="button"
+                    onClick={hasDescription ? () => toggleStep(step.id) : undefined}
+                    aria-expanded={hasDescription ? isStepExpanded : undefined}
+                    aria-controls={hasDescription ? descId : undefined}
+                    tabIndex={hasDescription ? 0 : -1}
+                    className={`w-full grid grid-cols-[3rem_2rem_minmax(0,1fr)_auto] items-center gap-x-3 px-2 py-1.5 rounded-pod text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30 ${
+                      hasDescription ? 'cursor-pointer' : 'cursor-default'
+                    } ${
+                      isHardDeparture
+                        ? 'bg-pod/80 dark:bg-pod/60 ring-1 ring-inset ring-[#a3b300]/30 dark:ring-[#dfff00]/20 hover:bg-pod'
+                        : isStepExpanded
+                        ? 'bg-pod'
+                        : hasDescription
+                        ? 'hover:bg-pod active:bg-chip/70'
+                        : ''
+                    }`}
+                  >
+                    {/* Tier 1/2/3 Time — right-aligned tabular readout with greyscale + phase hierarchy */}
+                    <span
+                      className={`text-right font-rounded text-sm sm:text-[15px] tracking-tight tnum leading-none ${
+                        isHardDeparture
+                          ? `font-bold ${CHIP_TOKENS['yellow-vest'].primary}`
+                          : isCrucial
+                          ? 'font-bold text-ink'
+                          : 'font-semibold text-ink-muted group-hover:text-ink-secondary transition-colors'
+                      }`}
+                    >
+                      {step.time}
+                    </span>
+
+                    {/* Spine Node — layered token badge with solid backer over the dashed lane */}
+                    <IconBadge
+                      theme={stepTheme}
+                      icon={StepIcon}
+                      size="md"
+                      isSelected={isHardDeparture}
+                      solidBacker
+                      className="relative z-10 transition-transform duration-200 group-hover:scale-105 motion-reduce:transition-none"
+                    />
+
+                    {/* Tier 1/2/3 Title + Tier 4 Location — distinct greyscale contrast steps */}
+                    <span className="min-w-0 flex flex-col sm:flex-row sm:items-baseline sm:gap-2 py-0.5">
+                      <span className="min-w-0 flex items-center gap-1.5">
+                        <span
+                          className={`truncate text-sm font-rounded leading-snug ${
+                            isCrucial
+                              ? 'font-semibold text-ink'
+                              : 'font-medium text-ink-secondary group-hover:text-ink transition-colors'
+                          }`}
+                        >
                           {step.title}
                         </span>
-
-                        {step.location && (
+                        {showCheckpointDot && (
                           <span
-                            title={step.location}
-                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-card dark:bg-[#161618] text-ink-secondary dark:text-zinc-300 border border-black/5 dark:border-white/[0.04] max-w-full"
+                            title={t('checkpointPill')}
+                            className={`w-1.5 h-1.5 rounded-full shrink-0 ${phaseTokens.dot}`}
                           >
-                            <span className="truncate">{step.location}</span>
+                            <span className="sr-only">{t('checkpointPill')}</span>
                           </span>
                         )}
-                      </div>
+                      </span>
+                      {step.location && (
+                        <span
+                          title={step.location}
+                          className="min-w-0 truncate text-xs leading-snug text-ink-muted"
+                        >
+                          <span
+                            className="hidden sm:inline text-ink-muted/50 mr-1"
+                            aria-hidden="true"
+                          >
+                            ·
+                          </span>
+                          {step.location}
+                        </span>
+                      )}
+                    </span>
 
-                      <div className="hidden sm:flex items-center gap-1.5 shrink-0">
-                        {isHardDeparture ? (
-                          <Badge variant="yellow-vest" size="sm" dot>
-                            {t('rolloutPill')}
-                          </Badge>
-                        ) : step.isCrucialCheckpoint ? (
-                          <Badge variant="emerald" size="sm" dot>
-                            {t('checkpointPill')}
-                          </Badge>
-                        ) : null}
+                    {/* Meta — Brand Phase Pill (Pre-Ride Amber / En Route Yellow-Vest / Post-Ride Emerald) + Chevron */}
+                    <span className="flex items-center gap-1.5 shrink-0">
+                      {isHardDeparture ? (
+                        <Badge
+                          variant="yellow-vest"
+                          size="xs"
+                          dot
+                          className="hidden min-[400px]:inline-flex"
+                        >
+                          {t('rolloutPill')}
+                        </Badge>
+                      ) : isPhaseStart ? (
+                        <Badge
+                          variant={phaseTheme}
+                          size="xs"
+                          dot
+                          className="hidden sm:inline-flex"
+                        >
+                          {getPhaseLabel(phase)}
+                        </Badge>
+                      ) : (
+                        <span
+                          title={getPhaseLabel(phase)}
+                          className="hidden sm:inline-flex items-center justify-center w-4 h-4"
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${phaseTokens.dot}`} />
+                        </span>
+                      )}
+
+                      {hasDescription && (
                         <span
                           aria-hidden="true"
-                          className="w-6 h-6 rounded-full bg-card text-ink-muted group-hover:text-ink flex items-center justify-center shrink-0 transition-colors"
+                          className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition-colors ${
+                            isStepExpanded
+                              ? 'bg-card text-ink'
+                              : 'text-ink-muted group-hover:text-ink group-hover:bg-card'
+                          }`}
                         >
                           <ChevronDown
                             className={`w-3.5 h-3.5 transition-transform duration-300 ease-out ${
@@ -325,35 +439,59 @@ export const ReverseTimelineBento: React.FC<ReverseTimelineBentoProps> = ({
                             }`}
                           />
                         </span>
-                      </div>
-                    </div>
+                      )}
+                    </span>
 
-                    {step.description && (
-                      <Collapsible open={isStepExpanded} id={descId} innerClassName="pt-1.5">
-                        <p className="text-xs sm:text-[13px] text-ink-secondary dark:text-zinc-400 leading-relaxed">
+                    {/* Tier 4 Collapsible Description — aligned to the content column with phase accent bar */}
+                    {hasDescription && (
+                      <Collapsible
+                        open={isStepExpanded}
+                        id={descId}
+                        className="col-start-3 col-span-2"
+                        innerClassName="pt-1.5 pb-1 pr-1"
+                      >
+                        <p
+                          className={`text-xs sm:text-[13px] text-ink-secondary leading-relaxed pl-2.5 border-l-2 ${
+                            phase === 'ride'
+                              ? 'border-[#a3b300]/60 dark:border-[#dfff00]/45'
+                              : phase === 'post-ride'
+                              ? 'border-emerald-500/50 dark:border-emerald-400/50'
+                              : 'border-amber-500/50 dark:border-amber-400/50'
+                          }`}
+                        >
                           {step.description}
                         </p>
                       </Collapsible>
                     )}
-                  </div>
-                </button>
-              </div>
+                  </button>
+                </li>
+              </React.Fragment>
             );
           })}
-        </div>
+        </ol>
       </div>
 
+      {/* Ghost node for hidden secondary steps — aligned with the spine column */}
       {hiddenCount > 0 && (
-        <div className="mt-3 pt-2.5 border-t border-dashed border-ink/10 dark:border-white/10 flex items-center justify-between gap-2 text-xs text-ink-muted">
-          <span className="tnum">{t('timelineHiddenSteps', { count: hiddenCount })}</span>
-          <button
-            type="button"
-            onClick={() => setStepFilter('all')}
-            className="px-2.5 py-1 rounded-full text-xs font-rounded font-semibold bg-pod hover:bg-chip text-ink transition-colors cursor-pointer"
+        <button
+          type="button"
+          onClick={() => setStepFilter('all')}
+          className="group mt-1 w-full grid grid-cols-[3rem_2rem_minmax(0,1fr)_auto] items-center gap-x-3 px-2 py-1.5 rounded-pod text-left hover:bg-pod transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
+        >
+          <span aria-hidden="true" />
+          <span
+            aria-hidden="true"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-rounded font-bold tnum text-ink-muted border border-dashed border-ink/20 dark:border-white/20 group-hover:text-ink transition-colors"
           >
+            +{hiddenCount}
+          </span>
+          <span className="min-w-0 truncate text-xs text-ink-muted group-hover:text-ink-secondary tnum transition-colors">
+            {t('timelineHiddenSteps', { count: hiddenCount })}
+          </span>
+          <span className="px-2.5 py-1 rounded-full text-xs font-rounded font-semibold bg-pod group-hover:bg-card text-ink-secondary group-hover:text-ink transition-colors">
             {t('timelineShowAllBtn')}
-          </button>
-        </div>
+          </span>
+        </button>
       )}
     </Card>
   );
