@@ -204,8 +204,8 @@ export const LocationAutocompleteInput: React.FC<LocationAutocompleteInputProps>
 
   return (
     <div ref={containerRef} className="relative w-full">
-      {/* Stable, fixed-height label row that never moves or wraps */}
-      <label htmlFor={id} className="block text-xs font-semibold text-ink-secondary mb-1.5 px-1 truncate">
+      {/* Stable, clean label row */}
+      <label htmlFor={id} className="block text-xs font-semibold text-ink-secondary mb-1.5 px-1 break-words">
         {label}
       </label>
 
@@ -250,7 +250,7 @@ export const LocationAutocompleteInput: React.FC<LocationAutocompleteInputProps>
       {/* Floating Suggestions Dropdown with Generous Width */}
       {showDropdown && (
         <div
-          className={`absolute top-full mt-2 z-50 bg-card/95 backdrop-blur-md rounded-[20px] border border-ink/10 dark:border-white/10 shadow-2xl p-2 max-h-72 overflow-y-auto animate-fade-in w-full md:min-w-[420px] max-w-[calc(100vw-2.5rem)] ${
+          className={`absolute top-full mt-2 z-50 bg-card rounded-[20px] border border-ink/10 dark:border-white/10 shadow-2xl p-2 max-h-72 overflow-y-auto animate-fade-in w-full md:min-w-[420px] max-w-[calc(100vw-2.5rem)] ${
             dropdownAlign === 'right' ? 'left-0 md:left-auto md:right-0' : 'left-0'
           }`}
         >
@@ -294,11 +294,11 @@ export const LocationAutocompleteInput: React.FC<LocationAutocompleteInputProps>
                       className="mt-0.5"
                     />
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm font-semibold text-ink leading-snug truncate">
+                      <div className="text-sm font-semibold text-ink leading-snug break-words">
                         {suggestion.name}
                       </div>
                       {suggestion.secondaryText && (
-                        <div className="text-xs text-ink-muted leading-relaxed mt-0.5 line-clamp-2">
+                        <div className="text-xs text-ink-muted leading-relaxed mt-0.5 break-words">
                           {suggestion.secondaryText}
                         </div>
                       )}

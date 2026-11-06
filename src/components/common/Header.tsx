@@ -92,14 +92,14 @@ export const Header: React.FC<HeaderProps> = ({
       {isMobileMenuOpen && (
         <div
           onClick={() => setIsMobileMenuOpen(false)}
-          className="fixed inset-0 bg-black/45 dark:bg-black/75 backdrop-blur-xs z-40 lg:hidden no-print"
+          className="fixed inset-0 bg-black/60 dark:bg-black/80 z-40 lg:hidden no-print"
           aria-hidden="true"
         />
       )}
 
       <header
         ref={headerRef}
-        className="sticky top-0 z-50 bg-canvas/90 backdrop-blur-md w-full px-4 sm:px-6 lg:px-8 pt-[calc(env(safe-area-inset-top,0px)+0.875rem)] pb-3.5 sm:pt-[calc(env(safe-area-inset-top,0px)+0.875rem)] sm:pb-3.5 transition-colors duration-200 no-print"
+        className="sticky top-0 z-50 bg-canvas w-full px-4 sm:px-6 lg:px-8 pt-[calc(env(safe-area-inset-top,0px)+0.875rem)] pb-3.5 sm:pt-[calc(env(safe-area-inset-top,0px)+0.875rem)] sm:pb-3.5 transition-colors duration-200 no-print"
       >
         <div className="max-w-7xl mx-auto">
           {/* ── DESKTOP LAYOUT (lg+) ── */}
@@ -188,7 +188,7 @@ export const Header: React.FC<HeaderProps> = ({
                     aria-label={t('activeTripAria')}
                     value={activeTrip.id}
                     onChange={(e) => onSelectTrip(e.target.value)}
-                    className="appearance-none bg-transparent text-ink font-medium cursor-pointer pr-5 focus:outline-none text-[13px] max-w-[135px] xl:max-w-[180px] truncate"
+                    className="appearance-none bg-transparent text-ink font-medium cursor-pointer pr-5 focus:outline-none text-[13px] max-w-[260px] lg:max-w-[360px] xl:max-w-[480px]"
                   >
                     {allTrips.map((tripItem) => {
                       const meta = getLocalizedTripMeta(tripItem, lang);
@@ -305,7 +305,7 @@ export const Header: React.FC<HeaderProps> = ({
                     <path d="M9.5 14.8c1.6-.9 3.4-.9 5 0" />
                   </svg>
                 </div>
-                <span className="font-semibold tracking-tight text-ink text-sm sm:text-base truncate">
+                <span className="font-semibold tracking-tight text-ink text-sm sm:text-base break-words">
                   {t('appName')}
                 </span>
               </button>
@@ -452,7 +452,7 @@ export const Header: React.FC<HeaderProps> = ({
                           onSelectTrip(e.target.value);
                           setIsMobileMenuOpen(false);
                         }}
-                        className="w-full appearance-none bg-pod text-ink font-medium rounded-full h-10 px-4 pr-9 text-xs focus:outline-none focus:ring-2 focus:ring-ink/20 cursor-pointer truncate"
+                        className="w-full appearance-none bg-pod text-ink font-medium rounded-full h-10 px-4 pr-9 text-xs focus:outline-none focus:ring-2 focus:ring-ink/20 cursor-pointer"
                       >
                         {allTrips.map((tripItem) => {
                           const meta = getLocalizedTripMeta(tripItem, lang);
@@ -494,8 +494,8 @@ export const Header: React.FC<HeaderProps> = ({
                         <Bicycle className="w-4 h-4 text-ink" />
                       </div>
                       <div className="min-w-0">
-                        <div className="font-semibold text-ink truncate">{t('drawerSpecsTitle')}</div>
-                        <div className="text-[11px] text-ink-muted truncate">{t('drawerSpecsSub')}</div>
+                        <div className="font-semibold text-ink break-words leading-tight">{t('drawerSpecsTitle')}</div>
+                        <div className="text-[11px] text-ink-muted break-words leading-tight mt-0.5">{t('drawerSpecsSub')}</div>
                       </div>
                     </button>
                   )}
@@ -512,8 +512,8 @@ export const Header: React.FC<HeaderProps> = ({
                       <Printer className="w-4 h-4 text-ink" />
                     </div>
                     <div className="min-w-0">
-                      <div className="font-semibold text-ink truncate">{t('drawerPrintTitle')}</div>
-                      <div className="text-[11px] text-ink-muted truncate">{t('drawerPrintSub')}</div>
+                      <div className="font-semibold text-ink break-words leading-tight">{t('drawerPrintTitle')}</div>
+                      <div className="text-[11px] text-ink-muted break-words leading-tight mt-0.5">{t('drawerPrintSub')}</div>
                     </div>
                   </button>
                 </div>

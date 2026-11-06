@@ -130,10 +130,10 @@ export const TripCard: React.FC<TripCardProps> = ({
         </div>
 
         {/* Title & Description */}
-        <h3 className="text-lg font-semibold text-ink tracking-tight leading-snug">
+        <h3 className="text-lg font-semibold text-ink tracking-tight leading-snug break-words">
           {meta.name}
         </h3>
-        <p className="text-[13px] text-ink-muted line-clamp-2 mt-1 mb-2.5 leading-relaxed">
+        <p className="text-[13px] text-ink-muted break-words mt-1 mb-2.5 leading-relaxed">
           {meta.description}
         </p>
 
@@ -154,7 +154,7 @@ export const TripCard: React.FC<TripCardProps> = ({
                   : CHIP_TOKENS.rose.dot
               }`}
             />
-            <span className="truncate font-medium">{physicsResult.goStatusReason}</span>
+            <span className="break-words font-medium leading-tight">{physicsResult.goStatusReason}</span>
           </div>
         )}
 

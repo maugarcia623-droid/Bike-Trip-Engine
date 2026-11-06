@@ -206,7 +206,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
             }`}
           >
             <Eye className="w-3.5 h-3.5 shrink-0 text-current" />
-            <span className="truncate">{t('cockpitViewEssential')}</span>
+            <span>{t('cockpitViewEssential')}</span>
           </button>
 
           <button
@@ -225,7 +225,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
             }`}
           >
             <Gauge className="w-3.5 h-3.5 shrink-0 text-current" />
-            <span className="truncate">{t('cockpitViewPro')}</span>
+            <span>{t('cockpitViewPro')}</span>
           </button>
         </div>
       )}
@@ -235,7 +235,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
         {/* KPI 1: Target Leg Power (W) */}
         <div className="rounded-pod bg-pod p-3 sm:p-3.5 flex flex-col justify-between gap-1.5 border border-ink/5 dark:border-white/5">
           <div className="flex items-center justify-between gap-1">
-            <span className="text-[11px] font-rounded font-semibold uppercase tracking-wide text-ink-muted truncate">
+            <span className="text-[11px] font-rounded font-semibold uppercase tracking-wide text-ink-muted break-words leading-tight">
               {t('physicsKpiLegPower')}
             </span>
             <InfoTooltip
@@ -255,7 +255,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
             </span>
             <span className="text-xs font-semibold text-ink-muted">W</span>
           </div>
-          <span className="text-[11px] text-ink-secondary font-mono tnum truncate">
+          <span className="text-[11px] text-ink-secondary font-mono tnum break-words leading-tight">
             {wattsPerKg} W/kg &middot; {ftpPercent}% FTP
           </span>
         </div>
@@ -263,7 +263,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
         {/* KPI 2: Total Work (kJ) */}
         <div className="rounded-pod bg-pod p-3 sm:p-3.5 flex flex-col justify-between gap-1.5 border border-ink/5 dark:border-white/5">
           <div className="flex items-center justify-between gap-1">
-            <span className="text-[11px] font-rounded font-semibold uppercase tracking-wide text-ink-muted truncate">
+            <span className="text-[11px] font-rounded font-semibold uppercase tracking-wide text-ink-muted break-words leading-tight">
               {t('physicsKpiWork')}
             </span>
             <InfoTooltip
@@ -278,7 +278,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
             </span>
             <span className="text-xs font-semibold text-ink-muted">kJ</span>
           </div>
-          <span className="text-[11px] text-ink-secondary font-mono tnum truncate">
+          <span className="text-[11px] text-ink-secondary font-mono tnum break-words leading-tight">
             {t('physicsKpiWorkSub', { pct: gmePercent })} &middot; @{effectiveSpeed} km/h
           </span>
         </div>
@@ -286,7 +286,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
         {/* KPI 3: Est. Burn (kcal) */}
         <div className="rounded-pod bg-pod p-3 sm:p-3.5 flex flex-col justify-between gap-1.5 border border-ink/5 dark:border-white/5">
           <div className="flex items-center justify-between gap-1">
-            <span className="text-[11px] font-rounded font-semibold uppercase tracking-wide text-ink-muted truncate">
+            <span className="text-[11px] font-rounded font-semibold uppercase tracking-wide text-ink-muted break-words leading-tight">
               {t('physicsKpiBurn')}
             </span>
             <InfoTooltip
@@ -301,9 +301,9 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
             </span>
             <span className="text-xs font-semibold text-ink-muted">kcal</span>
           </div>
-          <span className="text-[11px] text-ink-secondary font-mono tnum inline-flex items-center gap-1 truncate">
+          <span className="text-[11px] text-ink-secondary font-mono tnum inline-flex items-center gap-1 flex-wrap break-words leading-tight">
             <Flame className={`w-3.5 h-3.5 shrink-0 ${CHIP_TOKENS.amber.primary}`} />
-            <span className="truncate">
+            <span className="break-words">
               {t('physicsKpiBurnSub')} &middot; {t('ftpRefLabel', { ftp: ftpWatts })}
             </span>
           </span>
@@ -312,7 +312,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
         {/* KPI 4: Carb Burn (g/h) */}
         <div className="rounded-pod bg-pod p-3 sm:p-3.5 flex flex-col justify-between gap-1.5 border border-ink/5 dark:border-white/5">
           <div className="flex items-center justify-between gap-1">
-            <span className="text-[11px] font-rounded font-semibold uppercase tracking-wide text-ink-muted truncate">
+            <span className="text-[11px] font-rounded font-semibold uppercase tracking-wide text-ink-muted break-words leading-tight">
               {t('physicsKpiCarb')}
             </span>
             <InfoTooltip
@@ -329,9 +329,9 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
             </span>
             <span className="text-xs font-semibold text-ink-muted">g/h</span>
           </div>
-          <span className="text-[11px] text-ink-secondary font-mono tnum inline-flex items-center gap-1 truncate">
+          <span className="text-[11px] text-ink-secondary font-mono tnum inline-flex items-center gap-1 flex-wrap break-words leading-tight">
             <Lightning className={`w-3.5 h-3.5 shrink-0 ${CHIP_TOKENS.lime.primary}`} />
-            <span className="truncate">{t('physicsKpiCarbSub', { total: totalCarbs })}</span>
+            <span className="break-words">{t('physicsKpiCarbSub', { total: totalCarbs })}</span>
           </span>
         </div>
       </div>
@@ -431,7 +431,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
                     : `Climb peak: ~${sectional.peakClimbWatts}W (${sectional.peakZone})`}
                 </Badge>
               </div>
-              <p className="text-[11px] text-ink-muted truncate">
+              <p className="text-[11px] text-ink-muted break-words leading-relaxed">
                 {sectional.isFromGpx ? t('sectionalEnergySubGpx') : t('sectionalEnergySubSynth')}
               </p>
             </div>
@@ -531,10 +531,10 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
           <div className="flex items-center gap-2.5 min-w-0">
             <IconBadge theme="yellow-vest" icon={Wind} size="sm" solidBacker />
             <div className="min-w-0">
-              <h4 className="text-xs sm:text-[13px] font-bold font-rounded text-ink leading-snug truncate">
+              <h4 className="text-xs sm:text-[13px] font-bold font-rounded text-ink leading-snug break-words">
                 {t('physicsTelemetryDrawer')}
               </h4>
-              <p className="text-[11px] text-ink-muted truncate font-mono tnum">
+              <p className="text-[11px] text-ink-muted break-words font-mono tnum leading-tight">
                 {t('physicsTelemetryDrawerSub')}
               </p>
             </div>
@@ -624,7 +624,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
                   <span className="text-xs font-medium text-ink-muted">{t('wattsUnit')}</span>
                 </div>
                 <div className="flex items-center justify-between gap-1 text-[11px] font-mono text-ink-muted mt-1 tnum">
-                  <p className="truncate" title={`0.5 × ρ(${rho}) × CdA(${cda}) × v³`}>
+                  <p className="break-words leading-tight" title={`0.5 × ρ(${rho}) × CdA(${cda}) × v³`}>
                     0.5 &middot; &rho;({rho}) &middot; CdA({cda}) &middot; v&sup3;
                   </p>
                   <InfoTooltip
@@ -672,7 +672,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-1 text-[11px] font-mono text-ink-muted mt-1 tnum">
-                  <p className="truncate" title={`Crr(${crr}) × ${totalSystemMass}kg × g × v`}>
+                  <p className="break-words leading-tight" title={`Crr(${crr}) × ${totalSystemMass}kg × g × v`}>
                     Crr({crr}) &middot; {totalSystemMass}kg &middot; g &middot; v
                   </p>
                   <InfoTooltip
@@ -721,7 +721,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
                   <span className="text-xs font-medium text-ink-muted">{t('wattsLossUnit')}</span>
                 </div>
                 <div className="flex items-center justify-between gap-1 text-[11px] font-mono text-ink-muted mt-1 tnum">
-                  <p className="truncate">{t('chainFrictionLoss', { pct: lossPercent })}</p>
+                  <p className="break-words leading-tight">{t('chainFrictionLoss', { pct: lossPercent })}</p>
                   <InfoTooltip
                     title={t('drivetrainLossTooltipTitle')}
                     content={t('drivetrainLossTooltipContent')}

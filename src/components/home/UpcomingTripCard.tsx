@@ -284,7 +284,7 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
                           }`}
                         >
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5 font-medium truncate">
+                            <div className="flex items-center gap-1.5 font-medium min-w-0">
                               <span
                                 className={`w-1.5 h-1.5 rounded-full shrink-0 ${
                                   pIsGo
@@ -294,7 +294,7 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
                                     : CHIP_TOKENS.rose.dot
                                 }`}
                               />
-                              <span className="truncate">{pMeta.name}</span>
+                              <span className="break-words leading-tight">{pMeta.name}</span>
                             </div>
                             <span className="text-[10px] text-ink-muted">
                               <span className="font-semibold uppercase mr-1">{pPhysics.goStatus}</span>
@@ -486,7 +486,7 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
               </div>
 
               <div className="mt-2.5">
-                <span className="text-base sm:text-[17px] font-semibold tracking-tight text-ink truncate block">
+                <span className="text-base sm:text-[17px] font-semibold tracking-tight text-ink break-words block leading-snug">
                   {activeBike.name}
                 </span>
                 <div className="flex items-center gap-2 mt-1 text-xs text-ink-muted tnum">
@@ -515,9 +515,9 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
                 ))}
               </div>
             </div>
-            <div className="flex items-center justify-between text-[11px] text-ink-muted tnum">
+            <div className="flex items-center justify-between text-[11px] text-ink-muted tnum gap-2 flex-wrap">
               <span>{t('readyCountLabel', { checked: checkedChecklistCount, total: totalChecklistCount })}</span>
-              <span className="truncate max-w-[130px]">
+              <span className="break-words">
                 {visibility?.solar?.daylightHoursFormatted
                   ? `${visibility.solar.daylightHoursFormatted} ${lang === 'fr' ? 'de jour' : 'daylight'}`
                   : (lang === 'fr' ? 'Visibilité OK' : 'Nominal light')}

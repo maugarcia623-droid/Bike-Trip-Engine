@@ -325,10 +325,10 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
           </div>
 
           <div className="min-w-0 flex-1">
-            <div className="text-[17px] font-semibold text-ink tracking-tight truncate font-rounded">
+            <div className="text-[17px] font-semibold text-ink tracking-tight break-words font-rounded">
               {t('resupplyRadarTitle')}
             </div>
-            <div className="text-[13px] text-ink-muted truncate mt-0.5">
+            <div className="text-[13px] text-ink-muted break-words mt-0.5">
               {hasScanned
                 ? `${filteredAmenities.length} POIs · ${pinnedAmenities.length} ${t('pinnedStop').toLowerCase()}`
                 : t('resupplyRadarSub')}
@@ -644,8 +644,8 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
                       </div>
 
                       <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-rounded font-semibold text-[13px] text-ink truncate">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-rounded font-semibold text-[13px] text-ink break-words leading-tight">
                             {amenity.name}
                           </span>
                           {amenity.openingHours && (

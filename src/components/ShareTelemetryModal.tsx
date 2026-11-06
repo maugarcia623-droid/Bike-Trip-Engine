@@ -275,7 +275,7 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="share-telemetry-title"
-      className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-5 pt-[max(1rem,calc(env(safe-area-inset-top,0px)+1rem))] pb-[max(2.5rem,calc(env(safe-area-inset-bottom)+2.5rem))] bg-black/80 dark:bg-black/90 backdrop-blur-md animate-apple-fade-in overflow-y-auto overflow-x-hidden"
+      className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-5 pt-[max(1rem,calc(env(safe-area-inset-top,0px)+1rem))] pb-[max(2.5rem,calc(env(safe-area-inset-bottom)+2.5rem))] bg-black/85 dark:bg-black/95 animate-apple-fade-in overflow-y-auto overflow-x-hidden"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -293,7 +293,7 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
               <div className="flex items-center gap-2 flex-wrap">
                 <h2
                   id="share-telemetry-title"
-                  className="text-base sm:text-xl font-bold font-rounded text-ink tracking-tight truncate"
+                  className="text-base sm:text-xl font-bold font-rounded text-ink tracking-tight break-words"
                 >
                   {t('shareModalTitle')}
                 </h2>
@@ -301,7 +301,7 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
                   {t('shareSpecsBadge')}
                 </Badge>
               </div>
-              <p className="text-xs text-ink-muted mt-0.5 truncate max-w-xl">
+              <p className="text-xs text-ink-muted mt-0.5 break-words max-w-xl">
                 {t('shareModalSub')}
               </p>
             </div>
@@ -329,7 +329,7 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
               }`}
             >
               {isGenerating && (
-                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60 backdrop-blur-xs text-white p-4 animate-apple-fade-in">
+                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/75 text-white p-4 animate-apple-fade-in">
                   <Loader2 className="w-8 h-8 text-volt animate-spin mb-2.5" />
                   <span className="text-xs font-mono font-bold tracking-wider uppercase text-volt">
                     {t('shareGenerating')}
@@ -357,7 +357,7 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
 
               {/* Watermark mode pill on bottom left of preview */}
               <div className="absolute bottom-2.5 left-2.5 z-10 pointer-events-none">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-black/75 text-white/90 backdrop-blur-md border border-white/15 shadow-xs">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-black text-white/90 border border-white/15 shadow-xs">
                   <span
                     className={`w-2 h-2 rounded-full transition-colors duration-200 ${
                       mode === 'solid' ? 'bg-volt' : 'bg-volt-lime'
@@ -378,14 +378,14 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
                   target="_blank"
                   rel="noreferrer"
                   title="Open full-resolution card in new tab"
-                  className="absolute top-2.5 right-2.5 z-10 w-7 h-7 rounded-full bg-black/70 hover:bg-black text-white/80 hover:text-white flex items-center justify-center backdrop-blur-md border border-white/20 transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer"
+                  className="absolute top-2.5 right-2.5 z-10 w-7 h-7 rounded-full bg-black hover:bg-zinc-900 text-white flex items-center justify-center border border-white/20 transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
                 </a>
               )}
             </div>
 
-            <p className="text-[11px] font-rounded text-ink-muted mt-2 text-center truncate max-w-full px-2">
+            <p className="text-[11px] font-rounded text-ink-muted mt-2 text-center break-words max-w-full px-2">
               {mode === 'solid'
                 ? isFr
                   ? 'Reçu de vol Peloton tactile sur fond pierre chaude #E5E3DD'
@@ -418,7 +418,7 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
                   <div className="flex items-center justify-between gap-2 mb-1">
                     <div className="flex items-center gap-1.5 min-w-0">
                       <FileText className="w-4 h-4 shrink-0 text-current" />
-                      <span className="text-xs font-bold font-rounded truncate">
+                      <span className="text-xs font-bold font-rounded break-words">
                         {t('shareModeManifest')}
                       </span>
                     </div>
@@ -446,7 +446,7 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
                   <div className="flex items-center justify-between gap-2 mb-1">
                     <div className="flex items-center gap-1.5 min-w-0">
                       <Layers className="w-4 h-4 shrink-0 text-current" />
-                      <span className="text-xs font-bold font-rounded truncate">
+                      <span className="text-xs font-bold font-rounded break-words">
                         {t('shareModeSticker')}
                       </span>
                     </div>
@@ -470,47 +470,47 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
                   <span className="shrink-0">
                     {isFr ? 'DONNÉES EMBARQUÉES' : 'EMBEDDED SORTIE METRICS'}
                   </span>
-                  <span className="truncate text-right flex-1 min-w-0 text-ink dark:text-volt font-rounded">
+                  <span className="break-words text-right flex-1 min-w-0 text-ink dark:text-volt font-rounded leading-tight">
                     {telemetryData?.routeName || 'Sortie'}
                   </span>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-rounded tnum min-w-0">
                   <div className="p-2 rounded-xl bg-card border border-ink/5 dark:border-white/5 min-w-0 overflow-hidden transition-all duration-150 hover:border-ink/15 dark:hover:border-white/15">
-                    <span className="text-[10px] text-ink-muted block uppercase truncate">
+                    <span className="text-[10px] text-ink-muted block uppercase break-words leading-tight">
                       Distance
                     </span>
-                    <strong className="text-sm font-extrabold text-ink truncate block min-w-0">
+                    <strong className="text-sm font-extrabold text-ink break-words block min-w-0 leading-tight">
                       {formattedMetrics.distanceStr}
                     </strong>
                   </div>
 
                   <div className="p-2 rounded-xl bg-card border border-ink/5 dark:border-white/5 min-w-0 overflow-hidden transition-all duration-150 hover:border-ink/15 dark:hover:border-white/15">
-                    <span className="text-[10px] text-ink-muted block uppercase truncate">
+                    <span className="text-[10px] text-ink-muted block uppercase break-words leading-tight">
                       Elevation
                     </span>
-                    <strong className="text-sm font-extrabold text-ink truncate block min-w-0">
+                    <strong className="text-sm font-extrabold text-ink break-words block min-w-0 leading-tight">
                       {formattedMetrics.elevationStr}
                     </strong>
                   </div>
 
                   <div className="p-2 rounded-xl bg-card border border-ink/5 dark:border-white/5 min-w-0 overflow-hidden transition-all duration-150 hover:border-ink/15 dark:hover:border-white/15">
-                    <span className="text-[10px] text-ink-muted block uppercase truncate">
+                    <span className="text-[10px] text-ink-muted block uppercase break-words leading-tight">
                       Avg Power
                     </span>
                     <strong
-                      className={`text-sm font-extrabold ${CHIP_TOKENS['yellow-vest'].primary} truncate block min-w-0`}
+                      className={`text-sm font-extrabold ${CHIP_TOKENS['yellow-vest'].primary} break-words block min-w-0 leading-tight`}
                     >
                       {formattedMetrics.avgPowerStr}
                     </strong>
                   </div>
 
                   <div className="p-2 rounded-xl bg-card border border-ink/5 dark:border-white/5 min-w-0 overflow-hidden transition-all duration-150 hover:border-ink/15 dark:hover:border-white/15">
-                    <span className="text-[10px] text-ink-muted block uppercase truncate">
+                    <span className="text-[10px] text-ink-muted block uppercase break-words leading-tight">
                       Wind Tax
                     </span>
                     <strong
-                      className={`text-sm font-extrabold truncate block min-w-0 ${
+                      className={`text-sm font-extrabold break-words block min-w-0 leading-tight ${
                         formattedMetrics.windTaxVal > 0
                           ? CHIP_TOKENS['yellow-vest'].primary
                           : 'text-emerald-500'
@@ -521,28 +521,28 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
                   </div>
 
                   <div className="p-2 rounded-xl bg-card border border-ink/5 dark:border-white/5 min-w-0 overflow-hidden transition-all duration-150 hover:border-ink/15 dark:hover:border-white/15">
-                    <span className="text-[10px] text-ink-muted block uppercase truncate">
+                    <span className="text-[10px] text-ink-muted block uppercase break-words leading-tight">
                       Air Density (ρ)
                     </span>
-                    <strong className="text-xs font-extrabold text-ink truncate block min-w-0">
+                    <strong className="text-xs font-extrabold text-ink break-words block min-w-0 leading-tight">
                       {formattedMetrics.airDensityStr}
                     </strong>
                   </div>
 
                   <div className="p-2 rounded-xl bg-card border border-ink/5 dark:border-white/5 min-w-0 overflow-hidden transition-all duration-150 hover:border-ink/15 dark:hover:border-white/15">
-                    <span className="text-[10px] text-ink-muted block uppercase truncate">
+                    <span className="text-[10px] text-ink-muted block uppercase break-words leading-tight">
                       Carb Burn
                     </span>
-                    <strong className="text-xs font-extrabold text-ink truncate block min-w-0">
+                    <strong className="text-xs font-extrabold text-ink break-words block min-w-0 leading-tight">
                       {formattedMetrics.carbBurnStr}
                     </strong>
                   </div>
 
                   <div className="p-2 rounded-xl bg-card border border-ink/5 dark:border-white/5 col-span-2 min-w-0 overflow-hidden transition-all duration-150 hover:border-ink/15 dark:hover:border-white/15">
-                    <span className="text-[10px] text-ink-muted block uppercase truncate">
+                    <span className="text-[10px] text-ink-muted block uppercase break-words leading-tight">
                       Total Work
                     </span>
-                    <strong className="text-xs font-extrabold text-ink truncate block min-w-0">
+                    <strong className="text-xs font-extrabold text-ink break-words block min-w-0 leading-tight">
                       {formattedMetrics.totalWorkStr}
                     </strong>
                   </div>
@@ -569,17 +569,17 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
                   type="button"
                   onClick={handleCopyImage}
                   disabled={isGenerating || !blob}
-                  className={`py-2.5 px-3 rounded-xl ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES} hover:bg-chip hover:text-ink text-xs font-semibold font-rounded flex items-center justify-center gap-2 transition-all duration-150 active:scale-[0.97] cursor-pointer disabled:opacity-50 min-w-0 truncate`}
+                  className={`py-2.5 px-3 rounded-xl ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES} hover:bg-chip hover:text-ink text-xs font-semibold font-rounded flex items-center justify-center gap-2 transition-all duration-150 active:scale-[0.97] cursor-pointer disabled:opacity-50 min-w-0`}
                 >
                   {copied ? (
-                    <div className="flex items-center gap-1.5 animate-apple-check-pop truncate">
+                    <div className="flex items-center gap-1.5 animate-apple-check-pop">
                       <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                      <span className="text-emerald-500 truncate">{t('shareCopiedBtn')}</span>
+                      <span className="text-emerald-500">{t('shareCopiedBtn')}</span>
                     </div>
                   ) : (
                     <>
                       <Copy className="w-4 h-4 shrink-0 text-current" />
-                      <span className="truncate">{t('shareCopyBtn')}</span>
+                      <span>{t('shareCopyBtn')}</span>
                     </>
                   )}
                 </button>
@@ -589,10 +589,10 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
                   type="button"
                   onClick={() => blob && triggerFileDownload(blob, 'cadence-telemetry.png')}
                   disabled={isGenerating || !blob}
-                  className={`py-2.5 px-3 rounded-xl ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES} hover:bg-chip hover:text-ink text-xs font-semibold font-rounded flex items-center justify-center gap-2 transition-all duration-150 active:scale-[0.97] cursor-pointer disabled:opacity-50 min-w-0 truncate`}
+                  className={`py-2.5 px-3 rounded-xl ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES} hover:bg-chip hover:text-ink text-xs font-semibold font-rounded flex items-center justify-center gap-2 transition-all duration-150 active:scale-[0.97] cursor-pointer disabled:opacity-50 min-w-0`}
                 >
                   <Download className="w-4 h-4 shrink-0 text-current" />
-                  <span className="truncate">{t('shareSavePngBtn')}</span>
+                  <span>{t('shareSavePngBtn')}</span>
                 </button>
               </div>
             </div>

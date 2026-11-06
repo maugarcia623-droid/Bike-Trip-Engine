@@ -1141,7 +1141,7 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
       role="dialog"
       aria-modal="true"
       aria-labelledby="onboarding-modal-title"
-      className="fixed inset-0 z-50 bg-[#F5F4EF]/95 dark:bg-[#111113]/95 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 pt-[max(0.75rem,calc(env(safe-area-inset-top,0px)+0.75rem))] pb-[max(1rem,calc(env(safe-area-inset-bottom,0px)+1rem))] overflow-y-auto animate-apple-fade-in"
+      className="fixed inset-0 z-50 bg-[#F5F4EF] dark:bg-[#111113] flex items-center justify-center p-3 sm:p-4 pt-[max(0.75rem,calc(env(safe-area-inset-top,0px)+0.75rem))] pb-[max(1rem,calc(env(safe-area-inset-bottom,0px)+1rem))] overflow-y-auto animate-apple-fade-in"
     >
       <div className="relative w-full max-w-4xl my-auto bg-card text-ink rounded-card shadow-2xl border border-black/5 dark:border-white/10 flex flex-col overflow-hidden animate-apple-modal max-h-[92vh] max-h-[92dvh]">
         {/* Top Header Bar with 4-Segment Progress Bar and Close / Skip Button */}
@@ -1794,7 +1794,7 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
                         </div>
 
                         <p
-                          className={`text-xs leading-relaxed line-clamp-3 ${
+                          className={`text-xs leading-relaxed break-words ${
                             isSelected ? 'opacity-85' : 'text-ink-secondary'
                           }`}
                         >
@@ -1917,7 +1917,7 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
                       }`}
                     >
                       <Upload className="w-3.5 h-3.5 shrink-0 text-current" />
-                      <span className="truncate max-w-[180px]">
+                      <span className="break-words">
                         {routeMode === 'gpx' && gpxData?.fileName
                           ? gpxData.fileName
                           : t('routeModeGpx')}
@@ -2181,7 +2181,7 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
                           className="w-full h-44 sm:h-48 z-0"
                         />
                         <div className="px-3 py-2 bg-card/95 border-t border-black/5 dark:border-white/10 flex items-center justify-between gap-2 text-[11px]">
-                          <span className="font-bold text-ink truncate">
+                          <span className="font-bold text-ink break-words">
                             {manualStartCity || 'Nantes'}
                           </span>
                           <span className={`font-mono font-semibold tnum shrink-0 ${CHIP_TOKENS.emerald.primary}`}>
@@ -2235,8 +2235,8 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
                     )}
 
                     {gpxData && (
-                      <div className={`rounded-full px-4 py-2 text-xs font-medium flex items-center justify-between gap-2 ${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary}`}>
-                        <span className="truncate font-semibold">
+                      <div className={`rounded-2xl sm:rounded-full px-4 py-2 text-xs font-medium flex items-center justify-between gap-2 ${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary}`}>
+                        <span className="break-words font-semibold">
                           {gpxData.originLabel} → {gpxData.destLabel}
                         </span>
                         <span className="font-mono font-bold tnum shrink-0">
@@ -2269,7 +2269,7 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
                       }`}
                     >
                       <Target className="w-4 h-4 shrink-0 text-current" />
-                      <span className="truncate">{isFr ? 'Heure d’arrivée' : 'Arrival Time'}</span>
+                      <span className="break-words leading-tight">{isFr ? 'Heure d’arrivée' : 'Arrival Time'}</span>
                     </button>
                     <button
                       type="button"
@@ -2281,7 +2281,7 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
                       }`}
                     >
                       <RocketLaunch className="w-4 h-4 shrink-0 text-current" />
-                      <span className="truncate">{isFr ? 'Heure de départ' : 'Departure Time'}</span>
+                      <span className="break-words leading-tight">{isFr ? 'Heure de départ' : 'Departure Time'}</span>
                     </button>
                   </div>
                 </div>
@@ -2560,10 +2560,10 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
                             />
                             <span className="text-xs font-mono font-bold">{preset.massKg} kg</span>
                           </div>
-                          <div className="font-bold text-xs truncate">
+                          <div className="font-bold text-xs break-words leading-tight">
                             {isFr ? preset.nameFr : preset.nameEn}
                           </div>
-                          <span className={`text-[10px] block truncate mt-0.5 ${isMatch ? 'opacity-80' : 'text-ink-muted'}`}>
+                          <span className={`text-[10px] block break-words leading-tight mt-0.5 ${isMatch ? 'opacity-80' : 'text-ink-muted'}`}>
                             {isFr ? preset.subFr : preset.subEn}
                           </span>
                         </button>
@@ -2775,7 +2775,7 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
                               : `bg-card hover:bg-chip text-ink ${CHIP_RING_UNSELECTED}`
                           }`}
                         >
-                          <div className="text-xs font-bold truncate">{lvl.label}</div>
+                          <div className="text-xs font-bold break-words leading-tight">{lvl.label}</div>
                           <span className={`text-[10px] font-mono block mt-0.5 ${active ? 'opacity-85' : 'text-ink-muted'}`}>
                             {lvl.sub}
                           </span>

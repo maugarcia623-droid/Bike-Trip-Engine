@@ -476,7 +476,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
           }`}
         >
           <Wind className="w-4 h-4 shrink-0 text-current" />
-          <span className="truncate">{t('weatherTabWind')}</span>
+          <span className="break-words">{t('weatherTabWind')}</span>
         </button>
 
         <button
@@ -489,7 +489,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
           }`}
         >
           <SunHorizon className="w-4 h-4 shrink-0 text-current" />
-          <span className="truncate">{t('weatherTabVisibility')}</span>
+          <span className="break-words">{t('weatherTabVisibility')}</span>
           {isCriticalOptical && (
             <span className={`w-1.5 h-1.5 rounded-full shrink-0 animate-beacon-pulse ${CHIP_TOKENS.rose.dot}`} />
           )}
@@ -646,7 +646,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
               <span className="text-[11px] font-semibold text-ink-muted uppercase tracking-wider">
                 {t('pacingModeLabel')}
               </span>
-              <span className="text-[11px] font-medium text-ink-secondary tnum truncate">
+              <span className="text-[11px] font-medium text-ink-secondary tnum break-words text-right">
                 {pacingMode === 'effort'
                   ? `${cappedWatts}W (${powerZone}) → ${effectiveSpeed} km/h`
                   : `${effectiveSpeed} km/h → ${cappedWatts}W (${powerZone})`}
@@ -663,7 +663,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
                 }`}
               >
                 <Gauge className="w-3.5 h-3.5 shrink-0 text-current" />
-                <span className="truncate">{t('pacingHoldSpeed')}</span>
+                <span className="break-words">{t('pacingHoldSpeed')}</span>
               </button>
               <button
                 type="button"
@@ -675,7 +675,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
                 }`}
               >
                 <Lightning className="w-3.5 h-3.5 shrink-0 text-current" />
-                <span className="truncate">{t('pacingHoldEffort')}</span>
+                <span className="break-words">{t('pacingHoldEffort')}</span>
               </button>
             </div>
           </div>
@@ -683,28 +683,28 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
           {/* Metric Pods */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-2.5 mb-4">
             <div className="px-3.5 py-2.5 sm:p-3 rounded-pod bg-pod flex items-center justify-between gap-3 sm:block">
-              <span className="text-[11px] font-medium text-ink-muted sm:block sm:truncate">
+              <span className="text-[11px] font-medium text-ink-muted sm:block break-words">
                 {t('airTempDensityLabel')}
               </span>
-              <div className="text-sm font-semibold text-ink sm:mt-0.5 tnum shrink-0 sm:truncate">
+              <div className="text-sm font-semibold text-ink sm:mt-0.5 tnum shrink-0 break-words">
                 {temperature}&deg;C <span className="text-[10px] font-normal text-ink-muted">({rho})</span>
               </div>
             </div>
 
             <div className="px-3.5 py-2.5 sm:p-3 rounded-pod bg-pod flex items-center justify-between gap-3 sm:block">
-              <span className="text-[11px] font-medium text-ink-muted sm:block sm:truncate">
+              <span className="text-[11px] font-medium text-ink-muted sm:block break-words">
                 {t('maxGustEnvelope')}
               </span>
-              <div className="text-sm font-semibold text-ink sm:mt-0.5 tnum shrink-0 sm:truncate">
+              <div className="text-sm font-semibold text-ink sm:mt-0.5 tnum shrink-0 break-words">
                 {maxGust} km/h
               </div>
             </div>
 
             <div className="px-3.5 py-2.5 sm:p-3 rounded-pod bg-pod flex items-center justify-between gap-3 sm:block">
-              <span className="text-[11px] font-medium text-ink-muted sm:block sm:truncate">
+              <span className="text-[11px] font-medium text-ink-muted sm:block break-words">
                 {t('metricVisRange')}
               </span>
-              <div className="text-sm font-semibold text-ink sm:mt-0.5 tnum shrink-0 sm:truncate">
+              <div className="text-sm font-semibold text-ink sm:mt-0.5 tnum shrink-0 break-words">
                 {trip.weather.visibilityKm ?? 15} km
               </div>
             </div>
@@ -916,14 +916,14 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-2.5 mb-3.5">
             {/* 1. Required Lumens (clean, non-truncating text) */}
             <div className="p-3 rounded-pod bg-pod flex flex-row sm:flex-col items-center sm:items-stretch justify-between gap-3 sm:gap-0">
-              <span className="text-[11px] font-medium text-ink-muted uppercase tracking-wider sm:block sm:truncate">
+              <span className="text-[11px] font-medium text-ink-muted uppercase tracking-wider sm:block break-words">
                 {t('visibilityMetricLighting')}
               </span>
               <div className="text-right sm:text-left sm:mt-1 min-w-0">
-                <div className={`text-base sm:text-xl font-bold font-sans tracking-tight tnum sm:truncate whitespace-nowrap ${CHIP_TOKENS['yellow-vest'].primary}`}>
+                <div className={`text-base sm:text-xl font-bold font-sans tracking-tight tnum break-words ${CHIP_TOKENS['yellow-vest'].primary}`}>
                   {visibilityAnalysis.lightingGear.recommendedLumens}
                 </div>
-                <div className="text-[11px] text-ink-secondary mt-0.5 truncate font-medium">
+                <div className="text-[11px] text-ink-secondary mt-0.5 break-words font-medium leading-tight">
                   {isFr
                     ? visibilityAnalysis.lightingGear.beamModeFr.split('(')[0].trim()
                     : visibilityAnalysis.lightingGear.beamModeEn.split('(')[0].trim()}
@@ -933,11 +933,11 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
 
             {/* 2. Ambient Phase & Sun Elevation */}
             <div className="p-3 rounded-pod bg-pod flex flex-row sm:flex-col items-center sm:items-stretch justify-between gap-3 sm:gap-0">
-              <span className="text-[11px] font-medium text-ink-muted uppercase tracking-wider sm:block sm:truncate">
+              <span className="text-[11px] font-medium text-ink-muted uppercase tracking-wider sm:block break-words">
                 {t('visibilityMetricPhase')}
               </span>
               <div className="text-right sm:text-left sm:mt-1 min-w-0">
-                <div className="text-base sm:text-lg font-bold font-sans tracking-tight text-ink flex items-center justify-end sm:justify-start gap-1.5 min-w-0">
+                <div className="text-base sm:text-lg font-bold font-sans tracking-tight text-ink flex items-center justify-end sm:justify-start gap-1.5 min-w-0 flex-wrap">
                   {visibilityAnalysis.rolloutElevationDeg < -6 ? (
                     <Moon className={`w-4 h-4 shrink-0 ${CHIP_TOKENS.purple.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
                   ) : visibilityAnalysis.rolloutElevationDeg < 0 ? (
@@ -945,9 +945,9 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
                   ) : (
                     <Sun className={`w-4 h-4 shrink-0 ${CHIP_TOKENS.amber.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
                   )}
-                  <span className="truncate">{phaseLabel}</span>
+                  <span className="break-words">{phaseLabel}</span>
                 </div>
-                <div className="text-[11px] text-ink-secondary mt-0.5 truncate font-medium tnum">
+                <div className="text-[11px] text-ink-secondary mt-0.5 break-words font-medium tnum leading-tight">
                   {visibilityAnalysis.rolloutElevationDeg > 0 ? '+' : ''}
                   {visibilityAnalysis.rolloutElevationDeg}&deg; {t('solarElevShort')}
                 </div>
@@ -956,14 +956,14 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
 
             {/* 3. Meteorological Clarity */}
             <div className="p-3 rounded-pod bg-pod flex flex-row sm:flex-col items-center sm:items-stretch justify-between gap-3 sm:gap-0">
-              <span className="text-[11px] font-medium text-ink-muted uppercase tracking-wider sm:block sm:truncate">
+              <span className="text-[11px] font-medium text-ink-muted uppercase tracking-wider sm:block break-words">
                 {t('visibilityMetricClarity')}
               </span>
               <div className="text-right sm:text-left sm:mt-1 min-w-0">
-                <div className="text-lg sm:text-2xl font-bold font-sans tracking-tight text-ink tnum sm:truncate">
+                <div className="text-lg sm:text-2xl font-bold font-sans tracking-tight text-ink tnum break-words">
                   {visibilityAnalysis.visibilityKm} km
                 </div>
-                <div className="text-[11px] text-ink-secondary mt-0.5 truncate font-medium">
+                <div className="text-[11px] text-ink-secondary mt-0.5 break-words font-medium leading-tight">
                   {isFr ? visibilityAnalysis.weatherDescFr : visibilityAnalysis.weatherDescEn}
                 </div>
               </div>
@@ -1008,7 +1008,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
           >
             <div className="flex items-center gap-2 min-w-0">
               <IconBadge theme={kitAdvice.tierTheme} icon={Shield} size="sm" solidBacker />
-              <span className="text-xs font-bold font-rounded text-ink tracking-tight truncate">
+              <span className="text-xs font-bold font-rounded text-ink tracking-tight break-words leading-tight">
                 {t('kitDirectiveTitle')}
               </span>
             </div>

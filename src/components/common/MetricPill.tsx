@@ -56,9 +56,9 @@ export const MetricPill: React.FC<MetricPillProps> = ({
       className={`rounded-pod p-4 sm:p-5 flex flex-col justify-between transition-colors group relative ${containerStyle}`}
     >
       <div className={`flex items-center justify-between gap-2 text-xs font-medium ${mutedTextColor}`}>
-        <span className="flex items-center gap-1.5 truncate">
+        <span className="flex items-center gap-1.5 min-w-0 flex-1">
           <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`} />
-          <span className="truncate">{label}</span>
+          <span className="break-words leading-tight">{label}</span>
           {infoContent && (
             <InfoTooltip
               title={infoTitle || label}
@@ -83,7 +83,7 @@ export const MetricPill: React.FC<MetricPillProps> = ({
           {unit && <span className={`text-xs font-medium ${mutedTextColor}`}>{unit}</span>}
         </div>
         {subValue && (
-          <span className={`text-xs font-medium tnum truncate ${mutedTextColor}`}>
+          <span className={`text-xs font-medium tnum break-words leading-tight text-right ${mutedTextColor}`}>
             {subValue}
           </span>
         )}

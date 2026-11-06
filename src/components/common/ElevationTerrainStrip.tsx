@@ -149,7 +149,7 @@ export const ElevationTerrainStrip: React.FC<ElevationTerrainStripProps> = ({
               )}
             </div>
             {!compact && (
-              <p className="text-[11px] text-ink-muted mt-0.5 truncate">
+              <p className="text-[11px] text-ink-muted mt-0.5 break-words leading-relaxed">
                 {isGpx
                   ? isFr
                     ? `Profil réel extrait de votre trace GPX (+${elevGain} m D+ · pente max ${terrainSummary.maxGradePct}%)`

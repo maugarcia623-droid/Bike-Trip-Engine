@@ -281,13 +281,13 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
           <IconBadge theme={theme} icon={icon} size={badgeSize} shape="circle" />
           <div className="min-w-0 flex-1 text-left">
             <div
-              className={`${labelCls} font-semibold leading-tight truncate ${
+              className={`${labelCls} font-semibold leading-tight break-words ${
                 danger ? 'text-rose-600 dark:text-rose-400' : 'text-ink'
               }`}
             >
               {label}
             </div>
-            {sub && <div className={`${subCls} text-ink-muted leading-snug truncate mt-0.5`}>{sub}</div>}
+            {sub && <div className={`${subCls} text-ink-muted leading-snug break-words mt-0.5`}>{sub}</div>}
           </div>
           {trailing !== undefined
             ? trailing
@@ -374,10 +374,10 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
             />
           </div>
           <div className="min-w-0 flex-1">
-            <div className={`${m ? 'text-[17px]' : 'text-base'} font-semibold text-ink tracking-tight truncate`}>
+            <div className={`${m ? 'text-[17px]' : 'text-base'} font-semibold text-ink tracking-tight break-words`}>
               {user ? userDisplayName : isFr ? 'Cycliste invité' : 'Guest rider'}
             </div>
-            <div className={`${subCls} text-ink-muted truncate mt-0.5`}>
+            <div className={`${subCls} text-ink-muted break-words mt-0.5`}>
               {user ? user.email : syncStatusLabel}
             </div>
           </div>
@@ -600,7 +600,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2 min-w-0">
-              <span className="font-semibold tracking-tight text-ink text-[15px] sm:text-[17px] whitespace-nowrap truncate">
+              <span className="font-semibold tracking-tight text-ink text-[15px] sm:text-[17px] break-words">
                 {t('appName')}
               </span>
               <span
@@ -631,7 +631,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
               {activeTrip.tag}
             </span>
             <span className="text-ink-muted shrink-0">/</span>
-            <span className="text-ink font-semibold truncate">{activeMeta.name}</span>
+            <span className="text-ink font-semibold break-words leading-tight">{activeMeta.name}</span>
             <span className="text-ink-muted shrink-0">·</span>
             <span className="text-ink-secondary tnum font-bold shrink-0">
               {activeTrip.route.distanceKm} km

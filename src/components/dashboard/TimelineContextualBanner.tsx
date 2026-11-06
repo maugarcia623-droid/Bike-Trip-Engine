@@ -243,7 +243,7 @@ export const TimelineContextualBanner: React.FC<TimelineContextualBannerProps> =
           className="w-8 h-8 sm:w-8 sm:h-8 shrink-0"
         />
 
-        <span className="flex-1 min-w-0 truncate text-[13px] sm:text-sm font-semibold font-rounded text-ink leading-tight">
+        <span className="flex-1 min-w-0 break-words text-[13px] sm:text-sm font-semibold font-rounded text-ink leading-tight">
           {config.directiveTitle}
         </span>
 

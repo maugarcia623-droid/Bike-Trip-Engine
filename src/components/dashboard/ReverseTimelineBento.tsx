@@ -362,7 +362,7 @@ export const ReverseTimelineBento: React.FC<ReverseTimelineBentoProps> = ({
                     <span className="min-w-0 flex flex-col sm:flex-row sm:items-baseline sm:gap-2 py-0.5">
                       <span className="min-w-0 flex items-center gap-1.5">
                         <span
-                          className={`truncate text-sm font-rounded leading-snug ${
+                          className={`break-words text-sm font-rounded leading-snug ${
                             isCrucial
                               ? 'font-semibold text-ink'
                               : 'font-medium text-ink-secondary group-hover:text-ink transition-colors'
@@ -382,7 +382,7 @@ export const ReverseTimelineBento: React.FC<ReverseTimelineBentoProps> = ({
                       {step.location && (
                         <span
                           title={step.location}
-                          className="min-w-0 truncate text-xs leading-snug text-ink-muted"
+                          className="min-w-0 break-words text-xs leading-snug text-ink-muted"
                         >
                           <span
                             className="hidden sm:inline text-ink-muted/50 mr-1"
@@ -485,7 +485,7 @@ export const ReverseTimelineBento: React.FC<ReverseTimelineBentoProps> = ({
           >
             +{hiddenCount}
           </span>
-          <span className="min-w-0 truncate text-xs text-ink-muted group-hover:text-ink-secondary tnum transition-colors">
+          <span className="min-w-0 break-words text-xs text-ink-muted group-hover:text-ink-secondary tnum transition-colors">
             {t('timelineHiddenSteps', { count: hiddenCount })}
           </span>
           <span className="px-2.5 py-1 rounded-full text-xs font-rounded font-semibold bg-pod group-hover:bg-card text-ink-secondary group-hover:text-ink transition-colors">

@@ -156,7 +156,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
               }`}
             >
               <Icon className="w-4 h-4 shrink-0 text-current" />
-              <span className="max-w-full truncate sm:overflow-visible">{tab.label}</span>
+              <span className="max-w-full break-words text-center">{tab.label}</span>
             </button>
           );
         })}
@@ -181,7 +181,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                   <span className="text-sm font-semibold text-ink block leading-tight">
                     {t('totalSystemMassTitle')}
                   </span>
-                  <span className="text-xs text-ink-muted truncate block tnum">
+                  <span className="text-xs text-ink-muted break-words block tnum">
                     {t('systemMassFormula', {
                       rider: trip.physics.riderWeightKg,
                       bike: trip.physics.bikeWeightKg,
@@ -296,7 +296,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                           key={preset.val}
                           type="button"
                           onClick={() => updatePhysics('cda', preset.val)}
-                          className={`py-1.5 px-2 rounded-full text-[11px] font-semibold transition-all cursor-pointer truncate tnum ${CHIP_RING_BASE} ${
+                          className={`py-1.5 px-2 rounded-full text-[11px] font-semibold transition-all cursor-pointer break-words leading-tight tnum text-center ${CHIP_RING_BASE} ${
                             active
                               ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
                               : `${CHIP_RING_UNSELECTED} bg-card text-ink-secondary hover:text-ink`
@@ -339,7 +339,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                           key={preset.val}
                           type="button"
                           onClick={() => updatePhysics('crr', preset.val)}
-                          className={`py-1.5 px-2 rounded-full text-[11px] font-semibold transition-all cursor-pointer truncate tnum ${CHIP_RING_BASE} ${
+                          className={`py-1.5 px-2 rounded-full text-[11px] font-semibold transition-all cursor-pointer break-words leading-tight tnum text-center ${CHIP_RING_BASE} ${
                             active
                               ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_TOKENS.emerald.selectedRing}`
                               : `${CHIP_RING_UNSELECTED} bg-card text-ink-secondary hover:text-ink`
@@ -459,7 +459,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                           key={preset.label}
                           type="button"
                           onClick={() => updateRoute('targetEffortWatts', preset.watts)}
-                          className={`py-1.5 px-2.5 rounded-full text-[11px] font-semibold transition-all cursor-pointer truncate tnum ${CHIP_RING_BASE} ${
+                          className={`py-1.5 px-2.5 rounded-full text-[11px] font-semibold transition-all cursor-pointer break-words leading-tight tnum text-center ${CHIP_RING_BASE} ${
                             active
                               ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_TOKENS.emerald.selectedRing}`
                               : `${CHIP_RING_UNSELECTED} bg-card text-ink-secondary hover:text-ink`

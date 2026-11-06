@@ -310,7 +310,7 @@ export const ResupplyRadarBento: React.FC<ResupplyRadarBentoProps> = ({
                 </Badge>
               )}
             </div>
-            <p className="text-[13px] text-ink-muted mt-0.5 truncate">
+            <p className="text-[13px] text-ink-muted mt-0.5 break-words leading-snug">
               {t('resupplyRadarSub')}
             </p>
           </div>
@@ -636,8 +636,8 @@ export const ResupplyRadarBento: React.FC<ResupplyRadarBentoProps> = ({
                     </div>
 
                     <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-rounded font-bold text-xs sm:text-[13px] text-ink truncate">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-rounded font-bold text-xs sm:text-[13px] text-ink break-words leading-tight">
                           {amenity.name}
                         </span>
                         {amenity.openingHours && (

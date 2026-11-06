@@ -235,11 +235,11 @@ export const CHIP_TOKENS: Record<ChipTheme, ChipThemeTokens> = {
       selectedRing: 'ring-[#a3b300]',
     },
     dark: {
-      surface: 'dark:bg-[#1f2203]/60',
+      surface: 'dark:bg-[#1f2203]',
       primary: 'dark:text-[#dfff00]',
       selectedRing: 'dark:ring-[#dfff00]',
     },
-    surface: 'bg-[#faffcb] dark:bg-[#1f2203]/60',
+    surface: 'bg-[#faffcb] dark:bg-[#1f2203]',
     primary: 'text-[#4d5200] dark:text-[#dfff00]',
     selectedRing: 'ring-[#a3b300] dark:ring-[#dfff00]',
     dot: 'bg-[#a3b300] dark:bg-[#dfff00]',

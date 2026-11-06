@@ -190,7 +190,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="feedback-modal-title"
-      className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-5 pt-[max(1rem,calc(env(safe-area-inset-top,0px)+1rem))] pb-[max(2.5rem,calc(env(safe-area-inset-bottom)+2.5rem))] bg-black/75 dark:bg-black/85 backdrop-blur-sm animate-apple-fade-in overflow-y-auto"
+      className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-5 pt-[max(1rem,calc(env(safe-area-inset-top,0px)+1rem))] pb-[max(2.5rem,calc(env(safe-area-inset-bottom)+2.5rem))] bg-black/75 dark:bg-black/85 animate-apple-fade-in overflow-y-auto"
       onClick={(e) => {
         if (e.target === e.currentTarget) handleClose();
       }}
@@ -207,11 +207,11 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
             <div className="min-w-0">
               <h2
                 id="feedback-modal-title"
-                className="text-base sm:text-lg font-bold font-rounded text-ink tracking-tight truncate"
+                className="text-base sm:text-lg font-bold font-rounded text-ink tracking-tight break-words"
               >
                 {t('feedbackModalTitle')}
               </h2>
-              <p className="text-xs text-ink-muted truncate">
+              <p className="text-xs text-ink-muted break-words">
                 {t('feedbackModalSub')}
               </p>
             </div>
@@ -282,9 +282,9 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                           : `${CHIP_RING_UNSELECTED} bg-pod hover:bg-chip text-ink-secondary hover:text-ink`
                       }`}
                     >
-                      <div className="flex items-center gap-1.5 w-full">
+                      <div className="flex items-center gap-1.5 w-full flex-wrap">
                         <Icon className="w-3.5 h-3.5 shrink-0 text-current" />
-                        <span className="font-rounded font-bold text-xs truncate">
+                        <span className="font-rounded font-bold text-xs break-words">
                           {cat.label}
                         </span>
                       </div>

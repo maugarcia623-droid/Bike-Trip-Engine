@@ -176,7 +176,7 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
                 e.stopPropagation();
                 setIsSwitcherOpen((prev) => !prev);
               }}
-              className={`inline-flex items-center gap-1.5 sm:gap-2.5 h-9 sm:h-10 px-2.5 sm:px-4.5 max-w-full min-w-0 rounded-full text-xs sm:text-[13.5px] font-semibold whitespace-nowrap transition-all duration-150 cursor-pointer focus:outline-none ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+              className={`inline-flex items-center gap-1.5 sm:gap-2.5 min-h-[36px] sm:h-10 py-1 sm:py-0 px-2.5 sm:px-4.5 max-w-full min-w-0 rounded-full text-xs sm:text-[13.5px] font-semibold transition-all duration-150 cursor-pointer focus:outline-none ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
                 isSwitcherOpen
                   ? `${yellowVest.surface} ${yellowVest.primary} ${yellowVest.selectedRing}`
                   : `${CHIP_RING_UNSELECTED} bg-zinc-100 hover:bg-zinc-200/80 text-zinc-800 dark:bg-zinc-800/70 dark:hover:bg-zinc-800 dark:text-zinc-200`
@@ -195,11 +195,11 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
                 }`}
                 aria-hidden="true"
               />
-              <span className="truncate max-w-[96px] min-[360px]:max-w-[145px] min-[400px]:max-w-[180px] sm:max-w-[220px] md:max-w-[280px]">
+              <span className="break-words leading-tight text-left">
                 {activeMeta.name}
               </span>
               <span
-                className={`hidden min-[480px]:inline-flex text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${
+                className={`hidden min-[480px]:inline-flex text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider shrink-0 ${
                   isGo
                     ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
                     : isCaution
@@ -238,7 +238,7 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
               >
                 {/* Header with Active Trip Count & New Trip Action */}
                 <div className="flex items-center justify-between gap-2 pb-2.5 mb-2.5 border-b border-[#E5E3DD] dark:border-[#2C2C30] px-1">
-                  <span className="text-[11px] font-mono uppercase tracking-wider text-ink-muted dark:text-zinc-400 font-bold truncate">
+                  <span className="text-[11px] font-mono uppercase tracking-wider text-ink-muted dark:text-zinc-400 font-bold">
                     {t('activeTripAria')} ({allTrips.length})
                   </span>
                   <button
@@ -334,10 +334,10 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
                               }`}
                               aria-hidden="true"
                             />
-                            <span className="truncate">{meta.name}</span>
+                            <span className="break-words leading-tight">{meta.name}</span>
                           </div>
                           <div
-                            className={`text-[11px] font-mono mt-0.5 truncate ${
+                            className={`text-[11px] font-mono mt-0.5 break-words leading-tight ${
                               isSelected ? 'opacity-80' : 'text-ink-muted dark:text-zinc-400'
                             }`}
                           >

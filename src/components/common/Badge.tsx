@@ -232,7 +232,7 @@ export const Badge: React.FC<BadgeProps> = ({
         />
       )}
       {iconPosition === 'left' && iconElement}
-      {children && <span className="truncate">{children}</span>}
+      {children && <span className="break-words leading-none">{children}</span>}
       {iconPosition === 'right' && iconElement}
     </Component>
   );

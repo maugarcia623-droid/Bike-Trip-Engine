@@ -491,7 +491,7 @@ const BooleanRuleField: React.FC<BooleanRuleFieldProps> = ({
           <span
             className={`font-rounded font-bold ${
               isSoleField ? 'text-[20px] sm:text-[23px]' : 'text-[16px] sm:text-[18px]'
-            } leading-none tracking-tight chip-rule-title transition-opacity duration-150 block truncate ${
+            } leading-none tracking-tight chip-rule-title transition-opacity duration-150 block break-words ${
               value ? 'opacity-100' : 'opacity-50 group-hover:opacity-75'
             }`}
           >
@@ -553,7 +553,7 @@ const TextRuleField: React.FC<TextRuleFieldProps> = ({
           value={value ?? ''}
           aria-label={label}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full min-w-0 bg-transparent border-0 p-0 font-rounded font-bold text-[13px] sm:text-[14px] leading-snug tracking-tight chip-rule-title focus:outline-none focus:underline focus:decoration-2 focus:underline-offset-4 truncate focus:text-clip"
+          className="w-full min-w-0 bg-transparent border-0 p-0 font-rounded font-bold text-[13px] sm:text-[14px] leading-snug tracking-tight chip-rule-title focus:outline-none focus:underline focus:decoration-2 focus:underline-offset-4"
         />
         <button
           type="button"
@@ -614,17 +614,17 @@ export const PresetRuleCard: React.FC<PresetRuleCardProps> = ({
             <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-current shrink-0" aria-hidden="true" />
           </div>
           <span
-            className={`h-7 sm:h-8 px-2.5 sm:px-3 rounded-full inline-flex items-center font-rounded font-bold text-[11px] sm:text-xs leading-none chip-rule-title ${accent.pill} max-w-full truncate`}
+            className={`h-7 sm:h-8 px-2.5 sm:px-3 rounded-full inline-flex items-center font-rounded font-bold text-[11px] sm:text-xs leading-none chip-rule-title ${accent.pill} break-words`}
           >
             {isFr ? def.labelFr : def.labelEn}
           </span>
         </div>
 
         <div className="mt-3">
-          <h5 className="chip-rule-title font-rounded font-bold text-[14px] sm:text-[15px] leading-snug tracking-tight">
+          <h5 className="chip-rule-title font-rounded font-bold text-[14px] sm:text-[15px] leading-snug tracking-tight break-words">
             {isFr ? def.ruleTitleFr : def.ruleTitleEn}
           </h5>
-          <p className="text-[11.5px] sm:text-xs text-ink-muted mt-1 leading-normal line-clamp-2">
+          <p className="text-[11.5px] sm:text-xs text-ink-muted mt-1 leading-normal break-words">
             {isFr ? def.ruleDescriptionFr : def.ruleDescriptionEn}
           </p>
         </div>

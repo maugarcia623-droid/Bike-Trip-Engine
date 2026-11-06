@@ -172,18 +172,18 @@ export const RouteMapBanner: React.FC<RouteMapBannerProps> = ({
         />
 
         <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 flex-wrap">
-          <span className="px-3 py-1 rounded-full text-xs font-medium bg-card/95 text-ink backdrop-blur-xs flex items-center gap-1.5">
+          <span className="px-3 py-1 rounded-full text-xs font-medium bg-card text-ink shadow-xs flex items-center gap-1.5 border border-ink/10 dark:border-white/10">
             <span className="w-2 h-2 rounded-full bg-beacon-green dark:bg-volt-lime" />
             {originName}
           </span>
-          <span className="px-3 py-1 rounded-full text-xs font-medium bg-card/95 text-ink backdrop-blur-xs flex items-center gap-1.5">
+          <span className="px-3 py-1 rounded-full text-xs font-medium bg-card text-ink shadow-xs flex items-center gap-1.5 border border-ink/10 dark:border-white/10">
             <span className="w-2 h-2 rounded-full bg-beacon-red" />
             {finalDestination}
           </span>
         </div>
 
         <div className="absolute bottom-3 right-3 z-10">
-          <span className="px-3 py-1 rounded-full text-[11px] font-medium bg-card/95 text-ink-secondary backdrop-blur-xs">
+          <span className="px-3 py-1 rounded-full text-[11px] font-medium bg-card text-ink-secondary shadow-xs border border-ink/10 dark:border-white/10">
             {t('scrollLockBadge')}
           </span>
         </div>

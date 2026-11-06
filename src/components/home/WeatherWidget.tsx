@@ -105,8 +105,8 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
       {/* 4 Borderless Weather Gauge Pods */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
         <div className="bg-pod rounded-pod p-3.5 sm:p-4 min-w-0">
-          <div className="flex items-center justify-between gap-1.5 text-xs font-medium text-ink-muted">
-            <span className="truncate">{t('estuaryVectorLabel')}</span>
+          <div className="flex items-start justify-between gap-1.5 text-xs font-medium text-ink-muted">
+            <span className="break-words leading-snug">{t('estuaryVectorLabel')}</span>
             <NavigationArrow
               className={`w-4 h-4 shrink-0 transform transition-transform ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
                 weather.isHeadwindActive
@@ -129,8 +129,8 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
         </div>
 
         <div className="bg-pod rounded-pod p-3.5 sm:p-4 min-w-0">
-          <div className="flex items-center justify-between gap-1.5 text-xs font-medium text-ink-muted">
-            <span className="truncate">{t('airTempDensityLabel')}</span>
+          <div className="flex items-start justify-between gap-1.5 text-xs font-medium text-ink-muted">
+            <span className="break-words leading-snug">{t('airTempDensityLabel')}</span>
             <ThermometerSimple className={`w-4 h-4 shrink-0 ${GREYSCALE_TOKENS.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
           </div>
           <div className="mt-2.5 flex items-baseline gap-x-1.5 gap-y-0.5 flex-wrap">
@@ -149,8 +149,8 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
         </div>
 
         <div className="bg-pod rounded-pod p-3.5 sm:p-4 min-w-0">
-          <div className="flex items-center justify-between gap-1.5 text-xs font-medium text-ink-muted">
-            <span className="truncate">{t('bridgeGustsLabel')}</span>
+          <div className="flex items-start justify-between gap-1.5 text-xs font-medium text-ink-muted">
+            <span className="break-words leading-snug">{t('bridgeGustsLabel')}</span>
             <Wind className={`w-4 h-4 shrink-0 ${GREYSCALE_TOKENS.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
           </div>
           <div className="mt-2.5 flex items-baseline gap-1 flex-wrap">
@@ -169,8 +169,8 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
         </div>
 
         <div className="bg-pod rounded-pod p-3.5 sm:p-4 min-w-0">
-          <div className="flex items-center justify-between gap-1.5 text-xs font-medium text-ink-muted">
-            <span className="truncate">{t('precipitationLabel')}</span>
+          <div className="flex items-start justify-between gap-1.5 text-xs font-medium text-ink-muted">
+            <span className="break-words leading-snug">{t('precipitationLabel')}</span>
             <CloudRain
               className={`w-4 h-4 shrink-0 ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
                 weather.precipitationRiskPercent >= 25

@@ -1031,27 +1031,27 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
               : 'linear-gradient(to bottom, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0) 35%, rgba(255, 255, 255, 0.45) 50%, rgba(255, 255, 255, 0.92) 70%, rgba(255, 255, 255, 1) 100%)',
           }}
         />
-
-        <div
-          className="absolute inset-0 z-2 pointer-events-none backdrop-blur-[7px]"
-          style={{
-            WebkitMaskImage:
-              'linear-gradient(to bottom, transparent 0%, transparent 40%, rgba(0,0,0,0.4) 52%, black 68%, black 100%)',
-            maskImage:
-              'linear-gradient(to bottom, transparent 0%, transparent 40%, rgba(0,0,0,0.4) 52%, black 68%, black 100%)',
-          }}
-        />
       </div>
 
       <div className="relative z-20 p-4 flex flex-col justify-between min-h-[460px] sm:min-h-[490px] lg:min-h-[520px] pointer-events-none">
-        <div className="flex items-center justify-between gap-2 mb-32 sm:mb-20 lg:mb-20 pointer-events-none">
-          {isInteractive ? (
+        <div className="relative z-30 flex items-center justify-start gap-2 mb-32 sm:mb-20 lg:mb-20 pointer-events-none">
+          {/* ── MINI DYNAMIC ISLAND PILL (1:1 ICON BUTTONS: ROUTE, RESUPPLY RADAR, BIKE SPECS) ── */}
+          <div className="relative inline-flex items-center gap-1 sm:gap-1.5 p-1 sm:p-1.5 rounded-full bg-card dark:bg-[#161618] text-ink dark:text-white border border-ink/10 dark:border-white/15 shadow-sm sm:shadow-md pointer-events-auto select-none transition-colors">
+            {/* 1. Route Direction / Flip Button (1:1 format, icon only) */}
             <button
               type="button"
+              disabled={!isInteractive}
               onClick={
+                isInteractive
+                  ? isRadiusMode
+                    ? () => setActivePopover((prev) => (prev === 'route' ? null : 'route'))
+                    : handleFlipRouteDirection
+                  : undefined
+              }
+              aria-label={
                 isRadiusMode
-                  ? () => setActivePopover((prev) => (prev === 'route' ? null : 'route'))
-                  : handleFlipRouteDirection
+                  ? t('heroQuickRouteTitle')
+                  : `${t('heroFlipReturnBtn')} — ${trip.route.origin || 'Nord-sur-Erdre'} ⇄ ${trip.route.destination || meta.gateName || 'Redon'}`
               }
               title={
                 isRadiusMode
@@ -1059,45 +1059,22 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                       loop: Math.round((loopRadiusMeters / 1000) * 10) / 10,
                       oneWay: trip.route.distanceKm,
                     })
-                  : `${t('heroFlipReturnBtn')} — ${t('heroFlipReturnSub')}`
+                  : `${trip.route.origin || 'Nord-sur-Erdre'} ⇄ ${trip.route.destination || meta.gateName || 'Redon'} (${t('heroFlipReturnBtn')})`
               }
-              className={`inline-flex items-center gap-1.5 min-w-0 px-3 py-1 rounded-full text-[11px] font-medium bg-card/85 hover:bg-card text-ink-secondary hover:text-ink backdrop-blur-md border border-ink/5 dark:border-white/10 hover:border-ink/20 dark:hover:border-white/25 transition-all pointer-events-auto cursor-pointer select-none shadow-xs ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+              className={`relative w-8 h-8 sm:w-8.5 sm:h-8.5 aspect-square rounded-full flex items-center justify-center transition-all duration-150 select-none active:scale-95 shrink-0 ${
+                isRadiusMode && activePopover === 'route'
+                  ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.emerald.selectedRing}`
+                  : `hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
+              } ${isInteractive ? 'cursor-pointer' : 'opacity-60 cursor-default'} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
-              <span className={`w-2 h-2 rounded-full shrink-0 ${CHIP_TOKENS.emerald.dot}`} />
-              <span className="truncate">
-                {trip.route.origin || 'Nord-sur-Erdre'}
-              </span>
               {isRadiusMode ? (
-                <span className="text-[10px] font-mono font-semibold text-ink tnum shrink-0">
-                  · ◯ {Math.round((loopRadiusMeters / 1000) * 10) / 10} km
-                </span>
+                <Path className="w-4 h-4 text-current" />
               ) : (
-                <>
-                  <ArrowsLeftRight className="w-3 h-3 shrink-0 opacity-75 text-current" />
-                  <span className="truncate">
-                    {trip.route.destination || meta.gateName || 'Redon'}
-                  </span>
-                </>
-              )}
-              {trip.route.routeMode === 'gpx' && (
-                <span className={`ml-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-extrabold uppercase tracking-wider shrink-0 ${CHIP_TOKENS.sky.surface} ${CHIP_TOKENS.sky.primary}`}>
-                  GPX
-                </span>
+                <ArrowsLeftRight className="w-4 h-4 text-current transition-transform duration-200 active:-rotate-180" />
               )}
             </button>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 min-w-0 px-3 py-1 rounded-full text-[11px] font-medium bg-card/85 text-ink-secondary backdrop-blur-md border border-ink/5 dark:border-white/10 pointer-events-auto select-none">
-              <span className={`w-2 h-2 rounded-full shrink-0 ${CHIP_TOKENS.emerald.dot}`} />
-              <span className="truncate">
-                {isRadiusMode
-                  ? `${trip.route.origin || 'Nantes'} · ◯ ${Math.round((loopRadiusMeters / 1000) * 10) / 10} km`
-                  : `${trip.route.origin || 'Nord-sur-Erdre'} → ${trip.route.destination || meta.gateName || 'Redon'}`}
-              </span>
-            </span>
-          )}
 
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 pointer-events-auto">
-            {/* 1:1 Resupply Radar button */}
+            {/* 2. Corridor Resupply Radar Button (1:1 format, icon only) */}
             <button
               type="button"
               onClick={() => setIsRadarOpen((prev) => !prev)}
@@ -1108,10 +1085,10 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   ? ` (${trip.pinnedAmenities.length} ${t('pinnedStop')})`
                   : ''
               }`}
-              className={`relative w-8 h-8 sm:w-8.5 sm:h-8.5 aspect-square rounded-full flex items-center justify-center transition-all cursor-pointer shadow-xs select-none active:scale-95 ${
+              className={`relative w-8 h-8 sm:w-8.5 sm:h-8.5 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 ${
                 isRadarOpen || (trip.pinnedAmenities && trip.pinnedAmenities.length > 0)
                   ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
-                  : `bg-card/90 hover:bg-card text-ink backdrop-blur-md border border-ink/10 dark:border-white/15 hover:border-ink/25 dark:hover:border-white/30 ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
+                  : `hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
               } ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
               <Radar className="w-4 h-4 text-current" />
@@ -1122,90 +1099,100 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
               )}
             </button>
 
-            {effectiveSpecs && activeBike ? (
-              <div className="relative shrink-0 pointer-events-auto">
-                <button
-                  type="button"
-                  onClick={() => setActivePopover((prev) => (prev === 'bike' ? null : 'bike'))}
-                  aria-expanded={activePopover === 'bike'}
-                  aria-label={t('heroBikeSwitchAria')}
-                  title={t('heroBikeSwitchAria')}
-                  className={`inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-1 rounded-full text-[11px] font-semibold bg-card/90 hover:bg-card text-ink backdrop-blur-md border border-ink/10 dark:border-white/15 hover:border-ink/25 dark:hover:border-white/30 transition-all cursor-pointer shadow-xs ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
-                >
-                  <Bicycle className={`w-3.5 h-3.5 shrink-0 ${CHIP_TOKENS['yellow-vest'].primary}`} />
-                  <span className="max-w-[115px] sm:max-w-[180px] truncate">{activeBike.name}</span>
-                  <span className="hidden min-[420px]:inline font-mono text-[10px] text-ink-muted tnum">
-                    · {activeBike.weightKg}kg · {activeBike.isTubeless ? 'TL' : 'Tube'}
-                  </span>
-                  <CaretDown
-                    className={`w-3 h-3 shrink-0 text-ink-muted transition-transform duration-150 ${
-                      activePopover === 'bike' ? 'rotate-180' : ''
-                    }`}
-                  />
-                </button>
+            {/* 3. Rider Bike Garage Button (1:1 format, icon only) */}
+            <button
+              type="button"
+              onClick={() => {
+                if (effectiveSpecs && activeBike) {
+                  setActivePopover((prev) => (prev === 'bike' ? null : 'bike'));
+                } else if (onOpenSpecs) {
+                  onOpenSpecs();
+                }
+              }}
+              aria-expanded={activePopover === 'bike'}
+              aria-label={t('heroBikeSwitchAria')}
+              title={
+                activeBike
+                  ? `${activeBike.name} · ${activeBike.weightKg}kg · ${activeBike.isTubeless ? 'TL' : 'Tube'} (${t('heroBikeSwitchAria')})`
+                  : t('heroBikeSwitchAria')
+              }
+              className={`relative w-8 h-8 sm:w-8.5 sm:h-8.5 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 ${
+                activePopover === 'bike'
+                  ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
+                  : `hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
+              } ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+            >
+              <Bicycle className="w-4 h-4 text-current shrink-0" />
+            </button>
 
-                {activePopover === 'bike' && (
-                  <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 z-40 rounded-pod p-3 bg-card/95 dark:bg-[#16161A]/95 backdrop-blur-xl border border-ink/10 dark:border-white/15 shadow-2xl animate-apple-popover">
-                    <div className="flex items-center justify-between gap-2 mb-2 px-0.5">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">
-                        {t('bikeGarageHeading', { count: effectiveSpecs.bikes.length })}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setActivePopover(null)}
-                        aria-label={t('closeModalAria')}
-                        className="w-6 h-6 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-pod cursor-pointer"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      {effectiveSpecs.bikes.map((bike) => {
-                        const selected = bike.id === activeBike.id;
-                        return (
-                          <button
-                            key={bike.id}
-                            type="button"
-                            onClick={() => onSelectBike?.(bike.id)}
-                            className={`w-full rounded-full px-4 py-2 text-left flex items-center justify-between gap-2 transition-all cursor-pointer ${
-                              selected
-                                ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
-                                : `bg-pod/80 hover:bg-chip text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
-                            }`}
-                          >
-                            <div className="min-w-0">
-                              <div className="text-xs font-semibold truncate">{bike.name}</div>
-                              <div className="text-[10px] font-mono tnum opacity-80 mt-0.5">
-                                {bike.weightKg}kg · {bike.isTubeless ? 'Tubeless' : 'Tube'} · CdA {bike.cda}
-                              </div>
-                            </div>
-                            {selected && <Check className="w-3.5 h-3.5 shrink-0 text-current" />}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {onOpenSpecs && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActivePopover(null);
-                          onOpenSpecs();
-                        }}
-                        className={`mt-2.5 w-full h-8 px-3 rounded-full bg-pod hover:bg-chip flex items-center justify-center gap-1.5 text-xs font-semibold text-ink-secondary hover:text-ink transition-colors cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
-                      >
-                        <SlidersHorizontal className="w-3.5 h-3.5 text-current" />
-                        <span>{t('heroManageGarageBtn')}</span>
-                      </button>
-                    )}
+            {/* ── Bike Garage Popover (anchored to the mini dynamic island pill, above all lower content) ── */}
+            {activePopover === 'bike' && effectiveSpecs && activeBike && (
+              <>
+                {/* Full-screen click-outside dismiss shield */}
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setActivePopover(null)}
+                  aria-hidden="true"
+                />
+                <div className="absolute left-0 top-full mt-2 w-72 sm:w-80 z-50 rounded-pod p-3 bg-card dark:bg-[#161618] border border-ink/15 dark:border-white/20 shadow-2xl animate-apple-popover">
+                  <div className="flex items-center justify-between gap-2 mb-2 px-0.5">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">
+                      {t('bikeGarageHeading', { count: effectiveSpecs.bikes.length })}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setActivePopover(null)}
+                      aria-label={t('closeModalAria')}
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-pod cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                )}
-              </div>
-            ) : (
-              <span className="inline-flex items-center shrink-0 whitespace-nowrap px-2.5 py-1 rounded-full text-[10px] font-mono uppercase font-bold tracking-wider bg-card/85 text-ink-muted backdrop-blur-md border border-ink/5 dark:border-white/10 pointer-events-auto">
-                {t('activeTrackBadge') || 'ACTIVE TRACK'}
-              </span>
+
+                  <div className="space-y-1.5">
+                    {effectiveSpecs.bikes.map((bike) => {
+                      const selected = bike.id === activeBike.id;
+                      return (
+                        <button
+                          key={bike.id}
+                          type="button"
+                          onClick={() => {
+                            onSelectBike?.(bike.id);
+                            setActivePopover(null);
+                          }}
+                          className={`w-full rounded-full px-4 py-2 text-left flex items-center justify-between gap-2 transition-all cursor-pointer ${
+                            selected
+                              ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
+                              : `bg-pod hover:bg-chip text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <div className="text-xs font-semibold break-words leading-tight">{bike.name}</div>
+                            <div className="text-[10px] font-mono tnum opacity-80 mt-0.5">
+                              {bike.weightKg}kg · {bike.isTubeless ? 'Tubeless' : 'Tube'} · CdA {bike.cda}
+                            </div>
+                          </div>
+                          {selected && <Check className="w-3.5 h-3.5 shrink-0 text-current" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {onOpenSpecs && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActivePopover(null);
+                        onOpenSpecs();
+                      }}
+                      className={`mt-2.5 w-full h-8 px-3 rounded-full bg-pod hover:bg-chip flex items-center justify-center gap-1.5 text-xs font-semibold text-ink-secondary hover:text-ink transition-colors cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                    >
+                      <SlidersHorizontal className="w-3.5 h-3.5 text-current" />
+                      <span>{t('heroManageGarageBtn')}</span>
+                    </button>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -1233,18 +1220,18 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     size="md"
                     icon={isSportTrip ? BikeFast : undefined}
                     dot={!isSportTrip}
-                    className="py-1.5 px-3 sm:px-3.5 backdrop-blur-md"
+                    className="py-1.5 px-3 sm:px-3.5"
                   >
                     {heroBadge}
                   </Badge>
                 );
               })()}
 
-              <Badge variant="rose" size="md" icon={MapPin} className="py-1.5 px-3 sm:px-3.5 backdrop-blur-md">
+              <Badge variant="rose" size="md" icon={MapPin} className="py-1.5 px-3 sm:px-3.5">
                 {heroTarget}
               </Badge>
 
-              <Badge variant="yellow-vest" size="md" className="py-1.5 px-3 sm:px-3.5 backdrop-blur-md">
+              <Badge variant="yellow-vest" size="md" className="py-1.5 px-3 sm:px-3.5">
                 {trip.tag || 'BIKEPACKING'}
               </Badge>
             </div>
@@ -1254,7 +1241,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
             {/* 1. Trip Start Time (Hard rollout) */}
             <div className="relative col-span-2 sm:col-span-1">
               {activePopover === 'target' && isInteractive && (
-                <div className="absolute left-0 bottom-full mb-2.5 w-[min(19.5rem,calc(100vw-3rem))] z-40 rounded-pod p-3.5 bg-card/95 dark:bg-[#16161A]/95 backdrop-blur-xl border border-ink/10 dark:border-white/15 shadow-2xl animate-apple-popover">
+                <div className="absolute left-0 bottom-full mb-2.5 w-[min(19.5rem,calc(100vw-3rem))] z-40 rounded-pod p-3.5 bg-card dark:bg-[#161618] border border-ink/10 dark:border-white/15 shadow-2xl animate-apple-popover">
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <span className="text-xs font-bold text-ink">
                       {isDepartAtMode ? t('rolloutTimeLabel') : t('heroQuickTargetTitle')}
@@ -1332,20 +1319,20 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                       }
                     : undefined
                 }
-                className={`h-full rounded-pod p-3.5 sm:p-4.5 backdrop-blur-md flex flex-col justify-between min-h-[100px] sm:min-h-[114px] transition-all hover:brightness-[0.98] dark:hover:brightness-110 ${
+                className={`h-full rounded-pod p-3.5 sm:p-4.5 flex flex-col justify-between min-h-[100px] sm:min-h-[114px] transition-all hover:brightness-[0.98] dark:hover:brightness-110 ${
                   isInteractive ? 'cursor-pointer select-none group' : ''
-                } ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                } bg-[#faffcb] dark:bg-[#1f2203] ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
               >
                 <div className="flex items-center justify-between gap-1.5 text-xs font-semibold shrink-0">
                   <span className="flex items-center gap-1.5 min-w-0">
-                    <span className={`w-2 h-2 rounded-full animate-beacon-pulse shrink-0 ${CHIP_TOKENS['yellow-vest'].dot}`} />
-                    <span className="truncate font-bold">{t('hardRollout')}</span>
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${CHIP_TOKENS['yellow-vest'].dot}`} />
+                    <span className="break-words font-bold">{t('hardRollout')}</span>
                   </span>
                   <span className="flex items-center gap-1 shrink-0">
                     {isInteractive && (
                       <CaretUp
-                        className={`w-3 h-3 text-current opacity-60 group-hover:opacity-100 transition-transform ${
-                          activePopover === 'target' ? 'rotate-180 opacity-100' : ''
+                        className={`w-3 h-3 text-current transition-transform ${
+                          activePopover === 'target' ? 'rotate-180' : ''
                         }`}
                       />
                     )}
@@ -1357,7 +1344,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     {timelineResult.hardDepartureTime}
                   </span>
                   <span
-                    className="text-[11px] font-bold tnum opacity-85 truncate sm:w-full xl:w-auto text-right sm:text-left xl:text-right min-w-0 whitespace-nowrap"
+                    className="text-[11px] font-bold tnum break-words sm:w-full xl:w-auto text-right sm:text-left xl:text-right min-w-0 leading-tight"
                     title={`${heroTargetLabel} ${heroTargetValue}`}
                   >
                     {heroTargetValue ? `${heroTargetValue} ${targetShortLabel}` : '09:00'}
@@ -1369,7 +1356,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
             {/* 2. Trip Length */}
             <div className="relative">
               {activePopover === 'route' && isInteractive && (
-                <div className="absolute left-0 bottom-full mb-2.5 w-[min(19.5rem,calc(100vw-3rem))] z-40 rounded-pod p-3.5 bg-card/95 dark:bg-[#16161A]/95 backdrop-blur-xl border border-ink/10 dark:border-white/15 shadow-2xl animate-apple-popover">
+                <div className="absolute left-0 bottom-full mb-2.5 w-[min(19.5rem,calc(100vw-3rem))] z-40 rounded-pod p-3.5 bg-card dark:bg-[#161618] border border-ink/10 dark:border-white/15 shadow-2xl animate-apple-popover">
                   <div className="flex items-center justify-between gap-2 mb-2.5">
                     <span className="text-xs font-bold text-ink flex items-center gap-1.5">
                       <MapIcon className={`w-3.5 h-3.5 shrink-0 text-beacon-red dark:text-rose-400 dual-tone-rose ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
@@ -1468,7 +1455,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                         className={`w-full h-8 px-3.5 rounded-full bg-pod hover:bg-chip text-xs font-semibold text-ink flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
                       >
                         <Upload className={`w-3.5 h-3.5 shrink-0 ${CHIP_TOKENS.sky.primary}`} />
-                        <span className="truncate">
+                        <span className="break-words leading-tight">
                           {trip.route.gpxFileName
                             ? `${t('gpxLoadedBadge')} · ${trip.route.gpxFileName}`
                             : t('gpxUploadBtn')}
@@ -1499,14 +1486,14 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                       }
                     : undefined
                 }
-                className={`h-full rounded-pod p-3.5 sm:p-4.5 bg-pod/90 dark:bg-[#141418]/85 text-ink backdrop-blur-md border flex flex-col justify-between min-h-[108px] sm:min-h-[114px] transition-all ${
+                className={`h-full rounded-pod p-3.5 sm:p-4.5 bg-pod dark:bg-[#161618] text-ink border flex flex-col justify-between min-h-[108px] sm:min-h-[114px] transition-all ${
                   activePopover === 'route'
                     ? 'border-ink/30 dark:border-white/30'
                     : 'border-ink/5 dark:border-white/5 hover:border-ink/15 dark:hover:border-white/15'
                 } ${isInteractive ? 'cursor-pointer select-none group' : ''}`}
               >
                 <div className="flex items-center justify-between gap-1.5 text-xs font-medium text-ink-muted shrink-0">
-                  <span className="truncate">{t('routeLength')}</span>
+                  <span className="break-words">{t('routeLength')}</span>
                   <span className="flex items-center gap-1 shrink-0">
                     {isInteractive && (
                       <CaretUp
@@ -1526,7 +1513,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     <span className="text-xs font-medium text-ink-muted">km</span>
                   </div>
                   <span
-                    className="text-[11px] font-medium text-ink-muted truncate w-full xl:w-auto text-left xl:text-right min-w-0 whitespace-nowrap"
+                    className="text-[11px] font-medium text-ink-muted break-words w-full xl:w-auto text-left xl:text-right min-w-0 leading-tight"
                     title={trip.route.origin || 'Nord-sur-Erdre'}
                   >
                     {trip.route.origin || 'Nord-sur-Erdre'}
@@ -1538,7 +1525,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
             {/* 3. Moving Time — Clarifies Saddle Time (Excl. Pauses) vs Total Time (Incl. Buffer) */}
             <div className="relative">
               {activePopover === 'pace' && isInteractive && (
-                <div className="absolute right-0 lg:left-0 lg:right-auto bottom-full mb-2.5 w-[min(21.5rem,calc(100vw-3rem))] z-40 rounded-pod p-3.5 bg-card/95 dark:bg-[#16161A]/95 backdrop-blur-xl border border-ink/10 dark:border-white/15 shadow-2xl animate-apple-popover">
+                <div className="absolute right-0 lg:left-0 lg:right-auto bottom-full mb-2.5 w-[min(21.5rem,calc(100vw-3rem))] z-40 rounded-pod p-3.5 bg-card dark:bg-[#161618] border border-ink/10 dark:border-white/15 shadow-2xl animate-apple-popover">
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <span className="text-xs font-bold text-ink">{t('heroQuickPaceTitle')}</span>
                     <button
@@ -1728,14 +1715,14 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                       }
                     : undefined
                 }
-                className={`h-full rounded-pod p-3.5 sm:p-4.5 bg-pod/90 dark:bg-[#141418]/85 text-ink backdrop-blur-md border flex flex-col justify-between min-h-[108px] sm:min-h-[114px] transition-all ${
+                className={`h-full rounded-pod p-3.5 sm:p-4.5 bg-pod dark:bg-[#161618] text-ink border flex flex-col justify-between min-h-[108px] sm:min-h-[114px] transition-all ${
                   activePopover === 'pace'
                     ? 'border-ink/30 dark:border-white/30'
                     : 'border-ink/5 dark:border-white/5 hover:border-ink/15 dark:hover:border-white/15'
                 } ${isInteractive ? 'cursor-pointer select-none group' : ''}`}
               >
                 <div className="flex items-center justify-between gap-1.5 text-xs font-medium text-ink-muted shrink-0">
-                  <span className="truncate">
+                  <span className="break-words">
                     {isFr ? 'En selle (hors pauses)' : 'Saddle (excl. pauses)'}
                   </span>
                   <span className="flex items-center gap-1.5 shrink-0">
@@ -1754,7 +1741,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     {formatTimeHHMM(movingMinutes)}
                   </span>
                   <span
-                    className={`text-[11px] font-medium tnum truncate w-full xl:w-auto text-left xl:text-right min-w-0 whitespace-nowrap ${CHIP_TOKENS.emerald.primary}`}
+                    className={`text-[11px] font-medium tnum break-words w-full xl:w-auto text-left xl:text-right min-w-0 leading-tight ${CHIP_TOKENS.emerald.primary}`}
                   >
                     +{bufferMinutes}m → {formatTimeHHMM(totalElapsedMinutes)} tot.
                   </span>
@@ -1763,9 +1750,9 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
             </div>
 
             {/* 4. Energy Burned */}
-            <div className="rounded-pod p-3.5 sm:p-4.5 bg-pod/90 dark:bg-[#141418]/85 text-ink backdrop-blur-md border border-ink/5 dark:border-white/5 flex flex-col justify-between min-h-[108px] sm:min-h-[114px] transition-all hover:border-ink/15 dark:hover:border-white/15">
+            <div className="rounded-pod p-3.5 sm:p-4.5 bg-pod dark:bg-[#161618] text-ink border border-ink/5 dark:border-white/5 flex flex-col justify-between min-h-[108px] sm:min-h-[114px] transition-all hover:border-ink/15 dark:hover:border-white/15">
               <div className="flex items-center justify-between gap-1.5 text-xs font-medium text-ink-muted shrink-0">
-                <span className="truncate">{t('energyBurn')}</span>
+                <span className="break-words">{t('energyBurn')}</span>
                 <Flame2 className={`w-4 h-4 shrink-0 ${CHIP_TOKENS.amber.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
               </div>
               <div className="mt-auto pt-2 flex flex-col xl:flex-row items-start xl:items-baseline justify-between gap-1 min-w-0">
@@ -1776,7 +1763,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   <span className="text-xs font-medium text-ink-muted">kcal</span>
                 </div>
                 <span
-                  className="text-[11px] font-medium text-ink-muted tnum truncate w-full xl:w-auto text-left xl:text-right min-w-0 whitespace-nowrap"
+                  className="text-[11px] font-medium text-ink-muted tnum break-words w-full xl:w-auto text-left xl:text-right min-w-0 leading-tight"
                   title={
                     isFr
                       ? `Cible ravito : ${effectiveSpecs.carbTargetGPerHr ?? 60}g/h`
@@ -1816,7 +1803,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                       <div className="text-lg sm:text-[21px] font-bold tracking-tight uppercase leading-none">
                         {isFr ? 'DÉNIVELÉ' : 'ELEVATION'}
                       </div>
-                      <div className="text-[11px] font-medium opacity-75 mt-1.5 truncate tnum">
+                      <div className="text-[11px] font-medium opacity-75 mt-1.5 break-words tnum">
                         {hoveredElevPoint
                           ? `km ${hoveredElevPoint.distKm.toFixed(1)} · Alt ${Math.round(hoveredElevPoint.eleM)} m`
                           : `${surfaceLabel} · ${difficultyLabel} · ${trip.route.distanceKm} km`}
@@ -1885,7 +1872,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
 
                   {/* Compact Monochrome Terrain Split Footer (no Upload .GPX button) */}
                   <div className="mt-3 pt-2.5 border-t border-[#4d5200]/15 dark:border-[#dfff00]/15 flex items-center justify-between gap-2 text-[10px] font-mono font-semibold opacity-80 tnum">
-                    <span className="truncate">
+                    <span className="break-words leading-tight">
                       {isFr ? 'Plat' : 'Flat'} {terrainSummary.flatPct}% ·{' '}
                       {isFr ? 'Vallonné' : 'Rolling'} {terrainSummary.rollingPct}% ·{' '}
                       {isFr ? 'Bosses' : 'Climb'} {terrainSummary.climbPct}%
@@ -1922,14 +1909,14 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     }
                   }
                 }}
-                className={`h-full rounded-pod p-3.5 sm:p-4.5 bg-pod/90 dark:bg-[#141418]/85 text-ink backdrop-blur-md border flex flex-col justify-between min-h-[108px] sm:min-h-[114px] transition-all cursor-pointer select-none group ${
+                className={`h-full rounded-pod p-3.5 sm:p-4.5 bg-pod dark:bg-[#161618] text-ink border flex flex-col justify-between min-h-[108px] sm:min-h-[114px] transition-all cursor-pointer select-none group ${
                   showElevationOverlay
                     ? 'border-[#8ea000]/50 dark:border-[#dfff00]/45'
                     : 'border-ink/5 dark:border-white/5 hover:border-ink/15 dark:hover:border-white/15'
                 }`}
               >
                 <div className="flex items-center justify-between gap-1.5 text-xs font-medium text-ink-muted shrink-0">
-                  <span className="truncate">{t('elevationGain') || 'Elevation gain'}</span>
+                  <span className="break-words">{t('elevationGain') || 'Elevation gain'}</span>
                   <span className="flex items-center gap-1 shrink-0">
                     <CaretUp
                       className={`w-3 h-3 opacity-55 group-hover:opacity-100 transition-transform ${
@@ -1946,7 +1933,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     </span>
                     <span className="text-xs font-medium text-ink-muted">m</span>
                   </div>
-                  <span className="text-[11px] font-medium text-ink-muted tnum truncate w-full xl:w-auto text-left xl:text-right min-w-0 whitespace-nowrap">
+                  <span className="text-[11px] font-medium text-ink-muted tnum break-words w-full xl:w-auto text-left xl:text-right min-w-0 leading-tight">
                     Max {maxGradientPercent}%
                   </span>
                 </div>

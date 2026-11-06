@@ -257,7 +257,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
                     >
                       {t('stageDayPill', { day: stage.dayNumber })}
                     </span>
-                    <span className="truncate min-w-0 max-w-[150px] sm:max-w-[200px]">
+                    <span className="whitespace-nowrap font-medium min-w-0">
                       {origin} → {dest}
                     </span>
                     <span

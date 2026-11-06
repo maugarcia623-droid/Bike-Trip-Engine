@@ -152,12 +152,12 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           <div className="flex items-center gap-2.5 min-w-0">
             <IconBadge theme="amber" icon={Flame} size="sm" solidBacker />
             <div className="min-w-0">
-              <h4 className="text-xs sm:text-[13px] font-bold text-ink font-rounded uppercase tracking-tight truncate tnum">
+              <h4 className="text-xs sm:text-[13px] font-bold text-ink font-rounded uppercase tracking-tight break-words tnum">
                 {isFr
                   ? `Jour ${currentDay}/${totalDays} · ~${estimatedBurnKcal} kcal`
                   : `Day ${currentDay}/${totalDays} · ~${estimatedBurnKcal} kcal`}
               </h4>
-              <p className="text-[11px] text-ink-muted truncate tnum">
+              <p className="text-[11px] text-ink-muted break-words tnum">
                 {isFr
                   ? `${carbTarget}g/h · ${prefBadgeLabel}`
                   : `${carbTarget}g/h · ${prefBadgeLabel}`}
@@ -276,16 +276,16 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="text-[13px] sm:text-sm font-bold font-rounded text-ink leading-snug truncate tnum">
+                    <span className="text-[13px] sm:text-sm font-bold font-rounded text-ink leading-snug break-words tnum">
                       {idx + 1}. {phase.title}
                     </span>
                   </div>
-                  <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-ink-muted truncate tnum">
+                  <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-ink-muted flex-wrap tnum">
                     <span className="font-rounded font-semibold uppercase tracking-wide text-[10px]">
                       {phase.stageLabel}
                     </span>
                     <span aria-hidden="true">&middot;</span>
-                    <span className="font-mono font-semibold text-ink-secondary truncate">
+                    <span className="font-mono font-semibold text-ink-secondary break-words">
                       {phase.macroHeadline}
                     </span>
                   </div>
@@ -298,10 +298,10 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
                 </Badge>
 
                 <span
-                  className={`hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-card text-[11px] font-mono font-bold tnum max-w-[190px] ${CHIP_TOKENS[phase.macroTheme].primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                  className={`hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-card text-[11px] font-mono font-bold tnum ${CHIP_TOKENS[phase.macroTheme].primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
                 >
                   {MacroIcon && <MacroIcon className="w-3.5 h-3.5 text-current shrink-0" />}
-                  <span className="truncate">{phase.macroHeadline}</span>
+                  <span className="break-words">{phase.macroHeadline}</span>
                 </span>
 
                 <DisclosureChevron open={isOpen} />

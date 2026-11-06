@@ -153,7 +153,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="specs-modal-title"
-      className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-5 pt-[max(1rem,calc(env(safe-area-inset-top,0px)+1rem))] pb-[max(1rem,calc(env(safe-area-inset-bottom,0px)+1rem))] bg-black/55 dark:bg-black/75 backdrop-blur-xs animate-apple-fade-in"
+      className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-5 pt-[max(1rem,calc(env(safe-area-inset-top,0px)+1rem))] pb-[max(1rem,calc(env(safe-area-inset-bottom,0px)+1rem))] bg-black/60 dark:bg-black/80 animate-apple-fade-in"
     >
       <div className="relative w-full max-w-4xl max-h-[92vh] max-h-[92dvh] flex flex-col bg-card text-ink rounded-card p-4 sm:p-6 overflow-hidden animate-apple-modal shadow-2xl border border-ink/10 dark:border-white/10">
         {/* Header */}
@@ -294,8 +294,8 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                           : `bg-card text-ink hover:bg-chip ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
                       }`}
                     >
-                      <div className="text-xs font-semibold truncate">{tier.label}</div>
-                      <div className="text-[10px] opacity-80 mt-0.5 truncate">{tier.sub}</div>
+                      <div className="text-xs font-semibold break-words leading-tight">{tier.label}</div>
+                      <div className="text-[10px] opacity-80 mt-0.5 break-words leading-tight">{tier.sub}</div>
                     </button>
                   );
                 })}
@@ -350,7 +350,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                 className={`p-3 rounded-pod ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`}
               >
                 <div className="flex items-center justify-between gap-1 mb-1">
-                  <label className="block text-[11px] opacity-85 truncate">
+                  <label className="block text-[11px] opacity-85 break-words">
                     {t('ftpBaselineLabel')}
                   </label>
                 </div>
@@ -424,7 +424,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                           className="p-2 rounded-sub-pod bg-pod hover:bg-chip text-left transition-colors cursor-pointer"
                         >
                           <div className="text-xs font-mono font-bold text-ink tnum">{valW} W</div>
-                          <div className="text-[10px] text-ink-muted truncate">{est.label}</div>
+                          <div className="text-[10px] text-ink-muted break-words leading-tight">{est.label}</div>
                         </button>
                       );
                     })}
@@ -492,7 +492,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                       onClick={() =>
                         setLocalSpecs((prev) => ({ ...prev, carbTargetGPerHr: opt.val }))
                       }
-                      className={`py-1.5 px-2 rounded-full text-[11px] font-semibold transition-colors cursor-pointer tnum truncate ${
+                      className={`py-1.5 px-2 rounded-full text-[11px] font-semibold transition-colors cursor-pointer tnum break-words leading-tight text-center ${
                         active
                           ? `${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary}`
                           : 'bg-pod text-ink-muted hover:text-ink'
@@ -607,7 +607,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                     }`}
                   >
                     <div className="flex items-center justify-between gap-1.5">
-                      <span className="text-xs font-semibold truncate pr-5">
+                      <span className="text-xs font-semibold break-words leading-tight pr-5">
                         {bike.name}
                       </span>
                       {localSpecs.bikes.length > 1 && (
@@ -688,11 +688,11 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                             : 'bg-pod text-ink-secondary hover:text-ink'
                         }`}
                       >
-                        <div className="text-xs font-semibold flex items-center gap-1.5">
+                        <div className="text-xs font-semibold flex items-center gap-1.5 flex-wrap">
                           <Lightning className="w-3.5 h-3.5 text-current shrink-0" />
-                          <span className="truncate">{opt.title}</span>
+                          <span className="break-words leading-tight">{opt.title}</span>
                         </div>
-                        <div className="text-[10px] opacity-80 mt-0.5 truncate">{opt.sub}</div>
+                        <div className="text-[10px] opacity-80 mt-0.5 break-words leading-tight">{opt.sub}</div>
                       </button>
                     );
                   })}

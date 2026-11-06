@@ -98,11 +98,11 @@ export const CommuterDashboardView: React.FC<CommuterDashboardViewProps> = ({
                       <span className="font-mono font-bold text-ink bg-card px-2.5 py-1 rounded-xl shrink-0">
                         {step.time}
                       </span>
-                      <span className={`truncate ${isDeparture ? 'font-bold text-ink dark:text-volt' : 'text-ink-secondary'}`}>
+                      <span className={`break-words leading-tight ${isDeparture ? 'font-bold text-ink dark:text-volt' : 'text-ink-secondary'}`}>
                         {step.title}
                       </span>
                     </div>
-                    <span className="text-[10px] font-medium text-ink-muted bg-card px-2 py-0.5 rounded-full truncate shrink-0">
+                    <span className="text-[10px] font-medium text-ink-muted bg-card px-2 py-0.5 rounded-full shrink-0">
                       {step.location.split(' ')[0]}
                     </span>
                   </div>
@@ -229,7 +229,7 @@ export const CommuterDashboardView: React.FC<CommuterDashboardViewProps> = ({
                 >
                   {item.checked && <Check className="w-4 h-4 stroke-[3]" />}
                 </span>
-                <span className={`text-[11px] font-mono truncate ${item.checked ? 'line-through' : 'font-medium'}`}>
+                <span className={`text-[11px] font-mono break-words leading-tight ${item.checked ? 'line-through' : 'font-medium'}`}>
                   {item.label}
                 </span>
               </div>

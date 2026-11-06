@@ -926,7 +926,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                       </span>
 
                       {/* Origin -> Destination text */}
-                      <span className="text-xs font-semibold truncate min-w-0 max-w-[130px] sm:max-w-[190px]">
+                      <span className="text-xs font-semibold whitespace-nowrap min-w-0">
                         {originText} → {destText || '...'}
                       </span>
 
@@ -1154,7 +1154,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                 <div className={`rounded-pod px-3.5 py-2.5 flex items-center justify-between gap-2 text-xs ${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}>
                   <div className="flex items-center gap-2 min-w-0">
                     <MapPin className="w-4 h-4 shrink-0 text-current" />
-                    <span className="font-semibold truncate">
+                    <span className="font-semibold break-words leading-tight">
                       {originInput || trip.route.origin || 'Nantes'}
                     </span>
                   </div>
@@ -1206,12 +1206,12 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
               {routeSuccess ? (
                 <div className={`flex items-center gap-2 text-xs font-medium tnum animate-fade-in ${CHIP_TOKENS.emerald.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}>
                   <CheckCircle className="w-4 h-4 shrink-0 text-current" />
-                  <span className="truncate">{t('routeUpdatedMsg', { dist: trip.route.distanceKm })}</span>
+                  <span className="break-words leading-tight">{t('routeUpdatedMsg', { dist: trip.route.distanceKm })}</span>
                 </div>
               ) : routeError ? (
                 <p className={`text-xs font-medium animate-fade-in ${CHIP_TOKENS.rose.primary}`}>{routeError}</p>
               ) : (
-                <p className="text-xs text-ink-muted tnum truncate animate-fade-in">
+                <p className="text-xs text-ink-muted tnum break-words leading-relaxed animate-fade-in">
                   {isFr ? 'Itinéraire actif' : 'Active route'} : {trip.route.origin || originInput} &gt; {trip.route.destination || destInput} ({trip.route.distanceKm} km
                   {trip.route.elevationGainM ? ` · +${trip.route.elevationGainM}m` : ''}
                   {trip.route.routeMode === 'gpx' && trip.route.gpxFileName
@@ -1484,10 +1484,10 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                   className="w-9 h-9 sm:w-9 sm:h-9"
                 />
                 <div className="min-w-0 flex-1">
-                  <div className="text-[13px] font-semibold tracking-tight truncate">
+                  <div className="text-[13px] font-semibold tracking-tight break-words leading-tight">
                     {col.label}
                   </div>
-                  <div className={`text-xs truncate transition-colors duration-200 ${isArchetypeActive ? 'opacity-80' : 'text-ink-muted'}`}>
+                  <div className={`text-xs break-words leading-tight transition-colors duration-200 mt-0.5 ${isArchetypeActive ? 'opacity-80' : 'text-ink-muted'}`}>
                     {col.desc}
                   </div>
                 </div>
@@ -1533,7 +1533,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                       <span className="text-xs font-semibold text-ink block leading-tight">
                         {t('openSpaceRestrictionTitle')}
                       </span>
-                      <span className="text-[11px] text-ink-muted line-clamp-2 sm:truncate block mt-0.5 sm:mt-0">
+                      <span className="text-[11px] text-ink-muted break-words leading-tight block mt-0.5 sm:mt-0">
                         {t('openSpaceRestrictionDesc')}
                       </span>
                     </div>
@@ -2052,7 +2052,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                 solidBacker
               />
               <div className="min-w-0 text-xs">
-                <span className="text-ink font-semibold block truncate">
+                <span className="text-ink font-semibold block break-words leading-tight">
                   {(trip.customChips || []).includes('coffee-stop')
                     ? (isFr ? 'Pause café : Activée (+15 min)' : 'Coffee stop: Scheduled (+15m)')
                     : archetype === 'sport'
@@ -2065,7 +2065,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                         state: trip.office.strictNoFoodInOpenSpace ? t('enforcedState') : t('advisoryState'),
                       })}
                 </span>
-                <span className="text-ink-muted block truncate">
+                <span className="text-ink-muted block break-words leading-tight mt-0.5">
                   {t('targetWithBuffer', {
                     time: timelineResult.gateArrivalTime,
                     buffer: timelineResult.bufferMinutes,
