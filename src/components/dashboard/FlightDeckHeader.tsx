@@ -105,8 +105,8 @@ export const FlightDeckHeader: React.FC<FlightDeckHeaderProps> = ({
               isGo
                 ? t('feasibilityOptimal')
                 : isCaution
-                ? t('feasibilityMarginal')
-                : t('feasibilityNoGo')
+                ? t('feasibilityCaution')
+                : t('feasibilitySevere')
             } — ${physicsResult.goStatusReason}`}
           >
             {isGo ? (
@@ -118,8 +118,8 @@ export const FlightDeckHeader: React.FC<FlightDeckHeaderProps> = ({
               {isGo
                 ? t('feasibilityOptimal')
                 : isCaution
-                ? t('feasibilityMarginal')
-                : t('feasibilityNoGo')}
+                ? t('feasibilityCaution')
+                : t('feasibilitySevere')}
             </span>
           </div>
 
