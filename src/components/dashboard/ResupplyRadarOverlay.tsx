@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Radar,
@@ -78,23 +78,61 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
   const [scanError, setScanError] = useState<string | null>(null);
   const [hasScanned, setHasScanned] = useState<boolean>(false);
   const [justPinnedId, setJustPinnedId] = useState<string | null>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
 
-  // Lock background page scroll while overlay is active
+  // Lock background page scroll while overlay is active (iOS Safari bulletproof lock)
   useEffect(() => {
     if (!isOpen) return;
-    const originalOverflow = document.body.style.overflow;
+
+    // Save scroll position and original body/html inline styles
+    const scrollY = window.scrollY || window.pageYOffset || 0;
+    const originalBodyPosition = document.body.style.position;
+    const originalBodyTop = document.body.style.top;
+    const originalBodyWidth = document.body.style.width;
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+
+    // Pin body to exact position to prevent iOS mobile viewport rubber-banding/scroll bleed
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
     document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
+    // Intercept touchmove so touches outside the card never scroll the page
+    const handleTouchMove = (e: TouchEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+
+      // Allow touches inside the sheet card
+      if (sheetRef.current && sheetRef.current.contains(target)) {
+        return;
+      }
+
+      // Prevent touches on backdrop / outer edges from scrolling the window
+      e.preventDefault();
+    };
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose();
       }
     };
+
     window.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
 
     return () => {
-      document.body.style.overflow = originalOverflow;
       window.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('touchmove', handleTouchMove);
+
+      // Restore body/html styles and restore previous scroll position
+      document.body.style.position = originalBodyPosition;
+      document.body.style.top = originalBodyTop;
+      document.body.style.width = originalBodyWidth;
+      document.body.style.overflow = originalBodyOverflow;
+      document.documentElement.style.overflow = originalHtmlOverflow;
+      window.scrollTo(0, scrollY);
     };
   }, [isOpen, onClose]);
 
@@ -299,94 +337,98 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
   const yellowVest = CHIP_TOKENS['yellow-vest'];
 
   return createPortal(
-    <div className="fixed inset-0 z-[1000] flex items-end sm:items-center justify-center p-3.5 sm:p-6 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-6 no-print print:hidden select-none">
+    <div className="fixed inset-0 z-[1000] flex items-end sm:items-center justify-center p-3.5 sm:p-6 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-6 no-print print:hidden pointer-events-none">
       {/* ── Solid dark backdrop (NO blur effects, matching settings bottom sheet) ── */}
       <div
-        className="fixed inset-0 bg-black/85 animate-fade-in touch-none"
+        className="fixed inset-0 bg-black/85 animate-fade-in touch-none pointer-events-auto"
         onClick={onClose}
       />
 
       {/* ── Modal Card (Floating bottom sheet on mobile, Centered dialog on desktop) ── */}
       <div
+        ref={sheetRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="resupply-radar-title"
-        className="relative z-10 w-full max-w-lg sm:max-w-xl max-h-[85vh] max-h-[85dvh] flex flex-col bg-card dark:bg-[#18181B] border-0 sm:border sm:border-ink/[0.08] sm:dark:border-white/[0.08] rounded-[32px] p-4 sm:p-5 shadow-2xl overflow-hidden animate-apple-in"
+        className="relative z-10 pointer-events-auto w-full max-w-lg sm:max-w-xl max-h-[85vh] max-h-[85dvh] bg-card dark:bg-[#18181B] border-0 sm:border sm:border-ink/[0.08] sm:dark:border-white/[0.08] rounded-[32px] px-4 sm:px-5 pb-4 sm:pb-5 pt-0 shadow-2xl overflow-y-auto overscroll-contain touch-pan-y animate-apple-in"
+        style={{ WebkitOverflowScrolling: 'touch' }}
       >
-        {/* Grabber handle pill (touch handle on mobile only) */}
-        <div className="w-10 h-1 bg-ink/15 dark:bg-white/20 rounded-full mx-auto mb-2.5 shrink-0 sm:hidden" />
+        {/* ── Sticky Header: Grabber + Identity & 1:1 action buttons ── */}
+        <div className="sticky top-0 z-20 bg-card dark:bg-[#18181B] -mx-4 sm:-mx-5 px-4 sm:px-5 pt-3 pb-2.5 rounded-t-[32px] border-b border-ink/[0.06] dark:border-white/[0.06]">
+          {/* Grabber handle pill (touch handle on mobile only) */}
+          <div className="w-10 h-1 bg-ink/15 dark:bg-white/20 rounded-full mx-auto mb-2.5 shrink-0 sm:hidden" />
 
-        {/* ── Header: Identity & 1:1 action buttons ── */}
-        <div className="flex items-center gap-3 px-1 pt-0.5 pb-2 shrink-0 border-b border-ink/[0.06] dark:border-white/[0.06]">
-          <div
-            className={`relative w-12 h-12 rounded-full flex items-center justify-center shrink-0 font-bold text-lg ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${yellowVest.surface} ${yellowVest.primary} ${yellowVest.selectedRing}`}
-          >
-            <Radar className="w-6 h-6 text-current" />
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <div className="text-[17px] font-semibold text-ink tracking-tight break-words font-rounded">
-              {t('resupplyRadarTitle')}
-            </div>
-            <div className="text-[13px] text-ink-muted break-words mt-0.5">
-              {hasScanned
-                ? `${filteredAmenities.length} POIs · ${pinnedAmenities.length} ${t('pinnedStop').toLowerCase()}`
-                : t('resupplyRadarSub')}
-            </div>
-          </div>
-
-          {/* Right actions: 1:1 Map Dots Toggle + Re-scan + 1:1 Close Button */}
-          <div className="flex items-center gap-2 shrink-0">
-            {/* 1:1 Map Dots Visibility Toggle */}
-            {onToggleShowMapDots && (
-              <button
-                type="button"
-                onClick={onToggleShowMapDots}
-                aria-pressed={showMapDots}
-                aria-label={showMapDots ? t('hideMapDots') : t('showMapDots')}
-                title={showMapDots ? t('hideMapDots') : t('showMapDots')}
-                className={`w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-colors shrink-0 ${
-                  showMapDots
-                    ? `${CHIP_TOKENS.sky.surface} ${CHIP_TOKENS.sky.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.sky.selectedRing}`
-                    : 'bg-pod dark:bg-white/[0.06] hover:bg-chip text-ink-secondary hover:text-ink'
-                } ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
-              >
-                {showMapDots ? <Eye size={18} /> : <EyeOff size={18} />}
-              </button>
-            )}
-
-            {/* Re-scan button: ONLY shown after scanned */}
-            {hasScanned && (
-              <button
-                type="button"
-                onClick={() => handleScanCorridor(true)}
-                disabled={isScanning}
-                className="w-10 h-10 rounded-full bg-pod dark:bg-white/[0.06] hover:bg-chip text-ink-secondary hover:text-ink flex items-center justify-center cursor-pointer transition-colors shrink-0"
-                title={t('reScanCorridor')}
-                aria-label={t('reScanCorridor')}
-              >
-                {isScanning ? (
-                  <SpinnerGap className="w-4 h-4 animate-spin text-current" />
-                ) : (
-                  <ArrowsClockwise className="w-4 h-4 text-current" />
-                )}
-              </button>
-            )}
-
-            {/* 1:1 Close button */}
-            <button
-              type="button"
-              onClick={onClose}
-              className="w-10 h-10 rounded-full bg-pod dark:bg-white/[0.06] hover:bg-chip text-ink-secondary hover:text-ink flex items-center justify-center cursor-pointer transition-colors shrink-0"
-              aria-label={t('closeRadarModal')}
+          <div className="flex items-center gap-3">
+            <div
+              className={`relative w-12 h-12 rounded-full flex items-center justify-center shrink-0 font-bold text-lg ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${yellowVest.surface} ${yellowVest.primary} ${yellowVest.selectedRing}`}
             >
-              <X size={18} />
-            </button>
+              <Radar className="w-6 h-6 text-current" />
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <div className="text-[17px] font-semibold text-ink tracking-tight break-words font-rounded">
+                {t('resupplyRadarTitle')}
+              </div>
+              <div className="text-[13px] text-ink-muted break-words mt-0.5">
+                {hasScanned
+                  ? `${filteredAmenities.length} POIs · ${pinnedAmenities.length} ${t('pinnedStop').toLowerCase()}`
+                  : t('resupplyRadarSub')}
+              </div>
+            </div>
+
+            {/* Right actions: 1:1 Map Dots Toggle + Re-scan + 1:1 Close Button */}
+            <div className="flex items-center gap-2 shrink-0">
+              {/* 1:1 Map Dots Visibility Toggle */}
+              {onToggleShowMapDots && (
+                <button
+                  type="button"
+                  onClick={onToggleShowMapDots}
+                  aria-pressed={showMapDots}
+                  aria-label={showMapDots ? t('hideMapDots') : t('showMapDots')}
+                  title={showMapDots ? t('hideMapDots') : t('showMapDots')}
+                  className={`w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-colors shrink-0 select-none ${
+                    showMapDots
+                      ? `${CHIP_TOKENS.sky.surface} ${CHIP_TOKENS.sky.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.sky.selectedRing}`
+                      : 'bg-pod dark:bg-white/[0.06] hover:bg-chip text-ink-secondary hover:text-ink'
+                  } ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                >
+                  {showMapDots ? <Eye size={18} /> : <EyeOff size={18} />}
+                </button>
+              )}
+
+              {/* Re-scan button: ONLY shown after scanned */}
+              {hasScanned && (
+                <button
+                  type="button"
+                  onClick={() => handleScanCorridor(true)}
+                  disabled={isScanning}
+                  className="w-10 h-10 rounded-full bg-pod dark:bg-white/[0.06] hover:bg-chip text-ink-secondary hover:text-ink flex items-center justify-center cursor-pointer transition-colors shrink-0 select-none"
+                  title={t('reScanCorridor')}
+                  aria-label={t('reScanCorridor')}
+                >
+                  {isScanning ? (
+                    <SpinnerGap className="w-4 h-4 animate-spin text-current" />
+                  ) : (
+                    <ArrowsClockwise className="w-4 h-4 text-current" />
+                  )}
+                </button>
+              )}
+
+              {/* 1:1 Close button */}
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-10 h-10 rounded-full bg-pod dark:bg-white/[0.06] hover:bg-chip text-ink-secondary hover:text-ink flex items-center justify-center cursor-pointer transition-colors shrink-0 select-none"
+                aria-label={t('closeRadarModal')}
+              >
+                <X size={18} />
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* ── Scrollable Body (clean inner scrolling with zero viewport spillover) ── */}
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain no-scrollbar flex flex-col gap-2.5 pr-0.5 pt-2 pb-1">
+        {/* ── Scrollable Body Content ── */}
+        <div className="flex flex-col gap-2.5 pt-3">
           {/* 1. INFORMATION BANNER (Clean, crisp borders, ZERO shadow clipping) */}
           <div className="shrink-0">
             {waterGaps.status === 'critical' ? (
@@ -608,9 +650,11 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
               {t('emptyFilteredRadarState')}
             </div>
           ) : (
-            /* Scrollable feed inside grouped card container */
-            <div className="rounded-[22px] bg-pod/70 dark:bg-white/[0.045] overflow-hidden divide-y divide-ink/[0.06] dark:divide-white/[0.06]">
-              {filteredAmenities.map((amenity) => {
+            /* Grouped card container with smooth native touch pan */
+            <div className="rounded-[22px] bg-pod/70 dark:bg-white/[0.045] divide-y divide-ink/[0.06] dark:divide-white/[0.06] touch-pan-y">
+              {filteredAmenities.map((amenity, idx) => {
+                const isFirst = idx === 0;
+                const isLast = idx === filteredAmenities.length - 1;
                 const isPinned = pinnedIds.has(amenity.id);
                 const isSelected = selectedAmenity?.id === amenity.id;
                 const isJustPinned = justPinnedId === amenity.id;
@@ -629,7 +673,9 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
                   <div
                     key={amenity.id}
                     onClick={() => onSelectAmenity?.(amenity)}
-                    className={`p-3 transition-colors flex items-center justify-between gap-3 cursor-pointer ${
+                    className={`p-3 transition-colors flex items-center justify-between gap-3 cursor-pointer touch-pan-y ${
+                      isFirst ? 'rounded-t-[22px]' : ''
+                    } ${isLast ? 'rounded-b-[22px]' : ''} ${
                       isSelected
                         ? 'bg-pod dark:bg-white/[0.08]'
                         : 'hover:bg-pod/80 dark:hover:bg-white/[0.03]'
