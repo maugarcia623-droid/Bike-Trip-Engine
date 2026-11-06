@@ -276,7 +276,14 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
   const effectiveDateStr = trip.departureDate || getLocalTodayIso();
   const forecastHorizon = checkForecastHorizon(effectiveDateStr);
   const daysOffset = forecastHorizon.daysOffset;
-  const formattedDaysOffset = daysOffset >= 0 ? `T+${daysOffset}d` : `T${daysOffset}d`;
+  const formattedDaysOffset =
+    daysOffset === 0
+      ? (lang === 'fr' ? 'Aujourd’hui' : 'Today')
+      : daysOffset === 1
+      ? (lang === 'fr' ? 'Demain' : 'Tomorrow')
+      : daysOffset > 1
+      ? (lang === 'fr' ? `Dans ${daysOffset} jours` : `In ${daysOffset} days`)
+      : (lang === 'fr' ? `Passé (${Math.abs(daysOffset)} j)` : `${Math.abs(daysOffset)} days ago`);
 
   const handleCalculateRoute = async () => {
     if (!originInput.trim() || !destInput.trim()) return;
@@ -1854,9 +1861,9 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                 }
                 size="md"
                 dot
-                title={`${t('rideFeasibility')}: ${physicsResult.goStatus} — ${physicsResult.goStatusReason}`}
+                title={`${t('rideFeasibility')}: ${physicsResult.goStatus === 'GO' ? t('feasibilityOptimal') : physicsResult.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')} — ${physicsResult.goStatusReason}`}
               >
-                {physicsResult.goStatus}
+                {physicsResult.goStatus === 'GO' ? t('feasibilityOptimal') : physicsResult.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')}
               </Badge>
             </div>
 
@@ -1880,7 +1887,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                 }`}
               />
               <div className="min-w-0 flex-1">
-                <span className="font-semibold block">{t('rideFeasibility')}: {physicsResult.goStatus}</span>
+                <span className="font-semibold block">{t('rideFeasibility')}: {physicsResult.goStatus === 'GO' ? t('feasibilityOptimal') : physicsResult.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')}</span>
                 <p className="mt-0.5 text-[11px] opacity-90 leading-relaxed">
                   {physicsResult.goStatusReason}
                 </p>
@@ -1995,9 +2002,10 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                     <div className="lane-divider mt-2" aria-hidden="true" />
                     {physicsResult.pacingMode === 'effort' ? (
                       <div className={`flex items-center justify-between pt-2 font-semibold ${CHIP_TOKENS.emerald.primary}`}>
-                        <span>{t('headwindSlowdownRow')}</span>
-                        <span className="tnum">
-                          &minus;{physicsResult.speedDeltaKmH} km/h (+{physicsResult.windDelayMinutes}m)
+                        <span>
+                          {lang === 'fr'
+                            ? `Le vent vous ralentit de ${physicsResult.speedDeltaKmH} km/h (+${physicsResult.windDelayMinutes} min)`
+                            : `Headwind slows you by ${physicsResult.speedDeltaKmH} km/h (adds ${physicsResult.windDelayMinutes} min)`}
                         </span>
                       </div>
                     ) : (
@@ -2054,7 +2062,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
               <div className="min-w-0 text-xs">
                 <span className="text-ink font-semibold block break-words leading-tight">
                   {(trip.customChips || []).includes('coffee-stop')
-                    ? (isFr ? 'Pause café : Activée (+15 min)' : 'Coffee stop: Scheduled (+15m)')
+                    ? (isFr ? 'Pause café : Activée (+15 min)' : 'Coffee stop: Scheduled (+15 min)')
                     : archetype === 'sport'
                     ? t('protocolSport')
                     : archetype === 'bikepacking'

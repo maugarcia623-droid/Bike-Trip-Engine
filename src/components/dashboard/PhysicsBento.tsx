@@ -32,10 +32,10 @@ export const PhysicsBento: React.FC<PhysicsBentoProps> = ({
 
   return (
     <Card
-      title={isFr ? 'MOTEUR PHYSIQUE & DISTRIBUTION D’EFFORT' : 'AERODYNAMIC & ROLLING PHYSICS ENGINE'}
+      title={isFr ? 'Moteur physique & répartition de l’effort' : 'Power model & effort distribution'}
       subtitle={
         isFr
-          ? 'Analyse détaillée des watts, de l’aérodynamisme et des variations de zones par section'
+          ? 'Analyse détaillée des watts, du vent et des variations d’effort par section'
           : 'Detailed power model with sectional zone breakdown and mechanical efficiency'
       }
       icon={<Gauge className="w-5 h-5 text-ink dark:text-volt dual-tone-emerald" />}
@@ -158,7 +158,7 @@ export const PhysicsBento: React.FC<PhysicsBentoProps> = ({
       <div className="bg-pod rounded-pod p-5 mb-4">
         <div className="flex items-center justify-between text-xs font-mono text-ink mb-2.5">
           <span className="font-bold flex items-center gap-1.5">
-            <span>{isFr ? 'Distribution des Forces Résistives' : 'Resistive Force Distribution'}</span>
+            <span>{isFr ? 'Distribution des forces résistives' : 'Resistive force distribution'}</span>
             <InfoTooltip
               title="Resistive Force Distribution"
               content="How your pedal wattage is divided between pushing against the air (aero) and overcoming tire friction."
@@ -186,7 +186,7 @@ export const PhysicsBento: React.FC<PhysicsBentoProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
           <div className="rounded-sub-pod rounded-xl p-3 bg-card">
             <div className="flex items-center justify-between gap-1 text-[10px] text-ink-muted uppercase font-bold">
-              <span>{isFr ? 'Traînée Aérodynamique' : 'Aerodynamic Drag (P_aero)'}</span>
+              <span>{isFr ? 'Face au vent' : 'Fighting the wind (P_aero)'}</span>
               <InfoTooltip
                 title="Aerodynamic Drag"
                 content="Power needed to push through the air. Grows with the cube of speed (v³)."
@@ -200,7 +200,7 @@ export const PhysicsBento: React.FC<PhysicsBentoProps> = ({
 
           <div className="rounded-sub-pod rounded-xl p-3 bg-card">
             <div className="flex items-center justify-between gap-1 text-[10px] text-ink-muted uppercase font-bold">
-              <span>{isFr ? 'Résistance au Roulement' : 'Rolling Resistance (P_roll)'}</span>
+              <span>{isFr ? 'Pneus sur la route' : 'Tires on the road (P_roll)'}</span>
               <InfoTooltip
                 title="Rolling Resistance"
                 content="Power lost from tires flexing against the ground."
@@ -214,7 +214,7 @@ export const PhysicsBento: React.FC<PhysicsBentoProps> = ({
 
           <div className="rounded-sub-pod rounded-xl p-3 bg-card">
             <div className="flex items-center justify-between gap-1 text-[10px] text-ink-muted uppercase font-bold">
-              <span>{isFr ? 'Pertes Transmission' : 'Drivetrain Loss (5%)'}</span>
+              <span>{isFr ? 'Chaîne et vitesses' : 'Chain and gears (5%)'}</span>
               <InfoTooltip
                 title="Drivetrain Loss"
                 content="Mechanical friction absorbed by the chain and derailleur."

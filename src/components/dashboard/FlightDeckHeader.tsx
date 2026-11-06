@@ -51,7 +51,7 @@ export const FlightDeckHeader: React.FC<FlightDeckHeaderProps> = ({
             </span>
             <span className="text-xs font-mono text-ink dark:text-volt flex items-center gap-1 font-semibold">
               <ShieldCheck className="w-4 h-4 dual-tone-emerald" />
-              {trip.office.gateName} Protocol
+              {trip.office.gateName} check-in
             </span>
           </div>
 
@@ -77,7 +77,7 @@ export const FlightDeckHeader: React.FC<FlightDeckHeaderProps> = ({
               }`}
             >
               <Bicycle className="w-4 h-4 dual-tone-volt" />
-              <span>Commuter</span>
+              <span>{t('cockpitViewEssential')}</span>
             </button>
             <button
               type="button"
@@ -89,7 +89,7 @@ export const FlightDeckHeader: React.FC<FlightDeckHeaderProps> = ({
               }`}
             >
               <Pulse className="w-4 h-4 dual-tone-rose" />
-              <span>Telemetry</span>
+              <span>{t('cockpitViewPro')}</span>
             </button>
           </div>
 
@@ -101,14 +101,26 @@ export const FlightDeckHeader: React.FC<FlightDeckHeaderProps> = ({
                 ? 'bg-volt text-[#111111] dark:bg-beacon-amber/15 dark:text-beacon-amber'
                 : 'bg-beacon-red text-white dark:bg-beacon-red/15 dark:text-beacon-red'
             }`}
-            title={`${t('rideFeasibility')}: ${physicsResult.goStatus} — ${physicsResult.goStatusReason}`}
+            title={`${t('rideFeasibility')}: ${
+              isGo
+                ? t('feasibilityOptimal')
+                : isCaution
+                ? t('feasibilityMarginal')
+                : t('feasibilityNoGo')
+            } — ${physicsResult.goStatusReason}`}
           >
             {isGo ? (
               <CheckCircle className="w-4 h-4 dual-tone-emerald" />
             ) : (
               <Warning className="w-4 h-4 dual-tone-amber" />
             )}
-            <span>{physicsResult.goStatus} // ROLLOUT</span>
+            <span>
+              {isGo
+                ? t('feasibilityOptimal')
+                : isCaution
+                ? t('feasibilityMarginal')
+                : t('feasibilityNoGo')}
+            </span>
           </div>
 
           <button
@@ -135,11 +147,11 @@ export const FlightDeckHeader: React.FC<FlightDeckHeaderProps> = ({
           {onShareReceipt && (
             <button
               onClick={onShareReceipt}
-              title="Share Telemetry Receipt"
+              title="Share Ride Receipt"
               className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-rounded font-semibold transition-all duration-150 active:scale-[0.98] cursor-pointer ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} hover:brightness-[0.98] dark:hover:brightness-110 shadow-xs`}
             >
               <Receipt className="w-4 h-4 shrink-0 text-current" />
-              <span>Share Receipt</span>
+              <span>Share receipt</span>
             </button>
           )}
 
@@ -161,15 +173,15 @@ export const FlightDeckHeader: React.FC<FlightDeckHeaderProps> = ({
       <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
         <div className="flex items-center gap-4 text-ink-secondary flex-wrap">
           <div>
-            Hard Departure:{' '}
+            Leave by:{' '}
             <strong className="text-ink dark:text-volt font-bold">{hardDepartureTime}</strong>
           </div>
           <div>
-            Gate Target:{' '}
+            Arrival:{' '}
             <strong className="text-ink font-bold">{trip.office.targetGateArrivalTime}</strong> ({trip.office.gateName})
           </div>
           <div>
-            Shift Lock:{' '}
+            Work starts:{' '}
             <strong className="text-ink font-bold">{trip.office.shiftStartTime}</strong>
           </div>
           {viewMode === 'telemetry' && (
@@ -181,7 +193,7 @@ export const FlightDeckHeader: React.FC<FlightDeckHeaderProps> = ({
         </div>
 
         <span className="px-3 py-0.5 rounded-full bg-pod text-ink font-bold uppercase text-[11px]">
-          {viewMode} Mode
+          {viewMode === 'commuter' ? t('cockpitViewEssential') : t('cockpitViewPro')}
         </span>
       </div>
     </div>

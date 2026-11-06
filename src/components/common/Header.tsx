@@ -123,9 +123,6 @@ export const Header: React.FC<HeaderProps> = ({
                   <span className="font-semibold tracking-tight text-ink text-[15px]">
                     {t('appName')}
                   </span>
-                  <span className="text-[11px] font-medium bg-card text-ink-muted px-2.5 py-0.5 rounded-full tnum">
-                    v2.6
-                  </span>
                 </div>
                 <p className="text-xs text-ink-muted hidden xl:block">
                   {t('headerTagline')}

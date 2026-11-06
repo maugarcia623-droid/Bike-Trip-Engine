@@ -347,7 +347,7 @@ export function parseTripDescription(
       detected.ravito = isFr ? 'Sans arrêt' : 'Non-stop';
     } else {
       extraBufferMinutes += 10;
-      detected.ravito = isFr ? 'Prévu (+10m)' : 'Planned (+10m)';
+      detected.ravito = isFr ? 'Prévu (+10 min)' : 'Planned (+10 min)';
       detected.includeExtraRavito = true;
     }
     extractedSummary.push(`Fueling / Ravito: ${detected.ravito}`);

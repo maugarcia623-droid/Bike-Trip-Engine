@@ -193,7 +193,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               {username ? t('homeGreetingUser', { name: username, username }) : t('homeTitle')}
             </h1>
             <Badge variant="yellow-vest" size="md" className="py-1 px-3 tnum">
-              {t('homeProfilesCount', { count: trips.length })}
+              {trips.length === 1 ? (lang === 'fr' ? '1 trajet' : '1 trip') : t('homeProfilesCount', { count: trips.length })}
             </Badge>
           </div>
           <p className="text-ink-muted text-[13px] mt-1 max-w-2xl leading-relaxed">
@@ -245,7 +245,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         </div>
       </div>
 
-      {/* ── "Your upcoming trip" Card (Collapsible, Day Countdown, Pre-Flight Telemetry) ── */}
+      {/* ── "Your upcoming trip" Card (Collapsible, Day Countdown, Ride Plan Summary) ── */}
       {nextUpcomingTrip && (
         <div className="animate-apple-in stagger-2 relative z-20">
           <UpcomingTripCard
@@ -361,12 +361,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </div>
             <div className="space-y-1">
               <h3 className="text-lg font-bold text-ink">
-                {lang === 'fr' ? 'Aucun profil de trajet' : 'No Trip Profiles Saved'}
+                {lang === 'fr' ? 'Aucune sortie enregistrée' : 'No trips saved yet'}
               </h3>
               <p className="text-xs text-ink-muted max-w-md mx-auto leading-relaxed">
                 {lang === 'fr'
-                  ? 'Configurez votre première sortie personnalisée ou chargez un profil démo pour explorer le cockpit Cadence.'
-                  : 'Create your first custom ride or load a demo profile to explore the Cadence cockpit telemetry.'}
+                  ? 'Configurez votre première sortie personnalisée ou chargez un profil démo pour explorer votre plan de route Cadence.'
+                  : 'Create your first custom ride or load a demo profile to explore your Cadence ride plan.'}
               </p>
             </div>
             <div className="flex items-center justify-center gap-3 pt-2 flex-wrap">

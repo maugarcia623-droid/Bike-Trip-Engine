@@ -2,11 +2,11 @@ import { TranslationDictionary } from './en';
 
 export const fr: TranslationDictionary = {
   // ── Core Keys (Requested Dictionary Anchors) ──
-  hardRollout: "Départ impératif",
+  hardRollout: "Heure de départ",
   routeLength: "Distance",
   pureRolling: "Temps de roulement",
-  checklistTitle: "Inspection du matériel & rig",
-  nutritionTitle: "Protocole de nutrition & récupération",
+  checklistTitle: "Avant de partir",
+  nutritionTitle: "Votre plan d'alimentation",
 
   // ── Brand & Header Navigation ──
   appName: "Cadence",
@@ -14,9 +14,9 @@ export const fr: TranslationDictionary = {
   navPrimaryViewsAria: "Vues principales",
   navMobileViewsAria: "Vues mobiles",
   navHome: "Accueil",
-  navConfigurator: "Configurateur",
-  navConfigShort: "Config",
-  navFlightDeck: "Cockpit",
+  navConfigurator: "Configuration",
+  navConfigShort: "Configuration",
+  navFlightDeck: "Plan de route",
   activeTripAria: "Profil de trajet actif",
   specsButton: "Specs",
   specsButtonTitle: "Configurer le profil cycliste & vélo",
@@ -59,7 +59,7 @@ export const fr: TranslationDictionary = {
   savedProfilesHeading: "Profils de trajets enregistrés",
   savedProfilesHint: "Sélectionnez un profil pour ouvrir son Cockpit",
   localStorageNotice: "Stockage local actif — vos profils, checklists et réglages vélo restent 100 % sur votre appareil.",
-  cloudSyncNotice: "Synchronisation cloud active — vos profils, checklists et réglages vélo restent synchronisés sur tous vos appareils.",
+  cloudSyncNotice: "Enregistré sur votre compte. Vos sorties vous suivent sur tous vos appareils.",
   syncedAt: "Synchronisé à {time}",
 
   // ── Redesigned Home Screen Telemetry ──
@@ -81,7 +81,7 @@ export const fr: TranslationDictionary = {
   fleetDistanceLabel: "Distance flotte",
   fleetAvgPaceLabel: "Allure moyenne",
   activeBikeLabel: "Vélo actif",
-  launchCockpitBtn: "Ouvrir le Cockpit",
+  launchCockpitBtn: "Voir le plan de route",
   noFilteredProfilesTitle: "Aucun profil dans cette catégorie",
   noFilteredProfilesDesc: "Sélectionnez une autre catégorie ou affichez tous les profils.",
   clearFilterBtn: "Afficher tous les profils",
@@ -158,7 +158,7 @@ export const fr: TranslationDictionary = {
   rigMassPill: "{mass} kg total",
   windSpeedPill: "Vent {speed} km/h",
   calmWind: "Calme",
-  openFlightDeckBtn: "Ouvrir le Cockpit",
+  openFlightDeckBtn: "Voir le plan de route",
   setActiveBtn: "Activer",
 
   // ── Weather Widget (Home) ──
@@ -293,10 +293,10 @@ export const fr: TranslationDictionary = {
   // ── Physics Engine Card ──
   physicsCardTitle: "Physique aérodynamique & roulement",
   physicsCardSub: "Décomposition de la puissance mécanique : traînée de l'air, pneus et transmission",
-  aeroDragPill: "Traînée aéro",
+  aeroDragPill: "Face au vent",
   wattsUnit: "watts",
   tireRollingPill: "Roulement pneus",
-  drivetrainPill: "Transmission",
+  drivetrainPill: "Chaîne et vitesses",
   effShort: "{pct}% rend.",
   wattsLossUnit: "W perdus",
   chainFrictionLoss: "{pct}% perte friction chaîne",
@@ -356,7 +356,7 @@ export const fr: TranslationDictionary = {
   rideFeasibility: "Faisabilité du trajet",
   feasibilityStatus: "Statut de faisabilité",
   feasibilityLegend: "Statut évalué selon le vent, la puissance requise & le FTP",
-  feasibilityOptimal: "Conditions optimales",
+  feasibilityOptimal: "Feu vert",
   feasibilityCaution: "Conditions exigeantes",
   feasibilitySevere: "Conditions sévères",
 
@@ -460,7 +460,7 @@ export const fr: TranslationDictionary = {
   nutriCom4Body: "Overnight oats au lait d'avoine & chia, pomme Granny Smith croquante et café avant de rejoindre le bureau.",
 
   // ── Configurator Screen ──
-  backToFlightDeck: "Retour au Cockpit",
+  backToFlightDeck: "Retour au plan de route",
   createNewProfileHeading: "Créer un nouveau profil de trajet",
   liveCalculationBadge: "Calcul en direct",
   savedBtn: "Enregistré",
@@ -484,7 +484,7 @@ export const fr: TranslationDictionary = {
   operationalSummaryPlaceholder: "Court descriptif du parcours...",
   corridorGeneratorHeading: "Générateur d'itinéraire cyclable",
   corridorGeneratorSub: "Calcul du tracé vélo et de la distance via OSRM",
-  originCityLabel: "Ville de départ",
+  originCityLabel: "Départ",
   destinationLabel: "Destination",
   locationSearchPlaceholder: "Rechercher une ville, rue, gare...",
   autocompleteSearching: "Recherche de lieux...",
@@ -780,7 +780,7 @@ export const fr: TranslationDictionary = {
 
   // ── Sprint 1–3: Rider Profile, Cockpit Clarity, Reassurance, Radius & GPX Engine ──
   cockpitViewEssential: "Vue guidée",
-  cockpitViewPro: "Télémétrie Pro",
+  cockpitViewPro: "Vue détaillée",
   cockpitViewEssentialHint: "Essentiels épurés & explications simples des Watts",
   cockpitViewProHint: "Formules aérodynamiques complètes, substrats & statistiques avancées",
   timeSaddleExclPauses: "Temps de selle pur (hors pauses)",

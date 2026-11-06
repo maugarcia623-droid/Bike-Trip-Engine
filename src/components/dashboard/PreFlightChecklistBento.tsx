@@ -89,7 +89,7 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
 
     const mergedFresh = [
       tireSetupItem,
-      ...fresh.filter((i) => !i.id.startsWith('tire-setup-')),
+      ...fresh.filter((i) => i.id !== 'mech-spares' && !i.id.startsWith('tire-setup-')),
     ];
 
     return mergedFresh.map((item) => ({
@@ -179,7 +179,7 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
       checked: false,
       critical: true,
     };
-    const nextList = [tireSetupItem, ...fresh.filter((i) => !i.id.startsWith('tire-setup-'))];
+    const nextList = [tireSetupItem, ...fresh.filter((i) => i.id !== 'mech-spares' && !i.id.startsWith('tire-setup-'))];
     setItems(nextList);
     if (onUpdateTrip) {
       onUpdateTrip({ ...trip, checklist: nextList });
@@ -189,17 +189,17 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
   return (
     <Card
       title={t('checklistTitle')}
-      subtitle={t('checklistSub', { done: completedCount, total: items.length, tag: effectiveTag })}
+      subtitle={t('checklistSub', { done: completedCount, total: items.length, tag: effectiveTag === 'VÉLOTAF' && !isFr ? 'Commute' : effectiveTag })}
       badge={
         <div className="flex items-center gap-2 flex-wrap">
           <Badge variant={isTubeless ? 'emerald' : 'zinc'} size="sm" className="tnum">
             {isTubeless
               ? isFr
-                ? 'Montage Tubeless'
-                : 'Tubeless Setup'
+                ? 'Tubeless'
+                : 'Tubeless'
               : isFr
-              ? 'Chambre à air'
-              : 'Inner Tube'}
+              ? 'Chambres à air'
+              : 'Standard tubes'}
           </Badge>
 
           <button

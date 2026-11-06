@@ -35,26 +35,26 @@ interface ArchetypeChipItem {
 
 const ARCHETYPE_CHIPS_BY_PURPOSE: Record<string, ArchetypeChipItem[]> = {
   commute: [
-    { id: 'coffee-stop', labelEn: 'Coffee stop (+15m)', labelFr: 'Pause café (+15m)', theme: 'amber', icon: Coffee, addedBufferMin: 15 },
-    { id: 'shower-buffer', labelEn: 'Locker & shower (+15m)', labelFr: 'Douche & vestiaire (+15m)', theme: 'teal', icon: Shower, addedBufferMin: 15 },
-    { id: 'rush-hour-buffer', labelEn: 'Rush hour buffer (+10m)', labelFr: 'Marge heure de pointe (+10m)', theme: 'orange', icon: Gauge, addedBufferMin: 10 },
+    { id: 'coffee-stop', labelEn: 'Coffee stop (+15 min)', labelFr: 'Pause café (+15 min)', theme: 'amber', icon: Coffee, addedBufferMin: 15 },
+    { id: 'shower-buffer', labelEn: 'Locker & shower (+15 min)', labelFr: 'Douche & vestiaire (+15 min)', theme: 'teal', icon: Shower, addedBufferMin: 15 },
+    { id: 'rush-hour-buffer', labelEn: 'Rush hour buffer (+10 min)', labelFr: 'Marge heure de pointe (+10 min)', theme: 'orange', icon: Gauge, addedBufferMin: 10 },
     { id: 'real-food', labelEn: 'Real food fuel', labelFr: 'Ravitaillement réel', theme: 'emerald', icon: Apple },
     { id: 'night-transit', labelEn: 'Night lights setup', labelFr: 'Éclairage nocturne', theme: 'purple', icon: Moon },
   ],
   sport: [
     { id: 'aero-bars', labelEn: 'Aero posture tuck', labelFr: 'Posture aéro agressive', theme: 'sky', icon: BikeFast },
-    { id: 'warmup-rollout', labelEn: 'Warmup rollout (+10m)', labelFr: 'Échauffement (+10m)', theme: 'orange', icon: Flame, addedBufferMin: 10 },
+    { id: 'warmup-rollout', labelEn: 'Warmup spin (+10 min)', labelFr: 'Échauffement (+10 min)', theme: 'orange', icon: Flame, addedBufferMin: 10 },
     { id: 'real-food', labelEn: 'Carb nutrition fuel', labelFr: 'Carburant glucidique', theme: 'emerald', icon: Apple },
   ],
   bikepacking: [
-    { id: 'bivouac-stop', labelEn: 'Bivouac checkpoint (+20m)', labelFr: 'Étape bivouac (+20m)', theme: 'emerald', icon: Tent, addedBufferMin: 20 },
-    { id: 'water-resupply', labelEn: 'Water resupply (+10m)', labelFr: 'Ravitaillement eau (+10m)', theme: 'blue', icon: Bottle, addedBufferMin: 10 },
+    { id: 'bivouac-stop', labelEn: 'Bivouac rest stop (+20 min)', labelFr: 'Étape bivouac (+20 min)', theme: 'emerald', icon: Tent, addedBufferMin: 20 },
+    { id: 'water-resupply', labelEn: 'Water resupply (+10 min)', labelFr: 'Ravitaillement eau (+10 min)', theme: 'blue', icon: Bottle, addedBufferMin: 10 },
     { id: 'real-food', labelEn: 'Trail real food', labelFr: 'Vraie nourriture trail', theme: 'amber', icon: Apple },
   ],
   leisure: [
-    { id: 'bakery-raid', labelEn: 'Bakery raid (+15m)', labelFr: 'Pause boulangerie (+15m)', theme: 'amber', icon: Coffee, addedBufferMin: 15 },
-    { id: 'scenic-detour', labelEn: 'Scenic detour (+10m)', labelFr: 'Détour panoramique (+10m)', theme: 'sky', icon: Compass, addedBufferMin: 10 },
-    { id: 'picnic-stop', labelEn: 'Picnic break (+30m)', labelFr: 'Pause pique-nique (+30m)', theme: 'teal', icon: Utensils, addedBufferMin: 30 },
+    { id: 'bakery-raid', labelEn: 'Bakery stop (+15 min)', labelFr: 'Pause boulangerie (+15 min)', theme: 'amber', icon: Coffee, addedBufferMin: 15 },
+    { id: 'scenic-detour', labelEn: 'Scenic detour (+10 min)', labelFr: 'Détour panoramique (+10 min)', theme: 'sky', icon: Compass, addedBufferMin: 10 },
+    { id: 'picnic-stop', labelEn: 'Picnic break (+30 min)', labelFr: 'Pause pique-nique (+30 min)', theme: 'teal', icon: Utensils, addedBufferMin: 30 },
   ],
 };
 

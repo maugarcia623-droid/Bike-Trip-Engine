@@ -132,19 +132,19 @@ export function calculateReverseTimeline(
       {
         id: 'sport-cockpit-check',
         time: bikePrepTime,
-        title: isFr ? 'Calibrage Transmission & Pression Pneus' : 'Drivetrain & Tire Pressure Calibration',
+        title: isFr ? 'Contrôle vélo & pression des pneus' : 'Tire pressure & bike check',
         location: isFr ? 'Zone de départ' : 'Roll-Out Point',
         category: 'prep',
         isCrucialCheckpoint: false,
         description: isFr
           ? 'Pression ajustée pour minimiser le Crr. Vérification lubrification chaîne et mise en place des 2 bidons de 750 ml.'
-          : 'Tire pressures dialed for low rolling resistance. Lube check and bottle cage staging (2x 750ml).',
+          : 'Tire pressures dialed for low rolling resistance. Lube check and 2x 750ml water bottles.',
         iconName: 'CheckCircle2',
       },
       {
         id: 'sport-rollout',
         time: warmupTime,
-        title: isFr ? 'DÉPART & ÉCHAUFFEMENT PROGRESSIF ZONE 2' : 'ROLLOUT & ZONE 2 PROGRESSIVE WARMUP',
+        title: isFr ? 'Départ & échauffement progressif' : 'Start ride & gentle warmup',
         location: isFr ? 'Départ' : 'Origin',
         category: 'ride',
         isCrucialCheckpoint: true,
@@ -257,7 +257,7 @@ export function calculateReverseTimeline(
       {
         id: 'bp-stowage-check',
         time: wakeUpTime,
-        title: isFr ? 'Chargement des Sacoches & Calories' : 'Rig Packing & Calorie Staging',
+        title: isFr ? 'Chargement des sacoches & repas' : 'Pack bags & snacks',
         location: isFr ? 'Camp / Domicile' : 'Camp / Home Base',
         category: 'prep',
         isCrucialCheckpoint: true,
@@ -269,8 +269,8 @@ export function calculateReverseTimeline(
       {
         id: 'bp-harness-inspection',
         time: bikePrepTime,
-        title: isFr ? 'Contrôle Harnais, Freins & Kit Anti-Crève' : 'Harness & Brake Pad Clearance Inspection',
-        location: isFr ? 'Point de Départ' : 'Trailhead Staging',
+        title: isFr ? 'Contrôle sacoches, freins & kit réparation' : 'Check bags, brakes & repair kit',
+        location: isFr ? 'Départ' : 'Trailhead',
         category: 'prep',
         isCrucialCheckpoint: false,
         description: isFr
@@ -412,14 +412,14 @@ export function calculateReverseTimeline(
         isCrucialCheckpoint: true,
         description: isFr
           ? 'Glucides digestes + expresso. Remplissage des 2 bidons pour la route.'
-          : 'Complex carbs + espresso. Fill 2x water bidons for the road.',
+          : 'Complex carbs + espresso. Fill 2x water bottles for the road.',
         iconName: 'Utensils',
       },
       {
         id: 'garage-rollout',
         time: bikePrepTime,
-        title: isFr ? 'Contrôle Vélo, Pression & Anti-Crève' : 'Rig & Cockpit Pre-Check',
-        location: isFr ? 'Point de Départ' : 'Rollout Point',
+        title: isFr ? 'Contrôle rapide du vélo' : 'Quick bike check',
+        location: isFr ? 'Départ' : 'Start',
         category: 'prep',
         isCrucialCheckpoint: false,
         description: isFr
@@ -566,7 +566,7 @@ export function calculateReverseTimeline(
       {
         id: 'wake-prep',
         time: wakeUpTime,
-        title: isFr ? 'Réveil & Hydratation Matinale' : 'Wake Up & Hydration Primer',
+        title: isFr ? 'Réveil & hydratation' : 'Wake up and drink water',
         location: isFr ? 'Domicile' : 'Home Base',
         category: 'prep',
         isCrucialCheckpoint: false,
@@ -578,7 +578,7 @@ export function calculateReverseTimeline(
       {
         id: 'pre-ride-fuel',
         time: preRideMealTime,
-        title: isFr ? 'Petit-Déjeuner Pré-Vélotaf' : 'Pre-Ride Breakfast',
+        title: isFr ? 'Petit-déjeuner' : 'Breakfast',
         location: isFr ? 'Cuisine' : 'Kitchen Counter',
         category: 'nutrition',
         isCrucialCheckpoint: true,
@@ -590,8 +590,8 @@ export function calculateReverseTimeline(
       {
         id: 'garage-rollout',
         time: bikePrepTime,
-        title: isFr ? 'Contrôle Vélo, Pression & Poste de Pilotage' : 'Bike, Tire & Cockpit Pre-Ride Check',
-        location: isFr ? 'Garage / Départ' : 'Staging Area',
+        title: isFr ? 'Contrôle rapide du vélo' : 'Quick bike check',
+        location: isFr ? 'Départ' : 'By the door',
         category: 'prep',
         isCrucialCheckpoint: false,
         description: isFr
@@ -602,13 +602,13 @@ export function calculateReverseTimeline(
       {
         id: 'hard-departure',
         time: hardDepartureTime,
-        title: isFr ? 'DÉPART IMPÉRATIF (Tolérance Zéro Retard)' : 'HARD DEPARTURE (Zero Delay Tolerance)',
-        location: isFr ? 'Point de Départ' : 'Rollout Point',
+        title: isFr ? `Heure de départ : ${hardDepartureTime}` : `Time to go: ${hardDepartureTime}`,
+        location: isFr ? 'Départ' : 'Start',
         category: 'ride',
         isCrucialCheckpoint: true,
         description: isFr
-          ? `Départ à l'allure cible (${route.targetSpeedKmH} km/h). Marge vent de face : +${weatherHeadwindImpactMinutes}m.`
-          : `Roll out at target pace (${route.targetSpeedKmH} km/h). Headwind buffer: +${weatherHeadwindImpactMinutes}m.`,
+          ? `Départ à l'allure cible (${route.targetSpeedKmH} km/h). Marge vent de face : +${weatherHeadwindImpactMinutes} min.`
+          : `Roll out at target pace (${route.targetSpeedKmH} km/h). Headwind buffer: +${weatherHeadwindImpactMinutes} min.`,
         iconName: 'Navigation',
       },
       {
@@ -644,8 +644,8 @@ export function calculateReverseTimeline(
       {
         id: 'locker-refuel',
         time: gateArrivalAnchor,
-        title: isFr ? 'Ravito Phase 1 au Vestiaire' : 'Phase 1 Locker Refuel',
-        location: isFr ? 'Vestiaires' : 'Locker Area',
+        title: isFr ? 'Collation au vestiaire' : 'Locker room snack',
+        location: isFr ? 'Vestiaires' : 'Locker room',
         category: 'nutrition',
         isCrucialCheckpoint: true,
         description: isFr
@@ -657,7 +657,7 @@ export function calculateReverseTimeline(
         id: 'shower-groom',
         time: lockerRefuelEnd,
         title: isFr ? 'Douche & Tenue de Travail' : 'Shower & Clean Kit Change',
-        location: isFr ? 'Douches Vestiaires' : 'Locker Showers',
+        location: isFr ? 'Douches' : 'Locker room',
         category: 'office',
         isCrucialCheckpoint: false,
         description: isFr
@@ -668,7 +668,7 @@ export function calculateReverseTimeline(
       {
         id: 'shift-start',
         time: resolvedShiftStartTime,
-        title: isFr ? 'Prise de Poste / Bureau' : 'Shift Start / On-Desk Presence',
+        title: isFr ? 'Au bureau / Prise de poste' : 'At work / Shift start',
         location: isFr ? 'Poste de Travail' : 'Work Desk',
         category: 'office',
         isCrucialCheckpoint: true,
@@ -721,7 +721,7 @@ export function calculateReverseTimeline(
         gateStep.title = isFr ? `Arrivée Portillon avec Marge Heure de Pointe (${localizedGate})` : `Arrival with Peak Rush Buffer (${localizedGate})`;
         gateStep.description = isFr
           ? 'Franchissement sécurisé avec marge de +12 min pour parer aux goulets d’étranglement urbains.'
-          : 'Arrival cushion with +12m buffer factoring bridge bottlenecks and urban traffic.';
+          : 'Arrival cushion with +12 min buffer factoring bridge bottlenecks and urban traffic.';
       }
     }
 

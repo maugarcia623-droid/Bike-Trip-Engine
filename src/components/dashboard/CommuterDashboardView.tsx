@@ -30,28 +30,28 @@ export const CommuterDashboardView: React.FC<CommuterDashboardViewProps> = ({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
-      {/* CARD A: TIMELINE & HARD DEPARTURE */}
+      {/* CARD A: TIMELINE & DEPARTURE */}
       <Card
-        title="CARD A: DEPARTURE &amp; TRANSIT TIMELINE"
-        subtitle="Reverse-calculated from shift start &amp; gate security checkpoints"
+        title="Your morning, step by step"
+        subtitle="Timed around your morning routine and arrival target"
         icon={<Clock className="w-5 h-5 text-ink dark:text-volt" />}
         badge={
           <span className="text-[10px] font-mono uppercase bg-volt text-[#111111] dark:bg-volt/15 dark:text-volt px-3 py-0.5 rounded-full font-bold">
-            ZERO DELAY TOLERANCE
+            On schedule
           </span>
         }
         className="col-span-1"
       >
-        {/* Giant Hard Departure Pod */}
+        {/* Giant Leave By Pod */}
         <div className="bg-volt text-[#111111] dark:bg-pod dark:text-ink rounded-pod p-5 mb-5 text-center">
           <div className="text-[11px] font-mono uppercase tracking-widest text-[#111111]/75 dark:text-ink-muted font-bold mb-1">
-            HARD DEPARTURE TIME
+            LEAVE BY
           </div>
           <div className="text-5xl sm:text-6xl font-mono font-extrabold tracking-tight text-[#111111] dark:text-volt">
             {timelineResult.hardDepartureTime}
           </div>
           <div className="mt-2 text-xs font-mono text-[#111111]/80 dark:text-ink-secondary">
-            Roll out on gravel bike to reach{' '}
+            Ride to reach{' '}
             <strong className="font-bold">{trip.office.gateName}</strong> by{' '}
             <strong className="font-bold">{trip.office.targetGateArrivalTime}</strong>
           </div>
@@ -60,15 +60,15 @@ export const CommuterDashboardView: React.FC<CommuterDashboardViewProps> = ({
 
           <div className="flex items-center justify-around text-xs font-mono">
             <div>
-              <span className="text-[10px] opacity-70 block uppercase">Transit</span>
-              <span className="font-bold">{timelineResult.pureMovingMinutes}m</span>
+              <span className="text-[10px] opacity-70 block uppercase">Ride time</span>
+              <span className="font-bold">{timelineResult.pureMovingMinutes} min</span>
             </div>
             <div>
-              <span className="text-[10px] opacity-70 block uppercase">Traffic Buffer</span>
-              <span className="font-bold">+{timelineResult.bufferMinutes}m</span>
+              <span className="text-[10px] opacity-70 block uppercase">Buffer</span>
+              <span className="font-bold">+{timelineResult.bufferMinutes} min</span>
             </div>
             <div>
-              <span className="text-[10px] opacity-70 block uppercase">Shift Lock</span>
+              <span className="text-[10px] opacity-70 block uppercase">Work starts</span>
               <span className="font-bold">{trip.office.shiftStartTime}</span>
             </div>
           </div>
@@ -77,9 +77,9 @@ export const CommuterDashboardView: React.FC<CommuterDashboardViewProps> = ({
         {/* Visual Step Timeline with Asphalt Dashed Spine */}
         <div className="space-y-3 flex-1 flex flex-col justify-between">
           <div className="text-xs font-mono font-bold uppercase tracking-wider text-ink mb-1 flex items-center justify-between">
-            <span>Critical Commute Milestones</span>
+            <span>Your morning timeline</span>
             <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-pod text-ink-secondary">
-              Door-to-Desk: {timelineResult.totalDoorToDeskMinutes}m
+              Door-to-Desk: {timelineResult.totalDoorToDeskMinutes} min
             </span>
           </div>
 
@@ -112,7 +112,7 @@ export const CommuterDashboardView: React.FC<CommuterDashboardViewProps> = ({
           </div>
 
           <div className="px-4 py-2.5 rounded-full bg-pod text-[11px] font-mono text-ink-secondary mt-2 text-center">
-            Zero eating in open space &middot; Desk lock at{' '}
+            No food in open space &middot; Work starts at{' '}
             <strong className="text-ink">{trip.office.shiftStartTime}</strong>
           </div>
         </div>
@@ -120,7 +120,7 @@ export const CommuterDashboardView: React.FC<CommuterDashboardViewProps> = ({
 
       {/* CARD B: CONDITIONS & GEAR CHECKLIST */}
       <Card
-        title="CARD B: CONDITIONS &amp; PRE-RIDE GEAR"
+        title="Conditions &amp; gear"
         subtitle="Live weather advisory and bike check"
         icon={<Wind className="w-5 h-5 text-ink dark:text-volt" />}
         badge={
@@ -181,7 +181,7 @@ export const CommuterDashboardView: React.FC<CommuterDashboardViewProps> = ({
           <div className="flex items-center justify-between mb-2.5">
             <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-ink">
               <CheckSquare className="w-4 h-4 text-ink dark:text-volt" />
-              <span>Inspection ({checkedCount}/{totalChecklist})</span>
+              <span>Checklist ({checkedCount}/{totalChecklist})</span>
             </div>
 
             <div className="flex items-center gap-1.5 text-xs font-mono">
@@ -237,19 +237,19 @@ export const CommuterDashboardView: React.FC<CommuterDashboardViewProps> = ({
           </div>
 
           <div className="mt-3 text-[11px] font-mono text-ink-muted text-center">
-            {isAllChecked ? '✓ All verification checks cleared for rollout' : 'Tap any capsule to mark ready'}
+            {isAllChecked ? '✓ All items checked and ready to roll' : 'Tap each item as you pack it'}
           </div>
         </div>
       </Card>
 
       {/* CARD C: REAL-FOOD FUELING */}
       <Card
-        title="CARD C: REAL-FOOD NUTRITION SCHEDULE"
-        subtitle="100% whole food protocol · Zero powders · Zero desk food"
+        title="Your food plan"
+        subtitle="Real food timed around your commute and workday"
         icon={<ForkKnife className="w-5 h-5 text-beacon-amber" />}
         badge={
           <span className="text-[10px] font-mono uppercase bg-pod text-ink px-3 py-0.5 rounded-full font-bold">
-            WHOLE FOOD ONLY
+            Real food
           </span>
         }
         className="col-span-1"
@@ -283,11 +283,11 @@ export const CommuterDashboardView: React.FC<CommuterDashboardViewProps> = ({
                 </span>
               </div>
               <span className="text-[10px] font-mono text-ink dark:text-volt font-bold bg-card px-2.5 py-0.5 rounded-full">
-                En Route
+                On the road
               </span>
             </div>
             <ul className="text-xs text-ink-secondary space-y-1 list-disc list-inside">
-              <li>50/50 water &amp; pressed grape/apple juice bidon (isotonic)</li>
+              <li>50/50 water &amp; pressed grape/apple juice bottle (isotonic)</li>
               <li>2 Medjool dates + 2 dried Turkish figs</li>
               <li>2 artisanal pâte de fruits fruit pastes</li>
             </ul>
@@ -298,7 +298,7 @@ export const CommuterDashboardView: React.FC<CommuterDashboardViewProps> = ({
               <div className="flex items-center gap-1.5">
                 <Shield className="w-4 h-4 text-[#45A400] dark:text-volt-lime" />
                 <span className="text-xs font-mono font-bold uppercase text-ink">
-                  3. Phase 1 Locker Refuel
+                  3. Locker Room Refuel
                 </span>
               </div>
               <span className="text-[10px] font-mono text-ink font-bold bg-card px-2.5 py-0.5 rounded-full">

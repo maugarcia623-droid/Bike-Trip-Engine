@@ -75,7 +75,7 @@ export const TripCard: React.FC<TripCardProps> = ({
         <div className="flex items-center justify-between gap-2 mb-3.5">
           <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="zinc" size="md">
-              {trip.tag}
+              {trip.tag === 'VÉLOTAF' && lang !== 'fr' ? 'Commute' : trip.tag}
             </Badge>
             {isActive && (
               <Badge variant="yellow-vest" size="md" dot>
@@ -92,9 +92,9 @@ export const TripCard: React.FC<TripCardProps> = ({
               }
               size="md"
               dot
-              title={`${t('rideFeasibility')}: ${physicsResult.goStatus} — ${physicsResult.goStatusReason}`}
+              title={`${t('rideFeasibility')}: ${physicsResult.goStatus === 'GO' ? t('feasibilityOptimal') : physicsResult.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')} — ${physicsResult.goStatusReason}`}
             >
-              {physicsResult.goStatus}
+              {physicsResult.goStatus === 'GO' ? t('feasibilityOptimal') : physicsResult.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')}
             </Badge>
           </div>
 

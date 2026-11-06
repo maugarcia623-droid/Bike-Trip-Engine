@@ -603,11 +603,6 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
               <span className="font-semibold tracking-tight text-ink text-[15px] sm:text-[17px] break-words">
                 {t('appName')}
               </span>
-              <span
-                className={`hidden min-[380px]:inline-flex text-xs font-mono font-bold px-2.5 py-0.5 rounded-full shrink-0 tnum ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary}`}
-              >
-                v2.6
-              </span>
             </div>
             <p className="text-xs sm:text-[13px] text-ink-muted hidden md:block mt-0.5">
               {t('headerTagline')}
@@ -637,7 +632,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
               {activeTrip.route.distanceKm} km
             </span>
             <span
-              className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full uppercase shrink-0 ${
+              className={`text-[11px] font-medium px-2.5 py-0.5 rounded-full shrink-0 ${
                 physics?.goStatus === 'GO'
                   ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
                   : physics?.goStatus === 'CAUTION'
@@ -645,18 +640,15 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
                   : 'bg-rose-500/15 text-rose-700 dark:text-rose-300'
               }`}
             >
-              {physics?.goStatus}
+              {physics?.goStatus === 'GO' ? t('feasibilityOptimal') : physics?.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')}
             </span>
           </button>
         )}
 
-        {/* Right: Telemetry Sync Clock & Streamlined Profile Overlay Trigger */}
+        {/* Right: Sync Clock & Streamlined Profile Overlay Trigger */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0" ref={menuContainerRef}>
           {/* Real-time Clock */}
-          <div className="hidden sm:flex items-center gap-2 px-3.5 py-2 bg-card dark:bg-pod rounded-full text-xs sm:text-[13px] font-mono text-ink-secondary shadow-xs">
-            <span className="text-[11px] uppercase tracking-wider text-ink-muted font-bold tnum">
-              {utcLabel}
-            </span>
+          <div className="hidden sm:flex items-center px-3.5 py-2 bg-card dark:bg-pod rounded-full text-xs sm:text-[13px] font-mono text-ink shadow-xs">
             <span className="font-bold text-ink tnum">{currentTime}</span>
           </div>
 

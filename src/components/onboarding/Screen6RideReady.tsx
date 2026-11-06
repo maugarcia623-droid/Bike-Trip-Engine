@@ -58,7 +58,7 @@ export const Screen6RideReady: React.FC<Screen6RideReadyProps> = ({
       <div className="mb-6">
         <div className="inline-flex items-center gap-2 text-xs font-mono font-bold tracking-wider text-ink-muted uppercase mb-2">
           <span className="w-1.5 h-1.5 rounded-full bg-volt" />
-          <span>{isFr ? 'COCKPIT GUIDÉ · APERÇU DE SORTIE' : 'GUIDED COCKPIT · RIDE PREVIEW'}</span>
+          <span>{isFr ? 'PLAN DE ROUTE GUIDÉ · APERÇU' : 'GUIDED RIDE PLAN · RIDE PREVIEW'}</span>
         </div>
 
         <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold font-rounded tracking-tight text-ink leading-tight mb-2">
@@ -250,8 +250,8 @@ export const Screen6RideReady: React.FC<Screen6RideReadyProps> = ({
                   </div>
                   <p className="text-[10.5px] text-ink-muted leading-relaxed font-body">
                     {isFr
-                      ? 'Conditions météorologiques réelles appliquées au calcul aérodynamique.'
-                      : 'Live weather telemetry factored into aerodynamic resistance.'}
+                      ? 'Conditions météorologiques réelles appliquées à votre plan de route.'
+                      : 'Live weather conditions factored into your ride plan.'}
                   </p>
                 </div>
               ) : (
@@ -300,7 +300,7 @@ export const Screen6RideReady: React.FC<Screen6RideReadyProps> = ({
             onClick={onContinueToCockpit}
             className="flex-1 sm:flex-none min-h-[44px] px-4 py-2 rounded-full border border-black/15 dark:border-white/20 bg-pod hover:bg-chip text-ink text-xs font-rounded font-bold transition-all active:scale-[0.98] cursor-pointer"
           >
-            {isFr ? 'Accéder au cockpit' : 'Continue to cockpit'}
+            {isFr ? 'Voir le plan de route' : 'View ride plan'}
           </button>
 
           {/* Primary Action: Go to Save & Sync options */}

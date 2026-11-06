@@ -1288,7 +1288,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                         onClick={() => handleNudgeTargetTime(delta)}
                         className="h-8 rounded-full bg-pod hover:bg-chip text-xs font-mono font-semibold text-ink tnum transition-colors cursor-pointer"
                       >
-                        {delta > 0 ? `+${delta}m` : `${delta}m`}
+                        {delta > 0 ? `+${delta} min` : `${delta} min`}
                       </button>
                     ))}
                   </div>

@@ -73,19 +73,19 @@ export function getTripDateDetails(trip: TripProfile, lang: 'en' | 'fr' = 'en') 
   let countdownVariant: 'yellow-vest' | 'emerald' | 'amber' | 'blue' | 'purple' | 'zinc' = 'yellow-vest';
 
   if (diffDays === 0) {
-    countdownCode = 'D-DAY';
-    countdownText = lang === 'fr' ? 'Départ aujourd’hui' : 'Rollout today';
+    countdownCode = 'TODAY';
+    countdownText = lang === 'fr' ? 'Départ aujourd’hui' : 'Leave today';
     countdownVariant = 'yellow-vest';
   } else if (diffDays === 1) {
-    countdownCode = 'D-1';
+    countdownCode = 'TOMORROW';
     countdownText = lang === 'fr' ? 'Demain' : 'Tomorrow';
     countdownVariant = 'yellow-vest';
   } else if (diffDays > 1) {
-    countdownCode = `D-${diffDays}`;
+    countdownCode = `IN ${diffDays}D`;
     countdownText = lang === 'fr' ? `Dans ${diffDays} j` : `In ${diffDays} days`;
     countdownVariant = diffDays <= 3 ? 'blue' : 'purple';
   } else {
-    countdownCode = `D+${Math.abs(diffDays)}`;
+    countdownCode = 'PAST';
     countdownText = lang === 'fr' ? `Passé (${Math.abs(diffDays)} j)` : `${Math.abs(diffDays)}d ago`;
     countdownVariant = 'zinc';
   }
@@ -252,13 +252,11 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
               } ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
               <Calendar className="w-4 h-4 text-current shrink-0" />
-              <span className="font-mono font-bold">{dateInfo.countdownCode}</span>
-              <span className="opacity-40 font-normal">&middot;</span>
               <span>{dateInfo.countdownText}</span>
             </div>
 
             <Badge variant={archetypeBadgeVariant} size="md" className="h-9 px-3.5 py-1.5 text-xs font-semibold">
-              {trip.tag}
+              {trip.tag === 'VÉLOTAF' && lang !== 'fr' ? 'Commute' : trip.tag}
             </Badge>
 
             <Badge
@@ -271,10 +269,10 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
               }
               size="sm"
               dot
-              title={`${t('rideFeasibility')}: ${physicsResult.goStatus} — ${physicsResult.goStatusReason}`}
+              title={`${t('rideFeasibility')}: ${physicsResult.goStatus === 'GO' ? t('feasibilityOptimal') : physicsResult.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')} — ${physicsResult.goStatusReason}`}
               className="h-9 px-3 text-xs font-semibold"
             >
-              {physicsResult.goStatus}
+              {physicsResult.goStatus === 'GO' ? t('feasibilityOptimal') : physicsResult.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')}
             </Badge>
 
             {/* Profile Switcher dropdown if multiple profiles exist */}
@@ -361,7 +359,7 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
           {/* Title & Route summary with full untruncated trip name */}
           <div className="flex flex-col sm:flex-row sm:items-baseline gap-1.5 sm:gap-2.5 flex-wrap">
             <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-ink leading-snug break-words">
-              <span className="text-ink-secondary font-medium">{t('upcomingTripTitle')} : </span>
+              <span className="text-ink-secondary font-medium">{t('upcomingTripTitle')}: </span>
               <span className="font-semibold text-ink">{meta.name}</span>
             </h2>
             <span className="text-xs text-ink-muted leading-relaxed">
@@ -445,7 +443,7 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
               </div>
               <div className="flex items-center justify-between text-[11px] text-ink-muted tnum">
                 <span>{t('bufferPlus', { min: timelineResult.bufferMinutes })}</span>
-                <span>{trip.office?.gateName || (lang === 'fr' ? 'Contrôle' : 'Checkpoint')}</span>
+                <span>{trip.office?.gateName || (lang === 'fr' ? 'Point d’arrivée' : 'Check-in point')}</span>
               </div>
             </div>
           </div>
@@ -535,10 +533,10 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
                   {activeBike.name}
                 </span>
                 <div className="flex items-center gap-2 mt-1 text-xs text-ink-muted tnum">
-                  <span>{physicsResult.systemMassKg.toFixed(1)} kg {lang === 'fr' ? 'total' : 'system'}</span>
+                  <span>{physicsResult.systemMassKg.toFixed(1)} kg {lang === 'fr' ? 'total' : 'total'}</span>
                   <span>&middot;</span>
                   <span className="text-ink-secondary">
-                    {activeBike.isTubeless ? 'Tubeless' : 'Clincher'}
+                    {activeBike.isTubeless ? (lang === 'fr' ? 'Pneus tubeless' : 'Tubeless tires') : (lang === 'fr' ? 'Pneus standard' : 'Standard tires (tubes)')}
                   </span>
                 </div>
               </div>

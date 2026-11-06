@@ -341,10 +341,10 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
                               isSelected ? 'opacity-80' : 'text-ink-muted dark:text-zinc-400'
                             }`}
                           >
-                            <span className="font-semibold uppercase mr-1">
-                              {itemPhysics.goStatus}
+                            <span className="font-medium mr-1">
+                              {itemPhysics.goStatus === 'GO' ? t('feasibilityOptimal') : itemPhysics.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')}
                             </span>
-                            · {tripItem.tag} · {tripItem.route.distanceKm} km · {tripItem.route.elevationGainM ?? Math.round(tripItem.route.distanceKm * 6.5)}m+
+                            · {tripItem.tag === 'VÉLOTAF' && lang !== 'fr' ? 'Commute' : tripItem.tag} · {tripItem.route.distanceKm} km · {tripItem.route.elevationGainM ?? Math.round(tripItem.route.distanceKm * 6.5)}m+
                           </div>
                         </div>
                         {isSelected && (
@@ -358,18 +358,18 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
                 </div>
 
                 {/* Status Legend Footer */}
-                <div className="mt-2.5 pt-2 border-t border-[#E5E3DD] dark:border-[#2C2C30] px-1 flex items-center justify-between text-[10px] font-mono text-ink-muted dark:text-zinc-400">
-                  <span className="flex items-center gap-1">
+                <div className="mt-2.5 pt-2 border-t border-[#E5E3DD] dark:border-[#2C2C30] px-1 flex items-center justify-between text-[11px] text-ink-muted dark:text-zinc-400">
+                  <span className="flex items-center gap-1.5">
                     <span className={`w-1.5 h-1.5 rounded-full ${CHIP_TOKENS.emerald.dot}`} />
-                    GO
+                    {t('feasibilityOptimal')}
                   </span>
-                  <span className="flex items-center gap-1">
+                  <span className="flex items-center gap-1.5">
                     <span className={`w-1.5 h-1.5 rounded-full ${CHIP_TOKENS.amber.dot}`} />
-                    CAUTION
+                    {t('feasibilityCaution')}
                   </span>
-                  <span className="flex items-center gap-1">
+                  <span className="flex items-center gap-1.5">
                     <span className={`w-1.5 h-1.5 rounded-full ${CHIP_TOKENS.rose.dot}`} />
-                    NO-GO
+                    {t('feasibilitySevere')}
                   </span>
                 </div>
               </div>

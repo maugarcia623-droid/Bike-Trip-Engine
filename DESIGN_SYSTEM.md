@@ -1,6 +1,6 @@
-# Cadence Design System Guidelines (Cockpit & Peloton Telemetry)
+# Cadence Design System Guidelines (Ride Plan & Cycling Intelligence)
 > **Target Audience**: AI coding assistants, autonomous frontend agents, and design engineers.
-> **Scope**: Architecture, geometric laws, tokens, color matrix, typography, component blueprints, tactile flight receipts, and code implementation rules for the **Cadence** application.
+> **Scope**: Architecture, geometric laws, tokens, color matrix, typography, component blueprints, tactile ride summary receipts, and code implementation rules for the **Cadence** application.
 > **Version**: 3.0 (Production Verified)
 
 ---
@@ -8,7 +8,7 @@
 ## 1. System Philosophy & Metaphor
 
 The **Cadence** design system merges two distinct visual disciplines:
-1. **High-Precision Aviation Telemetry**: Dense, scannable, HUD-inspired data presentation where critical metrics (watts, rollouts, headwinds, solar altitude) are prioritized using luminous beacons and tabular figures.
+1. **Cycling Intelligence & Scannable Data**: Clear, friendly, glanceable numbers where essential metrics (watts, departure times, headwinds, weather) are prioritized using luminous beacons and tabular figures.
 2. **Professional Peloton & Tarmac Aesthetics**: Warm stone asphalt surfaces, painted lane markers, chevron road hatching, and high-visibility safety apparel (*"yellow-vest"* brand accent).
 
 ### Core Directives for Any AI Generating UI
@@ -110,15 +110,15 @@ volt: {
   - Dark Mode: `dark:bg-[#1F2203]/60 dark:text-[#DFFF00] dark:ring-[#DFFF00]`
 
 ### Beacon Status Matrix
-Beacons indicate mechanical clearance, weather cautions, cloud synchronization, and flight clearance:
+Beacons indicate status, weather cautions, cloud synchronization, and readiness:
 
 | Beacon State | Hex Color | Glow Shadow Utility | Meaning |
 | :--- | :--- | :--- | :--- |
-| **Beacon Green** | `#3D9A00` / `#10B981` | — | "GO" Status, cleared checklist, optimal pacing, cloud synced |
-| **Beacon Amber** | `#F59E0B` | `shadow-beacon-amber` | Headwind caution, high temperature, cloud syncing in-flight |
-| **Beacon Red** | `#FF3B30` | `shadow-beacon-red` | Critical cutoff violation, night ride missing lumens |
-| **Beacon Volt** | `#F2F455` | `shadow-beacon-volt` | Live telemetry active, current stage underway |
-| **Beacon Lime** | `#CAF164` | `shadow-beacon-lime` | Drivetrain efficiency bonus, aero tuck active |
+| **Beacon Green** | `#3D9A00` / `#10B981` | — | "Good to go" status, checked checklist, optimal pacing, cloud synced |
+| **Beacon Amber** | `#F59E0B` | `shadow-beacon-amber` | Headwind caution, high temperature, cloud syncing |
+| **Beacon Red** | `#FF3B30` | `shadow-beacon-red` | Needs a change (critical cutoff violation, night ride missing lumens) |
+| **Beacon Volt** | `#F2F455` | `shadow-beacon-volt` | Live calculation active, current stage underway |
+| **Beacon Lime** | `#CAF164` | `shadow-beacon-lime` | Drivetrain efficiency bonus, aero posture active |
 
 Shadow definitions:
 ```css
@@ -134,7 +134,7 @@ box-shadow: {
 
 ## 5. 10-Palette Layered Token Matrix (Chips & Badges)
 
-Interactive chips and telemetry badges adhere to a strict **4-layer unified-hue system**:
+Interactive chips and status badges adhere to a strict **4-layer unified-hue system**:
 
 1. **Layer 1 (Surface)**: Ultra-soft tinted pastel background (Light: `bg-*-50`) / Translucent dark tint (Dark: `dark:bg-*-950/40`).
 2. **Layer 2 (Primary Details)**: 100% saturation label text + icon primary stroke (`text-*-700/800`, `dark:text-*-300`).
@@ -165,7 +165,7 @@ Interactive chips and telemetry badges adhere to a strict **4-layer unified-hue 
 1. **The Rounded Voice (`.font-rounded`)**:
    - **Stack**: `ui-rounded, -apple-system-rounded, "SF Pro Rounded", Nunito, Inter, sans-serif`
    - **Weights**: Semibold (`700`), Bold (`800`), Extrabold (`800`)
-   - **Usage**: ALL telemetry data, big metrics, card titles (`h1`-`h4`), chips, badges, and status labels.
+   - **Usage**: All numbers, big metrics, card titles (`h1`-`h4`), chips, badges, and status labels.
 2. **The Body Voice (`font-body`)**:
    - **Stack**: `'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif`
    - **Letter Spacing**: `-0.01em`
@@ -188,7 +188,7 @@ Every single numerical readout (watts, speeds, distances, countdown timers, elev
 To reinforce the cycling tarmac metaphor, use these built-in road graphic utilities:
 
 ### 1. Horizontal Dashed Lane Divider (`.lane-divider`)
-Used as subtle visual separators between telemetry sections on matching surfaces:
+Used as subtle visual separators between dashboard sections on matching surfaces:
 ```css
 .lane-divider {
   height: 1px;
@@ -397,7 +397,7 @@ export const Chip: React.FC<ChipProps> = ({
 
 ---
 
-### Blueprint 3: Telemetry Metric Pill (`MetricPill`)
+### Blueprint 3: Cycling Metric Pill (`MetricPill`)
 Used inside bento cards to display dense numbers, units, and status indicators.
 
 ```tsx
@@ -594,7 +594,7 @@ export const Collapsible: React.FC<CollapsibleProps> = ({
 
 ---
 
-### Blueprint 6: Tactile Peloton Flight Receipt (`ShareTelemetryModal` & `renderTelemetryCard`)
+### Blueprint 6: Tactile Peloton Ride Receipt (`ShareTelemetryModal` & `renderTelemetryCard`)
 High-resolution 1080×1920 canvas generator rendering vintage thermal cue sheets for Strava and Instagram stories.
 
 #### Visual Architecture
@@ -609,14 +609,14 @@ High-resolution 1080×1920 canvas generator rendering vintage thermal cue sheets
   2. Main route title (60px Extrabold SF Pro Rounded / Nunito).
   3. Aspect-corrected GPX route trace with yellow-vest pennant pins.
   4. Elevation terrain strip ($D+$ ascent / $D-$ descent).
-  5. 6-cell aerodynamic telemetry grid (Speed, Watts, CdA, Crr, Headwind penalty, Work kJ).
-  6. Reverse timeline countdown and real-food nutrition manifest.
-  7. Code-39 barcode and verification clearance sign-off.
+  5. 6-cell aerodynamic power & speed grid (Speed, Watts, CdA, Crr, Headwind penalty, Work kJ).
+  6. Morning timeline countdown and real-food nutrition manifest.
+  7. Code-39 barcode and verification check-off.
 
 ---
 
-### Blueprint 7: Pilot Onboarding & Personalization Wizard (`OnboardingModal`)
-Multi-step dialog guiding users through pilot setup with smooth step transitions.
+### Blueprint 7: Rider Onboarding & Personalization Wizard (`OnboardingModal`)
+Multi-step dialog guiding users through rider and bike setup with smooth step transitions.
 
 * **Modal Entrance**: `animate-apple-modal` scaling from `scale(0.96) translateY(12px)` to `scale(1) translateY(0)`.
 * **Step Transition**: `animate-apple-step-in` with horizontal slide and fade.
@@ -625,14 +625,14 @@ Multi-step dialog guiding users through pilot setup with smooth step transitions
 
 ---
 
-### Blueprint 8: Cockpit Diagnostic Feedback System (`FeedbackModal`)
-Subtle diagnostic dock integrated into the cockpit footer.
+### Blueprint 8: Ride Plan Feedback System (`FeedbackModal`)
+Subtle feedback dock integrated into the footer.
 
 * **Footer Dock Corner**:
   ```html
   <div class="flex items-center gap-2">
     <span class="w-2 h-2 rounded-full bg-volt-lime animate-pulse"></span>
-    <span class="font-mono text-[11px] tracking-wider uppercase">Cadence Telemetry Online</span>
+    <span class="font-mono text-[11px] tracking-wider uppercase">Cadence Systems Online</span>
   </div>
   ```
 * **Category Pill Grid**: Bugs, Aerodynamic Math Tweaks, Feature Ideas with zero-layout-shift `ring-2 ring-inset`.
@@ -713,7 +713,7 @@ The application uses an **Apple-inspired motion graphics system** for typography
 1. **Fluid Spring Deceleration (`cubic-bezier(0.16, 1, 0.3, 1)`)**: Immediate velocity that settles naturally with zero abrupt stops.
 2. **Subtle Amplitudes**: Translations use subtle offsets (8px–14px, never floaty 20px+ jumps) so content feels grounded and fast.
 3. **Where to Animate**:
-   - **View & Screen Transitions**: Cascading staggered entrance across Home, Configurator, and Cockpit (`animate-apple-in stagger-1` ... `stagger-6`).
+   - **View & Screen Transitions**: Cascading staggered entrance across Home, Configurator, and Ride Plan (`animate-apple-in stagger-1` ... `stagger-6`).
    - **Modals & Dialogs**: Backdrops fade smoothly (`animate-apple-fade-in`), dialog windows scale up gently (`animate-apple-modal`, `scale(0.96) translateY(12px) → scale(1) translateY(0)`).
    - **Multi-Step Wizards (Onboarding)**: Seamless step changes with `animate-apple-step-in`.
    - **Receipt Window (`ShareTelemetryModal`)**: Floating 9:16 canvas preview (`animate-apple-receipt`) with realistic ambient depth and smooth mode transitions.
@@ -721,7 +721,7 @@ The application uses an **Apple-inspired motion graphics system** for typography
    - **Interactive Tactile Feedback**: `active:scale-[0.98]` or `active:scale-[0.97]` on buttons and chips for tactile physical response.
    - **Checkmarks & Toggles**: Micro-pop bounce (`animate-apple-check-pop`) on checklist completion or copy actions.
 4. **Where to Keep UI Elements Static (Crucial Best Practices)**:
-   - **Live Telemetry & Figures**: Numeric readouts (watts, air density, wind tax, calories) during slider drag MUST remain static without CSS transition lag to guarantee 60fps real-time physics calculation.
+   - **Live Calculations & Figures**: Numeric readouts (watts, air density, wind impact, calories) during slider drag MUST remain static without CSS transition lag to guarantee 60fps real-time physics calculation.
    - **Fixed Navigation Chrome**: The top bar and dynamic island shell remain anchored without constant re-animation.
    - **No Ambient Eye-Distractions**: No continuous bouncing or swinging; live status beacons use a slow, gentle luminous breathing (`beacon-pulse` 2.4s).
    - **Accessibility**: Full `@media (prefers-reduced-motion: reduce)` override disables all transforms and animations for users with motion sensitivity.
@@ -767,8 +767,51 @@ The application uses an **Apple-inspired motion graphics system** for typography
 
 ### ✅ Mandatory Best Practices (ALWAYS DO)
 1. **Use semantic CSS variables for surfaces**: `bg-card`, `bg-pod`, `bg-canvas`, `text-ink`, `text-ink-secondary`, `text-ink-muted`.
-2. **Apply `.font-rounded` to all KPIs, headers, and badges**: Ensure SF Pro Rounded / Nunito voice is active for telemetry.
+2. **Apply `.font-rounded` to all KPIs, headers, and badges**: Ensure SF Pro Rounded / Nunito voice is active for numerical readouts.
 3. **Use `active:scale-[0.98]`** on interactive pills and buttons for tactile physical feedback.
 4. **Isolate duotone icons with `CHIP_DUOTONE_ISOLATION_CLASSES`** so secondary layers render at 30% visual weight.
 5. **Provide a `solidBacker` for icon badges placed over dashed timeline spines** to prevent background lines showing through translucent dark surfaces.
 6. **Support safe area insets on mobile chrome**: Respect `safe-area-inset-top` on standalone PWA viewports.
+
+
+---
+
+## 13. Voice & Tone Guidelines (Beginner-Friendly Cycling Language)
+
+Cadence is built for all cyclists — from daily bike commuters to weekend explorers. The application voice is welcoming, encouraging, clear, and grounded in real-world cycling sensations rather than intimidating aerospace or military jargon.
+
+### The Aviation Purge: What to Never Say vs. What to Say
+
+| Never Say (Aviation / Military) | Always Say (Friendly Cycling) | Context & Guidance |
+| :--- | :--- | :--- |
+| **Cockpit / Flight Deck** | **Ride plan** (`View ride plan`) | The primary third screen where the ride schedule, weather, and power live. |
+| **Hard rollout / Hard departure** | **Leave by {time} / Time to go** | Clear, actionable everyday phrasing. |
+| **Telemetry** | **Live results / Detailed view / All good** | Use "Guided view" for beginners and "Detailed view" for full physics. |
+| **Pilot & Garage Rig** | **Your bike** | Plain, unpretentious naming for bicycle profiles. |
+| **CAUTION / NO-GO / Ride Feasibility** | **Heads up / Good to go / Needs a change** | Human, constructive advice instead of harsh mission-control abort signals. |
+| **Staging Area / Locker Bay** | **By the door / Locker room** | Common-sense everyday locations. |
+| **Protocol / Directive / Mandates / Enforced** | **Rule / What to wear / On** | Supportive cycling guidance rather than punitive orders. |
+| **Cleared ("0 of 12 cleared")** | **Checked ("0 of 12 checked")** | Friendly packing and bike-check progress. |
+| **Wind Vector / Max gust envelope** | **Wind / Strongest gusts** | Intuitive weather descriptors. |
+| **Ignition / Phase 1 / Phase 2** | **Before you ride / At work** | Natural time-of-day phases. |
+| **Checkpoint / gate name** | **Check-in point / {name} check-in** | Welcoming milestone terminology. |
+| **EN ROUTE** | **On the road** | Natural English idiom. |
+| **Hold speed / Hold effort** | **Keep my speed / Steady effort** | Clear pacing modes. |
+
+### Linguistic & Formatting Rules
+
+1. **Minutes vs. Metres Rule**:
+   - Minutes must **always** be formatted as `min` (e.g. `23 min`, `+15 min`, `45 min`).
+   - The standalone letter `m` is **strictly reserved for elevation in metres** (e.g. `450 m D+`, `12 m`). Never write `+23m` for extra travel time.
+2. **Relative Dates & Countdown**:
+   - Replace cryptic military countdowns (`D-6`, `D-DAY`, `T+6d`) with warm relative phrases (`In 6 days`, `Leave today`, `Tomorrow`).
+   - Header clocks must display local time without technical `UTC+X` offsets.
+3. **Sentence Case Everywhere**:
+   - Headings, button labels, and body text use sentence case (e.g. "Before you leave", "Your food plan").
+   - UPPERCASE is strictly restricted to tiny 10px monospace tags.
+4. **Punctuation & Localization**:
+   - In English copy, never insert a space before colons or question marks (`"Leave by:"`, never `"Leave by :"`).
+   - Pluralization must be grammatically sound ("1 trip", never "1 profiles").
+5. **Progressive Disclosure of Technical Acronyms**:
+   - Guided view leads with sensations, breathing checks ("1–2 words at a time"), and real food.
+   - Advanced acronyms (FTP, Z4, CdA, Crr, GME) are preserved for experienced cyclists inside the collapsible **Detailed view** drawer.

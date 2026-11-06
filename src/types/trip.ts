@@ -309,7 +309,7 @@ export function generateTripChecklist(
         : `Tire pressure calibrated to ${bar} bar`,
       checked: false,
       category: "mechanics",
-      critical: true,
+      critical: false,
     },
     {
       id: "mech-spares",
@@ -430,12 +430,12 @@ export function generateTripChecklist(
     }
   } else {
     items.push(
-      { id: "com-badge", label: isFr ? "Badge d'accès entreprise & identifiants" : "Facility security badge & credentials", checked: false, category: "logistics", critical: true },
-      { id: "com-laptop", label: isFr ? "Ordinateur portable pro & chargeur USB-C" : "Work laptop & USB-C charger", checked: false, category: "gear", critical: true },
-      { id: "com-clothes", label: isFr ? "Tenue de travail propre rangée en sac étanche" : "Clean work clothes packed in dry-bag", checked: false, category: "gear", critical: true },
-      { id: "com-shower", label: isFr ? "Trousse de douche & serviette microfibre séchage rapide" : "Shower kit & microfiber quick-dry towel", checked: false, category: "gear", critical: true },
-      { id: "com-lock", label: isFr ? "Antivol U haute sécurité pour le parking vélo" : "Heavy-duty U-Lock for bike shelter", checked: false, category: "mechanics", critical: true },
-      { id: "com-recovery", label: isFr ? "Ravito de récupération vestiaire prêt dans le sac" : "Post-arrival recovery nutrition packed", checked: false, category: "nutrition", critical: true }
+      { id: "com-badge", label: isFr ? "Badge d'accès entreprise & identifiants" : "Security badge & credentials", checked: false, category: "logistics", critical: true },
+      { id: "com-laptop", label: isFr ? "Ordinateur portable pro & chargeur USB-C" : "Work laptop & USB-C charger", checked: false, category: "gear", critical: false },
+      { id: "com-clothes", label: isFr ? "Tenue de travail propre rangée en sac étanche" : "Clean work clothes packed in dry-bag", checked: false, category: "gear", critical: false },
+      { id: "com-shower", label: isFr ? "Trousse de douche & serviette microfibre séchage rapide" : "Shower kit & microfiber quick-dry towel", checked: false, category: "gear", critical: false },
+      { id: "com-lock", label: isFr ? "Antivol U haute sécurité pour le parking vélo" : "Heavy-duty bike lock", checked: false, category: "mechanics", critical: true },
+      { id: "com-recovery", label: isFr ? "Collation de récupération prête dans le sac" : "Recovery snack packed", checked: false, category: "nutrition", critical: false }
     );
   }
 

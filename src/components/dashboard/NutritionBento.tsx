@@ -297,13 +297,6 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
                   {phase.timingLabel}
                 </Badge>
 
-                <span
-                  className={`hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-card text-[11px] font-mono font-bold tnum ${CHIP_TOKENS[phase.macroTheme].primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
-                >
-                  {MacroIcon && <MacroIcon className="w-3.5 h-3.5 text-current shrink-0" />}
-                  <span className="break-words">{phase.macroHeadline}</span>
-                </span>
-
                 <DisclosureChevron open={isOpen} />
               </div>
             </button>
@@ -472,7 +465,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           nutPref === 'real-food'
             ? isFr
               ? `Profil ajusté à ${carbTarget}g/h sans produits industriels : bidon 50/50 jus pressé + eau salée, dattes Medjool et pâtes de fruits artisanales.`
-              : `Adjusted to your ${carbTarget}g/h gut target using whole foods: 50/50 pressed juice bidon with pinch of salt, Medjool dates & artisanal fruit pastes.`
+              : `Adjusted to your ${carbTarget}g/h gut target using whole foods: 50/50 pressed juice bottle with pinch of salt, Medjool dates & artisanal fruit pastes.`
             : isHydration
             ? isFr
               ? `Apport calibré à ${carbTarget}g/h + 750 mg sodium/litre pour maximiser l’absorption intestinale sans troubles digestifs.`
@@ -570,7 +563,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         body: isMountain
           ? isFr
             ? 'Prise toutes les 20 min : dattes, pâtes d’amandes et bidon électrolytes pour compenser la forte sudation en côte.'
-            : 'Intake every 20m: dates, almond paste, and sodium bidon to offset heavy climbing sweat rates.'
+            : 'Intake every 20 min: dates, almond paste, and sodium bottle to offset heavy climbing sweat rates.'
           : isResupply
           ? isFr
             ? 'Halte boulangerie villageoise : pain d’épices, fruits frais et ravitaillement à la fontaine d’eau potable.'
@@ -644,7 +637,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         icon: Coffee,
         theme: 'amber',
         stageLabel: isFr ? 'Départ' : 'Rollout base',
-        timingLabel: 'T − 45m',
+        timingLabel: '−45 min',
         timingVariant: 'zinc',
         macroHeadline: '~350 kcal',
         macroIcon: Flame,
@@ -657,7 +650,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         icon: isPicnic ? ForkKnife : Compass,
         theme: isPicnic ? 'orange' : 'teal',
         stageLabel: isFr ? 'Hydratation' : 'Cruising fuel',
-        timingLabel: isPicnic ? (isFr ? 'Pique-Nique 45m' : 'Picnic Feast') : 'En route',
+        timingLabel: isPicnic ? (isFr ? 'Pique-Nique 45 min' : 'Picnic Feast') : (isFr ? 'En route' : 'On the road'),
         timingVariant: isPicnic ? 'orange' : 'teal',
         macroHeadline: isPicnic ? '~650 kcal · Balanced feast' : `~${escCarbs}g/h carbs`,
         macroIcon: Lightning,
@@ -749,8 +742,8 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       id: 'com-1',
       icon: Coffee,
       theme: 'amber',
-      stageLabel: isFr ? 'Ignition' : 'Ignition / Fuel base',
-      timingLabel: '−45m',
+      stageLabel: isFr ? 'Avant de partir' : 'Before you ride',
+      timingLabel: '−45 min',
       timingVariant: 'zinc',
       macroHeadline: '~300 kcal · Baguette + honey',
       macroIcon: Flame,
@@ -762,7 +755,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       id: 'com-2',
       icon: isCoffee ? Coffee : AppleLogo,
       theme: isCoffee ? 'amber' : 'lime',
-      stageLabel: isFr ? 'En selle' : 'On-bike carbs',
+      stageLabel: isFr ? 'En route' : 'On the road',
       timingLabel: isCoffee
         ? isFr
           ? 'Pause Roaster'
@@ -775,7 +768,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       timingVariant: isCoffee ? 'amber' : 'lime',
       macroHeadline: isCoffee
         ? '~320 kcal · Espresso + pastry'
-        : `~${Math.min(carbTarget, 60)}g carbs · Bidon + dates`,
+        : `~${Math.min(carbTarget, 60)}g carbs · Bottle + dates`,
       macroIcon: Lightning,
       macroTheme: 'lime',
       title: isCoffee
@@ -797,18 +790,18 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         : isTempo
         ? isFr
           ? 'Bidon eau/pur jus 650 ml + pâte de fruits en selle pour maintenir 260W sans baisse de régime.'
-          : '650ml 50/50 juice bidon + fruit chew in the saddle to maintain 260W without mid-commute fading.'
+          : '650ml 50/50 juice bottle + fruit chew in the saddle to maintain 260W without mid-commute fading.'
         : t('nutriCom2Body'),
     },
     {
       id: 'com-3',
       icon: Package,
       theme: 'yellow-vest',
-      stageLabel: isFr ? 'Phase 1 · Vestiaire' : 'Phase 1 · Arrival',
+      stageLabel: isFr ? 'Au travail · Vestiaire' : 'At work · Locker room',
       timingLabel: isShower
         ? isFr
           ? `Vestiaire ${resolvedLockerTime}`
-          : `Locker ${resolvedLockerTime}`
+          : `Locker room ${resolvedLockerTime}`
         : t('nutriCom3Badge'),
       timingVariant: 'yellow-vest',
       macroHeadline: '25g protein · 200g Skyr',
@@ -816,20 +809,20 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       macroTheme: 'yellow-vest',
       title: isShower
         ? isFr
-          ? 'Fenêtre Métabolique Immédiate au Casier'
-          : 'Immediate Locker Bay Protein Window'
+          ? 'Collation Protéinée au Vestiaire'
+          : 'Immediate Locker Room Protein Window'
         : t('nutriCom3Title'),
       body: isShower
         ? isFr
           ? '200g de Skyr 0% frais avec une cuillère de miel de fleurs consommé dès l’arrivée au vestiaire avant la douche chaude (zéro poudre).'
-          : '200g chilled Skyr 0% with wildflower honey consumed immediately upon locker bay entry before hot shower (zero powders).'
+          : '200g chilled Skyr 0% with wildflower honey consumed immediately upon arriving at the locker room before hot shower (zero powders).'
         : t('nutriCom3Body'),
     },
     {
       id: 'com-4',
       icon: ForkKnife,
       theme: 'emerald',
-      stageLabel: isFr ? 'Phase 2 · Bureau' : 'Phase 2 · Desk',
+      stageLabel: isFr ? 'Au travail · Collation bureau' : 'At work · Desk snack',
       timingLabel: t('nutriCom4Badge'),
       timingVariant: 'emerald',
       macroHeadline: '~420 kcal · Overnight oats',

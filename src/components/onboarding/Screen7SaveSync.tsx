@@ -330,7 +330,7 @@ export const Screen7SaveSync: React.FC<Screen7SaveSyncProps> = ({
         </button>
 
         <span className="text-xs text-ink-muted font-body text-center">
-          {isFr ? 'Aucun compte requis pour utiliser le cockpit' : 'No account required to use the cockpit'}
+          {isFr ? 'Aucun compte requis pour utiliser votre plan de route' : 'No account required to use your ride plan'}
         </span>
 
         <button
