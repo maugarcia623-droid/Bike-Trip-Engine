@@ -19,7 +19,7 @@ import {
   CHIP_TOKENS,
 } from '../../tokens/chipTokens';
 
-interface DynamicIslandNavProps {
+export interface DynamicIslandNavProps {
   currentView: 'home' | 'configurator' | 'dashboard';
   onNavigate: (view: 'home' | 'configurator' | 'dashboard') => void;
   activeTrip?: TripProfile | null;
@@ -380,3 +380,7 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
     </div>
   );
 };
+
+export { DynamicIslandNav as FloatingWebsiteHeader };
+export default DynamicIslandNav;
+

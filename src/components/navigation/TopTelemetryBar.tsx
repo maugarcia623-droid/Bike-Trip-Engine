@@ -17,8 +17,12 @@ import {
   User,
   Send,
   X,
+  Cloud,
+  LogOut,
+  Languages,
+  ChevronRight,
+  RefreshCw,
 } from '@/components/icons';
-import { Cloud, LogOut, Languages, ChevronRight, RefreshCw } from 'lucide-react';
 import { IconBadge } from '../common/IconBadge';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,

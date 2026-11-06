@@ -1,3 +1,5 @@
+import { StageAmenity } from './amenities';
+
 export interface WeatherCondition {
   source?: "live" | "planned" | "simulated";
   airDensityRho?: number;
@@ -137,6 +139,7 @@ export interface TripStage {
   weather: WeatherCondition;
   customChips: string[];
   accommodationNote?: string;
+  pinnedAmenities?: StageAmenity[];
 }
 
 export interface TripProfile {
@@ -158,6 +161,7 @@ export interface TripProfile {
   arriveAtMode?: boolean;
   stages?: TripStage[];
   activeStageIndex?: number;
+  pinnedAmenities?: StageAmenity[];
 }
 
 export interface PhysicsCalculationResult {

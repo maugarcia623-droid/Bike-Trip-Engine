@@ -46,8 +46,17 @@ export default {
           lime: '#CAF164',
           green: '#3D9A00',
         },
+        navbar: {
+          DEFAULT: 'rgb(var(--ds-card) / <alpha-value>)',
+          line: 'rgb(var(--ds-ink) / 0.1)',
+        },
+        dropdown: 'rgb(var(--ds-card) / <alpha-value>)',
+      },
+      zIndex: {
+        '-1': '-1',
       },
       borderRadius: {
+        '4xl': '2rem',      /* 32px — Preline floating bar concentric radius */
         card: '2rem',       /* 32px — Primary borderless cards (16px inner pod + 16px padding = 32px) */
         pod: '1rem',        /* 16px — Nested sub-cards & pods */
         'sub-pod': '0.5rem',/* 8px — Nested elements inside pods when padding is 8px (8px + 8px = 16px) */

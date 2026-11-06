@@ -82,6 +82,11 @@ export function extractCurrentStage(trip: TripProfile, dayNumber: number): TripS
     weather: { ...trip.weather },
     customChips: [...(trip.customChips || [])],
     accommodationNote: existingStage?.accommodationNote,
+    pinnedAmenities: trip.pinnedAmenities
+      ? trip.pinnedAmenities.map((a) => ({ ...a }))
+      : existingStage?.pinnedAmenities
+      ? existingStage.pinnedAmenities.map((a) => ({ ...a }))
+      : undefined,
   };
 }
 
@@ -128,6 +133,9 @@ export function switchActiveStage(trip: TripProfile, targetIndex: number): TripP
     arriveAtMode: targetStage.targetMode ? targetStage.targetMode === 'arrive' : trip.arriveAtMode,
     stages,
     activeStageIndex: validTargetIndex,
+    pinnedAmenities: targetStage.pinnedAmenities
+      ? targetStage.pinnedAmenities.map((a) => ({ ...a }))
+      : undefined,
     updatedAt: new Date().toISOString(),
   };
 }
@@ -211,6 +219,7 @@ export function addNextStage(trip: TripProfile): TripProfile {
     arriveAtMode: newStage.targetMode ? newStage.targetMode === 'arrive' : trip.arriveAtMode,
     stages: updatedStages,
     activeStageIndex: targetIndex,
+    pinnedAmenities: undefined,
     updatedAt: new Date().toISOString(),
   };
 }
@@ -279,6 +288,9 @@ export function removeStage(trip: TripProfile, indexToRemove: number): TripProfi
     arriveAtMode: targetStage.targetMode ? targetStage.targetMode === 'arrive' : trip.arriveAtMode,
     stages: renumberedStages,
     activeStageIndex: newActiveIndex,
+    pinnedAmenities: targetStage.pinnedAmenities
+      ? targetStage.pinnedAmenities.map((a) => ({ ...a }))
+      : undefined,
     updatedAt: new Date().toISOString(),
   };
 }

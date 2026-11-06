@@ -11,6 +11,7 @@ import {
   Lightning,
   Backpack,
   Compass,
+  Cloud,
 } from '@/components/icons';
 import { TripProfile, WeatherCondition } from '../../types/trip';
 import { TripCard } from './TripCard';
@@ -27,7 +28,6 @@ import { useTranslation } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import { useUserProfile } from '../../utils/userProfileStorage';
 import { getArchetypeFromTag } from '../../utils/archetypeChips';
-import { Cloud } from 'lucide-react';
 import { FeedbackModal } from '../FeedbackModal';
 
 interface HomeScreenProps {

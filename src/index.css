@@ -684,7 +684,7 @@ svg[class*="keyline-icon"] {
   stroke-linejoin: round;
 }
 
-/* Secondary tone paths (~30% visual weight in Keyline Duotone & Two-Tone, matching unified hue) */
+/* Secondary tone paths (~30% visual weight in Keyline Duotone, matching unified hue) */
 svg [fill-opacity="0.4"],
 svg path[fill-opacity="0.4"],
 svg rect[fill-opacity="0.4"],
@@ -733,7 +733,9 @@ svg polyline[stroke-opacity="0.4"] {
 .dual-tone-orange,
 .dual-tone-coral,
 .dual-tone-mono,
-.dual-tone-greyscale {
+.dual-tone-greyscale,
+.dual-tone-zinc,
+.dual-tone-yellow-vest {
   --icon-secondary: currentColor !important;
   --icon-secondary-opacity: 0.3 !important;
 }

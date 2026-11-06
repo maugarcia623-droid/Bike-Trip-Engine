@@ -12,7 +12,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Sparkles,
-} from 'lucide-react';
+} from '@/components/icons';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
   CHIP_TOKENS,

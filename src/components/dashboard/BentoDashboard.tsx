@@ -13,6 +13,7 @@ import { ReverseTimelineBento } from './ReverseTimelineBento';
 import { getTripArchetype } from './TimelineContextualBanner';
 import { PreFlightChecklistBento } from './PreFlightChecklistBento';
 import { NutritionBento } from './NutritionBento';
+import { StageAmenity } from '../../types/amenities';
 import { ShareTelemetryModal } from '../ShareTelemetryModal';
 import { FeedbackModal } from '../FeedbackModal';
 import { BadgeInfo } from '@/components/icons';
@@ -72,6 +73,8 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
   const isDesktop = useIsDesktop();
   const [isShareModalOpen, setIsShareModalOpen] = React.useState<boolean>(false);
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = React.useState<boolean>(false);
+  const [loadedAmenities, setLoadedAmenities] = React.useState<StageAmenity[]>([]);
+  const [selectedAmenity, setSelectedAmenity] = React.useState<StageAmenity | null>(null);
   const effectiveSpecs = riderSpecs || loadRiderBikeSpecs();
   const viewMode: CockpitViewMode =
     effectiveSpecs.cockpitViewMode ??
@@ -291,6 +294,10 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
           onOpenSpecs={onOpenSpecs}
           onOpenConfigurator={onOpenConfigurator}
           onUploadGpxFile={handleUploadGpxInCockpit}
+          amenities={loadedAmenities}
+          selectedAmenity={selectedAmenity}
+          onSelectAmenity={setSelectedAmenity}
+          onAmenitiesLoaded={setLoadedAmenities}
         />
       </div>
 
@@ -309,7 +316,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
                 riderSpecs={effectiveSpecs}
               />
             </div>
-            <div className="animate-flight-deck-in deck-stagger-4">
+            <div className="animate-flight-deck-in deck-stagger-3">
               <PhysicsEngineCard
                 trip={trip}
                 physicsResult={physicsResult}
@@ -371,7 +378,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
           </div>
 
           {/* 3. Pre-Flight Inspection Checklist */}
-          <div className="animate-flight-deck-in deck-stagger-5">
+          <div className="animate-flight-deck-in deck-stagger-3">
             <PreFlightChecklistBento
               trip={trip}
               onUpdateTrip={onUpdateTrip}
@@ -380,7 +387,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
           </div>
 
           {/* 4. Baseline Dock: Real-Food Nutrition */}
-          <div className="animate-flight-deck-in deck-stagger-6">
+          <div className="animate-flight-deck-in deck-stagger-4">
             <NutritionBento
               trip={trip}
               hardDepartureTime={timelineResult.hardDepartureTime}
@@ -392,7 +399,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
           </div>
 
           {/* 5. Telemetry Dock: Aerodynamic & Rolling Physics Engine */}
-          <div className="animate-flight-deck-in deck-stagger-4">
+          <div className="animate-flight-deck-in deck-stagger-5">
             <PhysicsEngineCard
               trip={trip}
               physicsResult={physicsResult}

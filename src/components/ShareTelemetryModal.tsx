@@ -9,8 +9,8 @@ import {
   FileText,
   Loader2,
   ExternalLink,
-} from 'lucide-react';
-import { Receipt } from '@/components/icons';
+  Receipt,
+} from '@/components/icons';
 import {
   renderTelemetryCard,
   extractTelemetryShareData,

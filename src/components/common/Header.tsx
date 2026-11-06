@@ -111,9 +111,9 @@ export const Header: React.FC<HeaderProps> = ({
               className="flex items-center gap-3 cursor-pointer group select-none text-left focus:outline-none"
             >
               <div className="w-10 h-10 rounded-full bg-[#111111] text-volt dark:bg-[#F5F5F7] dark:text-[#111111] flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="7" cy="12" r="3.5" />
-                  <circle cx="17" cy="12" r="3.5" />
+                <svg className="keyline-icon w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="7" cy="12" r="3.5" fill="currentColor" fillOpacity="0.4" />
+                  <circle cx="17" cy="12" r="3.5" fill="currentColor" fillOpacity="0.4" />
                   <path d="M9.5 9.2c1.6.9 3.4.9 5 0" />
                   <path d="M9.5 14.8c1.6-.9 3.4-.9 5 0" />
                 </svg>
@@ -298,9 +298,9 @@ export const Header: React.FC<HeaderProps> = ({
                 className="flex items-center gap-2.5 cursor-pointer select-none min-w-0 text-left"
               >
                 <div className="w-9 h-9 rounded-full bg-[#111111] text-volt dark:bg-[#F5F5F7] dark:text-[#111111] flex items-center justify-center shrink-0">
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="7" cy="12" r="3.5" />
-                    <circle cx="17" cy="12" r="3.5" />
+                  <svg className="keyline-icon w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="7" cy="12" r="3.5" fill="currentColor" fillOpacity="0.4" />
+                    <circle cx="17" cy="12" r="3.5" fill="currentColor" fillOpacity="0.4" />
                     <path d="M9.5 9.2c1.6.9 3.4.9 5 0" />
                     <path d="M9.5 14.8c1.6-.9 3.4-.9 5 0" />
                   </svg>

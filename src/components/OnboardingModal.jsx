@@ -43,8 +43,8 @@ import {
   User,
   BookOpen2,
   BikeFast,
+  Cloud,
 } from '@/components/icons';
-import { Cloud } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';

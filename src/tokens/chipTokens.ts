@@ -56,7 +56,7 @@ export const CHIP_RING_UNSELECTED = 'ring-transparent';
 /**
  * Layer 2 & Layer 3 Keyline Rounded Duotone Icon Isolation
  * - Sets `--icon-secondary: currentColor` and `--icon-secondary-opacity: 0.3` to isolate
- *   Keyline Duotone / Two-Tone backdrop paths (`[fill-opacity="0.4"]`, `[stroke-opacity="0.4"]`)
+ *   Keyline Duotone backdrop paths (`[fill-opacity="0.4"]`, `[stroke-opacity="0.4"]`)
  *   from global theme overrides and lock secondary weight to ~30% of the unified chip hue.
  * - Provides direct attribute fallbacks for standalone rendering.
  * - Isolates generic 2-path duotone SVGs (`svg:not(.keyline-icon)`) where `path:first-child`

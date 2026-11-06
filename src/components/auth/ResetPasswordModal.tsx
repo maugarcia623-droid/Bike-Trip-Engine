@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../context/LanguageContext';
-import { KeyRound, Eye, EyeOff, Loader2, X, CheckCircle2, AlertCircle } from 'lucide-react';
+import { KeyRound, Eye, EyeOff, Loader2, X, CheckCircle2, AlertCircle } from '@/components/icons';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
   CHIP_TOKENS,

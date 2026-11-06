@@ -9,13 +9,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@keyline-icons/react": "^2.3.0",
+    "@keyline-icons/react": "^2.5.0",
     "@supabase/supabase-js": "^2.118.0",
     "@types/leaflet": "^1.9.22",
     "@vercel/analytics": "^2.0.1",
     "clsx": "^2.1.1",
     "leaflet": "^1.9.4",
-    "lucide-react": "^0.475.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tailwind-merge": "^2.6.0"

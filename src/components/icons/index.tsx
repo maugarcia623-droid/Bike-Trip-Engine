@@ -1,6 +1,5 @@
 import React, { createContext, useContext } from 'react';
 import * as Duotone from '@keyline-icons/react/duotone';
-import * as TwoTone from '@keyline-icons/react/two-tone';
 
 export interface IconContextValue {
   weight?: string;
@@ -29,13 +28,13 @@ function createKeylineIcon(
     primaryColor,
     secondaryColor,
     style,
-    weight, // handled / swallowed for Phosphor weight compatibility
+    weight, // handled / swallowed for Phosphor/icon compatibility
     ...rest
   }) => {
     const ctx = useContext(IconContext);
     if (!Component) return null;
     const finalSize = size ?? ctx.size ?? 24;
-    const finalPrimary = primaryColor;
+    const finalPrimary = primaryColor ?? ctx.color;
     const finalSecondary = secondaryColor ?? ctx.secondaryColor;
     const combinedStyle: React.CSSProperties = {
       ...style,
@@ -56,40 +55,7 @@ function createKeylineIcon(
   return Icon;
 }
 
-// ── CUSTOM ROUNDED DUOTONE ICONS (DESIGN-GRID COMPLIANT) ──
-const CustomForkKnifeSvg: React.FC<any> = ({ size = 24, className = '', ...props }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    width={size}
-    height={size}
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={2}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-    {...props}
-  >
-    {/* Knife blade tone plate */}
-    <path
-      d="M19 3v8c0 1.5-1 2.5-2.5 2.5H16V3c1.5 0 3 .5 3 0z"
-      fill="currentColor"
-      fillOpacity={0.4}
-      stroke="none"
-    />
-    {/* Fork head tone plate */}
-    <path
-      d="M5 3v5a3 3 0 0 0 6 0V3H5z"
-      fill="currentColor"
-      fillOpacity={0.4}
-      stroke="none"
-    />
-    {/* Outlines and tines */}
-    <path d="M5 3v5a3 3 0 0 0 6 0V3M8 3v5M8 11v10M16 3v13c0 1.5 1 2 2.5 2V3" />
-  </svg>
-);
-
+// ── CUSTOM ROUNDED DUOTONE ICONS (DESIGN-GRID COMPLIANT, 0.4 TONE PLATE) ──
 const CustomAppleSvg: React.FC<any> = ({ size = 24, className = '', ...props }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -113,12 +79,12 @@ const CustomAppleSvg: React.FC<any> = ({ size = 24, className = '', ...props }) 
     />
     {/* Apple outline */}
     <path d="M12 21c-2.5 0-3.5-1-5-1s-3.5 1-5 1c-1.5 0-2-1.5-2-4C0 12.5 2 7 6.5 7c2 0 3 1.5 5.5 1.5s3.5-1.5 5.5-1.5c4.5 0 6.5 5.5 6.5 10 0 2.5-.5 4-2 4-1.5 0-3.5-1-5-1s-2.5 1-5 1z" />
-  {/* Stem and Leaf */}
+    {/* Stem and Leaf */}
     <path d="M12 7V3M12 3c2 0 4 1 5 3" />
   </svg>
 );
 
-const CustomUploadSvg: React.FC<any> = ({ size = 24, className = '', ...props }) => (
+const CustomCemeterySvg: React.FC<any> = ({ size = 24, className = '', ...props }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 24 24"
@@ -133,17 +99,18 @@ const CustomUploadSvg: React.FC<any> = ({ size = 24, className = '', ...props })
     {...props}
   >
     <path
-      d="M4 15v3a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-3H4z"
+      d="M6 20V10a6 6 0 0 1 12 0v10H6z"
       fill="currentColor"
-      fillOpacity={0.32}
+      fillOpacity={0.4}
       stroke="none"
     />
-    <path d="M12 15V4M7.5 8.5 12 4l4.5 4.5" />
-    <path d="M4 15v3a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-3" />
+    <path d="M6 20V10a6 6 0 0 1 12 0v10" />
+    <path d="M3 20h18" />
+    <path d="M12 7v6M9.5 9.5h5" />
   </svg>
 );
 
-const CustomEyeSvg: React.FC<any> = ({ size = 24, className = '', ...props }) => (
+const CustomBaguetteSvg: React.FC<any> = ({ size = 24, className = '', ...props }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 24 24"
@@ -157,19 +124,24 @@ const CustomEyeSvg: React.FC<any> = ({ size = 24, className = '', ...props }) =>
     className={className}
     {...props}
   >
-    <circle cx="12" cy="12" r="3" fill="currentColor" fillOpacity={0.35} stroke="none" />
-    <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" />
-    <circle cx="12" cy="12" r="3" />
+    <path
+      d="M17.5 4.5a3 3 0 0 1 2.8 3.5c-.2.9-.8 1.8-1.5 2.5L6.5 21.5a3 3 0 0 1-4.2-4.2L14.5 5.8c.8-.8 1.9-1.3 3-1.3z"
+      fill="currentColor"
+      fillOpacity={0.4}
+      stroke="none"
+    />
+    <path d="M17.5 4.5a3 3 0 0 1 2.8 3.5c-.2.9-.8 1.8-1.5 2.5L6.5 21.5a3 3 0 0 1-4.2-4.2L14.5 5.8c.8-.8 1.9-1.3 3-1.3z" />
+    <path d="M8 15l2-2M11 12l2-2M14 9l2-2" />
   </svg>
 );
 
-// ── CORE APPLICATION ICONS (KEYLINE ICONS ROUNDED DUOTONE) ──
+// ── CORE APPLICATION ICONS (KEYLINE ICONS ROUNDED DUOTONE ONLY) ──
 
 // Navigation & Actions
 export const Bike = createKeylineIcon(Duotone.Bike, 'Bike');
 export const Bicycle = Bike; // Phosphor alias
 export const Sun = createKeylineIcon(Duotone.Sun, 'Sun');
-export const Moon = createKeylineIcon(TwoTone.Moon, 'Moon');
+export const Moon = createKeylineIcon(Duotone.Moon, 'Moon');
 export const SlidersHorizontal = createKeylineIcon(Duotone.SlidersHorizontal, 'SlidersHorizontal');
 export const Sliders = SlidersHorizontal;
 export const Grid2x2 = createKeylineIcon(Duotone.Grid2x2, 'Grid2x2');
@@ -182,22 +154,26 @@ export const XCircle = CircleX;
 export const Check = createKeylineIcon(Duotone.Check, 'Check');
 export const CircleCheck = createKeylineIcon(Duotone.CircleCheck, 'CircleCheck');
 export const CheckCircle = CircleCheck;
+export const CheckCircle2 = CircleCheck;
 export const SquareCheck = createKeylineIcon(Duotone.SquareCheck, 'SquareCheck');
 export const CheckSquare = SquareCheck;
 export const CircleChevronDown = createKeylineIcon(Duotone.CircleChevronDown, 'CircleChevronDown');
 export const CircleChevronUp = createKeylineIcon(Duotone.CircleChevronUp, 'CircleChevronUp');
+export const CircleChevronRight = createKeylineIcon(Duotone.CircleChevronRight, 'CircleChevronRight');
 export const CaretDown = CircleChevronDown;
 export const CaretUp = CircleChevronUp;
 export const ChevronDown = CircleChevronDown;
 export const ChevronUp = CircleChevronUp;
+export const ChevronRight = createKeylineIcon(Duotone.ChevronRight, 'ChevronRight');
 export const ArrowLeft = createKeylineIcon(Duotone.ArrowLeft, 'ArrowLeft');
 export const ArrowRight = createKeylineIcon(Duotone.ArrowRight, 'ArrowRight');
 export const ArrowUp = createKeylineIcon(Duotone.ArrowUp, 'ArrowUp');
 export const ArrowDown = createKeylineIcon(Duotone.ArrowDown, 'ArrowDown');
 export const ArrowUpRight = createKeylineIcon(Duotone.ArrowUpRight, 'ArrowUpRight');
-export const RotateCcw = createKeylineIcon(TwoTone.RotateCcw, 'RotateCcw');
+export const RotateCcw = createKeylineIcon(Duotone.RotateCcw, 'RotateCcw');
 export const ArrowCounterClockwise = RotateCcw;
 export const RefreshCcw = createKeylineIcon(Duotone.RefreshCcw, 'RefreshCcw');
+export const RefreshCw = createKeylineIcon(Duotone.RefreshCw, 'RefreshCw');
 export const ArrowsClockwise = RefreshCcw;
 export const ArrowRightLeft = createKeylineIcon(Duotone.ArrowRightLeft, 'ArrowRightLeft');
 export const ArrowsLeftRight = ArrowRightLeft;
@@ -211,12 +187,25 @@ export const PencilSimple = Pen;
 export const Save = createKeylineIcon(Duotone.Save, 'Save');
 export const FloppyDisk = Save;
 export const LoaderCircle = createKeylineIcon(Duotone.LoaderCircle, 'LoaderCircle');
+export const Loader2 = LoaderCircle;
+export const Loader = LoaderCircle;
 export const SpinnerGap = LoaderCircle;
 export const Info = createKeylineIcon(Duotone.Info, 'Info');
 export const BadgeInfo = createKeylineIcon(Duotone.BadgeInfo, 'BadgeInfo');
+export const Download = createKeylineIcon(Duotone.Download, 'Download');
+export const Layers = createKeylineIcon(Duotone.Layers, 'Layers');
+export const FileText = createKeylineIcon(Duotone.FileText, 'FileText');
+export const ExternalLink = createKeylineIcon(Duotone.SquareArrowOutUpRight, 'ExternalLink');
+export const SquareArrowOutUpRight = ExternalLink;
+export const Lock = createKeylineIcon(Duotone.Lock, 'Lock');
+export const KeyRound = createKeylineIcon(Duotone.KeyRound, 'KeyRound');
+export const Key = KeyRound;
+export const LogOut = createKeylineIcon(Duotone.LogOut, 'LogOut');
+export const Language = createKeylineIcon(Duotone.Language, 'Language');
+export const Languages = Language;
 
 // Telemetry, Power & Physics
-export const Zap = createKeylineIcon(TwoTone.Zap, 'Zap');
+export const Zap = createKeylineIcon(Duotone.Zap, 'Zap');
 export const Lightning = Zap;
 export const Gauge = createKeylineIcon(Duotone.Gauge, 'Gauge');
 export const Scale = createKeylineIcon(Duotone.Scale, 'Scale');
@@ -226,7 +215,7 @@ export const Flame2 = createKeylineIcon(Duotone.Flame2, 'Flame2');
 export const HeartPulse = createKeylineIcon(Duotone.HeartPulse, 'HeartPulse');
 export const Pulse = HeartPulse;
 export const Heartbeat = HeartPulse;
-export const Shield = createKeylineIcon(TwoTone.Shield, 'Shield');
+export const Shield = createKeylineIcon(Duotone.Shield, 'Shield');
 export const ShieldCheck = createKeylineIcon(Duotone.ShieldCheck, 'ShieldCheck');
 export const ShieldAlert = createKeylineIcon(Duotone.ShieldAlert, 'ShieldAlert');
 export const ShieldWarning = ShieldAlert;
@@ -237,7 +226,7 @@ export const Alarm = AlarmClock;
 
 // Route, Geo & Weather
 export const Wind = createKeylineIcon(Duotone.Wind, 'Wind');
-export const Navigation = createKeylineIcon(TwoTone.Navigation, 'Navigation');
+export const Navigation = createKeylineIcon(Duotone.Navigation, 'Navigation');
 export const NavigationArrow = Navigation;
 export const Compass = createKeylineIcon(Duotone.Compass, 'Compass');
 export const Route = createKeylineIcon(Duotone.Route, 'Route');
@@ -248,14 +237,16 @@ export const Mountain = MountainSnow;
 export const MapPin = createKeylineIcon(Duotone.MapPin, 'MapPin');
 export const Map = createKeylineIcon(Duotone.Map, 'Map');
 export const MapTrifold = Map;
+export const Cloud = createKeylineIcon(Duotone.Cloud, 'Cloud');
 export const Clouds = createKeylineIcon(Duotone.Clouds, 'Clouds');
 export const CloudFog = Clouds;
 export const CloudRain = createKeylineIcon(Duotone.CloudRain, 'CloudRain');
+export const CloudSun = createKeylineIcon(Duotone.CloudSun, 'CloudSun');
 export const Sunrise = createKeylineIcon(Duotone.Sunrise, 'Sunrise');
 export const SunHorizon = Sunrise;
 export const Thermometer = createKeylineIcon(Duotone.Thermometer, 'Thermometer');
 export const ThermometerSimple = Thermometer;
-export const Droplet = createKeylineIcon(TwoTone.Droplet, 'Droplet');
+export const Droplet = createKeylineIcon(Duotone.Droplet, 'Droplet');
 export const Drop = Droplet;
 export const Droplets = createKeylineIcon(Duotone.Droplets, 'Droplets');
 export const Waves = createKeylineIcon(Duotone.Waves, 'Waves');
@@ -264,6 +255,7 @@ export const EyeSlash = EyeOff;
 export const Flashlight = createKeylineIcon(Duotone.Flashlight, 'Flashlight');
 export const CircleAlert = createKeylineIcon(Duotone.CircleAlert, 'CircleAlert');
 export const WarningCircle = CircleAlert;
+export const AlertCircle = CircleAlert;
 export const TriangleAlert = createKeylineIcon(Duotone.TriangleAlert, 'TriangleAlert');
 export const Warning = TriangleAlert;
 
@@ -273,9 +265,9 @@ export const Luggage = createKeylineIcon(Duotone.Luggage, 'Luggage');
 export const Backpack = Luggage;
 export const Package = createKeylineIcon(Duotone.Package, 'Package');
 export const Coffee = createKeylineIcon(Duotone.Coffee, 'Coffee');
-export const ForkKnife = createKeylineIcon(CustomForkKnifeSvg, 'ForkKnife');
-export const Utensils = ForkKnife;
-export const UtensilsCrossed = ForkKnife;
+export const Utensils = createKeylineIcon(Duotone.Utensils, 'Utensils');
+export const ForkKnife = Utensils;
+export const UtensilsCrossed = Utensils;
 export const AppleLogo = createKeylineIcon(CustomAppleSvg, 'AppleLogo');
 export const Apple = AppleLogo;
 export const Bottle = createKeylineIcon(Duotone.Bottle, 'Bottle');
@@ -294,7 +286,7 @@ export const Bank = Banknote;
 export const Landmark = Banknote;
 export const Camera = createKeylineIcon(Duotone.Camera, 'Camera');
 export const Headphones = createKeylineIcon(Duotone.Headphones, 'Headphones');
-export const User = createKeylineIcon(TwoTone.User, 'User');
+export const User = createKeylineIcon(Duotone.User, 'User');
 export const Users = createKeylineIcon(Duotone.Users, 'Users');
 export const FaceSmile = createKeylineIcon(Duotone.FaceSmile, 'FaceSmile');
 export const Smiley = FaceSmile;
@@ -307,7 +299,7 @@ export const Flag = createKeylineIcon(Duotone.Flag, 'Flag');
 export const FinishFlag = Flag;
 export const BatteryCharging = createKeylineIcon(Duotone.BatteryCharging, 'BatteryCharging');
 export const Leaf = createKeylineIcon(Duotone.Leaf, 'Leaf');
-export const Feather = createKeylineIcon(TwoTone.Feather, 'Feather');
+export const Feather = createKeylineIcon(Duotone.Feather, 'Feather');
 export const Rocket = createKeylineIcon(Duotone.Rocket, 'Rocket');
 export const RocketLaunch = Rocket;
 export const PencilRuler = createKeylineIcon(Duotone.PencilRuler, 'PencilRuler');
@@ -318,7 +310,7 @@ export const Wrench = createKeylineIcon(Duotone.Wrench, 'Wrench');
 export const Calendar = createKeylineIcon(Duotone.Calendar, 'Calendar');
 export const HomeSmile = createKeylineIcon(Duotone.HomeSmile, 'HomeSmile');
 export const Home = createKeylineIcon(Duotone.Home, 'Home');
-export const Upload = createKeylineIcon(CustomUploadSvg, 'Upload');
+export const Upload = createKeylineIcon(Duotone.Upload, 'Upload');
 export const FileArrowUp = Upload;
 export const Eye = createKeylineIcon(Duotone.Eye, 'Eye');
 
@@ -331,7 +323,6 @@ export const CircleZap = createKeylineIcon(Duotone.CircleZap, 'CircleZap');
 export const HandClosed = createKeylineIcon(Duotone.HandClosed, 'HandClosed');
 export const CircleArrowUpRight = createKeylineIcon(Duotone.CircleArrowUpRight, 'CircleArrowUpRight');
 export const Settings = createKeylineIcon(Duotone.Settings, 'Settings');
-export const CloudSun = createKeylineIcon(Duotone.CloudSun, 'CloudSun');
 export const Bug = createKeylineIcon(Duotone.Bug, 'Bug');
 export const Calculator = createKeylineIcon(Duotone.Calculator, 'Calculator');
 export const Lightbulb = createKeylineIcon(Duotone.Lightbulb, 'Lightbulb');
@@ -341,6 +332,14 @@ export const Mail = createKeylineIcon(Duotone.Mail, 'Mail');
 export const Send = createKeylineIcon(Duotone.Send, 'Send');
 export const BookOpen2 = createKeylineIcon(Duotone.BookOpen2, 'BookOpen2');
 export const BookOpen = BookOpen2;
+
+export const Cemetery = createKeylineIcon(CustomCemeterySvg, 'Cemetery');
+export const Graveyard = Cemetery;
+export const Radar = createKeylineIcon(Duotone.Radar, 'Radar');
+export const Baguette = createKeylineIcon(CustomBaguetteSvg, 'Baguette');
+export const Bakery = Baguette;
+export const Star = createKeylineIcon(Duotone.Star, 'Star');
+export const Bookmark = Star;
 
 export default {
   Bike,
@@ -368,6 +367,7 @@ export default {
   BookOpen,
   CircleChevronDown,
   CircleChevronUp,
+  CircleChevronRight,
   Flag,
   FinishFlag,
   Sun,
@@ -384,10 +384,14 @@ export default {
   Check,
   CircleCheck,
   CheckCircle,
+  CheckCircle2,
   SquareCheck,
   CheckSquare,
   CaretDown,
   CaretUp,
+  ChevronDown,
+  ChevronUp,
+  ChevronRight,
   ArrowLeft,
   ArrowRight,
   ArrowUp,
@@ -396,6 +400,7 @@ export default {
   RotateCcw,
   ArrowCounterClockwise,
   RefreshCcw,
+  RefreshCw,
   ArrowsClockwise,
   ArrowRightLeft,
   ArrowsLeftRight,
@@ -409,9 +414,22 @@ export default {
   Save,
   FloppyDisk,
   LoaderCircle,
+  Loader2,
+  Loader,
   SpinnerGap,
   Info,
   BadgeInfo,
+  Download,
+  Layers,
+  FileText,
+  ExternalLink,
+  SquareArrowOutUpRight,
+  Lock,
+  KeyRound,
+  Key,
+  LogOut,
+  Language,
+  Languages,
   Zap,
   Lightning,
   Gauge,
@@ -441,6 +459,7 @@ export default {
   MapPin,
   Map,
   MapTrifold,
+  Cloud,
   Clouds,
   CloudFog,
   CloudRain,
@@ -457,6 +476,7 @@ export default {
   Flashlight,
   CircleAlert,
   WarningCircle,
+  AlertCircle,
   TriangleAlert,
   Warning,
   Briefcase,
@@ -508,4 +528,11 @@ export default {
   Upload,
   FileArrowUp,
   Eye,
+  Cemetery,
+  Graveyard,
+  Radar,
+  Baguette,
+  Bakery,
+  Star,
+  Bookmark,
 };

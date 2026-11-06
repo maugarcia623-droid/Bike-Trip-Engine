@@ -7,6 +7,7 @@ import { calculateReverseTimeline } from '../../utils/timeline';
 import { getChipsExtraBufferMinutes } from '../../utils/archetypeChips';
 import { getRealFoodNutritionPlan, addMinutesToTime } from '../../utils/nutrition';
 import { getExpeditionTotals } from '../../utils/stageManager';
+import { calculateAmenityEta } from '../../services/overpassCorridor';
 import {
   useTranslation,
   getLocalizedTripMeta,
@@ -251,6 +252,65 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
             ))}
           </tbody>
         </table>
+
+        {/* Verified Corridor Resupply Stops (Pinned Amenities) */}
+        {trip.pinnedAmenities && trip.pinnedAmenities.length > 0 && (
+          <div className="mt-4 pt-3 border-t border-dashed border-gray-300">
+            <div className="flex justify-between items-baseline mb-1.5">
+              <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-gray-800">
+                {t('printResupplySection')}
+              </span>
+              <span className="text-[9px] font-mono text-gray-500">
+                {trip.pinnedAmenities.length} {isFr ? 'arrêts vérifiés' : 'verified stops'}
+              </span>
+            </div>
+            <table className="w-full text-xs font-mono border-collapse border border-gray-300 tnum">
+              <thead>
+                <tr className="bg-gray-100 text-[10px] text-gray-700 font-bold border-b border-gray-300">
+                  <th className="border border-gray-300 px-2 py-1 text-left w-14">{t('printColKm')}</th>
+                  <th className="border border-gray-300 px-2 py-1 text-left w-16">{t('printColEta')}</th>
+                  <th className="border border-gray-300 px-2 py-1 text-left">{t('printColStop')}</th>
+                  <th className="border border-gray-300 px-2 py-1 text-left w-28">{t('printColDetour')}</th>
+                  <th className="border border-gray-300 px-2 py-1 text-center w-12">{t('printColVerified')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trip.pinnedAmenities.map((amenity) => {
+                  const eta = calculateAmenityEta(
+                    timelineResult.hardDepartureTime,
+                    amenity.routeKm,
+                    physicsResult.effectiveSpeedKmH
+                  );
+                  const catLabel =
+                    amenity.category === 'water'
+                      ? (isFr ? "Point d'eau" : 'Water')
+                      : amenity.category === 'cemetery'
+                      ? (isFr ? 'Cimetière' : 'Cemetery')
+                      : amenity.category === 'food'
+                      ? (isFr ? 'Alimentation' : 'Food')
+                      : (isFr ? 'Atelier vélo' : 'Repair');
+
+                  return (
+                    <tr key={amenity.id} className="border-b border-gray-200">
+                      <td className="border border-gray-200 px-2 py-1 font-bold text-[10px]">KM {amenity.routeKm}</td>
+                      <td className="border border-gray-200 px-2 py-1 text-[10px] font-semibold">{eta}</td>
+                      <td className="border border-gray-200 px-2 py-1 text-[10px]">
+                        <strong>[{catLabel}]</strong> {amenity.name}
+                        {amenity.openingHours && <span className="text-gray-500 text-[9px] ml-1">({amenity.openingHours})</span>}
+                      </td>
+                      <td className="border border-gray-200 px-2 py-1 text-[10px] text-gray-600">
+                        {amenity.detourMeters < 75 ? (isFr ? 'Sur la trace' : 'On route') : `+${amenity.detourMeters}m`}
+                      </td>
+                      <td className="border border-gray-200 px-2 py-1 text-center">
+                        <span className="inline-block w-3.5 h-3.5 border border-black" />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Real-Food Nutrition Protocol */}

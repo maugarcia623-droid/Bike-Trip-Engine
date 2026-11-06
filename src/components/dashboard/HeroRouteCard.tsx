@@ -4,7 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import {
   Clock,
   Path,
-  Map,
+  Map as MapIcon,
   Flame,
   Flame2,
   Mountains,
@@ -22,8 +22,11 @@ import {
   X,
   Check,
   BadgeInfo,
+  Radar,
 } from '@/components/icons';
 import { TripProfile, PhysicsCalculationResult } from '../../types/trip';
+import { StageAmenity } from '../../types/amenities';
+import { ResupplyRadarOverlay } from './ResupplyRadarOverlay';
 import { RiderBikeSpecs } from '../../types/specs';
 import { getActiveBike, loadRiderBikeSpecs } from '../../utils/specsStorage';
 import { synthesizeRouteElevationProfile } from '../../utils/gpxParser';
@@ -60,6 +63,11 @@ interface HeroRouteCardProps {
   onUploadGpxFile?: (file: File) => void;
   onShareReceipt?: () => void;
   onOpenFeedback?: () => void;
+  amenities?: StageAmenity[];
+  selectedAmenity?: StageAmenity | null;
+  onSelectAmenity?: (amenity: StageAmenity) => void;
+  onTogglePinAmenity?: (amenity: StageAmenity) => void;
+  onAmenitiesLoaded?: (amenities: StageAmenity[]) => void;
 }
 
 type ActiveHeroPopover = 'bike' | 'target' | 'route' | 'pace' | 'elevation' | null;
@@ -82,7 +90,7 @@ function parseMinutesHHMM(timeStr: string): number {
   return (parseInt(hRaw, 10) || 0) * 60 + (parseInt(mRaw, 10) || 0);
 }
 
-const DEFAULT_CORRIDOR: [number, number][] = [
+export const DEFAULT_CORRIDOR: [number, number][] = [
   [47.2184, -1.5536],
   [47.2050, -1.6000],
   [47.2350, -1.7200],
@@ -134,6 +142,11 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
   onUploadGpxFile,
   onShareReceipt,
   onOpenFeedback,
+  amenities,
+  selectedAmenity,
+  onSelectAmenity,
+  onTogglePinAmenity,
+  onAmenitiesLoaded,
 }) => {
   const { lang, t } = useTranslation();
   const isFr = lang === 'fr';
@@ -145,6 +158,8 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
   const mapInstanceRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const routeLayersGroupRef = useRef<L.FeatureGroup | null>(null);
+  const amenityLayersGroupRef = useRef<L.FeatureGroup | null>(null);
+  const amenityMarkersMapRef = useRef<Map<string, L.Marker>>(new Map());
   const vectorLayersRef = useRef<{
     casingLine?: L.Polyline;
     routeLine?: L.Polyline;
@@ -155,6 +170,28 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
   }>({});
 
   const [activePopover, setActivePopover] = useState<ActiveHeroPopover>(null);
+  const [isRadarOpen, setIsRadarOpen] = useState<boolean>(false);
+  const [showMapDots, setShowMapDots] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('cadence_show_map_amenity_dots');
+      return saved !== 'false';
+    } catch {
+      return true;
+    }
+  });
+
+  const handleToggleShowMapDots = () => {
+    setShowMapDots((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('cadence_show_map_amenity_dots', String(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
+
   const [isElevationHovered, setIsElevationHovered] = useState<boolean>(false);
   const [hoveredElevCol, setHoveredElevCol] = useState<number | null>(null);
 
@@ -753,6 +790,9 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
     const vectorGroup = L.featureGroup().addTo(map);
     routeLayersGroupRef.current = vectorGroup;
 
+    const amenityGroup = L.featureGroup().addTo(map);
+    amenityLayersGroupRef.current = amenityGroup;
+
     updateVectorLayers(isDark, rMode, rCenter, aCoords, rMeters);
 
     const resizeObserver = new ResizeObserver(() => {
@@ -778,6 +818,8 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
       mapInstanceRef.current = null;
       tileLayerRef.current = null;
       routeLayersGroupRef.current = null;
+      amenityLayersGroupRef.current = null;
+      amenityMarkersMapRef.current.clear();
       vectorLayersRef.current = {};
     };
   }, []);
@@ -829,6 +871,126 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
       });
     }
   }, [isDarkMode]);
+
+  // 4. Update amenity markers when amenities or pinned stops change
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    const group = amenityLayersGroupRef.current;
+    if (!map || !group) return;
+
+    group.clearLayers();
+    amenityMarkersMapRef.current.clear();
+
+    if (!showMapDots) {
+      return;
+    }
+
+    const allAmenities = [...(amenities || [])];
+    if (trip.pinnedAmenities) {
+      for (const pinned of trip.pinnedAmenities) {
+        if (!allAmenities.some((a) => a.id === pinned.id)) {
+          allAmenities.push(pinned);
+        }
+      }
+    }
+
+    if (allAmenities.length === 0) return;
+
+    const pinnedIds = new Set((trip.pinnedAmenities || []).map((p) => p.id));
+
+    allAmenities.forEach((amenity) => {
+      const isPinned = pinnedIds.has(amenity.id) || Boolean(amenity.isPinned);
+
+      const symbol =
+        amenity.category === 'water'
+          ? '💧'
+          : amenity.category === 'cemetery'
+          ? '🪦'
+          : amenity.category === 'food'
+          ? '🥖'
+          : '🔧';
+
+      const catBg =
+        amenity.category === 'water'
+          ? '#0284c7'
+          : amenity.category === 'cemetery'
+          ? '#7c3aed'
+          : amenity.category === 'food'
+          ? '#d97706'
+          : '#0d9488';
+
+      const catLabel =
+        amenity.category === 'water'
+          ? (isFr ? 'Point d\'eau' : 'Water Tap')
+          : amenity.category === 'cemetery'
+          ? (isFr ? 'Cimetière' : 'Cemetery')
+          : amenity.category === 'food'
+          ? (isFr ? 'Ravitaillement' : 'Food')
+          : (isFr ? 'Atelier vélo' : 'Bike Repair');
+
+      const html = isPinned
+        ? `<div style="position: relative; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+            <div style="position: absolute; inset: -4px; border-radius: 9999px; background: rgba(242, 244, 85, 0.45); box-shadow: 0 0 10px rgba(242, 244, 85, 0.85); animation: pulse 2s infinite;"></div>
+            <div style="background-color: #F2F455; width: 26px; height: 26px; border-radius: 9999px; border: 2.5px solid #111111; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: bold; box-shadow: 0 2px 6px rgba(0,0,0,0.35);">
+              ${symbol}
+            </div>
+          </div>`
+        : `<div style="width: 20px; height: 20px; border-radius: 9999px; background-color: ${catBg}; border: 2px solid #ffffff; display: flex; align-items: center; justify-content: center; font-size: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.25); cursor: pointer;">
+            ${symbol}
+          </div>`;
+
+      const icon = L.divIcon({
+        className: `custom-amenity-${amenity.category}-${isPinned ? 'pinned' : 'unpinned'}`,
+        html,
+        iconSize: isPinned ? [28, 28] : [20, 20],
+        iconAnchor: isPinned ? [14, 14] : [10, 10],
+      });
+
+      const marker = L.marker([amenity.lat, amenity.lon], { icon });
+
+      const popupHtml = `
+        <div style="padding: 4px; font-family: ui-sans-serif, system-ui, sans-serif; min-width: 160px; line-height: 1.3;">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 2px;">
+            <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: ${catBg}; letter-spacing: 0.5px;">
+              ${catLabel}
+            </span>
+            <span style="font-size: 10px; font-weight: 700; background: #eee; color: #111; padding: 1px 6px; border-radius: 9999px; font-variant-numeric: tabular-nums;">
+              KM ${amenity.routeKm}
+            </span>
+          </div>
+          <div style="font-weight: 700; font-size: 12px; color: #111; margin-bottom: 3px;">
+            ${amenity.name}
+          </div>
+          <div style="font-size: 10px; color: #666; display: flex; align-items: center; justify-content: space-between;">
+            <span>${amenity.detourMeters < 75 ? (isFr ? 'Sur la trace' : 'On route') : `+${amenity.detourMeters}m detour`}</span>
+            ${isPinned ? `<span style="font-weight: 800; color: #4d5200; background: #f2f455; padding: 1px 4px; border-radius: 4px;">${isFr ? 'Épinglé' : 'Pinned'}</span>` : ''}
+          </div>
+        </div>
+      `;
+
+      marker.bindPopup(popupHtml, {
+        closeButton: false,
+        className: 'cadence-amenity-popup',
+      });
+
+      marker.on('click', () => {
+        onSelectAmenity?.(amenity);
+      });
+
+      group.addLayer(marker);
+      amenityMarkersMapRef.current.set(amenity.id, marker);
+    });
+  }, [amenities, trip.pinnedAmenities, isFr, isDarkMode, showMapDots]);
+
+  // 5. Center map and open popup when selectedAmenity changes
+  useEffect(() => {
+    if (!selectedAmenity || !mapInstanceRef.current) return;
+    const marker = amenityMarkersMapRef.current.get(selectedAmenity.id);
+    mapInstanceRef.current.panTo([selectedAmenity.lat, selectedAmenity.lon], { animate: true });
+    if (marker) {
+      marker.openPopup();
+    }
+  }, [selectedAmenity]);
 
   const currentWatts = Math.round(
     trip.route.pacingMode === 'effort'
@@ -934,91 +1096,118 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
             </span>
           )}
 
-          {effectiveSpecs && activeBike ? (
-            <div className="relative shrink-0 pointer-events-auto">
-              <button
-                type="button"
-                onClick={() => setActivePopover((prev) => (prev === 'bike' ? null : 'bike'))}
-                aria-expanded={activePopover === 'bike'}
-                aria-label={t('heroBikeSwitchAria')}
-                title={t('heroBikeSwitchAria')}
-                className={`inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-1 rounded-full text-[11px] font-semibold bg-card/90 hover:bg-card text-ink backdrop-blur-md border border-ink/10 dark:border-white/15 hover:border-ink/25 dark:hover:border-white/30 transition-all cursor-pointer shadow-xs ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
-              >
-                <Bicycle className={`w-3.5 h-3.5 shrink-0 ${CHIP_TOKENS['yellow-vest'].primary}`} />
-                <span className="max-w-[115px] sm:max-w-[180px] truncate">{activeBike.name}</span>
-                <span className="hidden min-[420px]:inline font-mono text-[10px] text-ink-muted tnum">
-                  · {activeBike.weightKg}kg · {activeBike.isTubeless ? 'TL' : 'Tube'}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 pointer-events-auto">
+            {/* 1:1 Resupply Radar button */}
+            <button
+              type="button"
+              onClick={() => setIsRadarOpen((prev) => !prev)}
+              aria-expanded={isRadarOpen}
+              aria-label={t('resupplyRadarTitle')}
+              title={`${t('resupplyRadarTitle')}${
+                trip.pinnedAmenities && trip.pinnedAmenities.length > 0
+                  ? ` (${trip.pinnedAmenities.length} ${t('pinnedStop')})`
+                  : ''
+              }`}
+              className={`relative w-8 h-8 sm:w-8.5 sm:h-8.5 aspect-square rounded-full flex items-center justify-center transition-all cursor-pointer shadow-xs select-none active:scale-95 ${
+                isRadarOpen || (trip.pinnedAmenities && trip.pinnedAmenities.length > 0)
+                  ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
+                  : `bg-card/90 hover:bg-card text-ink backdrop-blur-md border border-ink/10 dark:border-white/15 hover:border-ink/25 dark:hover:border-white/30 ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
+              } ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+            >
+              <Radar className="w-4 h-4 text-current" />
+              {trip.pinnedAmenities && trip.pinnedAmenities.length > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-volt text-[#111111] font-rounded font-extrabold text-[10px] leading-none flex items-center justify-center shadow-xs ring-1 ring-card tnum">
+                  {trip.pinnedAmenities.length}
                 </span>
-                <CaretDown
-                  className={`w-3 h-3 shrink-0 text-ink-muted transition-transform duration-150 ${
-                    activePopover === 'bike' ? 'rotate-180' : ''
-                  }`}
-                />
-              </button>
-
-              {activePopover === 'bike' && (
-                <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 z-40 rounded-pod p-3 bg-card/95 dark:bg-[#16161A]/95 backdrop-blur-xl border border-ink/10 dark:border-white/15 shadow-2xl animate-apple-popover">
-                  <div className="flex items-center justify-between gap-2 mb-2 px-0.5">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">
-                      {t('bikeGarageHeading', { count: effectiveSpecs.bikes.length })}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setActivePopover(null)}
-                      aria-label={t('closeModalAria')}
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-pod cursor-pointer"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    {effectiveSpecs.bikes.map((bike) => {
-                      const selected = bike.id === activeBike.id;
-                      return (
-                        <button
-                          key={bike.id}
-                          type="button"
-                          onClick={() => onSelectBike?.(bike.id)}
-                          className={`w-full rounded-full px-4 py-2 text-left flex items-center justify-between gap-2 transition-all cursor-pointer ${
-                            selected
-                              ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
-                              : `bg-pod/80 hover:bg-chip text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
-                          }`}
-                        >
-                          <div className="min-w-0">
-                            <div className="text-xs font-semibold truncate">{bike.name}</div>
-                            <div className="text-[10px] font-mono tnum opacity-80 mt-0.5">
-                              {bike.weightKg}kg · {bike.isTubeless ? 'Tubeless' : 'Tube'} · CdA {bike.cda}
-                            </div>
-                          </div>
-                          {selected && <Check className="w-3.5 h-3.5 shrink-0 text-current" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {onOpenSpecs && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActivePopover(null);
-                        onOpenSpecs();
-                      }}
-                      className={`mt-2.5 w-full h-8 px-3 rounded-full bg-pod hover:bg-chip flex items-center justify-center gap-1.5 text-xs font-semibold text-ink-secondary hover:text-ink transition-colors cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
-                    >
-                      <SlidersHorizontal className="w-3.5 h-3.5 text-current" />
-                      <span>{t('heroManageGarageBtn')}</span>
-                    </button>
-                  )}
-                </div>
               )}
-            </div>
-          ) : (
-            <span className="inline-flex items-center shrink-0 whitespace-nowrap px-2.5 py-1 rounded-full text-[10px] font-mono uppercase font-bold tracking-wider bg-card/85 text-ink-muted backdrop-blur-md border border-ink/5 dark:border-white/10 pointer-events-auto">
-              {t('activeTrackBadge') || 'ACTIVE TRACK'}
-            </span>
-          )}
+            </button>
+
+            {effectiveSpecs && activeBike ? (
+              <div className="relative shrink-0 pointer-events-auto">
+                <button
+                  type="button"
+                  onClick={() => setActivePopover((prev) => (prev === 'bike' ? null : 'bike'))}
+                  aria-expanded={activePopover === 'bike'}
+                  aria-label={t('heroBikeSwitchAria')}
+                  title={t('heroBikeSwitchAria')}
+                  className={`inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-1 rounded-full text-[11px] font-semibold bg-card/90 hover:bg-card text-ink backdrop-blur-md border border-ink/10 dark:border-white/15 hover:border-ink/25 dark:hover:border-white/30 transition-all cursor-pointer shadow-xs ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                >
+                  <Bicycle className={`w-3.5 h-3.5 shrink-0 ${CHIP_TOKENS['yellow-vest'].primary}`} />
+                  <span className="max-w-[115px] sm:max-w-[180px] truncate">{activeBike.name}</span>
+                  <span className="hidden min-[420px]:inline font-mono text-[10px] text-ink-muted tnum">
+                    · {activeBike.weightKg}kg · {activeBike.isTubeless ? 'TL' : 'Tube'}
+                  </span>
+                  <CaretDown
+                    className={`w-3 h-3 shrink-0 text-ink-muted transition-transform duration-150 ${
+                      activePopover === 'bike' ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
+
+                {activePopover === 'bike' && (
+                  <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 z-40 rounded-pod p-3 bg-card/95 dark:bg-[#16161A]/95 backdrop-blur-xl border border-ink/10 dark:border-white/15 shadow-2xl animate-apple-popover">
+                    <div className="flex items-center justify-between gap-2 mb-2 px-0.5">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">
+                        {t('bikeGarageHeading', { count: effectiveSpecs.bikes.length })}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setActivePopover(null)}
+                        aria-label={t('closeModalAria')}
+                        className="w-6 h-6 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-pod cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      {effectiveSpecs.bikes.map((bike) => {
+                        const selected = bike.id === activeBike.id;
+                        return (
+                          <button
+                            key={bike.id}
+                            type="button"
+                            onClick={() => onSelectBike?.(bike.id)}
+                            className={`w-full rounded-full px-4 py-2 text-left flex items-center justify-between gap-2 transition-all cursor-pointer ${
+                              selected
+                                ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
+                                : `bg-pod/80 hover:bg-chip text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
+                            }`}
+                          >
+                            <div className="min-w-0">
+                              <div className="text-xs font-semibold truncate">{bike.name}</div>
+                              <div className="text-[10px] font-mono tnum opacity-80 mt-0.5">
+                                {bike.weightKg}kg · {bike.isTubeless ? 'Tubeless' : 'Tube'} · CdA {bike.cda}
+                              </div>
+                            </div>
+                            {selected && <Check className="w-3.5 h-3.5 shrink-0 text-current" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {onOpenSpecs && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActivePopover(null);
+                          onOpenSpecs();
+                        }}
+                        className={`mt-2.5 w-full h-8 px-3 rounded-full bg-pod hover:bg-chip flex items-center justify-center gap-1.5 text-xs font-semibold text-ink-secondary hover:text-ink transition-colors cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                      >
+                        <SlidersHorizontal className="w-3.5 h-3.5 text-current" />
+                        <span>{t('heroManageGarageBtn')}</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <span className="inline-flex items-center shrink-0 whitespace-nowrap px-2.5 py-1 rounded-full text-[10px] font-mono uppercase font-bold tracking-wider bg-card/85 text-ink-muted backdrop-blur-md border border-ink/5 dark:border-white/10 pointer-events-auto">
+                {t('activeTrackBadge') || 'ACTIVE TRACK'}
+              </span>
+            )}
+          </div>
         </div>
 
         <div ref={lowerContentRef} className="mt-auto flex flex-col gap-3.5 sm:gap-4 pointer-events-auto">
@@ -1183,7 +1372,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                 <div className="absolute left-0 bottom-full mb-2.5 w-[min(19.5rem,calc(100vw-3rem))] z-40 rounded-pod p-3.5 bg-card/95 dark:bg-[#16161A]/95 backdrop-blur-xl border border-ink/10 dark:border-white/15 shadow-2xl animate-apple-popover">
                   <div className="flex items-center justify-between gap-2 mb-2.5">
                     <span className="text-xs font-bold text-ink flex items-center gap-1.5">
-                      <Map className={`w-3.5 h-3.5 shrink-0 text-beacon-red dark:text-rose-400 dual-tone-rose ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
+                      <MapIcon className={`w-3.5 h-3.5 shrink-0 text-beacon-red dark:text-rose-400 dual-tone-rose ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
                       {t('heroQuickRouteTitle')}
                     </span>
                     <button
@@ -1326,7 +1515,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                         }`}
                       />
                     )}
-                    <Map className={`w-4 h-4 shrink-0 text-beacon-red dark:text-rose-400 dual-tone-rose ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
+                    <MapIcon className={`w-4 h-4 shrink-0 text-beacon-red dark:text-rose-400 dual-tone-rose ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
                   </span>
                 </div>
                 <div className="mt-auto pt-2 flex flex-col xl:flex-row items-start xl:items-baseline justify-between gap-1 min-w-0">
@@ -1766,6 +1955,21 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* ── Corridor Resupply Radar Overlay Menu (Accessible via 1:1 button) ── */}
+      <ResupplyRadarOverlay
+        isOpen={isRadarOpen}
+        onClose={() => setIsRadarOpen(false)}
+        trip={trip}
+        hardDepartureTime={timelineResult.hardDepartureTime}
+        effectiveSpeedKmH={physicsResult.effectiveSpeedKmH}
+        onUpdateTrip={onUpdateTrip || (() => {})}
+        selectedAmenity={selectedAmenity}
+        onSelectAmenity={onSelectAmenity}
+        onAmenitiesLoaded={onAmenitiesLoaded}
+        showMapDots={showMapDots}
+        onToggleShowMapDots={handleToggleShowMapDots}
+      />
     </div>
   );
 };
