@@ -247,7 +247,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
       {/* ── "Your upcoming trip" Card (Collapsible, Day Countdown, Pre-Flight Telemetry) ── */}
       {nextUpcomingTrip && (
-        <div className="animate-apple-in stagger-2">
+        <div className="animate-apple-in stagger-2 relative z-20">
           <UpcomingTripCard
             trip={nextUpcomingTrip}
             allTrips={trips}

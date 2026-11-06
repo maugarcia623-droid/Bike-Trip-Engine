@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import {
   Clock,
   ArrowUpRight,
@@ -119,6 +119,34 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
     }
   });
   const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
+  const switcherRef = useRef<HTMLDivElement>(null);
+
+  // Close switcher on click outside or Escape
+  useEffect(() => {
+    if (!isSwitcherOpen) return;
+
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      if (switcherRef.current && !switcherRef.current.contains(e.target as Node)) {
+        setIsSwitcherOpen(false);
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsSwitcherOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isSwitcherOpen]);
 
   const toggleExpanded = () => {
     const nextState = !isExpanded;
@@ -202,7 +230,11 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
       : 'purple';
 
   return (
-    <div className="rounded-card bg-card p-4 sm:p-5 shadow-xs border border-ink/5 dark:border-white/5 transition-all">
+    <div
+      className={`rounded-card bg-card p-4 sm:p-5 shadow-xs border border-ink/5 dark:border-white/5 transition-all ${
+        isSwitcherOpen ? 'relative z-30' : 'relative z-10'
+      }`}
+    >
       {/* ── Top Header: Day Countdown, Next Trip Title, Controls & Collapse Button ── */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="space-y-2 flex-1 min-w-0">
@@ -247,67 +279,80 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
 
             {/* Profile Switcher dropdown if multiple profiles exist */}
             {allTrips.length > 1 && (
-              <div className="relative inline-block text-left">
+              <div
+                ref={switcherRef}
+                className={`relative inline-block text-left ${isSwitcherOpen ? 'z-40' : ''}`}
+              >
                 <button
                   type="button"
                   onClick={() => setIsSwitcherOpen(!isSwitcherOpen)}
+                  aria-expanded={isSwitcherOpen}
+                  aria-haspopup="true"
                   className={`inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-xs font-semibold ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} hover:brightness-95 dark:hover:brightness-110 transition-all cursor-pointer`}
                   title={t('switchActiveProfile')}
                 >
                   <span>{t('switchActiveProfile')}</span>
-                  <CaretDown className={`w-3.5 h-3.5 transition-transform ${isSwitcherOpen ? 'rotate-180' : ''}`} />
+                  <CaretDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isSwitcherOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {isSwitcherOpen && (
-                  <div className="absolute left-0 mt-2 w-72 rounded-2xl bg-card border border-ink/15 dark:border-white/15 shadow-xl py-1.5 z-30 animate-apple-in">
-                    <div className="px-3 py-1 text-[11px] font-semibold text-ink-muted uppercase tracking-wider border-b border-ink/5 dark:border-white/5">
-                      {t('switchActiveProfile')}
-                    </div>
-                    {allTrips.map((p) => {
-                      const pMeta = getLocalizedTripMeta(p, lang);
-                      const isCurrent = p.id === trip.id;
-                      const pDate = getTripDateDetails(p, lang);
-                      const pPhysics = calculatePhysics(p.physics, p.route, p.weather, lang, specs?.ftpWatts);
-                      const pIsGo = pPhysics.goStatus === 'GO';
-                      const pIsCaution = pPhysics.goStatus === 'CAUTION';
-                      return (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={() => {
-                            onSelectTrip(p.id);
-                            setIsSwitcherOpen(false);
-                          }}
-                          title={`${pMeta.name} — ${pPhysics.goStatus}: ${pPhysics.goStatusReason}`}
-                          className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between gap-2 hover:bg-pod transition-colors cursor-pointer ${
-                            isCurrent ? 'font-semibold text-ink bg-pod/60' : 'text-ink-secondary'
-                          }`}
-                        >
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5 font-medium min-w-0">
-                              <span
-                                className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                                  pIsGo
-                                    ? CHIP_TOKENS.emerald.dot
-                                    : pIsCaution
-                                    ? CHIP_TOKENS.amber.dot
-                                    : CHIP_TOKENS.rose.dot
-                                }`}
-                              />
-                              <span className="break-words leading-tight">{pMeta.name}</span>
+                  <>
+                    {/* Transparent Click-Away Overlay to dismiss dropdown */}
+                    <div
+                      className="fixed inset-0 z-30 cursor-default"
+                      aria-hidden="true"
+                      onClick={() => setIsSwitcherOpen(false)}
+                    />
+                    <div className="absolute left-0 mt-2 w-72 max-w-[calc(100vw-2.5rem)] rounded-2xl bg-card border border-ink/15 dark:border-white/15 shadow-xl py-1.5 z-40 animate-apple-in">
+                      <div className="px-3 py-1 text-[11px] font-semibold text-ink-muted uppercase tracking-wider border-b border-ink/5 dark:border-white/5">
+                        {t('switchActiveProfile')}
+                      </div>
+                      {allTrips.map((p) => {
+                        const pMeta = getLocalizedTripMeta(p, lang);
+                        const isCurrent = p.id === trip.id;
+                        const pDate = getTripDateDetails(p, lang);
+                        const pPhysics = calculatePhysics(p.physics, p.route, p.weather, lang, specs?.ftpWatts);
+                        const pIsGo = pPhysics.goStatus === 'GO';
+                        const pIsCaution = pPhysics.goStatus === 'CAUTION';
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => {
+                              onSelectTrip(p.id);
+                              setIsSwitcherOpen(false);
+                            }}
+                            title={`${pMeta.name} — ${pPhysics.goStatus}: ${pPhysics.goStatusReason}`}
+                            className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between gap-2 hover:bg-pod transition-colors cursor-pointer ${
+                              isCurrent ? 'font-semibold text-ink bg-pod/60' : 'text-ink-secondary'
+                            }`}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 font-medium min-w-0">
+                                <span
+                                  className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                    pIsGo
+                                      ? CHIP_TOKENS.emerald.dot
+                                      : pIsCaution
+                                      ? CHIP_TOKENS.amber.dot
+                                      : CHIP_TOKENS.rose.dot
+                                  }`}
+                                />
+                                <span className="break-words leading-tight">{pMeta.name}</span>
+                              </div>
+                              <span className="text-[10px] text-ink-muted">
+                                <span className="font-semibold uppercase mr-1">{pPhysics.goStatus}</span>
+                                · {pDate.formattedDate} · {p.route.distanceKm} km · {p.tag}
+                              </span>
                             </div>
-                            <span className="text-[10px] text-ink-muted">
-                              <span className="font-semibold uppercase mr-1">{pPhysics.goStatus}</span>
-                              · {pDate.formattedDate} · {p.route.distanceKm} km · {p.tag}
-                            </span>
-                          </div>
-                          {isCurrent && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-volt shrink-0" />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
+                            {isCurrent && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-volt shrink-0" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
                 )}
               </div>
             )}
