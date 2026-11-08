@@ -786,7 +786,7 @@ export function parseTripDescription(
   ) {
     parsedValues.office!.strictNoFoodInOpenSpace = true;
     detected.strictFoodRule = true;
-    extractedSummary.push(`Strict Office Rule: Desk food ban`);
+    extractedSummary.push(`Office guideline: Dedicated break-room refuel`);
   }
 
   return {

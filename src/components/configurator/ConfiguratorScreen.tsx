@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   FloppyDisk,
   ArrowLeft,
@@ -44,7 +44,7 @@ import { PresetRuleCard } from './PresetRuleCard';
 import { LocationAutocompleteInput } from './LocationAutocompleteInput';
 import { POPULAR_CYCLING_HUBS } from '../../services/locationService';
 import { parseGpxFileContent } from '../../utils/gpxParser';
-import { getActiveBike, loadRiderBikeSpecs } from '../../utils/specsStorage';
+import { getActiveBike, loadRiderBikeSpecs, getEffectiveRiderSpecs } from '../../utils/specsStorage';
 import { calculatePhysics } from '../../utils/physics';
 import { calculateReverseTimeline } from '../../utils/timeline';
 import { subtractMinutesFromTime, addMinutesToTime } from '../../utils/nutrition';
@@ -252,7 +252,9 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
   };
 
   const extraBufferMinutes = getChipsExtraBufferMinutes(trip);
-  const physicsResult = calculatePhysics(trip.physics, trip.route, trip.weather, lang);
+  const riderSpecs = useMemo(() => loadRiderBikeSpecs(), []);
+  const effectiveSpecs = useMemo(() => getEffectiveRiderSpecs(riderSpecs), [riderSpecs]);
+  const physicsResult = calculatePhysics(trip.physics, trip.route, trip.weather, lang, effectiveSpecs.ftpWatts);
   const timelineResult = calculateReverseTimeline(
     trip.route,
     trip.office,
@@ -2039,15 +2041,27 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                 <span className="text-ink-secondary">{t('mechanicalWorkRow')}</span>
                 <span className="text-ink font-semibold tnum">{Math.round(physicsResult.totalWorkKj)} kJ</span>
               </div>
-              <div className="lane-divider" aria-hidden="true" />
-              <div className="flex items-center justify-between py-1.5">
-                <span className="text-ink-secondary">{t('caloricBurnRow')}</span>
-                <span className="text-ink font-semibold tnum">{Math.round(physicsResult.totalKcalBurn)} kcal</span>
-              </div>
+              {effectiveSpecs.telemetryMode === 'quantitative' && (
+                <>
+                  <div className="lane-divider" aria-hidden="true" />
+                  <div className="flex items-center justify-between py-1.5">
+                    <span className="text-ink-secondary">{t('caloricBurnRow')}</span>
+                    <span className="text-ink font-semibold tnum">{Math.round(physicsResult.totalKcalBurn)} kcal</span>
+                  </div>
+                </>
+              )}
               <div className="lane-divider" aria-hidden="true" />
               <div className="flex items-center justify-between pt-1.5">
                 <span className="text-ink-secondary">{t('carbOxidationRow')}</span>
-                <span className={`font-semibold tnum ${CHIP_TOKENS.lime.primary}`}>{physicsResult.carbOxidationGramPerHour} g/h</span>
+                <span className={`font-semibold tnum ${CHIP_TOKENS.lime.primary}`}>
+                  {effectiveSpecs.telemetryMode === 'quantitative'
+                    ? `${physicsResult.carbOxidationGramPerHour} g/h`
+                    : effectiveSpecs.telemetryMode === 'fuel-first'
+                    ? `${Math.max(1, Math.round(physicsResult.carbOxidationGramPerHour / 20))} ${isFr ? 'unités/h' : 'fuel units/h'}`
+                    : isFr
+                    ? 'Rythme régulier'
+                    : 'Steady rhythm'}
+                </span>
               </div>
             </div>
 

@@ -475,7 +475,7 @@ const BooleanRuleField: React.FC<BooleanRuleFieldProps> = ({
   const stateLabel = value
     ? isFr
       ? 'Appliqué'
-      : 'Enforced'
+      : 'Active'
     : isFr
     ? 'Facultatif'
     : 'Advisory';

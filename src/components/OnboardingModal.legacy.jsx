@@ -917,8 +917,8 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
         strictNoFoodInOpenSpace: true,
         badgeRequiredForGate: true,
         notes: isFr
-          ? 'Protocole d’entreprise strict : Douche & ravitaillement vestiaire à 08:30, shift lock à 09:00.'
-          : 'Strict workplace protocol: Locker shower & refuel on arrival at 08:30, shift lock at 09:00.',
+          ? 'Organisation arrivée : Douche & ravitaillement vestiaire à 08:30, prise de poste à 09:00.'
+          : 'Arrival schedule: Locker shower & refuel on arrival at 08:30, shift start at 09:00.',
       },
       weather: {
         isHeadwindActive: true,
@@ -988,8 +988,8 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
     if (finalArchetype === 'VÉLOTAF') {
       notes = strictDeskFoodRestriction
         ? (isFr
-            ? 'Règlement entreprise : Ravitaillement au vestiaire ou salle de pause avant la prise de poste.'
-            : 'Strict office protocol: Locker refuel or break room fueling before shift lock.')
+            ? 'Planification arrivée : Ravitaillement au vestiaire ou salle de pause avant la prise de poste.'
+            : 'Arrival planning: Locker refuel or break room fueling before shift start.')
         : (isFr ? 'Alimentation libre sur place.' : 'Open desk fueling permitted.');
     } else if (finalArchetype === 'BIKEPACKING') {
       notes = isFr
@@ -2924,11 +2924,11 @@ export const OnboardingModal = ({ isOpen, onClose, onLaunch }) => {
                             solidBacker
                           />
                           <h4 className="font-bold text-sm text-ink">
-                            {isFr ? 'Interdiction stricte de manger au bureau (Open Space)' : 'Strict Open Space Desk Food Restriction'}
+                            {isFr ? 'Pause repas en salle dédiée (Open Space préservé)' : 'Dedicated Break Room Dining'}
                           </h4>
                         </div>
                         <p className="text-xs text-ink-muted mt-1 leading-relaxed">
-                          {isFr ? 'Règlement strict : Ravitaillement au vestiaire ou salle de pause avant la prise de poste.' : 'No food allowed at desk clusters; mandates fueling before clocking in.'}
+                          {isFr ? 'Espace dédié : Ravitaillement au vestiaire ou en salle de pause avant la prise de poste.' : 'Schedules locker or break room fueling before clocking in.'}
                         </p>
                       </div>
                     </label>

@@ -1,4 +1,6 @@
 import { StageAmenity } from './amenities';
+export type { TelemetryMode, RiderSpecs, RiderBikeSpecs } from './specs';
+export { formatFuelTarget, getEffectiveRiderSpecs } from './specs';
 
 export interface WeatherCondition {
   source?: "live" | "planned" | "simulated";
@@ -97,6 +99,8 @@ export interface NutritionItem {
   kcals: number;
   notes?: string;
   isRealFoodVerified: boolean;
+  quantitativeLabel?: string;
+  portionLabel?: string;
 }
 
 export interface NutritionPhase {

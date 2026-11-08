@@ -13,7 +13,6 @@ import {
   Settings,
 } from '@/components/icons';
 import { TripProfile, PhysicsCalculationResult } from '../../types/trip';
-import { CockpitViewMode } from '../../types/specs';
 import {
   calculateSectionalEnergyBreakdown,
   getWattsDidacticExplanation,
@@ -25,6 +24,8 @@ import { IconBadge } from '../common/IconBadge';
 import { InfoTooltip } from '../common/InfoTooltip';
 import { Collapsible, DisclosureChevron } from '../common/Collapsible';
 import { useTranslation } from '../../context/LanguageContext';
+import { CockpitViewMode, RiderBikeSpecs, TelemetryMode } from '../../types/specs';
+import { loadRiderBikeSpecs } from '../../utils/specsStorage';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
   CHIP_RING_BASE,
@@ -39,6 +40,7 @@ interface PhysicsEngineCardProps {
   physicsResult: PhysicsCalculationResult;
   viewMode?: CockpitViewMode;
   onToggleViewMode?: (mode: CockpitViewMode) => void;
+  riderSpecs?: RiderBikeSpecs;
 }
 
 function getZoneChipTheme(zone: PowerZoneCode): ChipTheme {
@@ -76,10 +78,14 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
   physicsResult,
   viewMode = 'pro',
   onToggleViewMode,
+  riderSpecs: riderSpecsProp,
 }) => {
   const { lang, t } = useTranslation();
   const isFr = lang === 'fr';
   const isEssential = viewMode === 'essential';
+  const specs = riderSpecsProp || loadRiderBikeSpecs();
+  const telemetryMode: TelemetryMode = specs.telemetryMode ?? 'quantitative';
+  const isQuantitative = telemetryMode === 'quantitative';
   const didacticPanelId = useId();
   const sectionalPanelId = useId();
   const telemetryDrawerId = useId();
@@ -240,12 +246,18 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
             </span>
             <InfoTooltip
               title={t('targetLegPowerTooltipTitle')}
-              content={t('targetLegPowerTooltipContent', {
-                wkg: wattsPerKg,
-                ftpPct: ftpPercent,
-                ftp: ftpWatts,
-                zone: zoneLabel,
-              })}
+              content={
+                isQuantitative
+                  ? t('targetLegPowerTooltipContent', {
+                      wkg: wattsPerKg,
+                      ftpPct: ftpPercent,
+                      ftp: ftpWatts,
+                      zone: zoneLabel,
+                    })
+                  : isFr
+                  ? `Puissance mécanique cible : ${legWatts}W dans la zone ${powerZone} (${zoneLabel}). Calculée pour surmonter le vent et la pente.`
+                  : `Target mechanical effort: ${legWatts}W in ${powerZone} (${zoneLabel}). Calibrated to match road terrain and wind conditions.`
+              }
               size="sm"
             />
           </div>
@@ -256,7 +268,9 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
             <span className="text-xs font-semibold text-ink-muted">W</span>
           </div>
           <span className="text-[11px] text-ink-secondary font-mono tnum break-words leading-tight">
-            {wattsPerKg} W/kg &middot; {ftpPercent}% FTP
+            {isQuantitative
+              ? `${wattsPerKg} W/kg · ${ftpPercent}% FTP`
+              : `${powerZone} · ${zoneLabel}`}
           </span>
         </div>
 
@@ -283,41 +297,73 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
           </span>
         </div>
 
-        {/* KPI 3: Est. Burn (kcal) */}
+        {/* KPI 3: Est. Burn / Fuel Rhythm */}
         <div className="rounded-pod bg-pod p-3 sm:p-3.5 flex flex-col justify-between gap-1.5 border border-ink/5 dark:border-white/5">
           <div className="flex items-center justify-between gap-1">
             <span className="text-[11px] font-rounded font-semibold uppercase tracking-wide text-ink-muted break-words leading-tight">
-              {t('physicsKpiBurn')}
+              {isQuantitative
+                ? t('physicsKpiBurn')
+                : isFr
+                ? 'Rythme Ravito'
+                : 'Fuel Pacing'}
             </span>
             <InfoTooltip
-              title={t('metabolicBurnTooltipTitle')}
-              content={t('metabolicBurnTooltipContent')}
+              title={
+                isQuantitative
+                  ? t('metabolicBurnTooltipTitle')
+                  : isFr
+                  ? 'Rythme Énergétique'
+                  : 'Fueling Guidance'
+              }
+              content={
+                isQuantitative
+                  ? t('metabolicBurnTooltipContent')
+                  : isFr
+                  ? 'Besoins énergétiques réguliers convertis en portions courantes et unités de ravitaillement, sans comptage calorique.'
+                  : 'Steady energy requirements translated into household portions and fuel units, completely free from calorie ledgers.'
+              }
               size="sm"
             />
           </div>
           <div className="flex items-baseline gap-1 tnum">
             <span className="text-2xl sm:text-[26px] font-bold font-mono tracking-tight text-ink">
-              {totalBurnKcal}
+              {isQuantitative
+                ? totalBurnKcal
+                : Math.max(1, Math.round(physicsResult.carbOxidationGramPerHour / 20))}
             </span>
-            <span className="text-xs font-semibold text-ink-muted">kcal</span>
+            <span className="text-xs font-semibold text-ink-muted">
+              {isQuantitative ? 'kcal' : isFr ? 'unités/h' : 'units/h'}
+            </span>
           </div>
           <span className="text-[11px] text-ink-secondary font-mono tnum inline-flex items-center gap-1 flex-wrap break-words leading-tight">
             <Flame className={`w-3.5 h-3.5 shrink-0 ${CHIP_TOKENS.amber.primary}`} />
             <span className="break-words">
-              {t('physicsKpiBurnSub')} &middot; {t('ftpRefLabel', { ftp: ftpWatts })}
+              {isQuantitative
+                ? `${t('physicsKpiBurnSub')} · ${t('ftpRefLabel', { ftp: ftpWatts })}`
+                : `${isFr ? 'Cadence conseillée' : 'Recommended cadence'} · ~${Math.max(1, Math.round((physicsResult.carbOxidationGramPerHour * ((physicsResult.movingTimeSeconds || 2880) / 3600)) / 20))} ${isFr ? 'unités' : 'units'}`}
             </span>
           </span>
         </div>
 
-        {/* KPI 4: Carb Burn (g/h) */}
+        {/* KPI 4: Carb Burn (g/h or Fuel Units/h) */}
         <div className="rounded-pod bg-pod p-3 sm:p-3.5 flex flex-col justify-between gap-1.5 border border-ink/5 dark:border-white/5">
           <div className="flex items-center justify-between gap-1">
             <span className="text-[11px] font-rounded font-semibold uppercase tracking-wide text-ink-muted break-words leading-tight">
-              {t('physicsKpiCarb')}
+              {isQuantitative
+                ? t('physicsKpiCarb')
+                : isFr
+                ? 'Apport Horaire'
+                : 'Hourly Intake'}
             </span>
             <InfoTooltip
               title={t('glycogenDemandTooltipTitle')}
-              content={t('glycogenDemandTooltipContent')}
+              content={
+                isQuantitative
+                  ? t('glycogenDemandTooltipContent')
+                  : isFr
+                  ? 'Allure de consommation glucidique convertie en portions d’aliments faciles à assimiler.'
+                  : 'Carbohydrate consumption rate converted into easily digestible food portion units.'
+              }
               size="sm"
             />
           </div>
@@ -325,13 +371,20 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
             <span
               className={`text-2xl sm:text-[26px] font-bold font-mono tracking-tight ${CHIP_TOKENS.lime.primary}`}
             >
-              {physicsResult.carbOxidationGramPerHour}
+              {isQuantitative
+                ? physicsResult.carbOxidationGramPerHour
+                : Math.max(1, Math.round(physicsResult.carbOxidationGramPerHour / 20))}
             </span>
-            <span className="text-xs font-semibold text-ink-muted">g/h</span>
+            <span className="text-xs font-semibold text-ink-muted">
+              {isQuantitative ? 'g/h' : isFr ? 'unités/h' : 'units/h'}
+            </span>
           </div>
-          <span className="text-[11px] text-ink-secondary font-mono tnum inline-flex items-center gap-1 flex-wrap break-words leading-tight">
-            <Lightning className={`w-3.5 h-3.5 shrink-0 ${CHIP_TOKENS.lime.primary}`} />
-            <span className="break-words">{t('physicsKpiCarbSub', { total: totalCarbs })}</span>
+          <span className="text-[11px] text-ink-secondary font-mono tnum break-words leading-tight">
+            {isQuantitative
+              ? t('physicsKpiCarbSub', { total: totalCarbs })
+              : isFr
+              ? 'Ravitaillement régulier en selle'
+              : 'Steady on-bike fueling rhythm'}
           </span>
         </div>
       </div>
@@ -509,7 +562,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
                       ~{band.avgWatts}W
                     </span>
                     <span className="text-[10px] text-ink-secondary font-mono">
-                      {band.pctDistance}% ({band.distanceKm} km) &middot; {band.kcalShare} kcal
+                      {band.pctDistance}% ({band.distanceKm} km){isQuantitative ? ` · ${band.kcalShare} kcal` : ''}
                     </span>
                   </div>
                 </div>
@@ -827,7 +880,11 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
                       size="sm"
                     />
                   </span>
-                  <span className="font-semibold text-ink tnum">{totalBurnKcal} kcal</span>
+                  <span className="font-semibold text-ink tnum">
+                    {isQuantitative
+                      ? `${totalBurnKcal} kcal`
+                      : `${Math.max(1, Math.round(physicsResult.carbOxidationGramPerHour / 20))} ${isFr ? 'unités/h' : 'units/h'}`}
+                  </span>
                 </div>
                 <div className="lane-divider" aria-hidden="true" />
                 <div className="flex items-center justify-between pt-1.5">
@@ -840,7 +897,9 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
                     />
                   </span>
                   <span className={`font-semibold tnum ${CHIP_TOKENS.lime.primary}`}>
-                    {physicsResult.carbOxidationGramPerHour} g/h (~{totalCarbs}g)
+                    {isQuantitative
+                      ? `${physicsResult.carbOxidationGramPerHour} g/h (~${totalCarbs}g)`
+                      : `${Math.max(1, Math.round(physicsResult.carbOxidationGramPerHour / 20))} ${isFr ? 'unités de ravito / h' : 'fuel units / hr'}`}
                   </span>
                 </div>
               </div>

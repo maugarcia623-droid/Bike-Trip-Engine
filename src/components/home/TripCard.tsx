@@ -218,7 +218,7 @@ export const TripCard: React.FC<TripCardProps> = ({
                 {Math.round(physicsResult.legWatts)} W &middot; {physicsResult.powerZone}
               </span>
               <span className={`text-xs block ${isActive ? 'opacity-80' : 'text-ink-muted'}`}>
-                @{physicsResult.effectiveSpeedKmH} km/h &middot; {physicsResult.wattsPerKg} W/kg
+                @{physicsResult.effectiveSpeedKmH} km/h{riderSpecs?.telemetryMode === 'quantitative' ? ` · ${physicsResult.wattsPerKg} W/kg` : ''}
               </span>
             </div>
           </div>

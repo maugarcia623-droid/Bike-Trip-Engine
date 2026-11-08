@@ -540,8 +540,8 @@ export function calculateRideVisibility(
       critical: true,
       badgeEn: '800–1000 Lumens',
       badgeFr: '800–1000 Lumens',
-      titleEn: 'High-Output 800 to 1,000 Lumen Headlight Mandatory',
-      titleFr: 'Éclairage avant puissant 800 à 1 000 Lumens impératif',
+      titleEn: 'High-Output 800 to 1,000 Lumen Headlight Recommended',
+      titleFr: 'Éclairage avant puissant 800 à 1 000 Lumens recommandé',
       detailEn:
         'With low winter ambient light or early morning darkness, an 800 to 1000 lumen headlight is essential to illuminate road obstacles, potholes, and wet asphalt 40–50 meters ahead at cruising pace.',
       detailFr:

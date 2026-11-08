@@ -33,6 +33,7 @@ import { synthesizeRouteElevationProfile } from '../../utils/gpxParser';
 import { ReverseTimelineCalculation } from '../../utils/timeline';
 import { useTranslation } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
+import { calculateDynamicCarbTarget } from '../../utils/nutrition';
 import { Badge } from '../common/Badge';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
@@ -445,6 +446,22 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
   const totalKcal = Math.round(physicsResult.totalKcalBurn || 832).toLocaleString(
     isFr ? 'fr-FR' : 'en-US'
   );
+
+  const dynamicCarb = useMemo(() => {
+    return calculateDynamicCarbTarget(
+      movingMinutes / 60,
+      physicsResult?.ftpPercent ?? 72,
+      physicsResult?.carbOxidationGramPerHour ?? Math.round((effectiveSpecs.carbTargetGPerHr ?? 60) * 1.8),
+      effectiveSpecs.carbTargetGPerHr ?? 60,
+      trip.stages?.length || 1
+    );
+  }, [
+    movingMinutes,
+    physicsResult?.ftpPercent,
+    physicsResult?.carbOxidationGramPerHour,
+    effectiveSpecs.carbTargetGPerHr,
+    trip.stages?.length,
+  ]);
 
   const elevationData = useMemo(() => synthesizeRouteElevationProfile(trip.route), [trip.route]);
   const terrainSummary = elevationData.terrainSummary;
@@ -1749,28 +1766,60 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
               </div>
             </div>
 
-            {/* 4. Energy Burned */}
+            {/* 4. Energy Burned / Fuel Units */}
             <div className="rounded-pod p-3.5 sm:p-4.5 bg-pod dark:bg-[#161618] text-ink border border-ink/5 dark:border-white/5 flex flex-col justify-between min-h-[108px] sm:min-h-[114px] transition-all hover:border-ink/15 dark:hover:border-white/15">
               <div className="flex items-center justify-between gap-1.5 text-xs font-medium text-ink-muted shrink-0">
-                <span className="break-words">{t('energyBurn')}</span>
+                <span className="break-words">
+                  {effectiveSpecs.telemetryMode === 'quantitative'
+                    ? t('energyBurn')
+                    : effectiveSpecs.telemetryMode === 'fuel-first'
+                    ? isFr
+                      ? 'Unités Ravito'
+                      : 'Fuel Units'
+                    : isFr
+                    ? 'Rythme Ravito'
+                    : 'Fueling Rhythm'}
+                </span>
                 <Flame2 className={`w-4 h-4 shrink-0 ${CHIP_TOKENS.amber.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
               </div>
               <div className="mt-auto pt-2 flex flex-col xl:flex-row items-start xl:items-baseline justify-between gap-1 min-w-0">
                 <div className="flex items-baseline gap-1 shrink-0">
                   <span className="text-2xl sm:text-[28px] xl:text-[30px] font-bold tracking-tight tnum leading-none text-ink">
-                    {totalKcal}
+                    {effectiveSpecs.telemetryMode === 'quantitative'
+                      ? totalKcal
+                      : effectiveSpecs.telemetryMode === 'fuel-first'
+                      ? Math.max(1, Math.round(dynamicCarb.targetOnBikeCarbsG / 20))
+                      : isFr
+                      ? 'Régulier'
+                      : 'Steady'}
                   </span>
-                  <span className="text-xs font-medium text-ink-muted">kcal</span>
+                  {effectiveSpecs.telemetryMode === 'quantitative' ? (
+                    <span className="text-xs font-medium text-ink-muted">kcal</span>
+                  ) : effectiveSpecs.telemetryMode === 'fuel-first' ? (
+                    <span className="text-xs font-medium text-ink-muted">{isFr ? 'unités' : 'units'}</span>
+                  ) : null}
                 </div>
                 <span
                   className="text-[11px] font-medium text-ink-muted tnum break-words w-full xl:w-auto text-left xl:text-right min-w-0 leading-tight"
                   title={
-                    isFr
-                      ? `Cible ravito : ${effectiveSpecs.carbTargetGPerHr ?? 60}g/h`
-                      : `Fueling target: ${effectiveSpecs.carbTargetGPerHr ?? 60}g/h`
+                    effectiveSpecs.telemetryMode === 'quantitative'
+                      ? isFr
+                        ? `Cible ravito : ${dynamicCarb.effectiveHourlyRateG}g/h`
+                        : `Fueling target: ${dynamicCarb.effectiveHourlyRateG}g/h`
+                      : effectiveSpecs.telemetryMode === 'fuel-first'
+                      ? `${Math.max(1, Math.round(dynamicCarb.effectiveHourlyRateG / 20))} ${isFr ? 'unités / h' : 'fuel units / hr'}`
+                      : isFr
+                      ? 'Hydratation régulière'
+                      : 'Steady hydration'
                   }
                 >
-                  {effectiveSpecs.carbTargetGPerHr ?? 60}g/h {isFr ? 'ravito' : 'carbs'}
+                  {effectiveSpecs.telemetryMode === 'quantitative'
+                    ? `${dynamicCarb.effectiveHourlyRateG}g/h ${isFr ? 'ravito' : 'carbs'}`
+                    : effectiveSpecs.telemetryMode === 'fuel-first'
+                    ? `${Math.max(1, Math.round(dynamicCarb.effectiveHourlyRateG / 20))} ${isFr ? 'unités/h' : 'units/h'}`
+                    : isFr
+                    ? '1 gorgée / 20 min'
+                    : 'Sip every 20m'}
                 </span>
               </div>
             </div>

@@ -1,7 +1,25 @@
-import { RiderBikeSpecs, DEFAULT_RIDER_BIKE_SPECS, BikeSpec } from '../types/specs';
+import {
+  RiderBikeSpecs,
+  DEFAULT_RIDER_BIKE_SPECS,
+  BikeSpec,
+  TelemetryMode,
+  PacingInputMode,
+  getEffectiveRiderSpecs,
+  formatFuelTarget,
+} from '../types/specs';
+
+export { getEffectiveRiderSpecs, formatFuelTarget };
 
 const STORAGE_KEY = 'velotaf_rider_bike_specs_v1';
 const GARAGE_SEEDED_KEY = 'velotaf_garage_v2_seeded';
+
+export function hasSavedRiderBikeSpecs(): boolean {
+  try {
+    return Boolean(localStorage.getItem(STORAGE_KEY));
+  } catch {
+    return false;
+  }
+}
 
 export function loadRiderBikeSpecs(): RiderBikeSpecs {
   try {
@@ -75,6 +93,17 @@ export function loadRiderBikeSpecs(): RiderBikeSpecs {
         ? parsed.riderName.trim()
         : undefined;
 
+    const resolvedTelemetryMode: TelemetryMode =
+      parsed.telemetryMode === 'quantitative' ||
+      parsed.telemetryMode === 'fuel-first' ||
+      parsed.telemetryMode === 'intuitive'
+        ? parsed.telemetryMode
+        : DEFAULT_RIDER_BIKE_SPECS.telemetryMode ?? 'quantitative';
+    const resolvedPacingMode: PacingInputMode =
+      parsed.pacingInputMode === 'feel' || parsed.pacingInputMode === 'power'
+        ? parsed.pacingInputMode
+        : DEFAULT_RIDER_BIKE_SPECS.pacingInputMode ?? 'feel';
+
     return {
       ...DEFAULT_RIDER_BIKE_SPECS,
       ...parsed,
@@ -86,6 +115,8 @@ export function loadRiderBikeSpecs(): RiderBikeSpecs {
       nutritionPreference: resolvedNutritionPref,
       riderLevel: resolvedLevel,
       cockpitViewMode: resolvedViewMode,
+      telemetryMode: resolvedTelemetryMode,
+      pacingInputMode: resolvedPacingMode,
       bikes,
     };
   } catch (e) {

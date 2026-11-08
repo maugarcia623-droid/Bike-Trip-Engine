@@ -67,6 +67,9 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
       carbTargetGPerHr: effectiveSpecs.carbTargetGPerHr,
       rideHours: Math.max(0.6, physicsResult.movingTimeSeconds / 3600),
       nutritionPreference: effectiveSpecs.nutritionPreference,
+      pctFtp: physicsResult.ftpPercent,
+      carbOxidationGramPerHour: physicsResult.carbOxidationGramPerHour,
+      totalDays: expeditionTotals?.totalDays || (trip.stages?.length || 1),
     }
   );
 
@@ -205,8 +208,22 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
           </div>
           <div>
             <div className="text-gray-500 text-[10px]">{t('printMetabolicWork')}</div>
-            <div className="font-bold text-sm">{Math.round(physicsResult.totalWorkKj)} kJ / {Math.round(physicsResult.totalKcalBurn)} kcal</div>
-            <div className="text-[9px] text-gray-500">{t('printCarbOx', { carbs: physicsResult.carbOxidationGramPerHour })}</div>
+            <div className="font-bold text-sm">
+              {effectiveSpecs.telemetryMode === 'quantitative'
+                ? `${Math.round(physicsResult.totalWorkKj)} kJ / ${Math.round(physicsResult.totalKcalBurn)} kcal`
+                : effectiveSpecs.telemetryMode === 'fuel-first'
+                ? `${Math.round(physicsResult.totalWorkKj)} kJ / ~${Math.max(1, Math.round(physicsResult.carbOxidationGramPerHour / 20))} ${isFr ? 'unités/h' : 'units/h'}`
+                : `${Math.round(physicsResult.totalWorkKj)} kJ / ${isFr ? 'Rythme régulier' : 'Steady rhythm'}`}
+            </div>
+            <div className="text-[9px] text-gray-500">
+              {effectiveSpecs.telemetryMode === 'quantitative'
+                ? t('printCarbOx', { carbs: physicsResult.carbOxidationGramPerHour })
+                : effectiveSpecs.telemetryMode === 'fuel-first'
+                ? `${Math.max(1, Math.round(physicsResult.carbOxidationGramPerHour / 20))} ${isFr ? 'unités ravito / h' : 'fuel units / hr'}`
+                : isFr
+                ? 'Hydratation régulière'
+                : 'Steady hydration'}
+            </div>
           </div>
         </div>
         <div className="mt-2 text-[10px] font-mono text-gray-600 bg-gray-100 p-1.5 rounded flex justify-between items-center">
@@ -216,7 +233,7 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
             {lang === 'fr' ? 'Visibilité' : 'Visibility'} {trip.weather.visibilityKm ?? 15} km
           </span>
           <span className="font-bold text-black">
-            {lang === 'fr' ? 'Consigne optique :' : 'Optical mandate:'}{' '}
+            {lang === 'fr' ? 'Consigne optique :' : 'Optical guideline:'}{' '}
             {(trip.weather.visibilityKm ?? 15) < 5 || trip.weather.isDay === false
               ? (lang === 'fr' ? 'Feu 800–1000 lm & gilet rétro-réfléchissant' : '800–1000 lm beam & reflective vest')
               : (lang === 'fr' ? 'Feu diurne flash de sécurité' : 'Daytime safety flasher')}
@@ -336,7 +353,15 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
               <ul className="list-disc list-inside space-y-0.5 text-[10px] text-gray-800">
                 {phase.items.map((item, i) => (
                   <li key={i}>
-                    <strong>{item.name}</strong> ({item.quantity}) &mdash; {item.carbsGrams}g C, {item.proteinGrams}g P
+                    {effectiveSpecs.telemetryMode === 'quantitative' ? (
+                      <>
+                        <strong>{item.quantitativeLabel || item.name}</strong> ({item.quantity}) &mdash; {item.carbsGrams}g C, {item.proteinGrams}g P
+                      </>
+                    ) : (
+                      <>
+                        <strong>{item.portionLabel || item.name}</strong> ({item.quantity})
+                      </>
+                    )}
                   </li>
                 ))}
               </ul>

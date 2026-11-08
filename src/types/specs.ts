@@ -1,6 +1,8 @@
 export type NutritionPreference = 'real-food' | 'mixed' | 'sports-fuel';
 export type RiderLevel = 'occasional' | 'regular' | 'pro';
 export type CockpitViewMode = 'essential' | 'pro';
+export type TelemetryMode = 'quantitative' | 'fuel-first' | 'intuitive';
+export type PacingInputMode = 'feel' | 'power';
 
 export interface BikeSpec {
   id: string;
@@ -20,9 +22,13 @@ export interface RiderBikeSpecs {
   nutritionPreference: NutritionPreference;
   riderLevel: RiderLevel;
   cockpitViewMode?: CockpitViewMode;
+  telemetryMode?: TelemetryMode;
+  pacingInputMode?: PacingInputMode;
   activeBikeId: string;
   bikes: BikeSpec[];
 }
+
+export type RiderSpecs = RiderBikeSpecs;
 
 export const DEFAULT_RIDER_BIKE_SPECS: RiderBikeSpecs = {
   riderWeightKg: 68,
@@ -32,6 +38,8 @@ export const DEFAULT_RIDER_BIKE_SPECS: RiderBikeSpecs = {
   nutritionPreference: 'real-food',
   riderLevel: 'regular',
   cockpitViewMode: 'pro',
+  telemetryMode: 'quantitative',
+  pacingInputMode: 'feel',
   activeBikeId: 'bike-sword',
   bikes: [
     {
@@ -60,3 +68,73 @@ export const DEFAULT_RIDER_BIKE_SPECS: RiderBikeSpecs = {
     },
   ],
 };
+
+/**
+ * Decouples biophysical calculations from display presentation.
+ * In 'quantitative' mode, returns user-entered weight and FTP.
+ * In 'fuel-first' or 'intuitive' modes, returns silent internal baselines
+ * (68 kg, level-mapped FTP) so physics.ts never receives null/undefined.
+ */
+export function getEffectiveRiderSpecs(specs: RiderSpecs): RiderSpecs {
+  const mode: TelemetryMode = specs.telemetryMode ?? 'quantitative';
+  const pacingMode: PacingInputMode = specs.pacingInputMode ?? 'feel';
+
+  // Use user-entered FTP whenever pacingInputMode is 'power' OR telemetryMode is 'quantitative'
+  const userEnteredFtp =
+    typeof specs.ftpWatts === 'number' && Number.isFinite(specs.ftpWatts) && specs.ftpWatts >= 80
+      ? specs.ftpWatts
+      : 210;
+
+  // Baseline level mapping for 'feel' + non-quantitative modes
+  const level: RiderLevel = specs.riderLevel ?? 'regular';
+  const baselineFtp = level === 'occasional' ? 160 : level === 'pro' ? 280 : 210;
+
+  const effectiveFtp = (pacingMode === 'power' || mode === 'quantitative') ? userEnteredFtp : baselineFtp;
+
+  if (mode === 'quantitative') {
+    return {
+      ...specs,
+      telemetryMode: mode,
+      riderWeightKg:
+        typeof specs.riderWeightKg === 'number' && Number.isFinite(specs.riderWeightKg) && specs.riderWeightKg > 25
+          ? specs.riderWeightKg
+          : 68,
+      ftpWatts: effectiveFtp,
+      carbTargetGPerHr: specs.carbTargetGPerHr ?? 60,
+    };
+  }
+
+  // Body-neutral baseline mapping for 'fuel-first' and 'intuitive'
+  return {
+    ...specs,
+    telemetryMode: mode,
+    riderWeightKg: 68,
+    ftpWatts: effectiveFtp,
+    carbTargetGPerHr: mode === 'intuitive' ? 60 : (specs.carbTargetGPerHr ?? 60),
+  };
+}
+
+/**
+ * Formats carb fueling target according to active telemetry philosophy.
+ * - 'quantitative': "${grams}g carbs" (or "${grams}g glucides" in FR)
+ * - 'fuel-first': "${units} fuel units" (where 1 unit ≈ 1 snack / 20g carbs)
+ * - 'intuitive': "Steady fueling rhythm"
+ */
+export function formatFuelTarget(
+  grams: number,
+  mode: TelemetryMode = 'quantitative',
+  lang?: string
+): string {
+  const isFr = lang === 'fr';
+  switch (mode) {
+    case 'fuel-first': {
+      const units = Math.max(1, Math.round(grams / 20));
+      return isFr ? `${units} ${units > 1 ? 'unités de ravito' : 'unité de ravito'}` : `${units} fuel units`;
+    }
+    case 'intuitive':
+      return isFr ? 'Rythme de ravito régulier' : 'Steady fueling rhythm';
+    case 'quantitative':
+    default:
+      return isFr ? `${grams}g glucides` : `${grams}g carbs`;
+  }
+}

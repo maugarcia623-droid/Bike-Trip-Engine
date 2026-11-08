@@ -127,13 +127,13 @@ const BUILTIN_TRIP_TRANSLATIONS: Record<
     en: {
       name: 'Morning Estuary Commute (Gate 17)',
       description:
-        '22 km daily gravel commute crossing the Saint-Nazaire estuary bridge to secure Gate 17. Strict office protocol: Locker refuel at 08:30, Break room breakfast at 08:50, Shift lock 09:00.',
+        '22 km daily gravel commute crossing the Saint-Nazaire estuary bridge to secure Gate 17. Planned office timing: Locker refuel at 08:30, Break room breakfast at 08:50, Shift start 09:00.',
       gateName: 'Gate 17',
     },
     fr: {
       name: 'Vélotaf Matinal Estuaire (Porte 17)',
       description:
-        'Trajet vélotaf gravel quotidien de 22 km par le pont de Saint-Nazaire vers la Porte 17. Protocole strict : ravito vestiaire à 08:30, petit-déjeuner salle de pause à 08:50, prise de poste à 09:00.',
+        'Trajet vélotaf gravel quotidien de 22 km par le pont de Saint-Nazaire vers la Porte 17. Organisation bureau : ravito vestiaire à 08:30, petit-déjeuner salle de pause à 08:50, prise de poste à 09:00.',
       gateName: 'Porte 17',
     },
   },

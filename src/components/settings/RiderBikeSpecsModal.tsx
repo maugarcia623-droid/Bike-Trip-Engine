@@ -1,6 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Bicycle, Check, Plus, Trash, Sparkle, Lightning } from '@/components/icons';
-import { RiderBikeSpecs, BikeSpec, NutritionPreference, RiderLevel } from '../../types/specs';
+import {
+  X,
+  User,
+  Bicycle,
+  Check,
+  Plus,
+  Trash,
+  Sparkle,
+  Lightning,
+  Sliders,
+  Droplets,
+  ForkKnife,
+} from '@/components/icons';
+import {
+  RiderBikeSpecs,
+  BikeSpec,
+  NutritionPreference,
+  RiderLevel,
+  TelemetryMode,
+} from '../../types/specs';
 import { saveRiderBikeSpecs, getActiveBike } from '../../utils/specsStorage';
 import { saveUserProfile } from '../../utils/userProfileStorage';
 import { useTranslation } from '../../context/LanguageContext';
@@ -19,6 +37,7 @@ interface RiderBikeSpecsModalProps {
   onClose: () => void;
   specs: RiderBikeSpecs;
   onSave: (updated: RiderBikeSpecs) => void;
+  onOpenCalibration?: () => void;
 }
 
 export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
@@ -26,6 +45,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
   onClose,
   specs,
   onSave,
+  onOpenCalibration,
 }) => {
   const { t, lang } = useTranslation();
   const isFr = lang === 'fr';
@@ -165,9 +185,22 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                 <h2 id="specs-modal-title" className="text-base sm:text-lg font-semibold text-ink tracking-tight font-rounded">
                   {isFr ? 'Profil Cycliste & Garage Vélo' : 'Rider Profile & Bike Garage'}
                 </h2>
-                <Badge variant="emerald" size="xs" className="tnum">
-                  {localSpecs.ftpWatts}W &middot; {localSpecs.carbTargetGPerHr}g/h &middot;{' '}
-                  {activeBike.isTubeless ? 'Tubeless' : 'Tube'}
+                <Badge
+                  variant={
+                    localSpecs.telemetryMode === 'intuitive'
+                      ? 'lime'
+                      : localSpecs.telemetryMode === 'fuel-first'
+                      ? 'amber'
+                      : 'emerald'
+                  }
+                  size="xs"
+                  className="tnum"
+                >
+                  {localSpecs.telemetryMode === 'intuitive'
+                    ? `${t('telemetryModeIntuitive')} · ${activeBike.isTubeless ? 'Tubeless' : 'Tube'}`
+                    : localSpecs.telemetryMode === 'fuel-first'
+                    ? `${t('telemetryModeFuelFirst')} · ${Math.max(1, Math.round((localSpecs.carbTargetGPerHr || 60) / 20))} ${isFr ? 'unités/h' : 'units/h'} · ${activeBike.isTubeless ? 'Tubeless' : 'Tube'}`
+                    : `${localSpecs.ftpWatts}W · ${localSpecs.carbTargetGPerHr}g/h · ${activeBike.isTubeless ? 'Tubeless' : 'Tube'}`}
                 </Badge>
               </div>
               <p className="text-xs text-ink-muted mt-0.5">
@@ -176,14 +209,31 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t('closeModalAria')}
-            className={`w-9 h-9 shrink-0 rounded-full hover:text-ink hover:bg-chip flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
-          >
-            <X className="w-4 h-4 text-current" />
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {onOpenCalibration && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenCalibration();
+                }}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all duration-150 hover:scale-105 active:scale-95 ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary}`}
+                title={t('cockpitCalibration')}
+              >
+                <Sliders className="w-3.5 h-3.5 text-current shrink-0" />
+                <span className="hidden sm:inline">{t('cockpitCalibration')}</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label={t('closeModalAria')}
+              className={`w-9 h-9 shrink-0 rounded-full hover:text-ink hover:bg-chip flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+            >
+              <X className="w-4 h-4 text-current" />
+            </button>
+          </div>
         </div>
 
         {/* Mobile Tab Switcher (Side-by-side columns automatically appear on lg+) */}
@@ -236,9 +286,102 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                   </div>
                 </div>
               </div>
-              <Badge variant="zinc" size="xs" className="tnum font-mono">
-                {currentWkg} W/kg
-              </Badge>
+              {localSpecs.telemetryMode === 'quantitative' && (
+                <Badge variant="zinc" size="xs" className="tnum font-mono">
+                  {currentWkg} W/kg
+                </Badge>
+              )}
+              {localSpecs.telemetryMode === 'fuel-first' && (
+                <Badge variant="amber" size="xs" className="tnum font-mono">
+                  {Math.max(1, Math.round((localSpecs.carbTargetGPerHr || 60) / 20))} {isFr ? 'unités/h' : 'units/h'}
+                </Badge>
+              )}
+              {localSpecs.telemetryMode === 'intuitive' && (
+                <Badge variant="lime" size="xs" className="tnum font-mono">
+                  {isFr ? 'Rythme régulier' : 'Steady rhythm'}
+                </Badge>
+              )}
+            </div>
+
+            {/* Guidance Philosophy Segmented Control */}
+            <div className="space-y-1.5 rounded-pod bg-card p-3 border border-ink/5 dark:border-white/5">
+              <div className="flex items-center justify-between gap-1.5 mb-1">
+                <label className="text-[11px] font-bold text-ink uppercase tracking-wider flex items-center gap-1.5">
+                  <Sliders className="w-3.5 h-3.5 text-ink-muted" />
+                  <span>{t('guidancePhilosophyTitle')}</span>
+                </label>
+                <Badge
+                  variant={
+                    localSpecs.telemetryMode === 'intuitive'
+                      ? 'lime'
+                      : localSpecs.telemetryMode === 'fuel-first'
+                      ? 'amber'
+                      : 'emerald'
+                  }
+                  size="xs"
+                  className="uppercase font-rounded text-[10px]"
+                >
+                  {localSpecs.telemetryMode === 'intuitive'
+                    ? t('telemetryModeIntuitive')
+                    : localSpecs.telemetryMode === 'fuel-first'
+                    ? t('telemetryModeFuelFirst')
+                    : t('telemetryModeQuantitative')}
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-3 gap-1.5 p-1 rounded-2xl bg-pod">
+                {(
+                  [
+                    {
+                      id: 'quantitative' as TelemetryMode,
+                      label: t('telemetryModeQuantitative'),
+                      sub: t('telemetryModeQuantitativeSub'),
+                      icon: Lightning,
+                    },
+                    {
+                      id: 'fuel-first' as TelemetryMode,
+                      label: t('telemetryModeFuelFirst'),
+                      sub: t('telemetryModeFuelFirstSub'),
+                      icon: ForkKnife,
+                    },
+                    {
+                      id: 'intuitive' as TelemetryMode,
+                      label: t('telemetryModeIntuitive'),
+                      sub: t('telemetryModeIntuitiveSub'),
+                      icon: Droplets,
+                    },
+                  ] as const
+                ).map((modeOpt) => {
+                  const isSelected = (localSpecs.telemetryMode || 'quantitative') === modeOpt.id;
+                  const ModeIcon = modeOpt.icon;
+                  return (
+                    <button
+                      key={modeOpt.id}
+                      type="button"
+                      onClick={() => {
+                        setLocalSpecs((prev) => ({
+                          ...prev,
+                          telemetryMode: modeOpt.id,
+                          carbTargetGPerHr: modeOpt.id === 'intuitive' ? 60 : prev.carbTargetGPerHr || 60,
+                        }));
+                      }}
+                      className={`flex flex-col items-start p-2 sm:p-2.5 rounded-xl text-left transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-card text-ink shadow-xs ring-1 ring-ink/10 dark:ring-white/10'
+                          : 'text-ink-muted hover:text-ink hover:bg-card/40'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 w-full">
+                        <ModeIcon className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-amber-500' : 'text-current'}`} />
+                        <span className="text-xs font-bold truncate">{modeOpt.label}</span>
+                      </div>
+                      <span className="text-[10px] leading-tight opacity-75 mt-1 line-clamp-2">
+                        {modeOpt.sub}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Rider Call-Sign / Name */}
@@ -302,208 +445,310 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
               </div>
             </div>
 
-            {/* Weight, Height & FTP */}
-            <div className="grid grid-cols-3 gap-2.5">
-              <div className="p-3 rounded-pod bg-card">
-                <label className="block text-[11px] text-ink-muted mb-1">
-                  {t('weightLabel')}
-                </label>
-                <div className="flex items-baseline gap-1">
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={localSpecs.riderWeightKg}
-                    onChange={(e) =>
-                      setLocalSpecs((prev) => ({
-                        ...prev,
-                        riderWeightKg: parseFloat(e.target.value) || 0,
-                      }))
-                    }
-                    className="w-full text-lg sm:text-xl font-semibold text-ink bg-transparent focus:outline-none tnum"
-                  />
-                  <span className="text-xs text-ink-muted">kg</span>
-                </div>
-              </div>
+            {/* Weight, Height & FTP (Shown ONLY in 'quantitative' mode) */}
+            {localSpecs.telemetryMode === 'quantitative' && (
+              <>
+                <div className="grid grid-cols-3 gap-2.5">
+                  <div className="p-3 rounded-pod bg-card">
+                    <label className="block text-[11px] text-ink-muted mb-1">
+                      {t('weightLabel')}
+                    </label>
+                    <div className="flex items-baseline gap-1">
+                      <input
+                        type="number"
+                        step="0.5"
+                        value={localSpecs.riderWeightKg}
+                        onChange={(e) =>
+                          setLocalSpecs((prev) => ({
+                            ...prev,
+                            riderWeightKg: parseFloat(e.target.value) || 0,
+                          }))
+                        }
+                        className="w-full text-lg sm:text-xl font-semibold text-ink bg-transparent focus:outline-none tnum"
+                      />
+                      <span className="text-xs text-ink-muted">kg</span>
+                    </div>
+                  </div>
 
-              <div className="p-3 rounded-pod bg-card">
-                <label className="block text-[11px] text-ink-muted mb-1">
-                  {t('heightLabel')}
-                </label>
-                <div className="flex items-baseline gap-1">
-                  <input
-                    type="number"
-                    step="1"
-                    value={localSpecs.riderHeightCm}
-                    onChange={(e) =>
-                      setLocalSpecs((prev) => ({
-                        ...prev,
-                        riderHeightCm: parseInt(e.target.value) || 0,
-                      }))
-                    }
-                    className="w-full text-lg sm:text-xl font-semibold text-ink bg-transparent focus:outline-none tnum"
-                  />
-                  <span className="text-xs text-ink-muted">cm</span>
-                </div>
-              </div>
+                  <div className="p-3 rounded-pod bg-card">
+                    <label className="block text-[11px] text-ink-muted mb-1">
+                      {t('heightLabel')}
+                    </label>
+                    <div className="flex items-baseline gap-1">
+                      <input
+                        type="number"
+                        step="1"
+                        value={localSpecs.riderHeightCm}
+                        onChange={(e) =>
+                          setLocalSpecs((prev) => ({
+                            ...prev,
+                            riderHeightCm: parseInt(e.target.value) || 0,
+                          }))
+                        }
+                        className="w-full text-lg sm:text-xl font-semibold text-ink bg-transparent focus:outline-none tnum"
+                      />
+                      <span className="text-xs text-ink-muted">cm</span>
+                    </div>
+                  </div>
 
-              <div
-                className={`p-3 rounded-pod ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`}
-              >
-                <div className="flex items-center justify-between gap-1 mb-1">
-                  <label className="block text-[11px] opacity-85 break-words">
-                    {t('ftpBaselineLabel')}
-                  </label>
-                </div>
-                <div className="flex items-baseline gap-1">
-                  <input
-                    type="number"
-                    step="5"
-                    value={localSpecs.ftpWatts}
-                    onChange={(e) =>
-                      setLocalSpecs((prev) => ({
-                        ...prev,
-                        ftpWatts: parseInt(e.target.value) || 0,
-                      }))
-                    }
-                    className="w-full text-lg sm:text-xl font-semibold text-current bg-transparent focus:outline-none tnum"
-                  />
-                  <span className="text-xs opacity-80">W</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Interactive FTP Estimator Helper (for riders without a power meter) */}
-            <div className="rounded-pod bg-card p-3 border border-ink/5 dark:border-white/5">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-ink-secondary">
-                  {isFr
-                    ? 'Pas de capteur de puissance ? Estimez votre FTP :'
-                    : "Don't know your FTP? Estimate from your weight:"}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setShowFtpEstimator((v) => !v)}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold cursor-pointer transition-colors ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary}`}
-                >
-                  <Sparkle className="w-3 h-3 text-current" />
-                  <span>{showFtpEstimator ? (isFr ? 'Masquer' : 'Hide') : isFr ? 'Estimer FTP' : 'Estimate FTP'}</span>
-                </button>
-              </div>
-              {showFtpEstimator && (
-                <div className="mt-2.5 pt-2.5 border-t border-dashed border-ink/10 dark:border-white/10 space-y-2 animate-fade-in">
-                  <p className="text-[11px] text-ink-muted leading-snug">
-                    {isFr
-                      ? `La FTP est la puissance max soutenable 1h. Basé sur ${localSpecs.riderWeightKg || 68} kg :`
-                      : `FTP is your 1-hour sustainable pedal power. Based on ${localSpecs.riderWeightKg || 68}kg:`}
-                  </p>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {[
-                      {
-                        wkg: 2.0,
-                        lvl: 'occasional' as RiderLevel,
-                        label: isFr ? 'Balade / Débutant' : 'Casual / Touring',
-                      },
-                      {
-                        wkg: 2.9,
-                        lvl: 'regular' as RiderLevel,
-                        label: isFr ? 'Cycliste Régulier' : 'Active Club',
-                      },
-                      {
-                        wkg: 3.9,
-                        lvl: 'pro' as RiderLevel,
-                        label: isFr ? 'Entraîné / Cyclosport' : 'Trained / Racer',
-                      },
-                    ].map((est) => {
-                      const valW =
-                        Math.round(((localSpecs.riderWeightKg || 68) * est.wkg) / 5) * 5;
-                      return (
-                        <button
-                          key={est.wkg}
-                          type="button"
-                          onClick={() => handleApplyEstimatedFtp(est.wkg, est.lvl)}
-                          className="p-2 rounded-sub-pod bg-pod hover:bg-chip text-left transition-colors cursor-pointer"
-                        >
-                          <div className="text-xs font-mono font-bold text-ink tnum">{valW} W</div>
-                          <div className="text-[10px] text-ink-muted break-words leading-tight">{est.label}</div>
-                        </button>
-                      );
-                    })}
+                  <div
+                    className={`p-3 rounded-pod ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`}
+                  >
+                    <div className="flex items-center justify-between gap-1 mb-1">
+                      <label className="block text-[11px] opacity-85 break-words">
+                        {t('ftpBaselineLabel')}
+                      </label>
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                      <input
+                        type="number"
+                        step="5"
+                        value={localSpecs.ftpWatts}
+                        onChange={(e) =>
+                          setLocalSpecs((prev) => ({
+                            ...prev,
+                            ftpWatts: parseInt(e.target.value) || 0,
+                          }))
+                        }
+                        className="w-full text-lg sm:text-xl font-semibold text-current bg-transparent focus:outline-none tnum"
+                      />
+                      <span className="text-xs opacity-80">W</span>
+                    </div>
                   </div>
                 </div>
-              )}
-            </div>
 
-            {/* Carbohydrate Digestion Capacity (Slider + Presets — replaces rigid 90g default) */}
-            <div className="p-3.5 rounded-pod bg-card space-y-2.5">
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <label className="text-xs font-semibold text-ink block">
-                    {isFr
-                      ? 'Capacité de digestion glucidique'
-                      : 'Carbohydrate Digestion Capacity'}
-                  </label>
-                  <span className="text-[11px] text-ink-muted">
-                    {localSpecs.carbTargetGPerHr <= 45
-                      ? isFr
-                        ? 'Estomac doux · zéro surcharge digestive (idéal randonnée)'
-                        : 'Gentle on the stomach · zero GI stress (ideal for touring)'
-                      : localSpecs.carbTargetGPerHr <= 70
-                      ? isFr
-                        ? 'Endurance équilibrée · standard sorties longues'
-                        : 'Balanced endurance · standard multi-hour fueling'
-                      : isFr
-                      ? 'Haute assimilation · nécessite un entraînement digestif (gut training)'
-                      : 'High gut-trained intake · for intense Gran Fondo / race pace'}
+                {/* Interactive FTP Estimator Helper (for riders without a power meter) */}
+                <div className="rounded-pod bg-card p-3 border border-ink/5 dark:border-white/5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-ink-secondary">
+                      {isFr
+                        ? 'Pas de capteur de puissance ? Estimez votre FTP :'
+                        : "Don't know your FTP? Estimate from your weight:"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowFtpEstimator((v) => !v)}
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold cursor-pointer transition-colors ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary}`}
+                    >
+                      <Sparkle className="w-3 h-3 text-current" />
+                      <span>{showFtpEstimator ? (isFr ? 'Masquer' : 'Hide') : isFr ? 'Estimer FTP' : 'Estimate FTP'}</span>
+                    </button>
+                  </div>
+                  {showFtpEstimator && (
+                    <div className="mt-2.5 pt-2.5 border-t border-dashed border-ink/10 dark:border-white/10 space-y-2 animate-fade-in">
+                      <p className="text-[11px] text-ink-muted leading-snug">
+                        {isFr
+                          ? `La FTP est la puissance max soutenable 1h. Basé sur ${localSpecs.riderWeightKg || 68} kg :`
+                          : `FTP is your 1-hour sustainable pedal power. Based on ${localSpecs.riderWeightKg || 68}kg:`}
+                      </p>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {[
+                          {
+                            wkg: 2.0,
+                            lvl: 'occasional' as RiderLevel,
+                            label: isFr ? 'Balade / Débutant' : 'Casual / Touring',
+                          },
+                          {
+                            wkg: 2.9,
+                            lvl: 'regular' as RiderLevel,
+                            label: isFr ? 'Cycliste Régulier' : 'Active Club',
+                          },
+                          {
+                            wkg: 3.9,
+                            lvl: 'pro' as RiderLevel,
+                            label: isFr ? 'Entraîné / Cyclosport' : 'Trained / Racer',
+                          },
+                        ].map((est) => {
+                          const valW =
+                            Math.round(((localSpecs.riderWeightKg || 68) * est.wkg) / 5) * 5;
+                          return (
+                            <button
+                              key={est.wkg}
+                              type="button"
+                              onClick={() => handleApplyEstimatedFtp(est.wkg, est.lvl)}
+                              className="p-2 rounded-sub-pod bg-pod hover:bg-chip text-left transition-colors cursor-pointer"
+                            >
+                              <div className="text-xs font-mono font-bold text-ink tnum">{valW} W</div>
+                              <div className="text-[10px] text-ink-muted break-words leading-tight">{est.label}</div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* Quantitative Mode: Raw Carb Slider (25–120 g/h) */}
+            {localSpecs.telemetryMode === 'quantitative' && (
+              <div className="p-3.5 rounded-pod bg-card space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <label className="text-xs font-semibold text-ink block">
+                      {isFr
+                        ? 'Capacité de digestion glucidique'
+                        : 'Carbohydrate Digestion Capacity'}
+                    </label>
+                    <span className="text-[11px] text-ink-muted">
+                      {localSpecs.carbTargetGPerHr <= 45
+                        ? isFr
+                          ? 'Estomac doux · zéro surcharge digestive (idéal randonnée)'
+                          : 'Gentle on the stomach · zero GI stress (ideal for touring)'
+                        : localSpecs.carbTargetGPerHr <= 70
+                        ? isFr
+                          ? 'Endurance équilibrée · standard sorties longues'
+                          : 'Balanced endurance · standard multi-hour fueling'
+                        : isFr
+                        ? 'Haute assimilation · nécessite un entraînement digestif (gut training)'
+                        : 'High gut-trained intake · for intense Gran Fondo / race pace'}
+                    </span>
+                  </div>
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-mono font-bold tnum shrink-0 ${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary}`}>
+                    {localSpecs.carbTargetGPerHr ?? 60} g/h
                   </span>
                 </div>
-                <span className={`px-2.5 py-1 rounded-full text-xs font-mono font-bold tnum shrink-0 ${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary}`}>
-                  {localSpecs.carbTargetGPerHr ?? 60} g/h
-                </span>
-              </div>
 
-              <input
-                type="range"
-                min={30}
-                max={105}
-                step={5}
-                value={localSpecs.carbTargetGPerHr ?? 60}
-                onChange={(e) =>
-                  setLocalSpecs((prev) => ({
-                    ...prev,
-                    carbTargetGPerHr: parseInt(e.target.value, 10) || 60,
-                  }))
-                }
-                aria-label={isFr ? 'Tolérance glucides par heure' : 'Carb digestion grams per hour'}
-                className="w-full accent-amber-500 cursor-pointer"
-              />
+                <input
+                  type="range"
+                  min={30}
+                  max={105}
+                  step={5}
+                  value={localSpecs.carbTargetGPerHr ?? 60}
+                  onChange={(e) =>
+                    setLocalSpecs((prev) => ({
+                      ...prev,
+                      carbTargetGPerHr: parseInt(e.target.value, 10) || 60,
+                    }))
+                  }
+                  aria-label={isFr ? 'Tolérance glucides par heure' : 'Carb digestion grams per hour'}
+                  className="w-full accent-amber-500 cursor-pointer"
+                />
 
-              <div className="grid grid-cols-4 gap-1.5">
-                {[
-                  { val: 35, label: isFr ? '35g Léger' : '35g Gentle' },
-                  { val: 50, label: isFr ? '50g Rando' : '50g Touring' },
-                  { val: 65, label: isFr ? '65g Sport' : '65g Steady' },
-                  { val: 90, label: isFr ? '90g Pro' : '90g Gut-Pro' },
-                ].map((opt) => {
-                  const active = Math.abs((localSpecs.carbTargetGPerHr ?? 60) - opt.val) <= 3;
-                  return (
-                    <button
-                      key={opt.val}
-                      type="button"
-                      onClick={() =>
-                        setLocalSpecs((prev) => ({ ...prev, carbTargetGPerHr: opt.val }))
-                      }
-                      className={`py-1.5 px-2 rounded-full text-[11px] font-semibold transition-colors cursor-pointer tnum break-words leading-tight text-center ${
-                        active
-                          ? `${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary}`
-                          : 'bg-pod text-ink-muted hover:text-ink'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  );
-                })}
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[
+                    { val: 35, label: isFr ? '35g Léger' : '35g Gentle' },
+                    { val: 50, label: isFr ? '50g Rando' : '50g Touring' },
+                    { val: 65, label: isFr ? '65g Sport' : '65g Steady' },
+                    { val: 90, label: isFr ? '90g Pro' : '90g Gut-Pro' },
+                  ].map((opt) => {
+                    const active = Math.abs((localSpecs.carbTargetGPerHr ?? 60) - opt.val) <= 3;
+                    return (
+                      <button
+                        key={opt.val}
+                        type="button"
+                        onClick={() =>
+                          setLocalSpecs((prev) => ({ ...prev, carbTargetGPerHr: opt.val }))
+                        }
+                        className={`py-1.5 px-2 rounded-full text-[11px] font-semibold transition-colors cursor-pointer tnum break-words leading-tight text-center ${
+                          active
+                            ? `${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary}`
+                            : 'bg-pod text-ink-muted hover:text-ink'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Fuel-First Mode: 3-Tier Digestion Comfort Selector */}
+            {localSpecs.telemetryMode === 'fuel-first' && (
+              <div className="p-3.5 rounded-pod bg-card space-y-2.5 border border-ink/5 dark:border-white/5">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <label className="text-xs font-semibold text-ink block">
+                      {t('digestionComfortTitle')}
+                    </label>
+                    <span className="text-[11px] text-ink-muted">
+                      {localSpecs.carbTargetGPerHr <= 45
+                        ? t('digestionComfortGentleSub')
+                        : localSpecs.carbTargetGPerHr <= 70
+                        ? t('digestionComfortBalancedSub')
+                        : t('digestionComfortHighIntakeSub')}
+                    </span>
+                  </div>
+                  <span
+                    className={`px-2.5 py-1 rounded-full text-xs font-mono font-bold tnum shrink-0 ${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary}`}
+                  >
+                    ~{Math.max(1, Math.round((localSpecs.carbTargetGPerHr || 60) / 20))} {isFr ? 'unités/h' : 'fuel units/h'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  {(
+                    [
+                      {
+                        tier: 45,
+                        label: t('digestionComfortGentle'),
+                        sub: isFr ? 'Doux · ~2 unités/h' : 'Gentle · ~2 units/h',
+                      },
+                      {
+                        tier: 60,
+                        label: t('digestionComfortBalanced'),
+                        sub: isFr ? 'Équilibré · ~3 unités/h' : 'Balanced · ~3 units/h',
+                      },
+                      {
+                        tier: 85,
+                        label: t('digestionComfortHighIntake'),
+                        sub: isFr ? 'Intensif · ~4 unités/h' : 'High intake · ~4 units/h',
+                      },
+                    ] as const
+                  ).map((tierOpt) => {
+                    const active = (localSpecs.carbTargetGPerHr || 60) === tierOpt.tier;
+                    return (
+                      <button
+                        key={tierOpt.tier}
+                        type="button"
+                        onClick={() =>
+                          setLocalSpecs((prev) => ({
+                            ...prev,
+                            carbTargetGPerHr: tierOpt.tier,
+                          }))
+                        }
+                        className={`p-2.5 rounded-pod text-left transition-all cursor-pointer ${
+                          active
+                            ? `${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.amber.selectedRing}`
+                            : 'bg-pod text-ink-secondary hover:text-ink'
+                        }`}
+                      >
+                        <div className="text-xs font-semibold break-words leading-tight">{tierOpt.label}</div>
+                        <div className="text-[10px] opacity-80 mt-0.5 break-words leading-tight">{tierOpt.sub}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Intuitive Mode: Hydration & Timing Clock Only (No Grams / No Carbs in UI) */}
+            {localSpecs.telemetryMode === 'intuitive' && (
+              <div className="p-3.5 rounded-pod bg-card space-y-2 border border-ink/5 dark:border-white/5">
+                <div className="flex items-center gap-2">
+                  <IconBadge theme="lime" icon={Droplets} size="sm" solidBacker />
+                  <div>
+                    <div className="text-xs font-bold text-ink">{isFr ? 'Régularité & Hydratation' : 'Rhythm & Hydration Cues'}</div>
+                    <div className="text-[11px] text-ink-muted">{t('intuitiveModeNotice')}</div>
+                  </div>
+                </div>
+                <ul className="space-y-1.5 pt-1 text-xs text-ink-secondary">
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-volt-lime shrink-0" />
+                    <span>{t('intuitiveCueT45')}</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-volt-lime shrink-0" />
+                    <span>{t('intuitiveCueEvery20')}</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-volt-lime shrink-0" />
+                    <span>{t('intuitiveCueArrival')}</span>
+                  </li>
+                </ul>
+              </div>
+            )}
 
             {/* Nutritional Preference */}
             <div className="p-3.5 rounded-pod bg-card">

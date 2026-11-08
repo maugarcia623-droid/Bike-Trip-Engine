@@ -1,5 +1,12 @@
 import { RiderBikeSpecsModal } from "./components/settings/RiderBikeSpecsModal";
-import { loadRiderBikeSpecs, saveRiderBikeSpecs, getActiveBike } from "./utils/specsStorage";
+import {
+  loadRiderBikeSpecs,
+  saveRiderBikeSpecs,
+  getActiveBike,
+  hasSavedRiderBikeSpecs,
+  getEffectiveRiderSpecs,
+} from "./utils/specsStorage";
+import { CockpitSetupModal } from "./components/onboarding/CockpitSetupModal";
 import { RiderBikeSpecs } from "./types/specs";
 import React, { useState, useEffect } from 'react';
 import { Analytics } from '@vercel/analytics/react';
@@ -139,6 +146,10 @@ function AppContent() {
   );
   const [riderSpecs, setRiderSpecs] = useState(loadRiderBikeSpecs);
   const [isSpecsModalOpen, setIsSpecsModalOpen] = useState(false);
+  const [isCockpitSetupOpen, setIsCockpitSetupOpen] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return !hasSavedRiderBikeSpecs();
+  });
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isTopMenuOpen, setIsTopMenuOpen] = useState(false);
@@ -537,6 +548,7 @@ function AppContent() {
 
   const applySpecsToActiveTrip = (nextSpecs: RiderBikeSpecs) => {
     const selectedBike = getActiveBike(nextSpecs);
+    const effective = getEffectiveRiderSpecs(nextSpecs);
     const freshChecklist = generateTripChecklist(
       activeTrip.tag,
       activeTrip.route?.distanceKm,
@@ -546,7 +558,7 @@ function AppContent() {
         includeExtraRavito: (activeTrip.customChips || []).includes('real-food'),
         customChips: activeTrip.customChips || [],
         isTubeless: Boolean(selectedBike.isTubeless),
-        carbTargetGPerHr: nextSpecs.carbTargetGPerHr ?? 60,
+        carbTargetGPerHr: effective.carbTargetGPerHr ?? 60,
         nutritionPreference: nextSpecs.nutritionPreference ?? 'mixed',
       }
     );
@@ -562,7 +574,7 @@ function AppContent() {
       checklist: syncedChecklist,
       physics: {
         ...activeTrip.physics,
-        riderWeightKg: nextSpecs.riderWeightKg,
+        riderWeightKg: effective.riderWeightKg,
         bikeWeightKg: selectedBike.weightKg,
         cda: selectedBike.cda,
         crr: selectedBike.crr,
@@ -819,6 +831,15 @@ function AppContent() {
       <RiderBikeSpecsModal
         isOpen={isSpecsModalOpen}
         onClose={() => setIsSpecsModalOpen(false)}
+        specs={riderSpecs}
+        onSave={handleSaveRiderSpecs}
+        onOpenCalibration={() => setIsCockpitSetupOpen(true)}
+      />
+
+      {/* First-Run Onboarding Micro-Modal / Re-Calibration */}
+      <CockpitSetupModal
+        isOpen={isCockpitSetupOpen && !isOnboardingOpen}
+        onClose={() => setIsCockpitSetupOpen(false)}
         specs={riderSpecs}
         onSave={handleSaveRiderSpecs}
       />

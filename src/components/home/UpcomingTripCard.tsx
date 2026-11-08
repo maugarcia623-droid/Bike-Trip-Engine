@@ -20,8 +20,9 @@ import { calculateReverseTimeline } from '../../utils/timeline';
 import { getChipsExtraBufferMinutes, getArchetypeFromTag } from '../../utils/archetypeChips';
 import { useTranslation, getLocalizedTripMeta } from '../../context/LanguageContext';
 import { degreesToCompassCardinal } from '../../services/weatherService';
-import { loadRiderBikeSpecs, getActiveBike } from '../../utils/specsStorage';
+import { loadRiderBikeSpecs, getActiveBike, getEffectiveRiderSpecs } from '../../utils/specsStorage';
 import { calculateRideVisibility } from '../../utils/solarVisibility';
+import { calculateDynamicCarbTarget } from '../../utils/nutrition';
 import { Collapsible } from '../common/Collapsible';
 import { Badge } from '../common/Badge';
 import {
@@ -164,6 +165,7 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
 
   // Active rider garage specs
   const specs = useMemo(() => loadRiderBikeSpecs(), []);
+  const effectiveSpecs = useMemo(() => getEffectiveRiderSpecs(specs), [specs]);
   const activeBike = useMemo(() => getActiveBike(specs), [specs]);
 
   // Solved physics calculations
@@ -171,6 +173,22 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
     () => calculatePhysics(trip.physics, trip.route, trip.weather, lang, specs?.ftpWatts),
     [trip.physics, trip.route, trip.weather, lang, specs?.ftpWatts]
   );
+
+  const dynamicCarb = useMemo(() => {
+    return calculateDynamicCarbTarget(
+      physicsResult.movingTimeSeconds / 3600,
+      physicsResult.ftpPercent,
+      physicsResult.carbOxidationGramPerHour,
+      effectiveSpecs.carbTargetGPerHr ?? 60,
+      trip.stages?.length || 1
+    );
+  }, [
+    physicsResult.movingTimeSeconds,
+    physicsResult.ftpPercent,
+    physicsResult.carbOxidationGramPerHour,
+    effectiveSpecs.carbTargetGPerHr,
+    trip.stages?.length,
+  ]);
 
   // Solved reverse timeline
   const extraBufferMinutes = useMemo(() => getChipsExtraBufferMinutes(trip), [trip]);
@@ -464,7 +482,9 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
                 </span>
                 <span className="text-xs font-medium text-ink-muted">W</span>
                 <Badge variant="zinc" size="sm" className="ml-auto tnum">
-                  {physicsResult.powerZone} &middot; {physicsResult.wattsPerKg} W/kg
+                  {effectiveSpecs.telemetryMode === 'quantitative'
+                    ? `${physicsResult.powerZone} · ${physicsResult.wattsPerKg} W/kg`
+                    : physicsResult.powerZone}
                 </Badge>
               </div>
             </div>
@@ -475,8 +495,25 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
                 <span className="font-semibold text-ink">{trip.route.targetSpeedKmH} km/h</span>
               </div>
               <div className="flex items-center justify-between text-[11px] text-ink-muted tnum">
-                <span>{t('carbTargetBurn')}: ~{Math.round(physicsResult.carbOxidationGramPerHour)} g/h</span>
-                <span>~{Math.round(physicsResult.totalKcalBurn)} kcal</span>
+                {effectiveSpecs.telemetryMode === 'quantitative' ? (
+                  <>
+                    <span>{t('carbTargetBurn')}: ~{Math.round(physicsResult.carbOxidationGramPerHour)} g/h</span>
+                    <span>~{Math.round(physicsResult.totalKcalBurn)} kcal</span>
+                  </>
+                ) : effectiveSpecs.telemetryMode === 'fuel-first' ? (
+                  <>
+                    <span>
+                      {t('carbTargetBurn')}: ~{Math.max(1, Math.round(dynamicCarb.effectiveHourlyRateG / 20))}{' '}
+                      {lang === 'fr' ? 'unités/h' : 'units/h'}
+                    </span>
+                    <span>{t('steadyFuelingRhythm')}</span>
+                  </>
+                ) : (
+                  <>
+                    <span>{t('guidancePhilosophyTitle')}</span>
+                    <span>{t('intuitiveRhythmBadge')}</span>
+                  </>
+                )}
               </div>
             </div>
           </div>

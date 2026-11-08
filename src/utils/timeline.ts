@@ -345,8 +345,8 @@ export function calculateReverseTimeline(
       if (arrStep) {
         arrStep.title = isFr ? 'Arrivée Bivouac Montagne avant Crépuscule' : 'Mountain Bivouac Arrival before Dusk';
         arrStep.description = isFr
-          ? 'Arrivée impérative avant 19:30 pour planter le campement abrité du vent d’altitude.'
-          : 'Mandatory arrival before 19:30 to secure sheltered mountain camp against altitude wind.';
+          ? 'Arrivée conseillée avant 19:30 pour installer le campement abrité du vent d’altitude.'
+          : 'Target arrival before 19:30 to secure sheltered mountain camp against altitude wind.';
       }
     }
 

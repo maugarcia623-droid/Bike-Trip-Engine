@@ -1,6 +1,6 @@
 import { PhysicsParams, RouteParams, WeatherCondition, PhysicsCalculationResult } from '../types/trip';
 import { Language, getCurrentLanguage, translate } from '../context/LanguageContext';
-import { loadRiderBikeSpecs } from './specsStorage';
+import { loadRiderBikeSpecs, getEffectiveRiderSpecs } from './specsStorage';
 import { synthesizeRouteElevationProfile } from './gpxParser';
 
 const GRAVITY = 9.81; // m/s^2
@@ -76,16 +76,25 @@ export function calculatePhysics(
     gradientPercent,
   } = physics;
 
+  // Resolve effective rider baselines (body-neutral mode safe)
+  const configuredSpecs = loadRiderBikeSpecs();
+  const effectiveSpecs = getEffectiveRiderSpecs(configuredSpecs);
+  const effectiveRiderKg =
+    typeof riderWeightKg === 'number' && riderWeightKg > 25
+      ? riderWeightKg
+      : effectiveSpecs.riderWeightKg;
+
   // 1. Total System Mass (Rider + Bike + Gear) & Synced Air Density
-  const systemMassKg = Number(Math.max(10, riderWeightKg + bikeWeightKg + gearWeightKg).toFixed(1));
+  const systemMassKg = Number(
+    Math.max(10, effectiveRiderKg + (bikeWeightKg || 9.5) + (gearWeightKg || 0)).toFixed(1)
+  );
   const eff = Math.min(0.99, Math.max(0.70, drivetrainEfficiency));
   const gradeFraction = gradientPercent / 100;
   const sinTheta = Math.sin(Math.atan(gradeFraction));
   const effectiveRho = weather.airDensityRho ?? rho ?? 1.225;
 
   // Resolve rider FTP baseline
-  const configuredSpecs = loadRiderBikeSpecs();
-  const ftpWatts = Math.max(80, Math.round(ftpOverride || configuredSpecs.ftpWatts || 210));
+  const ftpWatts = Math.max(80, Math.round(ftpOverride || effectiveSpecs.ftpWatts || 210));
 
   // 2. Calm Baseline at Target Cruising Speed
   const targetSpeedKmH = Math.max(5, route.targetSpeedKmH || 25);
@@ -210,7 +219,7 @@ export function calculatePhysics(
   const airSpeedMs = Math.max(0, groundSpeedMs + windSpeedMs);
 
   // 4. Rider-Normalized Effort Metrics (W/kg, % FTP, Coggan Zone)
-  const safeRiderKg = Math.max(35, riderWeightKg || 70);
+  const safeRiderKg = Math.max(35, effectiveRiderKg || 68);
   const wattsPerKg = Number((legWatts / safeRiderKg).toFixed(2));
   const ftpPercent = Math.round((legWatts / ftpWatts) * 100);
   const powerZone = getPowerZone(ftpPercent);

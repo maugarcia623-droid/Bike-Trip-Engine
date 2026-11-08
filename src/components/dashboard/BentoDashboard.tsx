@@ -322,6 +322,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
                 physicsResult={physicsResult}
                 viewMode={viewMode}
                 onToggleViewMode={handleSetViewMode}
+                riderSpecs={effectiveSpecs}
               />
             </div>
           </div>
@@ -405,6 +406,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
               physicsResult={physicsResult}
               viewMode={viewMode}
               onToggleViewMode={handleSetViewMode}
+              riderSpecs={effectiveSpecs}
             />
           </div>
         </div>
