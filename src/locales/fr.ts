@@ -163,7 +163,7 @@ export const fr: TranslationDictionary = {
 
   // ── Weather Widget (Home) ──
   weatherCheckTitle: "Météo du parcours",
-  weatherCheckSubtitle: "Conditions météo en direct et évaluation aérodynamique GO / NO-GO pour rouler",
+  weatherCheckSubtitle: "Conditions météo en direct et confort de roulage",
   statusNoGoGale: "No-Go · Risque de tempête",
   statusCautionHeadwind: "Allure sereine · Vent intégré",
   statusGoOptimal: "Feu vert · Conditions idéales",
@@ -837,8 +837,8 @@ export const fr: TranslationDictionary = {
   timelinePhasePreRide: "Pré-Départ",
   timelinePhaseRide: "En Selle",
   timelinePhasePostRide: "Post-Trajet",
-  bannerMovingPill: "Roulage {min}m",
-  bannerBufferPill: "Marges +{min}m",
+  bannerMovingPill: "Roulage {min} min",
+  bannerBufferPill: "Marges +{min} min",
 
   // ── Progressive Disclosure: Readiness Checklist ──
   checklistFilterAria: "Filtre de catégorie de la checklist",

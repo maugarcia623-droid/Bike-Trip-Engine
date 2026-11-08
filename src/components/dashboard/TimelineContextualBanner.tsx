@@ -116,7 +116,7 @@ export const TimelineContextualBanner: React.FC<TimelineContextualBannerProps> =
             { label: t('ctxSportMetric2Label'), value: `${carbTarget}g/h`, sub: t('ctxSportMetric2Sub') },
             {
               label: t('ctxSportMetric3Label'),
-              value: `${timeline.pureMovingMinutes}m`,
+              value: `${timeline.pureMovingMinutes} min`,
               sub: t('ctxSportMetric3Sub', { dist: route?.distanceKm || 35 }),
             },
             { label: t('ctxSportMetric4Label'), value: t('ctxSportMetric4Val'), sub: t('ctxSportMetric4Sub') },
@@ -146,7 +146,7 @@ export const TimelineContextualBanner: React.FC<TimelineContextualBannerProps> =
               value: `~${gearWeight} kg`,
               sub: t('ctxBpMetric2Sub', { rig: totalRigMass }),
             },
-            { label: t('ctxBpMetric3Label'), value: `${timeline.pureMovingMinutes}m`, sub: t('ctxBpMetric3Sub') },
+            { label: t('ctxBpMetric3Label'), value: `${timeline.pureMovingMinutes} min`, sub: t('ctxBpMetric3Sub') },
             { label: t('ctxBpMetric4Label'), value: timeline.gateArrivalTime || '18:00', sub: t('ctxBpMetric4Sub') },
           ],
         };
@@ -169,10 +169,10 @@ export const TimelineContextualBanner: React.FC<TimelineContextualBannerProps> =
             { label: t('ctxEscMetric2Label'), value: checkInTime, sub: dest },
             {
               label: t('ctxEscMetric3Label'),
-              value: `${timeline.pureMovingMinutes}m`,
+              value: `${timeline.pureMovingMinutes} min`,
               sub: `~${route?.targetSpeedKmH || 24} km/h`,
             },
-            { label: t('ctxEscMetric4Label'), value: `+${timeline.bufferMinutes}m`, sub: t('ctxEscMetric4Sub') },
+            { label: t('ctxEscMetric4Label'), value: `+${timeline.bufferMinutes} min`, sub: t('ctxEscMetric4Sub') },
           ],
         };
       }
@@ -200,8 +200,8 @@ export const TimelineContextualBanner: React.FC<TimelineContextualBannerProps> =
             : t('ctxComNoteCalm', { gate, min: timeline.bufferMinutes }),
           metrics: [
             { label: t('ctxComMetric1Label'), value: gateTime, sub: gate },
-            { label: t('ctxComMetric2Label'), value: `+${timeline.bufferMinutes}m`, sub: t('ctxComMetric2Sub') },
-            { label: t('ctxComMetric3Label'), value: `${timeline.totalDoorToDeskMinutes}m`, sub: t('ctxComMetric3Sub') },
+            { label: t('ctxComMetric2Label'), value: `+${timeline.bufferMinutes} min`, sub: t('ctxComMetric2Sub') },
+            { label: t('ctxComMetric3Label'), value: `${timeline.totalDoorToDeskMinutes} min`, sub: t('ctxComMetric3Sub') },
             { label: t('ctxComMetric4Label'), value: shiftTime, sub: t('ctxComMetric4Sub') },
           ],
         };
@@ -259,9 +259,9 @@ export const TimelineContextualBanner: React.FC<TimelineContextualBannerProps> =
           >
             {t('bannerBufferPill', { min: timeline.bufferMinutes })}
           </Badge>
-          {isHeadwind && (
+          {isHeadwind && headwindImpactMin > 0 && (
             <Badge variant="amber" size="sm" icon={Wind} className="hidden md:inline-flex tnum">
-              +{headwindImpactMin}m
+              +{headwindImpactMin} min
             </Badge>
           )}
         </span>

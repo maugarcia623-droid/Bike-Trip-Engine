@@ -89,7 +89,14 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
 
         <div className="text-right">
           <div className="border-2 border-black rounded-full px-4 py-1 text-center font-mono font-bold text-xs inline-block">
-            {t('printDecision', { status: physicsResult.goStatus })}
+            {t('printDecision', {
+              status:
+                physicsResult.goStatus === 'GO'
+                  ? t('feasibilityOptimal')
+                  : physicsResult.goStatus === 'CAUTION'
+                  ? t('feasibilityCaution')
+                  : t('feasibilitySevere'),
+            })}
           </div>
           <div className="text-[10px] font-mono text-gray-500 mt-1">
             {t('printGenerated')} {new Date().toLocaleDateString(locale)} {new Date().toLocaleTimeString(locale)}

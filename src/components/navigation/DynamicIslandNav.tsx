@@ -181,7 +181,7 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
                   ? `${yellowVest.surface} ${yellowVest.primary} ${yellowVest.selectedRing}`
                   : `${CHIP_RING_UNSELECTED} bg-zinc-100 hover:bg-zinc-200/80 text-zinc-800 dark:bg-zinc-800/70 dark:hover:bg-zinc-800 dark:text-zinc-200`
               }`}
-              title={`${activeMeta.name} — ${t('feasibilityStatus')}: ${physics?.goStatus || 'GO'} (${physics?.goStatusReason || ''})`}
+              title={`${activeMeta.name} — ${t('feasibilityStatus')}: ${isGo ? t('feasibilityOptimal') : isCaution ? t('feasibilityCaution') : t('feasibilitySevere')} (${physics?.goStatusReason || ''})`}
               aria-expanded={isSwitcherOpen}
               aria-haspopup="listbox"
             >
@@ -207,7 +207,11 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
                     : 'bg-rose-500/15 text-rose-700 dark:text-rose-300'
                 }`}
               >
-                {physics?.goStatus || 'GO'}
+                {isGo
+                  ? t('feasibilityOptimal')
+                  : isCaution
+                  ? t('feasibilityCaution')
+                  : t('feasibilitySevere')}
               </span>
               {isSwitcherOpen ? (
                 <CircleChevronUp className="w-4 h-4 shrink-0 text-current" />
@@ -280,7 +284,11 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
                               : CHIP_TOKENS.rose.dot
                           }`}
                         />
-                        {physics.goStatus}
+                        {isGo
+                          ? t('feasibilityOptimal')
+                          : isCaution
+                          ? t('feasibilityCaution')
+                          : t('feasibilitySevere')}
                       </span>
                     </div>
                     <p className="text-[11px] text-ink-secondary dark:text-zinc-300 leading-snug">
@@ -315,7 +323,7 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
                           onSelectTrip(tripItem.id);
                           setIsSwitcherOpen(false);
                         }}
-                        title={`${meta.name} — ${itemPhysics.goStatus}: ${itemPhysics.goStatusReason}`}
+                        title={`${meta.name} — ${itemIsGo ? t('feasibilityOptimal') : itemIsCaution ? t('feasibilityCaution') : t('feasibilitySevere')}: ${itemPhysics.goStatusReason}`}
                         className={`w-full flex items-center justify-between px-3 sm:px-3.5 py-2.5 rounded-xl text-[13px] text-left transition-all duration-150 active:scale-[0.98] cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
                           isSelected
                             ? `${yellowVest.surface} ${yellowVest.primary} ${yellowVest.selectedRing}`

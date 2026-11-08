@@ -73,7 +73,7 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
                   ? CHIP_TOKENS.amber.dot
                   : CHIP_TOKENS.emerald.dot
               }`}
-              title={`${physicsResult.goStatus}: ${physicsResult.goStatusReason}`}
+              title={`${isHighWind ? t('feasibilitySevere') : isCaution ? t('feasibilityCaution') : t('feasibilityOptimal')}: ${physicsResult.goStatusReason}`}
             />
             <h2 className="text-base sm:text-[17px] font-semibold tracking-tight text-ink">
               {t('weatherCheckTitle')}
@@ -87,15 +87,15 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
         {/* Full-Radius Status Callout */}
         <div className="flex items-center gap-2 flex-wrap">
           {isHighWind ? (
-            <Badge variant="rose" size="lg" icon={Warning} className="py-2 px-3.5 text-xs" title={`${t('rideFeasibility')}: ${physicsResult.goStatus} — ${physicsResult.goStatusReason}`}>
+            <Badge variant="rose" size="lg" icon={Warning} className="py-2 px-3.5 text-xs" title={`${t('rideFeasibility')}: ${t('feasibilitySevere')} — ${physicsResult.goStatusReason}`}>
               {t('statusNoGoGale')}
             </Badge>
           ) : isCaution ? (
-            <Badge variant="amber" size="lg" icon={Warning} className="py-2 px-3.5 text-xs" title={`${t('rideFeasibility')}: ${physicsResult.goStatus} — ${physicsResult.goStatusReason}`}>
+            <Badge variant="amber" size="lg" icon={Warning} className="py-2 px-3.5 text-xs" title={`${t('rideFeasibility')}: ${t('feasibilityCaution')} — ${physicsResult.goStatusReason}`}>
               {t('statusCautionHeadwind')}
             </Badge>
           ) : (
-            <Badge variant="emerald" size="lg" icon={CheckCircle} className="py-2 px-3.5 text-xs" title={`${t('rideFeasibility')}: ${physicsResult.goStatus} — ${physicsResult.goStatusReason}`}>
+            <Badge variant="emerald" size="lg" icon={CheckCircle} className="py-2 px-3.5 text-xs" title={`${t('rideFeasibility')}: ${t('feasibilityOptimal')} — ${physicsResult.goStatusReason}`}>
               {t('statusGoOptimal')}
             </Badge>
           )}

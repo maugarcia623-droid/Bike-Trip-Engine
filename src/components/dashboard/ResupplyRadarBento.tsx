@@ -375,8 +375,8 @@ export const ResupplyRadarBento: React.FC<ResupplyRadarBentoProps> = ({
             >
               {waterGaps.status === 'clear'
                 ? isFr
-                  ? `Eau GO (max ${waterGaps.maxGapKm} km)`
-                  : `Hydration GO (max ${waterGaps.maxGapKm} km)`
+                  ? `Eau : Tout est prêt (max ${waterGaps.maxGapKm} km)`
+                  : `Water: All good (max ${waterGaps.maxGapKm} km)`
                 : waterGaps.status === 'caution'
                 ? t('hydrationCautionShort', { gap: waterGaps.maxGapKm })
                 : t('hydrationCriticalShort', { gap: waterGaps.maxGapKm })}

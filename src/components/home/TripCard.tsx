@@ -145,7 +145,7 @@ export const TripCard: React.FC<TripCardProps> = ({
                 ? 'bg-amber-500/10 text-amber-800 dark:text-amber-300'
                 : 'bg-rose-500/10 text-rose-800 dark:text-rose-300'
             }`}
-            title={`${physicsResult.goStatus}: ${physicsResult.goStatusReason}`}
+            title={`${physicsResult.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')}: ${physicsResult.goStatusReason}`}
           >
             <span
               className={`w-1.5 h-1.5 rounded-full shrink-0 ${

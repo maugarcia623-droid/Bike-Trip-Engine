@@ -253,7 +253,7 @@ export function getSolarEphemeris(
     nauticalDawn: minutesToHHMM(nautDawnMin),
     nauticalDusk: minutesToHHMM(nautDuskMin),
     daylightMinutes,
-    daylightHoursFormatted: `${dlHours}h ${dlMins.toString().padStart(2, '0')}m`,
+    daylightHoursFormatted: `${dlHours}h ${dlMins.toString().padStart(2, '0')} min`,
     maxSolarElevationDeg: Math.round(maxElevation * 10) / 10,
     isWinterSolsticeWindow,
   };
@@ -630,7 +630,7 @@ export function calculateRideVisibility(
       id: 'vis-black-ice',
       category: 'surface',
       critical: true,
-      badgeEn: 'Black Ice Caution',
+      badgeEn: 'Black ice alert',
       badgeFr: 'Danger Verglas',
       titleEn: 'Morning Black Ice & Low-Contrast Surface Hazard',
       titleFr: 'Risque de verglas matinal & chaussée glissante',
@@ -646,7 +646,7 @@ export function calculateRideVisibility(
   let summaryRecommendationFr = '';
 
   if (minLumens >= 800 || overallCondition === 'pitch-dark') {
-    summaryRecommendationEn = `Rollout is in deep darkness before dawn. Mount an 800 to 1,000 lumen headlight in high-beam mode to see the road ahead, wear reflective gear with rotating ankle bands to be seen, and ensure lights are fully charged (cold drops battery runtime by ~30%).`;
+    summaryRecommendationEn = `Departure is in deep darkness before dawn. Mount an 800 to 1,000 lumen headlight in high-beam mode to see the road ahead, wear reflective gear with rotating ankle bands to be seen, and ensure lights are fully charged (cold drops battery runtime by ~30%).`;
     summaryRecommendationFr = `Départ en pleine nuit avant l'aube. Équipez un feu avant de 800 à 1 000 lumens en plein phare pour éclairer la route, portez un gilet et des bandes de cheville réfléchissantes pour être vu, et partez à 100% de charge (le froid réduit l'autonomie de ~30%).`;
   } else if (minLumens >= 500 || overallCondition === 'twilight-dawn' || overallCondition === 'twilight-dusk') {
     summaryRecommendationEn = `Low-contrast twilight transition across your route. Run a 500–700 lumen continuous beam to illuminate unlit road segments, and wear high-contrast reflective outer gear to stay visible to drivers.`;
@@ -660,7 +660,7 @@ export function calculateRideVisibility(
   }
 
   if (isBlackIceRisk) {
-    summaryRecommendationEn += ` Caution: near-freezing surface (${tempC}°C) — watch for black ice on bridges and damp turns.`;
+    summaryRecommendationEn += ` Heads up: near-freezing surface (${tempC}°C) — watch for black ice on bridges and damp turns.`;
     summaryRecommendationFr += ` Attention : chaussée froide (${tempC}°C) — risque de verglas sur ponts et virages humides.`;
   }
 

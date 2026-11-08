@@ -320,7 +320,7 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
                               onSelectTrip(p.id);
                               setIsSwitcherOpen(false);
                             }}
-                            title={`${pMeta.name} — ${pPhysics.goStatus}: ${pPhysics.goStatusReason}`}
+                            title={`${pMeta.name} — ${pIsGo ? t('feasibilityOptimal') : pIsCaution ? t('feasibilityCaution') : t('feasibilitySevere')}: ${pPhysics.goStatusReason}`}
                             className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between gap-2 hover:bg-pod transition-colors cursor-pointer ${
                               isCurrent ? 'font-semibold text-ink bg-pod/60' : 'text-ink-secondary'
                             }`}
@@ -339,7 +339,9 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
                                 <span className="break-words leading-tight">{pMeta.name}</span>
                               </div>
                               <span className="text-[10px] text-ink-muted">
-                                <span className="font-semibold uppercase mr-1">{pPhysics.goStatus}</span>
+                                <span className="font-semibold mr-1">
+                                  {pIsGo ? t('feasibilityOptimal') : pIsCaution ? t('feasibilityCaution') : t('feasibilitySevere')}
+                                </span>
                                 · {pDate.formattedDate} · {p.route.distanceKm} km · {p.tag}
                               </span>
                             </div>
@@ -375,15 +377,15 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
         {/* Readiness Badge, Cockpit Launch CTA & Collapse Button */}
         <div className="flex items-center gap-2.5 flex-wrap shrink-0">
           {isHighWind ? (
-            <Badge variant="rose" size="md" icon={Warning} className="py-2 px-3 text-xs" title={`${t('rideFeasibility')}: ${physicsResult.goStatus} — ${physicsResult.goStatusReason}`}>
+            <Badge variant="rose" size="md" icon={Warning} className="py-2 px-3 text-xs" title={`${t('rideFeasibility')}: ${t('feasibilitySevere')} — ${physicsResult.goStatusReason}`}>
               {t('statusNoGoGale')}
             </Badge>
           ) : isCaution ? (
-            <Badge variant="amber" size="md" icon={Warning} className="py-2 px-3 text-xs" title={`${t('rideFeasibility')}: ${physicsResult.goStatus} — ${physicsResult.goStatusReason}`}>
+            <Badge variant="amber" size="md" icon={Warning} className="py-2 px-3 text-xs" title={`${t('rideFeasibility')}: ${t('feasibilityCaution')} — ${physicsResult.goStatusReason}`}>
               {t('statusCautionHeadwind')}
             </Badge>
           ) : (
-            <Badge variant="emerald" size="md" icon={CheckCircle} className="py-2 px-3 text-xs" title={`${t('rideFeasibility')}: ${physicsResult.goStatus} — ${physicsResult.goStatusReason}`}>
+            <Badge variant="emerald" size="md" icon={CheckCircle} className="py-2 px-3 text-xs" title={`${t('rideFeasibility')}: ${t('feasibilityOptimal')} — ${physicsResult.goStatusReason}`}>
               {t('statusGoOptimal')}
             </Badge>
           )}

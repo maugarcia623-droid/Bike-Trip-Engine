@@ -615,15 +615,15 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
           <button
             type="button"
             onClick={() => onNavigate(breadcrumbTargetView)}
-            title={`${t('rideFeasibility')}: ${physics?.goStatus || 'GO'} — ${physics?.goStatusReason || ''} (${currentView === 'dashboard' ? t('editParamsTitle') : t('openFlightDeckBtn')})`}
+            title={`${t('rideFeasibility')}: ${physics?.goStatus === 'GO' ? t('feasibilityOptimal') : physics?.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')} — ${physics?.goStatusReason || ''} (${currentView === 'dashboard' ? t('editParamsTitle') : t('openFlightDeckBtn')})`}
             className="hidden lg:flex items-center gap-2.5 px-4 py-2 bg-card dark:bg-pod hover:bg-pod dark:hover:bg-chip rounded-full text-[13px] sm:text-sm font-mono shadow-xs min-w-0 max-w-lg transition-colors cursor-pointer focus:outline-none"
           >
             <span
               className={`w-2.5 h-2.5 rounded-full shrink-0 ${statusDotClass}`}
-              title={`${physics?.goStatus}: ${physics?.goStatusReason}`}
+              title={`${physics?.goStatus === 'GO' ? t('feasibilityOptimal') : physics?.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')}: ${physics?.goStatusReason}`}
             />
             <span className="text-ink-muted uppercase tracking-wider text-xs font-bold shrink-0">
-              {activeTrip.tag}
+              {activeTrip.tag === 'VÉLOTAF' ? (lang === 'fr' ? 'Vélotaf' : 'Commute') : activeTrip.tag}
             </span>
             <span className="text-ink-muted shrink-0">/</span>
             <span className="text-ink font-semibold break-words leading-tight">{activeMeta.name}</span>

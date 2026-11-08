@@ -445,7 +445,11 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
               size="xs"
               dot
             >
-              {goStatus}
+              {goStatus === 'GO'
+                ? t('feasibilityOptimal')
+                : goStatus === 'CAUTION'
+                ? t('feasibilityCaution')
+                : t('feasibilitySevere')}
             </Badge>
             <span className="font-semibold text-ink">{temperature}&deg;C</span>
             <span className="text-ink-muted">&middot;</span>

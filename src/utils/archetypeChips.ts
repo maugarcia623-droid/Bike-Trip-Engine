@@ -338,8 +338,8 @@ export const ARCHETYPE_CHIP_DEFINITIONS: Record<ArchetypeMode, ArchetypeChipDef[
         },
         {
           id: 'nightCautionBufferMin',
-          labelEn: 'Night caution buffer (min)',
-          labelFr: 'Marge de précaution nuit (min)',
+          labelEn: 'Night safety buffer (min)',
+          labelFr: 'Marge de sécurité nuit (min)',
           type: 'number',
           defaultValue: 10,
           unit: 'min',
@@ -907,7 +907,7 @@ export const ARCHETYPE_CHIP_DEFINITIONS: Record<ArchetypeMode, ArchetypeChipDef[
       settingsFields: [
         {
           id: 'trailSectorBufferMin',
-          labelEn: 'Trail caution buffer (min)',
+          labelEn: 'Trail buffer (min)',
           labelFr: 'Marge prudence sentier (min)',
           type: 'number',
           defaultValue: 12,
