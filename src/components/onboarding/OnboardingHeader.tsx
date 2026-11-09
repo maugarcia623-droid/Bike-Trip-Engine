@@ -89,7 +89,7 @@ export const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({
           <button
             type="button"
             onClick={toggleTheme}
-            className="w-8 h-8 rounded-full bg-pod hover:bg-chip flex items-center justify-center transition-colors cursor-pointer border border-black/5 dark:border-white/10 text-ink"
+            className="w-8 h-8 rounded-full bg-pod hover:bg-chip flex items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer border border-black/5 dark:border-white/10 text-ink"
             title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             aria-label={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           >
@@ -104,7 +104,7 @@ export const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-pod hover:bg-chip flex items-center justify-center transition-colors cursor-pointer border border-black/5 dark:border-white/10 text-ink-muted hover:text-ink"
+            className="w-8 h-8 rounded-full bg-pod hover:bg-chip flex items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer border border-black/5 dark:border-white/10 text-ink-muted hover:text-ink"
             title={isFr ? 'Fermer l’assistant' : 'Close and dismiss'}
             aria-label={isFr ? 'Fermer l’assistant' : 'Close and dismiss'}
           >
@@ -163,7 +163,7 @@ export const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({
                     }`}
                   >
                     {isCompleted && !isWelcome ? (
-                      <Check size={12} className="stroke-[3]" />
+                      <Check size={12} className="stroke-[3] animate-apple-check-pop" />
                     ) : (
                       stepNum
                     )}

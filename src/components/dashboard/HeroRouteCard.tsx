@@ -1338,7 +1338,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                       }
                     : undefined
                 }
-                className={`h-full rounded-pod p-3.5 sm:p-4.5 flex flex-col justify-between min-h-[100px] sm:min-h-[114px] transition-all hover:brightness-[0.98] dark:hover:brightness-110 ${
+                className={`h-full rounded-pod p-3 sm:p-3.5 flex flex-col justify-between min-h-[100px] sm:min-h-[112px] transition-all hover:brightness-[0.98] dark:hover:brightness-110 ${
                   isInteractive ? 'cursor-pointer select-none group' : ''
                 } bg-[#faffcb] dark:bg-[#1f2203] ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
               >
@@ -1358,12 +1358,12 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     <Clock className="w-4 h-4 text-current shrink-0" />
                   </span>
                 </div>
-                <div className="mt-auto pt-2 flex flex-row sm:flex-col xl:flex-row items-baseline sm:items-start xl:items-baseline justify-between gap-1 min-w-0">
-                  <span className="text-2xl sm:text-[28px] xl:text-[30px] font-extrabold tracking-tight tnum leading-none shrink-0">
+                <div className="mt-auto pt-2 flex flex-col items-start justify-between gap-1 min-w-0">
+                  <span className="text-xl sm:text-2xl xl:text-[26px] font-extrabold tracking-tight tnum leading-none shrink-0">
                     {timelineResult.hardDepartureTime}
                   </span>
                   <span
-                    className="text-[11px] font-bold tnum break-words sm:w-full xl:w-auto text-right sm:text-left xl:text-right min-w-0 leading-tight"
+                    className="text-[11px] font-bold tnum break-words w-full text-left min-w-0 leading-tight"
                     title={`${heroTargetLabel} ${heroTargetValue}`}
                   >
                     {heroTargetValue ? `${heroTargetValue} ${targetShortLabel}` : '09:00'}
@@ -1505,7 +1505,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                       }
                     : undefined
                 }
-                className={`h-full rounded-pod p-3.5 sm:p-4.5 bg-pod dark:bg-[#161618] text-ink border flex flex-col justify-between min-h-[108px] sm:min-h-[114px] transition-all ${
+                className={`h-full rounded-pod p-3 sm:p-3.5 bg-pod dark:bg-[#161618] text-ink border flex flex-col justify-between min-h-[100px] sm:min-h-[112px] transition-all ${
                   activePopover === 'route'
                     ? 'border-ink/30 dark:border-white/30'
                     : 'border-ink/5 dark:border-white/5 hover:border-ink/15 dark:hover:border-white/15'
@@ -1524,15 +1524,15 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     <MapIcon className={`w-4 h-4 shrink-0 text-beacon-red dark:text-rose-400 dual-tone-rose ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
                   </span>
                 </div>
-                <div className="mt-auto pt-2 flex flex-col xl:flex-row items-start xl:items-baseline justify-between gap-1 min-w-0">
+                <div className="mt-auto pt-2 flex flex-col items-start justify-between gap-1 min-w-0">
                   <div className="flex items-baseline gap-1 shrink-0">
-                    <span className="text-2xl sm:text-[28px] xl:text-[30px] font-bold tracking-tight tnum leading-none text-ink">
+                    <span className="text-xl sm:text-2xl xl:text-[26px] font-bold tracking-tight tnum leading-none text-ink">
                       {trip.route.distanceKm}
                     </span>
                     <span className="text-xs font-medium text-ink-muted">km</span>
                   </div>
                   <span
-                    className="text-[11px] font-medium text-ink-muted break-words w-full xl:w-auto text-left xl:text-right min-w-0 leading-tight"
+                    className="text-[11px] font-medium text-ink-muted break-words w-full text-left min-w-0 leading-tight"
                     title={trip.route.origin || 'Nord-sur-Erdre'}
                   >
                     {trip.route.origin || 'Nord-sur-Erdre'}
@@ -1734,7 +1734,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                       }
                     : undefined
                 }
-                className={`h-full rounded-pod p-3.5 sm:p-4.5 bg-pod dark:bg-[#161618] text-ink border flex flex-col justify-between min-h-[108px] sm:min-h-[114px] transition-all ${
+                className={`h-full rounded-pod p-3 sm:p-3.5 bg-pod dark:bg-[#161618] text-ink border flex flex-col justify-between min-h-[100px] sm:min-h-[112px] transition-all ${
                   activePopover === 'pace'
                     ? 'border-ink/30 dark:border-white/30'
                     : 'border-ink/5 dark:border-white/5 hover:border-ink/15 dark:hover:border-white/15'
@@ -1755,12 +1755,12 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     <Timer className={`w-4 h-4 shrink-0 ${CHIP_TOKENS.emerald.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
                   </span>
                 </div>
-                <div className="mt-auto pt-2 flex flex-col xl:flex-row items-start xl:items-baseline justify-between gap-1 min-w-0">
-                  <span className="text-2xl sm:text-[28px] xl:text-[30px] font-bold tracking-tight tnum leading-none text-ink shrink-0">
+                <div className="mt-auto pt-2 flex flex-col items-start justify-between gap-1 min-w-0">
+                  <span className="text-xl sm:text-2xl xl:text-[26px] font-bold tracking-tight tnum leading-none text-ink shrink-0">
                     {formatTimeHHMM(movingMinutes)}
                   </span>
                   <span
-                    className={`text-[11px] font-medium tnum break-words w-full xl:w-auto text-left xl:text-right min-w-0 leading-tight ${CHIP_TOKENS.emerald.primary}`}
+                    className={`text-[11px] font-medium tnum break-words w-full text-left min-w-0 leading-tight ${CHIP_TOKENS.emerald.primary}`}
                   >
                     +{bufferMinutes}m → {formatTimeHHMM(totalElapsedMinutes)} tot.
                   </span>
@@ -1769,7 +1769,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
             </div>
 
             {/* 4. Energy Burned / Fuel Units */}
-            <div className="rounded-pod p-3.5 sm:p-4.5 bg-pod dark:bg-[#161618] text-ink border border-ink/5 dark:border-white/5 flex flex-col justify-between min-h-[108px] sm:min-h-[114px] transition-all hover:border-ink/15 dark:hover:border-white/15">
+            <div className="rounded-pod p-3 sm:p-3.5 bg-pod dark:bg-[#161618] text-ink border border-ink/5 dark:border-white/5 flex flex-col justify-between min-h-[100px] sm:min-h-[112px] transition-all hover:border-ink/15 dark:hover:border-white/15">
               <div className="flex items-center justify-between gap-1.5 text-xs font-medium text-ink-muted shrink-0">
                 <span className="break-words">
                   {effectiveSpecs.telemetryMode === 'quantitative'
@@ -1784,9 +1784,9 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                 </span>
                 <Flame2 className={`w-4 h-4 shrink-0 ${CHIP_TOKENS.amber.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
               </div>
-              <div className="mt-auto pt-2 flex flex-col xl:flex-row items-start xl:items-baseline justify-between gap-1 min-w-0">
+              <div className="mt-auto pt-2 flex flex-col items-start justify-between gap-1 min-w-0">
                 <div className="flex items-baseline gap-1 shrink-0">
-                  <span className="text-2xl sm:text-[28px] xl:text-[30px] font-bold tracking-tight tnum leading-none text-ink">
+                  <span className="text-xl sm:text-2xl xl:text-[26px] font-bold tracking-tight tnum leading-none text-ink">
                     {effectiveSpecs.telemetryMode === 'quantitative'
                       ? totalKcal
                       : effectiveSpecs.telemetryMode === 'fuel-first'
@@ -1802,7 +1802,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   ) : null}
                 </div>
                 <span
-                  className="text-[11px] font-medium text-ink-muted tnum break-words w-full xl:w-auto text-left xl:text-right min-w-0 leading-tight"
+                  className="text-[11px] font-medium text-ink-muted tnum break-words w-full text-left min-w-0 leading-tight"
                   title={
                     effectiveSpecs.telemetryMode === 'quantitative'
                       ? isFr
@@ -1960,7 +1960,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     }
                   }
                 }}
-                className={`h-full rounded-pod p-3.5 sm:p-4.5 bg-pod dark:bg-[#161618] text-ink border flex flex-col justify-between min-h-[108px] sm:min-h-[114px] transition-all cursor-pointer select-none group ${
+                className={`h-full rounded-pod p-3 sm:p-3.5 bg-pod dark:bg-[#161618] text-ink border flex flex-col justify-between min-h-[100px] sm:min-h-[112px] transition-all cursor-pointer select-none group ${
                   showElevationOverlay
                     ? 'border-[#8ea000]/50 dark:border-[#dfff00]/45'
                     : 'border-ink/5 dark:border-white/5 hover:border-ink/15 dark:hover:border-white/15'
@@ -1977,14 +1977,14 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     <Mountains className={`w-4 h-4 shrink-0 ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
                   </span>
                 </div>
-                <div className="mt-auto pt-2 flex flex-col xl:flex-row items-start xl:items-baseline justify-between gap-1 min-w-0">
+                <div className="mt-auto pt-2 flex flex-col items-start justify-between gap-1 min-w-0">
                   <div className="flex items-baseline gap-1 shrink-0">
-                    <span className="text-2xl sm:text-[28px] xl:text-[30px] font-bold tracking-tight tnum leading-none text-ink">
+                    <span className="text-xl sm:text-2xl xl:text-[26px] font-bold tracking-tight tnum leading-none text-ink">
                       +{elevationGainM}
                     </span>
                     <span className="text-xs font-medium text-ink-muted">m</span>
                   </div>
-                  <span className="text-[11px] font-medium text-ink-muted tnum break-words w-full xl:w-auto text-left xl:text-right min-w-0 leading-tight">
+                  <span className="text-[11px] font-medium text-ink-muted tnum break-words w-full text-left min-w-0 leading-tight">
                     Max {maxGradientPercent}%
                   </span>
                 </div>

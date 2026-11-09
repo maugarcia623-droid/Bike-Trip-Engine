@@ -16,7 +16,7 @@ export const DashboardEmptyState: React.FC<DashboardEmptyStateProps> = ({
   const isFr = lang === 'fr';
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 animate-fade-in">
+    <div className="w-full max-w-[1720px] mx-auto px-3.5 sm:px-5 lg:px-7 py-10 sm:py-16 animate-apple-in">
       <div className="rounded-3xl bg-card border border-ink/10 dark:border-white/10 p-6 sm:p-12 text-center shadow-lg relative overflow-hidden">
         {/* Subtle decorative glow */}
         <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 bg-volt/10 dark:bg-volt/15 rounded-full blur-3xl pointer-events-none" />

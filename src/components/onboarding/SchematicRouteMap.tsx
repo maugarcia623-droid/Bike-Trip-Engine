@@ -108,15 +108,37 @@ export const SchematicRouteMap: React.FC<SchematicRouteMapProps> = ({
         });
       }
 
-      // Invalidate size once container settles
-      const timer = setTimeout(() => {
+      // Invalidate size once container & parent modal/step animations settle
+      const recalibrateMap = () => {
         if (mapInstanceRef.current) {
           mapInstanceRef.current.invalidateSize();
+          if (bounds.isValid()) {
+            mapInstanceRef.current.fitBounds(bounds, {
+              padding: [30, 30],
+              maxZoom: 14,
+              animate: false,
+            });
+          }
         }
-      }, 100);
+      };
+
+      const timerEarly = setTimeout(recalibrateMap, 100);
+      const timerPostAnim = setTimeout(recalibrateMap, 380);
+
+      let resizeObserver: ResizeObserver | null = null;
+      if (typeof ResizeObserver !== 'undefined' && mapContainerRef.current) {
+        resizeObserver = new ResizeObserver(() => {
+          recalibrateMap();
+        });
+        resizeObserver.observe(mapContainerRef.current);
+      }
 
       return () => {
-        clearTimeout(timer);
+        clearTimeout(timerEarly);
+        clearTimeout(timerPostAnim);
+        if (resizeObserver) {
+          resizeObserver.disconnect();
+        }
         if (mapInstanceRef.current) {
           mapInstanceRef.current.remove();
           mapInstanceRef.current = null;

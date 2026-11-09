@@ -572,13 +572,13 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
   };
 
   return (
-    <header className="w-full px-4 sm:px-8 lg:px-12 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-3 sm:pt-[calc(env(safe-area-inset-top,0px)+1.25rem)] sm:pb-5 transition-colors duration-200 select-none no-print relative z-40">
-      <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-6">
+    <header className="w-full transition-colors duration-200 select-none no-print relative z-40">
+      <div className="w-full max-w-[1720px] mx-auto px-3.5 sm:px-5 lg:px-7 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-3 sm:pt-[calc(env(safe-area-inset-top,0px)+1rem)] sm:pb-4 flex items-center justify-between lg:grid lg:grid-cols-5 gap-3.5 sm:gap-4 lg:gap-5">
         {/* Left: Chain-Link Brand Identifier */}
         <button
           type="button"
           onClick={() => onNavigate('home')}
-          className="flex items-center gap-2.5 sm:gap-3.5 min-w-0 cursor-pointer group text-left focus:outline-none"
+          className="lg:col-span-1 lg:justify-self-start flex items-center gap-2.5 sm:gap-3.5 min-w-0 cursor-pointer group text-left focus:outline-none"
         >
           <div
             className={`w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center group-hover:scale-105 transition-transform shrink-0 shadow-xs ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
@@ -611,42 +611,44 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
         </button>
 
         {/* Center: Live Operational Breadcrumb (Desktop) */}
-        {activeTrip && activeMeta && (
-          <button
-            type="button"
-            onClick={() => onNavigate(breadcrumbTargetView)}
-            title={`${t('rideFeasibility')}: ${physics?.goStatus === 'GO' ? t('feasibilityOptimal') : physics?.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')} — ${physics?.goStatusReason || ''} (${currentView === 'dashboard' ? t('editParamsTitle') : t('openFlightDeckBtn')})`}
-            className="hidden lg:flex items-center gap-2.5 px-4 py-2 bg-card dark:bg-pod hover:bg-pod dark:hover:bg-chip rounded-full text-[13px] sm:text-sm font-mono shadow-xs min-w-0 max-w-lg transition-colors cursor-pointer focus:outline-none"
-          >
-            <span
-              className={`w-2.5 h-2.5 rounded-full shrink-0 ${statusDotClass}`}
-              title={`${physics?.goStatus === 'GO' ? t('feasibilityOptimal') : physics?.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')}: ${physics?.goStatusReason}`}
-            />
-            <span className="text-ink-muted uppercase tracking-wider text-xs font-bold shrink-0">
-              {activeTrip.tag === 'VÉLOTAF' ? (lang === 'fr' ? 'Vélotaf' : 'Commute') : activeTrip.tag}
-            </span>
-            <span className="text-ink-muted shrink-0">/</span>
-            <span className="text-ink font-semibold break-words leading-tight">{activeMeta.name}</span>
-            <span className="text-ink-muted shrink-0">·</span>
-            <span className="text-ink-secondary tnum font-bold shrink-0">
-              {activeTrip.route.distanceKm} km
-            </span>
-            <span
-              className={`text-[11px] font-medium px-2.5 py-0.5 rounded-full shrink-0 ${
-                physics?.goStatus === 'GO'
-                  ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
-                  : physics?.goStatus === 'CAUTION'
-                  ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
-                  : 'bg-rose-500/15 text-rose-700 dark:text-rose-300'
-              }`}
+        <div className="hidden lg:flex lg:col-span-3 lg:justify-self-center min-w-0 max-w-full">
+          {activeTrip && activeMeta && (
+            <button
+              type="button"
+              onClick={() => onNavigate(breadcrumbTargetView)}
+              title={`${t('rideFeasibility')}: ${physics?.goStatus === 'GO' ? t('feasibilityOptimal') : physics?.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')} — ${physics?.goStatusReason || ''} (${currentView === 'dashboard' ? t('editParamsTitle') : t('openFlightDeckBtn')})`}
+              className="flex items-center gap-2.5 px-4 py-2 bg-card dark:bg-pod hover:bg-pod dark:hover:bg-chip rounded-full text-[13px] sm:text-sm font-mono shadow-xs min-w-0 max-w-xl transition-colors cursor-pointer focus:outline-none"
             >
-              {physics?.goStatus === 'GO' ? t('feasibilityOptimal') : physics?.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')}
-            </span>
-          </button>
-        )}
+              <span
+                className={`w-2.5 h-2.5 rounded-full shrink-0 ${statusDotClass}`}
+                title={`${physics?.goStatus === 'GO' ? t('feasibilityOptimal') : physics?.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')}: ${physics?.goStatusReason}`}
+              />
+              <span className="text-ink-muted uppercase tracking-wider text-xs font-bold shrink-0">
+                {activeTrip.tag === 'VÉLOTAF' ? (lang === 'fr' ? 'Vélotaf' : 'Commute') : activeTrip.tag}
+              </span>
+              <span className="text-ink-muted shrink-0">/</span>
+              <span className="text-ink font-semibold break-words leading-tight">{activeMeta.name}</span>
+              <span className="text-ink-muted shrink-0">·</span>
+              <span className="text-ink-secondary tnum font-bold shrink-0">
+                {activeTrip.route.distanceKm} km
+              </span>
+              <span
+                className={`text-[11px] font-medium px-2.5 py-0.5 rounded-full shrink-0 ${
+                  physics?.goStatus === 'GO'
+                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                    : physics?.goStatus === 'CAUTION'
+                    ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+                    : 'bg-rose-500/15 text-rose-700 dark:text-rose-300'
+                }`}
+              >
+                {physics?.goStatus === 'GO' ? t('feasibilityOptimal') : physics?.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')}
+              </span>
+            </button>
+          )}
+        </div>
 
         {/* Right: Sync Clock & Streamlined Profile Overlay Trigger */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0" ref={menuContainerRef}>
+        <div className="lg:col-span-1 lg:justify-self-end flex items-center gap-2 sm:gap-3 shrink-0 relative" ref={menuContainerRef}>
           {/* Real-time Clock */}
           <div className="hidden sm:flex items-center px-3.5 py-2 bg-card dark:bg-pod rounded-full text-xs sm:text-[13px] font-mono text-ink shadow-xs">
             <span className="font-bold text-ink tnum">{currentTime}</span>
@@ -685,7 +687,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
             <div
               role="menu"
               aria-label={isFr ? 'Réglages' : 'Settings'}
-              className="hidden sm:block absolute right-4 sm:right-8 lg:right-12 top-full mt-3 w-[23rem] max-h-[calc(100dvh-6.5rem)] overflow-y-auto overscroll-contain bg-card dark:bg-[#18181B] border border-ink/[0.06] dark:border-white/[0.08] rounded-[28px] p-3 shadow-[0_24px_60px_rgba(0,0,0,0.16)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.6)] z-50 animate-apple-popover select-none"
+              className="hidden sm:block absolute right-0 top-full mt-3 w-[23rem] max-h-[calc(100dvh-6.5rem)] overflow-y-auto overscroll-contain bg-card dark:bg-[#18181B] border border-ink/[0.06] dark:border-white/[0.08] rounded-[28px] p-3 shadow-[0_24px_60px_rgba(0,0,0,0.16)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.6)] z-50 animate-apple-popover select-none"
             >
               {renderPanel(false)}
             </div>
@@ -700,7 +702,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
               <div className="sm:hidden no-print print:hidden">
                 {/* Solid dark backdrop (no blur) */}
                 <div
-                  className="fixed inset-0 z-[60] bg-black/85 animate-fade-in touch-none"
+                  className="fixed inset-0 z-[60] bg-black/85 animate-apple-fade-in touch-none"
                   onClick={() => setIsMenuOpen(false)}
                 />
 
@@ -709,7 +711,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
                   ref={mobileSheetRef}
                   role="menu"
                   aria-label={isFr ? 'Réglages' : 'Settings'}
-                  className="fixed inset-x-3.5 bottom-[max(1rem,env(safe-area-inset-bottom))] z-[65] max-w-lg mx-auto bg-card dark:bg-[#18181B] border-0 rounded-[32px] px-4 pt-3 pb-4 shadow-2xl max-h-[85vh] max-h-[85dvh] overflow-y-auto overscroll-contain animate-apple-in select-none"
+                  className="fixed inset-x-3.5 bottom-[max(1rem,env(safe-area-inset-bottom))] z-[65] max-w-lg mx-auto bg-card dark:bg-[#18181B] border-0 rounded-[32px] px-4 pt-3 pb-4 shadow-2xl max-h-[85vh] max-h-[85dvh] overflow-y-auto overscroll-contain animate-apple-modal select-none"
                 >
                   {/* Grabber */}
                   <div className="w-10 h-1 bg-ink/15 dark:bg-white/20 rounded-full mx-auto mb-3" />

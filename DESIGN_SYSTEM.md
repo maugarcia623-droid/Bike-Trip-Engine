@@ -734,7 +734,7 @@ The application uses an **Apple-inspired motion graphics system** for typography
 --ease-apple-spring: cubic-bezier(0.2, 0.9, 0.3, 1);
 --ease-apple-snappy: cubic-bezier(0.25, 1, 0.5, 1);
 
-/* Utility Classes */
+/* Utility Classes (all one-shot entrance classes use 'backwards' fill-mode so finished animations release transform & never trap position:fixed descendants or block :hover/:active transforms) */
 .animate-apple-in        /* Staggered page block reveal (0.42s) */
 .animate-apple-fade-in   /* Clean backdrop fade (0.22s) */
 .animate-apple-modal     /* Modal scale & slide entrance (0.34s) */

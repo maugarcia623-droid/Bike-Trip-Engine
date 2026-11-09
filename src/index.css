@@ -567,37 +567,37 @@
   }
 }
 
-/* Primary progressive entrance classes */
+/* Primary progressive entrance classes (using 'backwards' fill-mode so finished animations release transform & never trap position:fixed or block :hover/:active transforms) */
 .animate-apple-in {
-  animation: appleFadeInUp 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: appleFadeInUp 0.42s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 .animate-apple-fade-in {
-  animation: appleFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: appleFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 .animate-apple-modal {
-  animation: appleModalEnter 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: appleModalEnter 0.34s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 .animate-apple-popover {
-  animation: applePopoverEnter 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: applePopoverEnter 0.22s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 .animate-apple-step-in {
-  animation: appleStepSlide 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: appleStepSlide 0.28s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 .animate-apple-receipt {
-  animation: appleReceiptFloat 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: appleReceiptFloat 0.45s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 .animate-apple-title {
-  animation: appleTitleReveal 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: appleTitleReveal 0.38s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 .animate-apple-check-pop {
-  animation: appleCheckPop 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: appleCheckPop 0.25s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 .animate-beacon-breath {
@@ -606,7 +606,7 @@
 
 /* Unified progressive reveals: Cadence Cockpit and across all screens */
 .animate-flight-deck-in {
-  animation: appleFadeInUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: appleFadeInUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 .stagger-1, .deck-stagger-1 { animation-delay: 35ms; }

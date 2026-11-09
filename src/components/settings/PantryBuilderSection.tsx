@@ -488,7 +488,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                           : 'border-ink/20 dark:border-white/20'
                       }`}
                     >
-                      {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                      {isSelected && <Check className="w-2.5 h-2.5 stroke-[3] animate-apple-check-pop" />}
                     </div>
 
                     <div className="min-w-0">
@@ -579,7 +579,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                           : 'border-ink/20 dark:border-white/20'
                       }`}
                     >
-                      {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                      {isSelected && <Check className="w-2.5 h-2.5 stroke-[3] animate-apple-check-pop" />}
                     </div>
 
                     <div className="min-w-0">
@@ -670,7 +670,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                           : 'border-ink/20 dark:border-white/20'
                       }`}
                     >
-                      {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                      {isSelected && <Check className="w-2.5 h-2.5 stroke-[3] animate-apple-check-pop" />}
                     </div>
 
                     <div className="min-w-0">
@@ -761,7 +761,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                           : 'border-ink/20 dark:border-white/20'
                       }`}
                     >
-                      {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                      {isSelected && <Check className="w-2.5 h-2.5 stroke-[3] animate-apple-check-pop" />}
                     </div>
 
                     <div className="min-w-0">
@@ -823,7 +823,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
         ) : (
           <form
             onSubmit={handleAddCustomItem}
-            className="p-3.5 rounded-pod bg-card border border-volt-lime/30 space-y-3"
+            className="p-3.5 rounded-pod bg-card border border-volt-lime/30 space-y-3 animate-apple-step-in"
           >
             <div className="flex items-center justify-between">
               <div className="text-xs font-bold text-ink">

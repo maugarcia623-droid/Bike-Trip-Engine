@@ -738,7 +738,7 @@ function AppContent() {
       />
 
       {/* Screen Views (with ample bottom padding for the floating navigation island & iOS safe area) */}
-      <main className="flex-1 w-full max-w-full pb-[calc(7rem+env(safe-area-inset-bottom,0px))] sm:pb-32 print:hidden no-print">
+      <main className="flex-1 w-full max-w-full pb-[calc(8rem+env(safe-area-inset-bottom,0px))] sm:pb-40 print:hidden no-print">
         {currentView === 'home' && (
           <HomeScreen
             trips={trips}

@@ -340,7 +340,7 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
     <div className="fixed inset-0 z-[1000] flex items-end sm:items-center justify-center p-3.5 sm:p-6 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-6 no-print print:hidden pointer-events-none">
       {/* ── Solid dark backdrop (NO blur effects, matching settings bottom sheet) ── */}
       <div
-        className="fixed inset-0 bg-black/85 animate-fade-in touch-none pointer-events-auto"
+        className="fixed inset-0 bg-black/85 animate-apple-fade-in touch-none pointer-events-auto"
         onClick={onClose}
       />
 
@@ -350,7 +350,7 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby="resupply-radar-title"
-        className="relative z-10 pointer-events-auto w-full max-w-lg sm:max-w-xl max-h-[85vh] max-h-[85dvh] bg-card dark:bg-[#18181B] border-0 sm:border sm:border-ink/[0.08] sm:dark:border-white/[0.08] rounded-[32px] px-4 sm:px-5 pb-4 sm:pb-5 pt-0 shadow-2xl overflow-y-auto overscroll-contain touch-pan-y animate-apple-in"
+        className="relative z-10 pointer-events-auto w-full max-w-lg sm:max-w-xl max-h-[85vh] max-h-[85dvh] bg-card dark:bg-[#18181B] border-0 sm:border sm:border-ink/[0.08] sm:dark:border-white/[0.08] rounded-[32px] px-4 sm:px-5 pb-4 sm:pb-5 pt-0 shadow-2xl overflow-y-auto overscroll-contain touch-pan-y animate-apple-modal"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {/* ── Sticky Header: Grabber + Identity & 1:1 action buttons ── */}

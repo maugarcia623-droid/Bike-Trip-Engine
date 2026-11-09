@@ -321,7 +321,7 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
                       aria-hidden="true"
                       onClick={() => setIsSwitcherOpen(false)}
                     />
-                    <div className="absolute left-0 mt-2 w-72 max-w-[calc(100vw-2.5rem)] rounded-2xl bg-card border border-ink/15 dark:border-white/15 shadow-xl py-1.5 z-40 animate-apple-in">
+                    <div className="absolute left-0 mt-2 w-72 max-w-[calc(100vw-2.5rem)] rounded-2xl bg-card border border-ink/15 dark:border-white/15 shadow-xl py-1.5 z-40 animate-apple-popover">
                       <div className="px-3 py-1 text-[11px] font-semibold text-ink-muted uppercase tracking-wider border-b border-ink/5 dark:border-white/5">
                         {t('switchActiveProfile')}
                       </div>
@@ -439,7 +439,7 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
 
       {/* ── Collapsible Body: 4 Concentric Bento Telemetry Pods ── */}
       <Collapsible open={isExpanded} innerClassName="pt-4 border-t border-ink/10 dark:border-white/10 mt-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
           {/* POD 1: Schedule & Reverse Timeline */}
           <div className="bg-pod rounded-pod p-3.5 sm:p-4 flex flex-col justify-between">
             <div>

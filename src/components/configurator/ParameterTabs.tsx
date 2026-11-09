@@ -25,15 +25,21 @@ interface ParameterTabsProps {
   trip: TripProfile;
   onChange: (updatedTrip: TripProfile) => void;
   initialTab?: 'physics' | 'route' | 'weather';
+  visibleTabs?: ('physics' | 'route' | 'weather')[];
 }
 
 export const ParameterTabs: React.FC<ParameterTabsProps> = ({
   trip,
   onChange,
   initialTab = 'physics',
+  visibleTabs,
 }) => {
   const { lang, t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<'physics' | 'route' | 'weather'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'physics' | 'route' | 'weather'>(
+    visibleTabs && visibleTabs.length > 0 && !visibleTabs.includes(initialTab)
+      ? visibleTabs[0]
+      : initialTab
+  );
   const [autofillFeedback, setAutofillFeedback] = useState(false);
 
   const isFr = lang === 'fr';
@@ -131,41 +137,78 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
     (trip.physics.riderWeightKg + trip.physics.bikeWeightKg + trip.physics.gearWeightKg).toFixed(1)
   );
 
-  const tabs = [
+  const allTabs = [
     { id: 'physics' as const, label: t('tabPhysics'), icon: Gauge },
     { id: 'route' as const, label: t('tabRoute'), icon: Path },
     { id: 'weather' as const, label: t('tabWeather'), icon: Wind },
   ];
 
+  const tabs = visibleTabs && visibleTabs.length > 0
+    ? allTabs.filter((tab) => visibleTabs.includes(tab.id))
+    : allTabs;
+
+  const effectiveActiveTab = tabs.some((tab) => tab.id === activeTab)
+    ? activeTab
+    : tabs[0].id;
+
   return (
-    <div className="bg-card text-ink rounded-card p-4 transition-colors">
-      {/* Full-Radius Segmented Pill Switcher */}
-      <div className="grid grid-cols-3 gap-1 p-1 rounded-2xl sm:rounded-full bg-pod mb-4">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1.5 sm:px-4 py-2 text-[11px] sm:text-[13px] font-semibold text-center leading-tight sm:whitespace-nowrap transition-all duration-150 active:scale-[0.97] rounded-xl sm:rounded-full cursor-pointer min-w-0 ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
-                isActive
-                  ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
-                  : `${CHIP_RING_UNSELECTED} text-zinc-500 hover:text-zinc-800 hover:bg-card/40 dark:text-zinc-400 dark:hover:text-zinc-200`
-              }`}
-            >
-              <Icon className="w-4 h-4 shrink-0 text-current" />
-              <span className="max-w-full break-words text-center">{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
+    <div className="bg-card text-ink rounded-card p-4 sm:p-5 border border-ink/5 dark:border-white/5 shadow-xs transition-colors">
+      {/* Header or Full-Radius Segmented Pill Switcher */}
+      {tabs.length === 1 ? (
+        <div className="flex items-center justify-between gap-2 mb-4">
+          <div className="flex items-center gap-2.5">
+            <IconBadge
+              theme="yellow-vest"
+              icon={tabs[0].icon}
+              size="md"
+              solidBacker
+            />
+            <div>
+              <h2 className="text-base sm:text-[17px] font-semibold tracking-tight text-ink font-rounded">
+                {tabs[0].label}
+              </h2>
+              <p className="text-xs text-ink-muted mt-0.5">
+                {tabs[0].id === 'route'
+                  ? isFr
+                    ? 'Stratégie d’allure, vitesse cible et marges de sécurité'
+                    : 'Pacing strategy, cruising speed & security buffers'
+                  : ''}
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div
+          className={`grid ${
+            tabs.length === 2 ? 'grid-cols-2' : 'grid-cols-3'
+          } gap-1 p-1 rounded-2xl sm:rounded-full bg-pod mb-4`}
+        >
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = effectiveActiveTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1.5 sm:px-4 py-2 text-[11px] sm:text-[13px] font-semibold text-center leading-tight sm:whitespace-nowrap transition-all duration-150 active:scale-[0.97] rounded-xl sm:rounded-full cursor-pointer min-w-0 ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                  isActive
+                    ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
+                    : `${CHIP_RING_UNSELECTED} text-zinc-500 hover:text-zinc-800 hover:bg-card/40 dark:text-zinc-400 dark:hover:text-zinc-200`
+                }`}
+              >
+                <Icon className="w-4 h-4 shrink-0 text-current" />
+                <span className="max-w-full break-words text-center">{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Tab Panels */}
       <div>
         {/* ── TAB 1: Physics & mass ── */}
-        {activeTab === 'physics' && (
+        {effectiveActiveTab === 'physics' && (
           <div className="space-y-6 animate-apple-step-in">
             {/* Full-Radius System Mass Callout */}
             <div className="bg-pod rounded-2xl sm:rounded-full pl-2.5 pr-4 sm:pr-5 py-2.5 flex items-center justify-between gap-3">
@@ -399,7 +442,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
         )}
 
         {/* ── TAB 2: Route & pace ── */}
-        {activeTab === 'route' && (
+        {effectiveActiveTab === 'route' && (
           <div className="space-y-5 animate-apple-step-in">
             {/* Pacing Strategy Selector: Hold Speed vs Hold Effort (Cap Watts) */}
             <div className="rounded-pod bg-pod p-3.5 space-y-3">
@@ -562,7 +605,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
         )}
 
         {/* ── TAB 3: Wind & weather ── */}
-        {activeTab === 'weather' && (
+        {effectiveActiveTab === 'weather' && (
           <div className="space-y-6 animate-apple-step-in">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="bg-pod rounded-pod p-4 flex flex-col justify-between">

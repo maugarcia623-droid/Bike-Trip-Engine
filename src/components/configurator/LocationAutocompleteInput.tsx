@@ -203,7 +203,7 @@ export const LocationAutocompleteInput: React.FC<LocationAutocompleteInputProps>
       (value.trim().length >= 2 && !isLoading && suggestions.length === 0));
 
   return (
-    <div ref={containerRef} className="relative w-full">
+    <div ref={containerRef} className={`relative w-full ${showDropdown ? 'z-40' : 'z-10'}`}>
       {/* Stable, clean label row */}
       <label htmlFor={id} className="block text-xs font-semibold text-ink-secondary mb-1.5 px-1 break-words">
         {label}
@@ -250,7 +250,7 @@ export const LocationAutocompleteInput: React.FC<LocationAutocompleteInputProps>
       {/* Floating Suggestions Dropdown with Generous Width */}
       {showDropdown && (
         <div
-          className={`absolute top-full mt-2 z-50 bg-card rounded-[20px] border border-ink/10 dark:border-white/10 shadow-2xl p-2 max-h-72 overflow-y-auto animate-fade-in w-full md:min-w-[420px] max-w-[calc(100vw-2.5rem)] ${
+          className={`absolute top-full mt-2 z-50 bg-card rounded-[20px] border border-ink/10 dark:border-white/10 shadow-2xl p-2 max-h-72 overflow-y-auto animate-apple-popover w-full md:min-w-[420px] max-w-[calc(100vw-2.5rem)] ${
             dropdownAlign === 'right' ? 'left-0 md:left-auto md:right-0' : 'left-0'
           }`}
         >

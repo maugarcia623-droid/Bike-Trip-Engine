@@ -190,7 +190,7 @@ export const InfoTooltip: React.FC<InfoTooltipProps> = ({
               left: `${coords.left}px`,
               maxWidth: 'calc(100vw - 24px)',
             }}
-            className="fixed z-[9999] w-64 sm:w-72 rounded-xl bg-[#161618] text-[#F5F5F7] border border-white/10 shadow-2xl p-3 text-xs leading-relaxed font-sans pointer-events-auto animate-fade-in select-text"
+            className="fixed z-[9999] w-64 sm:w-72 rounded-xl bg-[#161618] text-[#F5F5F7] border border-white/10 shadow-2xl p-3 text-xs leading-relaxed font-sans pointer-events-auto animate-apple-popover select-text"
           >
             {/* Arrow caret */}
             <div

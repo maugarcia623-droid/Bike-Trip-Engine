@@ -161,6 +161,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
     isError?: boolean;
   } | null>(null);
   const [hasSaved, setHasSaved] = useState(false);
+  const [activeStep, setActiveStep] = useState<'date-time' | 'trip-style' | 'cycling-pace'>('date-time');
   const [isArriveAtMode, setIsArriveAtMode] = useState<boolean>(trip.arriveAtMode !== false);
   const [routeGenMode, setRouteGenMode] = useState<'corridor' | 'manual-radius' | 'gpx'>(() => {
     const initialMode = getArchetypeFromTag(initialTrip.tag, initialTrip.name);
@@ -714,63 +715,111 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
     { id: 'ESCAPADE', label: t('archEscapadeLabel'), icon: Compass, desc: t('archEscapadeDesc') },
   ];
 
+  const stepOptions = [
+    {
+      id: 'date-time' as const,
+      label: isFr ? 'Date & Heure' : 'Date & Time',
+      icon: Clock,
+    },
+    {
+      id: 'trip-style' as const,
+      label: isFr ? 'Style de sortie' : 'Trip Style',
+      icon: Compass,
+    },
+    {
+      id: 'cycling-pace' as const,
+      label: isFr ? 'Allure vélo' : 'Cycling Pace',
+      icon: Lightning,
+    },
+  ];
+
+  const currentStepTitle =
+    activeStep === 'date-time'
+      ? isFr
+        ? 'Où et quand ?'
+        : 'Where and when ?'
+      : activeStep === 'trip-style'
+      ? isFr
+        ? 'Style de sortie & règles'
+        : 'Trip style & rules'
+      : isFr
+      ? 'Allure vélo & physique'
+      : 'Cycling pace & physics';
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-8 space-y-5">
-      {/* ── Top Page Header Bar with Editable Title & Summary ── */}
-      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 animate-apple-in stagger-1">
-        <div className="flex-1 min-w-0">
+    <div className="w-full max-w-[1720px] mx-auto px-3.5 sm:px-5 lg:px-7 pt-2 pb-12 sm:pb-20 space-y-5">
+      {/* ── Centered Top Step Switcher Pill (Date & Time | Trip Style | Cycling Pace) ── */}
+      <div className="flex justify-center animate-apple-in stagger-1">
+        <div
+          role="tablist"
+          aria-label={isFr ? 'Étapes de configuration' : 'Configuration steps'}
+          className="inline-flex items-center p-1.5 gap-1.5 rounded-full bg-card dark:bg-pod border border-ink/5 dark:border-white/5 shadow-xs max-w-full overflow-x-auto scrollbar-none"
+        >
+          {stepOptions.map((step) => {
+            const StepIcon = step.icon;
+            const isStepActive = activeStep === step.id;
+            return (
+              <button
+                key={step.id}
+                type="button"
+                role="tab"
+                aria-selected={isStepActive}
+                onClick={() => setActiveStep(step.id)}
+                className={`inline-flex items-center gap-2 h-9 px-4 rounded-full text-xs sm:text-[13px] font-semibold transition-all duration-150 cursor-pointer shrink-0 whitespace-nowrap active:scale-[0.98] ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                  isStepActive
+                    ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing} shadow-xs`
+                    : `${CHIP_RING_UNSELECTED} text-ink-secondary hover:text-ink hover:bg-pod/60`
+                }`}
+              >
+                <StepIcon className="w-4 h-4 shrink-0 text-current" />
+                <span>{step.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Section Header Bar (Left: Step Heading + Editable Trip Title | Right: Save Actions) ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 animate-apple-in stagger-2">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
           <button
             type="button"
             onClick={onCancel}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-secondary hover:text-ink bg-card hover:bg-pod px-3.5 py-1.5 rounded-full transition-all duration-150 active:scale-[0.98] mb-2.5 cursor-pointer"
+            title={t('backToFlightDeck')}
+            className="inline-flex items-center justify-center w-8 h-8 rounded-full text-ink-secondary hover:text-ink bg-card hover:bg-pod transition-all duration-150 active:scale-[0.98] cursor-pointer shrink-0 border border-ink/5 dark:border-white/5"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>{t('backToFlightDeck')}</span>
           </button>
 
-          {/* Editable Main Title at the top to gain space */}
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
-              <input
-                type="text"
-                value={trip.name}
-                onChange={(e) => commitTrip((prev) => ({ ...prev, name: e.target.value }))}
-                placeholder={isNew ? t('createNewProfileHeading') : t('tripNamePlaceholder')}
-                className="w-full sm:w-auto sm:min-w-[260px] max-w-full text-xl sm:text-[28px] font-semibold text-ink tracking-tight bg-transparent border-b border-dashed border-ink/15 hover:border-ink/35 focus:border-solid focus:border-ink/60 focus:outline-none transition-colors"
-                title="Click to rename trip"
-              />
-              <Badge variant="yellow-vest" size="md" dot className="shrink-0">
-                {t('liveCalculationBadge')}
-              </Badge>
-              <Badge variant="zinc" size="md" className="shrink-0">
-                {trip.tag || activeArchetypeMode}
-              </Badge>
-            </div>
-
-            {/* Optional Summary Text Field directly underneath title */}
+          <div className="flex items-baseline gap-2.5 min-w-0 flex-wrap">
+            <h1 className="text-2xl sm:text-[28px] font-semibold text-ink tracking-tight leading-tight font-rounded shrink-0">
+              {currentStepTitle}
+            </h1>
+            <span className="hidden sm:inline text-ink-muted">·</span>
             <input
               type="text"
-              value={trip.description || ''}
-              onChange={(e) => commitTrip((prev) => ({ ...prev, description: e.target.value }))}
-              placeholder={isFr ? 'Ajouter des notes opérationnelles ou un résumé de route (optionnel)...' : 'Add an optional operational summary or route notes...'}
-              className="w-full max-w-2xl text-xs sm:text-[13px] text-ink-muted placeholder:text-ink-muted/50 bg-transparent border-b border-transparent hover:border-ink/15 focus:border-ink/30 focus:text-ink focus:outline-none transition-colors py-0.5"
+              value={trip.name}
+              onChange={(e) => commitTrip((prev) => ({ ...prev, name: e.target.value }))}
+              placeholder={isNew ? t('createNewProfileHeading') : t('tripNamePlaceholder')}
+              className="w-full sm:w-auto sm:min-w-[200px] text-base sm:text-lg font-semibold text-ink-secondary focus:text-ink tracking-tight bg-transparent border-b border-dashed border-ink/15 hover:border-ink/35 focus:border-solid focus:border-ink/60 focus:outline-none transition-colors"
+              title="Click to rename trip"
             />
           </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap w-full sm:w-auto shrink-0 self-start md:mt-2">
+        <div className="flex items-center gap-2.5 shrink-0 self-end sm:self-auto">
           <button
             type="button"
             onClick={handleSave}
-            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 h-10 px-4 text-[13px] font-medium text-ink bg-card hover:bg-pod rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer whitespace-nowrap"
+            className="inline-flex items-center justify-center gap-2 h-9 sm:h-10 px-4 text-xs sm:text-[13px] font-medium text-ink bg-card hover:bg-pod border border-ink/5 dark:border-white/5 shadow-xs rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer whitespace-nowrap"
           >
             {hasSaved ? (
-              <div className={`flex items-center gap-2 animate-apple-check-pop ${CHIP_TOKENS.emerald.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}>
+              <div className={`flex items-center gap-1.5 animate-apple-check-pop ${CHIP_TOKENS.emerald.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}>
                 <CheckCircle className="w-4 h-4 text-current" />
                 <span>{t('savedBtn')}</span>
               </div>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <FloppyDisk className={`w-4 h-4 ${GREYSCALE_TOKENS.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
                 <span>{t('saveProfileBtn')}</span>
               </div>
@@ -780,7 +829,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
           <button
             type="button"
             onClick={handleLaunchDirect}
-            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 h-10 px-4 sm:px-5 text-[13px] font-medium bg-[#111111] hover:bg-[#262626] text-white dark:bg-[#F5F5F7] dark:hover:bg-white dark:text-[#111111] rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer whitespace-nowrap"
+            className="inline-flex items-center justify-center gap-1.5 h-9 sm:h-10 px-4 sm:px-5 text-xs sm:text-[13px] font-medium bg-[#111111] hover:bg-[#262626] text-white dark:bg-[#F5F5F7] dark:hover:bg-white dark:text-[#111111] rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer whitespace-nowrap shadow-xs"
           >
             <span>{t('saveAndOpenBtn')}</span>
             <ArrowUpRight className="w-4 h-4 shrink-0" />
@@ -788,10 +837,14 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
         </div>
       </div>
 
-      {/* ── BENTO ROW 1: Route Generator (Left) + Schedule & Weather Sync (Right) ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 animate-apple-in stagger-2">
-        {/* Card 1: Route Generator */}
-        <div className="rounded-card bg-card text-ink p-4 flex flex-col justify-between transition-colors">
+      {/* ── MAIN 5-COLUMN GRID: Left 3 Cols (2 Stacked Step Cards) + Right 2 Cols (Live Results) ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-3.5 sm:gap-4 lg:gap-5 items-start">
+        {/* Left 3 Columns: Active Step 2-Card Stack */}
+        <div className="lg:col-span-3 flex flex-col gap-3.5 sm:gap-4 lg:gap-5 min-w-0">
+          {activeStep === 'date-time' && (
+            <>
+              {/* Card 1: Route Generator (Elevated Stacking Context so Autocomplete Floats Cleanly Over Card 2) */}
+              <div className="rounded-card bg-card text-ink p-4 sm:p-5 border border-ink/5 dark:border-white/5 shadow-xs flex flex-col justify-between transition-colors animate-apple-step-in relative z-20 focus-within:z-30">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2.5 mb-4">
             <div>
               <h2 className="text-base sm:text-[17px] font-semibold tracking-tight text-ink font-rounded">
@@ -1002,7 +1055,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
             />
 
             {(isBikepacking || routeGenMode === 'corridor') && (
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-2.5 animate-fade-in">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-2.5 animate-apple-step-in">
                 {/* Origin Input */}
                 <div className="flex-1 relative min-w-0">
                   <LocationAutocompleteInput
@@ -1094,7 +1147,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
             )}
 
             {!isBikepacking && routeGenMode === 'manual-radius' && (
-              <div className="space-y-3.5 animate-fade-in">
+              <div className="space-y-3.5 animate-apple-step-in">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
                   <div className="min-w-0">
                     <LocationAutocompleteInput
@@ -1178,7 +1231,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
             )}
 
             {!isBikepacking && routeGenMode === 'gpx' && (
-              <div className="animate-fade-in">
+              <div className="animate-apple-step-in">
                 <div
                   role="button"
                   tabIndex={0}
@@ -1213,14 +1266,14 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
             {/* Status footer with dashed divider */}
             <div className="pt-3 border-t border-dashed border-ink/10 dark:border-white/10 transition-colors">
               {routeSuccess ? (
-                <div className={`flex items-center gap-2 text-xs font-medium tnum animate-fade-in ${CHIP_TOKENS.emerald.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}>
+                <div className={`flex items-center gap-2 text-xs font-medium tnum animate-apple-fade-in ${CHIP_TOKENS.emerald.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}>
                   <CheckCircle className="w-4 h-4 shrink-0 text-current" />
                   <span className="break-words leading-tight">{t('routeUpdatedMsg', { dist: trip.route.distanceKm })}</span>
                 </div>
               ) : routeError ? (
-                <p className={`text-xs font-medium animate-fade-in ${CHIP_TOKENS.rose.primary}`}>{routeError}</p>
+                <p className={`text-xs font-medium animate-apple-fade-in ${CHIP_TOKENS.rose.primary}`}>{routeError}</p>
               ) : (
-                <p className="text-xs text-ink-muted tnum break-words leading-relaxed animate-fade-in">
+                <p className="text-xs text-ink-muted tnum break-words leading-relaxed animate-apple-fade-in">
                   {isFr ? 'Itinéraire actif' : 'Active route'} : {trip.route.origin || originInput} &gt; {trip.route.destination || destInput} ({trip.route.distanceKm} km
                   {trip.route.elevationGainM ? ` · +${trip.route.elevationGainM}m` : ''}
                   {trip.route.routeMode === 'gpx' && trip.route.gpxFileName
@@ -1242,7 +1295,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
         </div>
 
         {/* Card 2: Schedule & Weather Sync */}
-        <div className="rounded-card bg-card text-ink p-4 flex flex-col justify-between transition-colors">
+        <div className="rounded-card bg-card text-ink p-4 sm:p-5 border border-ink/5 dark:border-white/5 shadow-xs flex flex-col justify-between transition-colors animate-apple-step-in relative z-10">
           <div>
             <div className="flex items-start justify-between gap-2 mb-3">
               <div>
@@ -1422,7 +1475,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
             <div className="mt-4 pt-3 border-t border-dashed border-ink/10 dark:border-white/10 transition-colors">
               {weatherFeedback ? (
                 <div
-                  className={`flex items-center gap-1.5 text-xs font-medium animate-fade-in ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                  className={`flex items-center gap-1.5 text-xs font-medium animate-apple-fade-in ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
                     weatherFeedback.isError
                       ? CHIP_TOKENS.rose.primary
                       : weatherFeedback.status
@@ -1438,7 +1491,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                   <span>{weatherFeedback.message}</span>
                 </div>
               ) : (
-                <p className="text-xs text-ink-muted tnum animate-fade-in">
+                <p className="text-xs text-ink-muted tnum animate-apple-fade-in">
                   {t('currentConditionsSummary', {
                     temp: trip.weather.temperatureC,
                     wind: trip.weather.baseWindSpeedKmH,
@@ -1449,85 +1502,124 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
             </div>
           </div>
         </div>
-      </div>
+      </>
+    )}
 
-      {/* ── BENTO ROW 2: Ride Archetype & Identity with Nested Constraints & Rules ── */}
-      <div className="rounded-card bg-card text-ink p-4 transition-colors space-y-6 animate-apple-in stagger-3">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-base sm:text-[17px] font-semibold tracking-tight text-ink">
-              {t('archetypeHeading')}
-            </h2>
-            <p className="text-[13px] text-ink-muted mt-0.5">
-              {t('archetypeSub')}
-            </p>
-          </div>
-          <Badge variant="zinc" size="md" className="shrink-0">
-            {t('modeBadge', { tag: trip.tag || 'VÉLOTAF' })}
-          </Badge>
-        </div>
-
-        {/* 1. Trip Archetype Selector Pills (4 columns) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {archetypeColumns.map((col) => {
-            const isArchetypeActive = activeArchetypeMode === col.id;
-            const Icon = col.icon;
-
-            return (
-              <button
-                key={col.id}
-                type="button"
-                onClick={() => handleSelectArchetype(col.id)}
-                className={`flex items-center gap-3 pl-2.5 pr-4 py-2.5 rounded-full transition-all duration-200 cursor-pointer text-left active:scale-[0.98] ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
-                  isArchetypeActive
-                    ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing} shadow-xs`
-                    : `${CHIP_RING_UNSELECTED} bg-pod hover:bg-chip/80 text-ink`
-                }`}
-              >
-                <IconBadge
-                  theme={isArchetypeActive ? 'yellow-vest' : 'greyscale'}
-                  icon={Icon}
-                  size="spine"
-                  isSelected={isArchetypeActive}
-                  solidBacker
-                  className="w-9 h-9 sm:w-9 sm:h-9"
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="text-[13px] font-semibold tracking-tight break-words leading-tight">
-                    {col.label}
-                  </div>
-                  <div className={`text-xs break-words leading-tight transition-colors duration-200 mt-0.5 ${isArchetypeActive ? 'opacity-80' : 'text-ink-muted'}`}>
-                    {col.desc}
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* 2. Constraints & Rules */}
-        <div className="pt-5 border-t border-dashed border-ink/10 dark:border-white/10 space-y-4">
+    {activeStep === 'trip-style' && (
+      <>
+        {/* Card 1: Ride Archetype & Preset Chips */}
+        <div className="rounded-card bg-card text-ink p-4 sm:p-5 border border-ink/5 dark:border-white/5 shadow-xs transition-colors space-y-5 animate-apple-step-in relative z-20 focus-within:z-30">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="flex items-center gap-2">
-                <SlidersHorizontal className={`w-4 h-4 ${GREYSCALE_TOKENS.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
-                <h3 className="text-sm sm:text-base font-semibold tracking-tight text-ink">
-                  {t('tabConstraintsRules')}
-                </h3>
-              </div>
-              <p className="text-xs text-ink-muted mt-0.5">
-                {isFr
-                  ? `Paramètres horaires et contraintes opérationnelles calibrés pour le mode ${trip.tag || activeArchetypeMode}`
-                  : `Schedule timings and operational constraints calibrated for ${trip.tag || activeArchetypeMode} mode`}
+              <h2 className="text-base sm:text-[17px] font-semibold tracking-tight text-ink">
+                {t('archetypeHeading')}
+              </h2>
+              <p className="text-[13px] text-ink-muted mt-0.5">
+                {t('archetypeSub')}
               </p>
             </div>
+            <Badge variant="zinc" size="md" className="shrink-0">
+              {t('modeBadge', { tag: trip.tag || 'VÉLOTAF' })}
+            </Badge>
           </div>
 
-          {/* Baseline Ride Protocol for Active Archetype */}
+          {/* 1. Trip Archetype Selector Pills (2x2 grid inside 3-col layout) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {archetypeColumns.map((col) => {
+              const isArchetypeActive = activeArchetypeMode === col.id;
+              const Icon = col.icon;
+
+              return (
+                <button
+                  key={col.id}
+                  type="button"
+                  onClick={() => handleSelectArchetype(col.id)}
+                  className={`flex items-center gap-3 pl-2.5 pr-4 py-2.5 rounded-full transition-all duration-200 cursor-pointer text-left active:scale-[0.98] ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                    isArchetypeActive
+                      ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing} shadow-xs`
+                      : `${CHIP_RING_UNSELECTED} bg-pod hover:bg-chip/80 text-ink`
+                  }`}
+                >
+                  <IconBadge
+                    theme={isArchetypeActive ? 'yellow-vest' : 'greyscale'}
+                    icon={Icon}
+                    size="spine"
+                    isSelected={isArchetypeActive}
+                    solidBacker
+                    className="w-9 h-9 sm:w-9 sm:h-9"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[13px] font-semibold tracking-tight break-words leading-tight">
+                      {col.label}
+                    </div>
+                    <div className={`text-xs break-words leading-tight transition-colors duration-200 mt-0.5 ${isArchetypeActive ? 'opacity-80' : 'text-ink-muted'}`}>
+                      {col.desc}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* 2. Preset chips for the selected archetype */}
+          <div className="pt-4 px-1 space-y-2.5 border-t border-dashed border-ink/10 dark:border-white/10">
+            <div className="text-center">
+              <span className="text-[11px] font-semibold text-ink-muted uppercase tracking-wider">
+                {isFr
+                  ? `Badges de personnalisation (${activeArchetypeMode.toLowerCase()}) :`
+                  : `Preset chips for ${activeArchetypeMode.toLowerCase()} :`}
+              </span>
+            </div>
+
+            <div
+              key={activeArchetypeMode}
+              className="flex flex-wrap justify-center items-center gap-2 max-w-3xl mx-auto py-1 animate-apple-step-in"
+            >
+              {ARCHETYPE_CHIP_DEFINITIONS[activeArchetypeMode].map((chip) => {
+                const isSelected = (trip.customChips || []).includes(chip.id);
+                const Icon = CHIP_ICONS[chip.iconName] || Lightning;
+
+                return (
+                  <Chip
+                    key={chip.id}
+                    label={isFr ? chip.labelFr : chip.labelEn}
+                    theme={chip.colorKey}
+                    icon={Icon}
+                    isSelected={isSelected}
+                    onClick={() => handleToggleChip(chip.id)}
+                    title={isFr ? chip.descriptionFr : chip.descriptionEn}
+                    className="h-8 font-bold text-xs"
+                  />
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Card 2: Constraints & Rules + Dynamic Preset Rules */}
+        <div className="rounded-card bg-card text-ink p-4 sm:p-5 border border-ink/5 dark:border-white/5 shadow-xs transition-colors space-y-5 animate-apple-step-in relative z-10">
           <div className="space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal className={`w-4 h-4 ${GREYSCALE_TOKENS.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
+                  <h3 className="text-base sm:text-[17px] font-semibold tracking-tight text-ink">
+                    {t('tabConstraintsRules')}
+                  </h3>
+                </div>
+                <p className="text-xs text-ink-muted mt-0.5">
+                  {isFr
+                    ? `Paramètres horaires et contraintes opérationnelles calibrés pour le mode ${trip.tag || activeArchetypeMode}`
+                    : `Schedule timings and operational constraints calibrated for ${trip.tag || activeArchetypeMode} mode`}
+                </p>
+              </div>
+            </div>
+
+            {/* Baseline Ride Protocol for Active Archetype */}
+            <div className="space-y-4">
             {/* COMMUTE / VELOTAF Baseline */}
             {activeArchetypeMode === 'COMMUTE' && (
-              <div key="commute-baseline" className="space-y-4 animate-fade-in">
+              <div key="commute-baseline" className="space-y-4 animate-apple-step-in">
                 {/* Food Restriction Toggle Capsule */}
                 <div className="bg-pod rounded-2xl sm:rounded-full pl-3 pr-3.5 sm:pr-5 py-2.5 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
@@ -1644,7 +1736,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
 
             {/* BIKEPACKING Baseline */}
             {activeArchetypeMode === 'BIKEPACKING' && (
-              <div key="bikepacking-baseline" className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-fade-in">
+              <div key="bikepacking-baseline" className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-apple-step-in">
                 <div>
                   <label className="block text-xs font-medium text-ink-secondary mb-1.5 px-1">
                     {isFr ? 'Couvre-feu camp / bivouac' : 'Camp pitch curfew'}
@@ -1683,7 +1775,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
 
             {/* SPORT / FONDO Baseline */}
             {activeArchetypeMode === 'SPORT' && (
-              <div key="sport-baseline" className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-fade-in">
+              <div key="sport-baseline" className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-apple-step-in">
                 <div>
                   <label className="block text-xs font-medium text-ink-secondary mb-1.5 px-1">
                     {isFr ? 'Arrivée d’étape / Barrière horaire' : 'Stage finish cutoff target'}
@@ -1722,7 +1814,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
 
             {/* ESCAPADE Baseline */}
             {activeArchetypeMode === 'ESCAPADE' && (
-              <div key="escapade-baseline" className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-fade-in">
+              <div key="escapade-baseline" className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-apple-step-in">
                 <div>
                   <label className="block text-xs font-medium text-ink-secondary mb-1.5 px-1">
                     {isFr ? 'Heure limite accueil hôtel' : 'Hotel check-in cutoff'}
@@ -1761,41 +1853,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
           </div>
         </div>
 
-        {/* 3. Preset chips for the selected archetype */}
-        <div className="py-2.5 px-1 space-y-2.5 border-t border-dashed border-ink/10 dark:border-white/10">
-          <div className="text-center">
-            <span className="text-[11px] font-semibold text-ink-muted uppercase tracking-wider">
-              {isFr
-                ? `Badges de personnalisation (${activeArchetypeMode.toLowerCase()}) :`
-                : `Preset chips for ${activeArchetypeMode.toLowerCase()} :`}
-            </span>
-          </div>
-
-          <div
-            key={activeArchetypeMode}
-            className="flex flex-wrap justify-center items-center gap-2 max-w-3xl mx-auto py-1 animate-fade-in"
-          >
-            {ARCHETYPE_CHIP_DEFINITIONS[activeArchetypeMode].map((chip) => {
-              const isSelected = (trip.customChips || []).includes(chip.id);
-              const Icon = CHIP_ICONS[chip.iconName] || Lightning;
-
-              return (
-                <Chip
-                  key={chip.id}
-                  label={isFr ? chip.labelFr : chip.labelEn}
-                  theme={chip.colorKey}
-                  icon={Icon}
-                  isSelected={isSelected}
-                  onClick={() => handleToggleChip(chip.id)}
-                  title={isFr ? chip.descriptionFr : chip.descriptionEn}
-                  className="h-8 font-bold text-xs"
-                />
-              );
-            })}
-          </div>
-        </div>
-
-        {/* 4. Dynamic preset rules & constraints */}
+        {/* Dynamic preset rules & constraints */}
         <div className="space-y-4 pt-5 border-t border-dashed border-ink/10 dark:border-white/10">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -1814,14 +1872,14 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
           </div>
 
           {activeChipDefs.length === 0 ? (
-            <div key="empty-rules" className="rounded-pod border border-dashed border-ink/15 dark:border-white/15 p-5 text-center animate-fade-in">
+            <div key="empty-rules" className="rounded-pod border border-dashed border-ink/15 dark:border-white/15 p-5 text-center animate-apple-fade-in">
               <Info className="w-5 h-5 mx-auto text-zinc-400 dark:text-zinc-500 [--icon-secondary:currentColor] [--icon-secondary-opacity:0.3] mb-2" />
               <p className="text-xs text-ink-muted max-w-md mx-auto">
                 {t('noChipsActiveNotice')}
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {activeChipDefs.map((def) => (
                 <PresetRuleCard
                   key={def.id}
@@ -1835,24 +1893,41 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
           )}
         </div>
       </div>
+    </>
+  )}
 
-      {/* ── BENTO ROW 3: Parameter Tabs (Physics, Route, Weather) + Live Telemetry Sidebar ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 animate-apple-in stagger-4">
-        <div className="lg:col-span-2">
-          <ParameterTabs
-            trip={trip}
-            onChange={(updated) => commitTrip(updated)}
-            initialTab="physics"
-          />
-        </div>
+  {activeStep === 'cycling-pace' && (
+    <>
+      {/* Card 1: Route & Pace Strategy */}
+      <div className="relative z-20 focus-within:z-30 animate-apple-step-in">
+        <ParameterTabs
+          trip={trip}
+          onChange={(updated) => commitTrip(updated)}
+          initialTab="route"
+          visibleTabs={['route']}
+        />
+      </div>
 
-        {/* Right Col: Sticky Live Telemetry Engine */}
-        <div>
-          <div className="bg-card text-ink rounded-card p-4 sticky top-20 transition-colors space-y-4">
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="text-base font-semibold tracking-tight text-ink">
-                {t('liveTelemetryHeading')}
-              </h3>
+      {/* Card 2: Physics, Mass & Weather */}
+      <div className="relative z-10 animate-apple-step-in">
+        <ParameterTabs
+          trip={trip}
+          onChange={(updated) => commitTrip(updated)}
+          initialTab="physics"
+          visibleTabs={['physics', 'weather']}
+        />
+      </div>
+    </>
+  )}
+</div>
+
+{/* Right 2 Columns: Sticky Live Results Card */}
+<div className="lg:col-span-2 min-w-0 lg:sticky lg:top-5 animate-apple-in stagger-3 relative z-10">
+  <div className="bg-card text-ink rounded-card p-4 sm:p-5 border border-ink/5 dark:border-white/5 shadow-xs transition-colors space-y-4">
+    <div className="flex items-center justify-between gap-2">
+      <h3 className="text-base sm:text-[17px] font-semibold tracking-tight text-ink">
+        {t('liveTelemetryHeading')}
+      </h3>
               <Badge
                 variant={
                   physicsResult.goStatus === 'GO'

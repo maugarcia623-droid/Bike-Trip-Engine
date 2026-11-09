@@ -29,7 +29,7 @@ export const CommuterDashboardView: React.FC<CommuterDashboardViewProps> = ({
   const isAllChecked = checkedCount === totalChecklist;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-apple-in">
       {/* CARD A: TIMELINE & DEPARTURE */}
       <Card
         title="Your morning, step by step"

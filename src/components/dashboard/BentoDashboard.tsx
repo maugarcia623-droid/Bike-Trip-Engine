@@ -207,7 +207,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
   }, []);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 pb-8 no-print">
+    <div className="w-full max-w-[1720px] mx-auto px-3.5 sm:px-5 lg:px-7 pt-2 pb-12 sm:pb-20 no-print">
       {/* ── EXPEDITION STAGE SEQUENCER BAR (WHEN MULTI-DAY EXPEDITION) ── */}
       {hasMultipleStages && (
         <div className="rounded-full bg-card text-ink p-2 sm:p-2.5 mb-5 shadow-sm border border-ink/5 dark:border-white/5 animate-flight-deck-in transition-colors">
@@ -277,38 +277,35 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
         </div>
       )}
 
-      {/* ── CINEMATIC HERO DECK (MAP + RADIUS / GPX TRACE + 5 KPI BOXES) ── */}
-      <div className="animate-flight-deck-in deck-stagger-1">
-        <HeroRouteCard
-          trip={trip}
-          physicsResult={physicsResult}
-          timelineResult={timelineResult}
-          meta={meta}
-          heroBadge={heroBadge}
-          heroTarget={heroTarget}
-          heroTargetLabel={heroTargetLabel}
-          heroTargetValue={heroTargetValue}
-          onUpdateTrip={onUpdateTrip}
-          riderSpecs={effectiveSpecs}
-          onSelectBike={onSelectBike}
-          onOpenSpecs={onOpenSpecs}
-          onOpenConfigurator={onOpenConfigurator}
-          onUploadGpxFile={handleUploadGpxInCockpit}
-          amenities={loadedAmenities}
-          selectedAmenity={selectedAmenity}
-          onSelectAmenity={setSelectedAmenity}
-          onAmenitiesLoaded={setLoadedAmenities}
-        />
-      </div>
-
-      {/* ── TWO-COLUMN BENTO COMMAND DECK (7 COLS / 5 COLS) ── */}
-      {/* On desktop (lg+), 2 independent vertical columns prevent row-height constraints (eliminating blank spaces when cards collapse). */}
-      {/* On mobile (<lg), a single column presents the optimized chronological sequence: */}
-      {/* 1. Weather Bento, 2. Reverse Timeline, 3. Readiness Checklist, 4. Nutrition Bento, 5. Aerodynamic Bento */}
+      {/* ── 5-COLUMN BENTO COMMAND DECK (3 COLS LEFT / 2 COLS RIGHT) ── */}
+      {/* On desktop (lg+), 2 independent vertical columns (3 cols left, 2 cols right) with 20px (gap-5) gutters */}
+      {/* align Hero Card and Weather Card at the top and prevent row-height blank spaces when cards collapse. */}
       {isDesktop ? (
-        <div className="grid grid-cols-12 gap-5 mt-5 items-start">
-          {/* Left Column (Desktop: 7 cols) - Timeline & Physics Engine */}
-          <div className="col-span-7 flex flex-col gap-5">
+        <div className="grid grid-cols-5 gap-3.5 sm:gap-4 lg:gap-5 items-start">
+          {/* Left Column (Desktop: 3 of 5 cols) - Hero Card, Reverse Timeline & Power/Resistance */}
+          <div className="col-span-3 flex flex-col gap-3.5 sm:gap-4 lg:gap-5 min-w-0">
+            <div className="animate-flight-deck-in deck-stagger-1">
+              <HeroRouteCard
+                trip={trip}
+                physicsResult={physicsResult}
+                timelineResult={timelineResult}
+                meta={meta}
+                heroBadge={heroBadge}
+                heroTarget={heroTarget}
+                heroTargetLabel={heroTargetLabel}
+                heroTargetValue={heroTargetValue}
+                onUpdateTrip={onUpdateTrip}
+                riderSpecs={effectiveSpecs}
+                onSelectBike={onSelectBike}
+                onOpenSpecs={onOpenSpecs}
+                onOpenConfigurator={onOpenConfigurator}
+                onUploadGpxFile={handleUploadGpxInCockpit}
+                amenities={loadedAmenities}
+                selectedAmenity={selectedAmenity}
+                onSelectAmenity={setSelectedAmenity}
+                onAmenitiesLoaded={setLoadedAmenities}
+              />
+            </div>
             <div className="animate-flight-deck-in deck-stagger-2">
               <ReverseTimelineBento
                 trip={trip}
@@ -327,9 +324,9 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
             </div>
           </div>
 
-          {/* Right Column (Desktop: 5 cols) - Weather, Readiness Checklist & Nutrition */}
-          <div className="col-span-5 flex flex-col gap-5">
-            <div className="animate-flight-deck-in deck-stagger-3">
+          {/* Right Column (Desktop: 2 of 5 cols) - Weather Card, Checklist & Nutrition */}
+          <div className="col-span-2 flex flex-col gap-3.5 sm:gap-4 lg:gap-5 min-w-0">
+            <div className="animate-flight-deck-in deck-stagger-2">
               <AtmosphereCard
                 trip={trip}
                 physicsResult={physicsResult}
@@ -337,14 +334,14 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
                 hardRolloutTime={timelineResult.hardDepartureTime}
               />
             </div>
-            <div className="animate-flight-deck-in deck-stagger-5">
+            <div className="animate-flight-deck-in deck-stagger-4">
               <PreFlightChecklistBento
                 trip={trip}
                 onUpdateTrip={onUpdateTrip}
                 riderSpecs={effectiveSpecs}
               />
             </div>
-            <div className="animate-flight-deck-in deck-stagger-6">
+            <div className="animate-flight-deck-in deck-stagger-5">
               <NutritionBento
                 trip={trip}
                 hardDepartureTime={timelineResult.hardDepartureTime}
@@ -357,10 +354,34 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
           </div>
         </div>
       ) : (
-        /* Mobile Linear Stack (< 1024px) */
-        <div className="flex flex-col gap-5 mt-5">
-          {/* 1. Weather Bento */}
-          <div className="animate-flight-deck-in deck-stagger-3">
+        /* Mobile Linear Stack (< 1024px) with 20px (gap-5) vertical spacing */
+        <div className="flex flex-col gap-5">
+          {/* 1. Hero Route Card */}
+          <div className="animate-flight-deck-in deck-stagger-1">
+            <HeroRouteCard
+              trip={trip}
+              physicsResult={physicsResult}
+              timelineResult={timelineResult}
+              meta={meta}
+              heroBadge={heroBadge}
+              heroTarget={heroTarget}
+              heroTargetLabel={heroTargetLabel}
+              heroTargetValue={heroTargetValue}
+              onUpdateTrip={onUpdateTrip}
+              riderSpecs={effectiveSpecs}
+              onSelectBike={onSelectBike}
+              onOpenSpecs={onOpenSpecs}
+              onOpenConfigurator={onOpenConfigurator}
+              onUploadGpxFile={handleUploadGpxInCockpit}
+              amenities={loadedAmenities}
+              selectedAmenity={selectedAmenity}
+              onSelectAmenity={setSelectedAmenity}
+              onAmenitiesLoaded={setLoadedAmenities}
+            />
+          </div>
+
+          {/* 2. Weather Bento */}
+          <div className="animate-flight-deck-in deck-stagger-2">
             <AtmosphereCard
               trip={trip}
               physicsResult={physicsResult}
@@ -369,8 +390,8 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
             />
           </div>
 
-          {/* 2. Dynamic Reverse Timeline */}
-          <div className="animate-flight-deck-in deck-stagger-2">
+          {/* 3. Dynamic Reverse Timeline */}
+          <div className="animate-flight-deck-in deck-stagger-3">
             <ReverseTimelineBento
               trip={trip}
               timeline={timelineResult}
@@ -378,8 +399,8 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
             />
           </div>
 
-          {/* 3. Pre-Flight Inspection Checklist */}
-          <div className="animate-flight-deck-in deck-stagger-3">
+          {/* 4. Pre-Flight Inspection Checklist */}
+          <div className="animate-flight-deck-in deck-stagger-4">
             <PreFlightChecklistBento
               trip={trip}
               onUpdateTrip={onUpdateTrip}
@@ -387,8 +408,8 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
             />
           </div>
 
-          {/* 4. Baseline Dock: Real-Food Nutrition */}
-          <div className="animate-flight-deck-in deck-stagger-4">
+          {/* 5. Baseline Dock: Real-Food Nutrition */}
+          <div className="animate-flight-deck-in deck-stagger-5">
             <NutritionBento
               trip={trip}
               hardDepartureTime={timelineResult.hardDepartureTime}
@@ -399,8 +420,8 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
             />
           </div>
 
-          {/* 5. Telemetry Dock: Aerodynamic & Rolling Physics Engine */}
-          <div className="animate-flight-deck-in deck-stagger-5">
+          {/* 6. Telemetry Dock: Aerodynamic & Rolling Physics Engine */}
+          <div className="animate-flight-deck-in deck-stagger-6">
             <PhysicsEngineCard
               trip={trip}
               physicsResult={physicsResult}
@@ -413,7 +434,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
       )}
 
       {/* ── Cadence Bottom Telemetry / Feedback Dock Corner ── */}
-      <div className="flex items-center justify-between pt-6 mt-4 text-xs text-ink-muted border-t border-dashed border-ink/10 dark:border-white/10">
+      <div className="flex items-center justify-between pt-5 mt-5 text-xs text-ink-muted border-t border-dashed border-ink/10 dark:border-white/10">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-volt-lime animate-pulse" />
           <span className="font-mono text-[11px] tracking-wider uppercase">{t('feedbackFooterDock')}</span>
