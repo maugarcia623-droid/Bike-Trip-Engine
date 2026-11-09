@@ -11,43 +11,125 @@ export const FRUIT_CHEW_PIECE = { carbsG: 12, kcal: 48 } as const;
 export const ENERGY_GEL_UNIT = { carbsG: 25, kcal: 100 } as const;
 export const ISOTONIC_SCOOP_BIDON = { carbsG: 36, kcal: 144 } as const;
 
-export interface DynamicCarbTargetResult {
-  effectiveHourlyRateG: number;
+export type PacingTier =
+  | 'short-hydration-only'
+  | 'light-cruising'
+  | 'steady-endurance'
+  | 'high-output'
+  | 'emergency-surge';
+
+export interface IntensityModulatedCarbTargetParams {
+  rideHours: number;
+  pctFtp: number;
+  carbOxidationGramPerHour: number;
+  gutCeilingGPerHr: number;
+  totalDays?: number;
+  activeChips?: string[];
+}
+
+export interface IntensityModulatedCarbTargetResult {
+  recommendedGPerHr: number;
+  effectiveCeilingGPerHr: number;
   targetOnBikeCarbsG: number;
+  pacingTier: PacingTier;
+  effectiveHourlyRateG: number;
+  durationFactor: number;
+  exoShare: number;
+  rawDemandGPerHr: number;
+}
+
+export type DynamicCarbTargetResult = IntensityModulatedCarbTargetResult;
+
+/**
+ * Calculates unified intensity-modulated carbohydrate targeting (EQ-13).
+ * Scales recommended hourly intake dynamically based on relative intensity (%FTP),
+ * ride duration (rideHours), gut absorption ceiling, and active intensity chips.
+ */
+export function calculateIntensityModulatedCarbTarget(
+  params: IntensityModulatedCarbTargetParams
+): IntensityModulatedCarbTargetResult {
+  const {
+    rideHours,
+    pctFtp,
+    carbOxidationGramPerHour,
+    gutCeilingGPerHr,
+    totalDays = 1,
+    activeChips = [],
+  } = params;
+
+  const gutCeiling = Math.max(25, Math.min(120, gutCeilingGPerHr));
+
+  // 1. Short-Ride Endogenous Cutoff: Under 45m on a single-day ride requires no on-bike carbs
+  if (rideHours < 0.75 && totalDays === 1) {
+    return {
+      recommendedGPerHr: 0,
+      effectiveCeilingGPerHr: gutCeiling,
+      targetOnBikeCarbsG: 0,
+      pacingTier: 'short-hydration-only',
+      effectiveHourlyRateG: 0,
+      durationFactor: 0.55,
+      exoShare: 0.35,
+      rawDemandGPerHr: 0,
+    };
+  }
+
+  // 2. Duration Depletion Factor (durationFactor)
+  const durationFactor = Math.min(1.0, Math.max(0.55, 0.45 + 0.18 * rideHours));
+
+  // 3. Intensity Oxidation Share (exoShare)
+  let exoShare = Math.min(0.75, Math.max(0.35, 0.25 + (pctFtp / 100) * 0.45));
+  if (activeChips.includes('fitness-boost') || activeChips.includes('climbing-kom-hunt')) {
+    exoShare = Math.min(0.80, exoShare + 0.08);
+  }
+
+  // 4. Ceiling Clamp & Gale Over-Threshold Surge
+  const effectiveCeilingGPerHr = pctFtp > 105 ? Math.min(120, gutCeiling + 20) : gutCeiling;
+  const rawDemandGPerHr = Math.round(carbOxidationGramPerHour * exoShare * durationFactor);
+  const recommendedGPerHr = Math.min(effectiveCeilingGPerHr, Math.max(25, rawDemandGPerHr));
+  const targetOnBikeCarbsG = Math.max(25, Math.round(recommendedGPerHr * rideHours));
+
+  let pacingTier: PacingTier;
+  if (pctFtp > 105) {
+    pacingTier = 'emergency-surge';
+  } else if (recommendedGPerHr >= 75 || exoShare >= 0.70) {
+    pacingTier = 'high-output';
+  } else if (recommendedGPerHr >= 45) {
+    pacingTier = 'steady-endurance';
+  } else {
+    pacingTier = 'light-cruising';
+  }
+
+  return {
+    recommendedGPerHr,
+    effectiveCeilingGPerHr,
+    targetOnBikeCarbsG,
+    pacingTier,
+    effectiveHourlyRateG: recommendedGPerHr,
+    durationFactor,
+    exoShare,
+    rawDemandGPerHr,
+  };
 }
 
 /**
- * Calculates intensity-modulated carb targeting (Upgraded EQ-13).
- * Scales recommended hourly intake dynamically based on %FTP, metabolic demand,
- * and ride duration, respecting the gut ceiling.
+ * Backward-compatible wrapper delegating to calculateIntensityModulatedCarbTarget.
  */
 export function calculateDynamicCarbTarget(
   rideHours: number,
   pctFtp: number,
   carbOxidationGramPerHour: number,
   gutCeilingGPerHr: number,
-  totalDays: number = 1
-): DynamicCarbTargetResult {
-  // Short-Ride Cutoff: Under 45m on a single-day ride requires no on-bike carbs
-  if (rideHours < 0.75 && totalDays === 1) {
-    return { effectiveHourlyRateG: 0, targetOnBikeCarbsG: 0 };
-  }
-
-  // Duration Factor: Scales exogenous carb reliance over duration
-  const durationFactor = Math.min(1.0, Math.max(0.55, 0.45 + 0.18 * rideHours));
-
-  // Exogenous Share: Scales with physiological intensity (%FTP)
-  const exoShare = Math.min(0.75, Math.max(0.35, 0.25 + (pctFtp / 100) * 0.45));
-
-  // Raw Metabolic Demand: Required exogenous carbohydrates per hour
-  const rawDemandGPerHr = Math.round(carbOxidationGramPerHour * exoShare * durationFactor);
-
-  // Ceiling Clamp with Emergency Over-Threshold Surge for %FTP > 105%
-  const effectiveCap = pctFtp > 105 ? gutCeilingGPerHr + 20 : gutCeilingGPerHr;
-  const effectiveHourlyRateG = Math.min(effectiveCap, Math.max(25, rawDemandGPerHr));
-  const targetOnBikeCarbsG = Math.max(25, Math.round(effectiveHourlyRateG * rideHours));
-
-  return { effectiveHourlyRateG, targetOnBikeCarbsG };
+  totalDays: number = 1,
+  activeChips: string[] = []
+): IntensityModulatedCarbTargetResult {
+  return calculateIntensityModulatedCarbTarget({
+    rideHours,
+    pctFtp,
+    carbOxidationGramPerHour,
+    gutCeilingGPerHr,
+    totalDays,
+    activeChips,
+  });
 }
 
 export interface BottomUpPortionCounts {
@@ -307,6 +389,7 @@ export interface RealFoodNutritionPlanOptions {
   pctFtp?: number;
   carbOxidationGramPerHour?: number;
   totalDays?: number;
+  activeChips?: string[];
 }
 
 /**
@@ -326,18 +409,20 @@ export function getRealFoodNutritionPlan(
   const rideHours = Math.max(0.1, options?.rideHours ?? 1.5);
   const pref = options?.nutritionPreference ?? storedSpecs.nutritionPreference ?? 'real-food';
   const totalDays = options?.totalDays ?? 1;
+  const activeChips = options?.activeChips ?? [];
 
   // Use physiological intensity if available, otherwise baseline Zone 2
   const pctFtp = options?.pctFtp ?? 72;
   const carbOxidation = options?.carbOxidationGramPerHour ?? Math.round(gutCeilingGPerHr * 1.8);
 
-  const { effectiveHourlyRateG, targetOnBikeCarbsG } = calculateDynamicCarbTarget(
+  const { recommendedGPerHr, targetOnBikeCarbsG, effectiveHourlyRateG } = calculateIntensityModulatedCarbTarget({
     rideHours,
     pctFtp,
-    carbOxidation,
+    carbOxidationGramPerHour: carbOxidation,
     gutCeilingGPerHr,
-    totalDays
-  );
+    totalDays,
+    activeChips,
+  });
 
   const onBikeItems = allocatePhase2OnBikeItems(targetOnBikeCarbsG, pref, rideHours, lang);
 

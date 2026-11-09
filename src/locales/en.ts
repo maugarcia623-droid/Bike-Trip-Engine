@@ -457,6 +457,17 @@ export const en = {
   nutriCom4Badge: "Morning",
   nutriCom4Body: "Overnight oats with chia & oat milk, crisp apple, and coffee before starting work.",
 
+  // ── Nutrition Bento Pacing Badges (Phase 3) ──
+  nutriMaxGutCeiling: "{carbs} g/h (Max gut absorption ceiling)",
+  nutriEmergencySurge: "{carbs} g/h (Emergency high-output surge)",
+  nutriSwitchToEffortCaution: "Switch to effort pacing",
+  nutriFuelFirstUnitsHr: "{units} Fuel Units / hr · {pacing}",
+  nutriPacingLightCruising: "Light cruising intake",
+  nutriPacingSteadyEndurance: "Steady endurance fueling",
+  nutriPacingHighOutput: "High-output fueling",
+  nutriIntuitiveCadenceCue: "Sip fluid every 15–20m · Small bite every 25–30m",
+  nutriQuantTargetPace: "{carbs} g/h target ({zone} pace · {cap} g/h gut cap)",
+
   // ── Configurator Screen ──
   backToFlightDeck: "Back to ride plan",
   createNewProfileHeading: "Create new trip",

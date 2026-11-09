@@ -459,6 +459,17 @@ export const fr: TranslationDictionary = {
   nutriCom4Badge: "Avant poste",
   nutriCom4Body: "Overnight oats au lait d'avoine & chia, pomme Granny Smith croquante et café avant de rejoindre le bureau.",
 
+  // ── Nutrition Bento Pacing Badges (Phase 3) ──
+  nutriMaxGutCeiling: "{carbs} g/h (Plafond d'absorption intestinale)",
+  nutriEmergencySurge: "{carbs} g/h (Surrégime temporaire d'urgence)",
+  nutriSwitchToEffortCaution: "Passer en allure effort",
+  nutriFuelFirstUnitsHr: "{units} unités / h · {pacing}",
+  nutriPacingLightCruising: "Ravito croisière léger",
+  nutriPacingSteadyEndurance: "Alimentation endurance régulière",
+  nutriPacingHighOutput: "Ravito haute intensité",
+  nutriIntuitiveCadenceCue: "1 gorgée toutes les 15–20 min · 1 bouchée toutes les 25–30 min",
+  nutriQuantTargetPace: "{carbs} g/h cible (allure {zone} · max {cap} g/h)",
+
   // ── Configurator Screen ──
   backToFlightDeck: "Retour au plan de route",
   createNewProfileHeading: "Créer un nouveau profil de trajet",

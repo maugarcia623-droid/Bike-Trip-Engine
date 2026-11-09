@@ -453,7 +453,8 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
       physicsResult?.ftpPercent ?? 72,
       physicsResult?.carbOxidationGramPerHour ?? Math.round((effectiveSpecs.carbTargetGPerHr ?? 60) * 1.8),
       effectiveSpecs.carbTargetGPerHr ?? 60,
-      trip.stages?.length || 1
+      trip.stages?.length || 1,
+      trip.customChips || []
     );
   }, [
     movingMinutes,
@@ -461,6 +462,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
     physicsResult?.carbOxidationGramPerHour,
     effectiveSpecs.carbTargetGPerHr,
     trip.stages?.length,
+    trip.customChips,
   ]);
 
   const elevationData = useMemo(() => synthesizeRouteElevationProfile(trip.route), [trip.route]);

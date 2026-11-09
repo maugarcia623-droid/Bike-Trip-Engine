@@ -180,7 +180,8 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
       physicsResult.ftpPercent,
       physicsResult.carbOxidationGramPerHour,
       effectiveSpecs.carbTargetGPerHr ?? 60,
-      trip.stages?.length || 1
+      trip.stages?.length || 1,
+      trip.customChips || []
     );
   }, [
     physicsResult.movingTimeSeconds,
@@ -188,6 +189,7 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
     physicsResult.carbOxidationGramPerHour,
     effectiveSpecs.carbTargetGPerHr,
     trip.stages?.length,
+    trip.customChips,
   ]);
 
   // Solved reverse timeline

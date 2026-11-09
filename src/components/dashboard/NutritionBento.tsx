@@ -11,6 +11,7 @@ import {
   Mountains,
   Wine,
   Droplets,
+  TriangleAlert,
 } from '@/components/icons';
 import { Card } from '../common/Card';
 import { Badge, BadgeVariant } from '../common/Badge';
@@ -30,6 +31,7 @@ import { loadRiderBikeSpecs } from '../../utils/specsStorage';
 import {
   getRealFoodNutritionPlan,
   calculateDynamicCarbTarget,
+  calculateIntensityModulatedCarbTarget,
   getBottomUpPortionCounts,
   MEDJOOL_DATE,
   FRUIT_CHEW_PIECE,
@@ -133,20 +135,24 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
     )
   );
   const isShortRide = movingMinutes < 45 && totalDays <= 1;
-  const isModerateRide = movingMinutes >= 45 && movingMinutes < 90;
 
   // Intensity-modulated carbohydrate target (EQ-13 upgrade)
   const pctFtp = physicsResult?.ftpPercent ?? 72;
   const powerZoneLabel = physicsResult?.powerZone || 'Z2';
-  const dynamicCarb = calculateDynamicCarbTarget(
-    movingMinutes / 60,
+  const dynamicCarb = calculateIntensityModulatedCarbTarget({
+    rideHours: movingMinutes / 60,
     pctFtp,
-    physicsResult?.carbOxidationGramPerHour ?? Math.round(carbTarget * 1.8),
-    carbTarget,
-    totalDays
-  );
-  const effectiveHourlyRateG = dynamicCarb.effectiveHourlyRateG;
+    carbOxidationGramPerHour:
+      physicsResult?.carbOxidationGramPerHour ?? Math.round(carbTarget * 1.8),
+    gutCeilingGPerHr: carbTarget,
+    totalDays,
+    activeChips,
+  });
+  const recommendedGPerHr = dynamicCarb.recommendedGPerHr;
+  const effectiveCeilingGPerHr = dynamicCarb.effectiveCeilingGPerHr;
   const targetOnBikeCarbsG = dynamicCarb.targetOnBikeCarbsG;
+  const pacingTier = dynamicCarb.pacingTier;
+  const isEmergencySurge = pctFtp > 105;
 
   const [showFullProtocol, setShowFullProtocol] = useState(false);
   const [openPhases, setOpenPhases] = useState<Record<number, boolean>>({});
@@ -174,8 +180,10 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       rideHours: movingMinutes / 60,
       nutritionPreference: nutPref,
       pctFtp,
-      carbOxidationGramPerHour: physicsResult?.carbOxidationGramPerHour ?? Math.round(carbTarget * 1.8),
+      carbOxidationGramPerHour:
+        physicsResult?.carbOxidationGramPerHour ?? Math.round(carbTarget * 1.8),
       totalDays,
+      activeChips,
     }
   );
 
@@ -185,7 +193,82 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
 
   // Exact snacks badge matching card item count in fuel-first mode
   const actualFuelUnits = formatFuelTarget(actualAllocatedCarbsG, 'fuel-first', lang);
-  const fuelUnitsPerHour = Math.max(1, Math.round(effectiveHourlyRateG / 20));
+  const fuelUnitsPerHour = Math.max(1, Math.round(recommendedGPerHr / 20));
+
+  // Supportive pacing label for Fuel-First mode
+  const supportivePacingLabel =
+    pacingTier === 'light-cruising'
+      ? t('nutriPacingLightCruising')
+      : pacingTier === 'steady-endurance'
+      ? t('nutriPacingSteadyEndurance')
+      : t('nutriPacingHighOutput');
+
+  // Unified Phase 2 On-Bike macro headline
+  const onBikeMacroHeadline = isQuantitative
+    ? isEmergencySurge
+      ? t('nutriEmergencySurge', { carbs: recommendedGPerHr })
+      : recommendedGPerHr === effectiveCeilingGPerHr
+      ? t('nutriMaxGutCeiling', { carbs: recommendedGPerHr })
+      : t('nutriQuantTargetPace', {
+          carbs: recommendedGPerHr,
+          zone: powerZoneLabel,
+          cap: carbTarget,
+        })
+    : `${actualFuelUnits} (~${fuelUnitsPerHour} ${isFr ? 'unités/h' : 'units/h'})`;
+
+  // Unified on-bike pacing badge according to telemetryMode
+  const renderPacingBadge = (defaultVariant: BadgeVariant = 'yellow-vest') => {
+    if (isIntuitive) {
+      return (
+        <Badge variant="lime" size="md" dot className="py-1.5 px-3">
+          {t('nutriIntuitiveCadenceCue')}
+        </Badge>
+      );
+    }
+
+    if (isFuelFirst) {
+      const fuelFirstText = isFr
+        ? `${fuelUnitsPerHour} ${fuelUnitsPerHour > 1 ? 'unités' : 'unité'} / h · ${supportivePacingLabel}`
+        : `${fuelUnitsPerHour} Fuel Units / hr · ${supportivePacingLabel}`;
+      return (
+        <Badge variant={defaultVariant} size="md" dot className="py-1.5 px-3 tnum">
+          {fuelFirstText}
+        </Badge>
+      );
+    }
+
+    // Quantitative mode
+    if (isEmergencySurge) {
+      return (
+        <>
+          <Badge variant="amber" size="md" icon={Flame} className="py-1.5 px-3 tnum">
+            {t('nutriEmergencySurge', { carbs: recommendedGPerHr })}
+          </Badge>
+          <Badge variant="red" size="md" icon={TriangleAlert} className="py-1.5 px-3">
+            {t('nutriSwitchToEffortCaution')}
+          </Badge>
+        </>
+      );
+    }
+
+    if (recommendedGPerHr === effectiveCeilingGPerHr) {
+      return (
+        <Badge variant={defaultVariant} size="md" dot className="py-1.5 px-3 tnum">
+          {t('nutriMaxGutCeiling', { carbs: recommendedGPerHr })}
+        </Badge>
+      );
+    }
+
+    return (
+      <Badge variant={defaultVariant} size="md" dot className="py-1.5 px-3 tnum">
+        {t('nutriQuantTargetPace', {
+          carbs: recommendedGPerHr,
+          zone: powerZoneLabel,
+          cap: carbTarget,
+        })}
+      </Badge>
+    );
+  };
 
   const renderExpeditionManifest = () => {
     if (totalDays <= 1) return null;
@@ -240,11 +323,17 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           : `Day ${currentDay}/${totalDays} · ${recommendedBidons} bidons / stage`);
 
     const manifestSub = isQuantitative
-      ? effectiveHourlyRateG < carbTarget
+      ? isEmergencySurge
         ? isFr
-          ? `${effectiveHourlyRateG} g/h (${powerZoneLabel} · max ${carbTarget} g/h) · ${prefBadgeLabel}`
-          : `${effectiveHourlyRateG} g/h target (${powerZoneLabel} pace · ${carbTarget} g/h gut cap) · ${prefBadgeLabel}`
-        : `${effectiveHourlyRateG}g/h · ${prefBadgeLabel}`
+          ? `${recommendedGPerHr} g/h (Surrégime d'urgence) · ${prefBadgeLabel}`
+          : `${recommendedGPerHr} g/h (Surge) · ${prefBadgeLabel}`
+        : recommendedGPerHr === effectiveCeilingGPerHr
+        ? isFr
+          ? `${recommendedGPerHr} g/h (Plafond max) · ${prefBadgeLabel}`
+          : `${recommendedGPerHr} g/h (Max gut cap) · ${prefBadgeLabel}`
+        : isFr
+        ? `${recommendedGPerHr} g/h (${powerZoneLabel} · max ${effectiveCeilingGPerHr} g/h) · ${prefBadgeLabel}`
+        : `${recommendedGPerHr} g/h target (${powerZoneLabel} pace · ${effectiveCeilingGPerHr} g/h gut cap) · ${prefBadgeLabel}`
       : isFuelFirst
       ? `${fuelUnitsPerHour} ${isFr ? 'unités/h' : 'fuel units/h'} · ${prefBadgeLabel}`
       : `${isFr ? 'Rythme régulier' : 'Steady rhythm'} · ${prefBadgeLabel}`;
@@ -552,7 +641,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         badge={
           <div className="inline-flex items-center gap-2 flex-wrap">
             <Badge variant="lime" size="md" dot className="py-1.5 px-3">
-              {isFr ? 'Rythme régulier' : 'Steady rhythm'}
+              {t('nutriIntuitiveCadenceCue')}
             </Badge>
             <Badge variant="sky" size="md" icon={Droplets} className="py-1.5 px-3 tnum">
               {recommendedBidons}x {isFr ? 'bidons' : 'bidons'}
@@ -659,16 +748,6 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
   if (isSport) {
     const isKom = activeChips.includes('climbing-kom-hunt');
     const isHydration = activeChips.includes('hydration-electrolytes');
-    const minCarbRange = Math.max(25, effectiveHourlyRateG - 10);
-    const sportCarbLabel = isQuantitative
-      ? isModerateRide
-        ? t('nutriModCarbBadge', { min: movingMinutes })
-        : effectiveHourlyRateG < carbTarget
-        ? isFr
-          ? `${effectiveHourlyRateG} g/h (${powerZoneLabel} · max ${carbTarget} g/h)`
-          : `${effectiveHourlyRateG} g/h target (${powerZoneLabel} pace · ${carbTarget} g/h gut cap)`
-        : `${minCarbRange}–${effectiveHourlyRateG}g carbs/h`
-      : actualFuelUnits;
 
     const sportPhases: NutritionPhaseSpec[] = [
       {
@@ -695,27 +774,21 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         stageLabel: isFr ? 'Débit horaire en selle' : 'On-bike hourly rate',
         timingLabel: isKom
           ? isFr
-            ? `Bosses · ${isQuantitative ? `${effectiveHourlyRateG}g/h` : `${Math.max(1, Math.round(effectiveHourlyRateG / 20))} un/h`}`
-            : `KOM · ${isQuantitative ? `${effectiveHourlyRateG}g/h` : `${Math.max(1, Math.round(effectiveHourlyRateG / 20))} un/h`}`
+            ? `Bosses · ${isQuantitative ? `${recommendedGPerHr}g/h` : `${fuelUnitsPerHour} un/h`}`
+            : `KOM · ${isQuantitative ? `${recommendedGPerHr}g/h` : `${fuelUnitsPerHour} un/h`}`
           : isQuantitative
-          ? `${effectiveHourlyRateG} g/h`
-          : `${Math.max(1, Math.round(effectiveHourlyRateG / 20))} ${isFr ? 'unités/h' : 'fuel units/h'}`,
+          ? `${recommendedGPerHr} g/h`
+          : `${fuelUnitsPerHour} ${isFr ? 'unités/h' : 'fuel units/h'}`,
         timingVariant: 'yellow-vest',
-        macroHeadline: isQuantitative
-          ? effectiveHourlyRateG < carbTarget
-            ? isFr
-              ? `${effectiveHourlyRateG} g/h (${powerZoneLabel} · max ${carbTarget} g/h)`
-              : `${effectiveHourlyRateG} g/h target (${powerZoneLabel} pace · ${carbTarget} g/h gut cap)`
-            : `${effectiveHourlyRateG}g/h (~${Math.round(effectiveHourlyRateG * 4)} kcal/h)`
-          : `${actualFuelUnits} (~${Math.max(1, Math.round(effectiveHourlyRateG / 20))} ${isFr ? 'unités/h' : 'units/h'})`,
+        macroHeadline: onBikeMacroHeadline,
         macroIcon: Lightning,
         macroTheme: 'yellow-vest',
         items: onBikeItems,
         title:
           nutPref === 'real-food'
             ? isFr
-              ? `Ravito Naturel Calibré (${isQuantitative ? `${effectiveHourlyRateG}g/h` : `${Math.max(1, Math.round(effectiveHourlyRateG / 20))} un/h`})`
-              : `Calibrated Real-Food Fueling (${isQuantitative ? `${effectiveHourlyRateG}g/h` : `${Math.max(1, Math.round(effectiveHourlyRateG / 20))} un/h`})`
+              ? `Ravito Naturel Calibré (${isQuantitative ? `${recommendedGPerHr}g/h` : `${fuelUnitsPerHour} un/h`})`
+              : `Calibrated Real-Food Fueling (${isQuantitative ? `${recommendedGPerHr}g/h` : `${fuelUnitsPerHour} un/h`})`
             : isHydration
             ? isFr
               ? 'Stratégie Glucides & Recharge Sodium'
@@ -765,9 +838,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
             <Badge variant="emerald" size="md" className="py-1.5 px-3 tnum">
               {prefBadgeLabel}
             </Badge>
-            <Badge variant="yellow-vest" size="md" dot className="py-1.5 px-3 tnum">
-              {sportCarbLabel}
-            </Badge>
+            {renderPacingBadge('yellow-vest')}
             {isQuantitative ? (
               <Badge variant="amber" size="md" icon={Flame} className="py-1.5 px-3 tnum">
                 {estimatedBurnKcal} kcal
@@ -791,8 +862,6 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
     const isMountain = activeChips.includes('mountain-adventure');
     const isResupply = activeChips.includes('resupply-points');
     const isBivouac = activeChips.includes('bivouac-camp');
-    const bpHourlyCarbs = effectiveHourlyRateG;
-    const bpFuelUnits = Math.max(1, Math.round(bpHourlyCarbs / 20));
 
     const bpPhases: NutritionPhaseSpec[] = [
       {
@@ -829,13 +898,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         stageLabel: isFr ? 'Cadence horaire' : 'Rolling intake',
         timingLabel: isMountain ? (isFr ? 'Pentes Fortes' : 'Steep Pitches') : 'Every 25m',
         timingVariant: 'lime',
-        macroHeadline: isQuantitative
-          ? effectiveHourlyRateG < carbTarget
-            ? isFr
-              ? `${effectiveHourlyRateG} g/h (${powerZoneLabel} · max ${carbTarget} g/h)`
-              : `${effectiveHourlyRateG} g/h target (${powerZoneLabel} pace · ${carbTarget} g/h gut cap)`
-            : `~${bpHourlyCarbs}g/h carbs (${prefBadgeLabel})`
-          : `${actualFuelUnits} (${prefBadgeLabel})`,
+        macroHeadline: onBikeMacroHeadline,
         macroIcon: Lightning,
         macroTheme: 'lime',
         items: onBikeItems,
@@ -902,19 +965,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         badge={
           <div className="inline-flex items-center gap-2 flex-wrap">
             {compactReturnBtn}
-            <Badge variant="orange" size="md" dot className="py-1.5 px-3 tnum">
-              {isQuantitative
-                ? isMountain
-                  ? isFr
-                    ? 'Régime Alpin'
-                    : 'Alpine Grazing'
-                  : effectiveHourlyRateG < carbTarget
-                  ? isFr
-                    ? `${effectiveHourlyRateG} g/h (${powerZoneLabel} · max ${carbTarget} g/h)`
-                    : `${effectiveHourlyRateG} g/h target (${powerZoneLabel} pace · ${carbTarget} g/h gut cap)`
-                  : `~${bpHourlyCarbs}g carbs/h`
-                : actualFuelUnits}
-            </Badge>
+            {renderPacingBadge('orange')}
             {isQuantitative ? (
               <Badge variant="amber" size="md" icon={Flame} className="py-1.5 px-3 tnum">
                 ~{estimatedBurnKcal} kcal
@@ -939,8 +990,6 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
     const isGastro =
       activeChips.includes('local-gastronomy') || activeChips.includes('wine-tasting');
     const isSpa = activeChips.includes('spa-wellness');
-    const escCarbs = effectiveHourlyRateG;
-    const escUnits = Math.max(1, Math.round(escCarbs / 20));
 
     const escPhases: NutritionPhaseSpec[] = [
       {
@@ -973,19 +1022,14 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           ? 'En route'
           : 'On the road',
         timingVariant: isPicnic ? 'orange' : 'teal',
-        macroHeadline: isQuantitative
-          ? isPicnic
+        macroHeadline:
+          isPicnic && isQuantitative
             ? '~650 kcal · Balanced feast'
-            : effectiveHourlyRateG < carbTarget
+            : isPicnic && !isQuantitative
             ? isFr
-              ? `${effectiveHourlyRateG} g/h (${powerZoneLabel} · max ${carbTarget} g/h)`
-              : `${effectiveHourlyRateG} g/h target (${powerZoneLabel} pace · ${carbTarget} g/h gut cap)`
-            : `~${escCarbs}g/h carbs`
-          : isPicnic
-          ? isFr
-            ? 'Pique-nique du terroir'
-            : 'Artisanal picnic feast'
-          : actualFuelUnits,
+              ? 'Pique-nique du terroir'
+              : 'Artisanal picnic feast'
+            : onBikeMacroHeadline,
         macroIcon: Lightning,
         macroTheme: 'emerald',
         items: onBikeItems,
@@ -993,7 +1037,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           ? isFr
             ? 'Déjeuner Pique-Nique du Terroir au Bord de l’Eau'
             : 'Artisanal Waterside Picnic Feast'
-          : t('nutriEsc2Title', { carbs: escCarbs }),
+          : t('nutriEsc2Title', { carbs: recommendedGPerHr }),
         body: isPicnic
           ? isFr
             ? 'Pain au levain frais, fromage de chèvre fermier, avocat, tomates fraîches, dattes et eau minérale fraîche au soleil.'
@@ -1052,17 +1096,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         badge={
           <div className="inline-flex items-center gap-2 flex-wrap">
             {compactReturnBtn}
-            <Badge variant="emerald" size="md" dot className="py-1.5 px-3 tnum">
-              {isQuantitative
-                ? isModerateRide
-                  ? t('nutriModCarbBadge', { min: movingMinutes })
-                  : effectiveHourlyRateG < carbTarget
-                  ? isFr
-                    ? `${effectiveHourlyRateG} g/h (${powerZoneLabel} · max ${carbTarget} g/h)`
-                    : `${effectiveHourlyRateG} g/h target (${powerZoneLabel} pace · ${carbTarget} g/h gut cap)`
-                  : `~${escCarbs}g carbs/h`
-                : actualFuelUnits}
-            </Badge>
+            {renderPacingBadge('emerald')}
             {isQuantitative ? (
               <Badge variant="amber" size="md" icon={Flame} className="py-1.5 px-3 tnum">
                 ~{estimatedBurnKcal} kcal
@@ -1127,19 +1161,14 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           : 'Tempo Fuel'
         : t('nutriCom2Badge'),
       timingVariant: isCoffee ? 'amber' : 'lime',
-      macroHeadline: isQuantitative
-        ? isCoffee
+      macroHeadline:
+        isCoffee && isQuantitative
           ? '~320 kcal · Espresso + pastry'
-          : effectiveHourlyRateG < carbTarget
+          : isCoffee && !isQuantitative
           ? isFr
-            ? `${effectiveHourlyRateG} g/h cible (allure ${powerZoneLabel} · max ${carbTarget} g/h)`
-            : `${effectiveHourlyRateG} g/h target (${powerZoneLabel} pace · ${carbTarget} g/h gut cap)`
-          : `~${effectiveHourlyRateG}g carbs · Bottle + dates`
-        : isCoffee
-        ? isFr
-          ? 'Pause café & viennoiserie'
-          : 'Espresso & pastry'
-        : `${actualFuelUnits} · ${isFr ? 'bidon & dattes' : 'bottle & dates'}`,
+            ? 'Pause café & viennoiserie'
+            : 'Espresso & pastry'
+          : onBikeMacroHeadline,
       macroIcon: Lightning,
       macroTheme: 'lime',
       title: isCoffee
@@ -1222,21 +1251,12 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       badge={
         <div className="inline-flex items-center gap-2 flex-wrap">
           {compactReturnBtn}
-          <Badge variant="yellow-vest" size="md" dot className="py-1.5 px-3 tnum">
-            {isCoffee
-              ? isFr
-                ? 'Café Roaster'
-                : 'Espresso reload'
-              : isQuantitative
-              ? isModerateRide
-                ? t('nutriModCarbBadge', { min: movingMinutes })
-                : effectiveHourlyRateG < carbTarget
-                ? isFr
-                  ? `${effectiveHourlyRateG} g/h (${powerZoneLabel} · max ${carbTarget} g/h)`
-                  : `${effectiveHourlyRateG} g/h target (${powerZoneLabel} pace · ${carbTarget} g/h gut cap)`
-                : `${effectiveHourlyRateG}g/h · ${prefBadgeLabel}`
-              : actualFuelUnits}
-          </Badge>
+          {isCoffee && (
+            <Badge variant="amber" size="md" dot className="py-1.5 px-3 tnum">
+              {isFr ? 'Café Roaster' : 'Espresso reload'}
+            </Badge>
+          )}
+          {renderPacingBadge('yellow-vest')}
           {isQuantitative ? (
             <Badge variant="amber" size="md" icon={Flame} className="py-1.5 px-3 tnum">
               {estimatedBurnKcal} kcal

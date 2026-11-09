@@ -70,6 +70,7 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
       pctFtp: physicsResult.ftpPercent,
       carbOxidationGramPerHour: physicsResult.carbOxidationGramPerHour,
       totalDays: expeditionTotals?.totalDays || (trip.stages?.length || 1),
+      activeChips: trip.customChips || [],
     }
   );
 
