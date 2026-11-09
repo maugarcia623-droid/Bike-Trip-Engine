@@ -1,6 +1,12 @@
 import { NutritionPhase, NutritionItem } from '../types/trip';
 import { Language, getCurrentLanguage } from '../context/LanguageContext';
 import { loadRiderBikeSpecs } from './specsStorage';
+import {
+  PantryItem,
+  ResolvedCompliantPantry,
+  resolveCompliantPantry,
+  DEFAULT_PANTRY_CATALOG,
+} from '../data/pantryCatalog';
 
 /**
  * Canonical per-unit nutritional constants for discrete bottom-up fueling allocation.
@@ -233,12 +239,15 @@ export function getBottomUpPortionCounts(
 
 /**
  * Allocates concrete on-bike items with strict unit-based macro integrity (EQ-14 to EQ-20).
+ * Supports dynamic N-item Personal Pantry items (liquidItem + solidItems) with fallback
+ * to legacy 3-way nutritionPreference strings.
  */
 export function allocatePhase2OnBikeItems(
   targetOnBikeCarbsG: number,
-  preference: 'real-food' | 'mixed' | 'sports-fuel',
+  preferenceOrLiquid: 'real-food' | 'mixed' | 'sports-fuel' | PantryItem,
   rideHours: number,
-  lang: Language = getCurrentLanguage()
+  lang: Language = getCurrentLanguage(),
+  solidItems?: PantryItem[]
 ): NutritionItem[] {
   const isFr = lang === 'fr';
 
@@ -258,6 +267,96 @@ export function allocatePhase2OnBikeItems(
       },
     ];
   }
+
+  // Dynamic Personal Pantry mode (PantryItem passed for liquid)
+  if (typeof preferenceOrLiquid !== 'string') {
+    const liquidItem = preferenceOrLiquid;
+    const items: NutritionItem[] = [];
+
+    // Liquid allocation: 50% for high-carb mixes (>=50g C or maltodextrin/cluster dextrin), 35% for fruit juices
+    const isHighCarb =
+      liquidItem.carbsG >= 50 ||
+      liquidItem.id.includes('maltodextrin') ||
+      liquidItem.id.includes('isotonic');
+    const liquidShare = isHighCarb ? 0.5 : 0.35;
+    const liquidUnits = Math.max(1, Math.round((targetOnBikeCarbsG * liquidShare) / Math.max(1, liquidItem.carbsG)));
+
+    items.push({
+      name: isFr ? liquidItem.nameFr : liquidItem.nameEn,
+      quantity: isFr ? `${liquidUnits}x Bidon 650 ml` : `${liquidUnits}x 650ml bidon`,
+      carbsGrams: liquidUnits * liquidItem.carbsG,
+      proteinGrams: liquidUnits * liquidItem.proteinG,
+      fatsGrams: 0,
+      kcals: liquidUnits * liquidItem.kcal,
+      quantitativeLabel: isFr
+        ? `${liquidItem.nameFr} (${liquidUnits * liquidItem.carbsG}g C)`
+        : `${liquidItem.nameEn} (${liquidUnits * liquidItem.carbsG}g C)`,
+      portionLabel: isFr
+        ? `${liquidUnits} ${liquidUnits > 1 ? 'bidons' : 'bidon'} ${liquidItem.portionLabelFr}`
+        : `${liquidUnits} ${liquidUnits > 1 ? 'bottles' : 'bottle'} ${liquidItem.portionLabelEn}`,
+      notes: isFr
+        ? 'Assimilation hydrique et minérale continue.'
+        : 'Smooth on-bike hydration and mineral intake.',
+      isRealFoodVerified:
+        !liquidItem.id.includes('gel') &&
+        !liquidItem.id.includes('isotonic') &&
+        !liquidItem.id.includes('maltodextrin'),
+    });
+
+    let remainingSolidCarbs = Math.max(0, targetOnBikeCarbsG - liquidUnits * liquidItem.carbsG);
+    const solids = solidItems && solidItems.length > 0 ? solidItems : [];
+
+    for (let idx = 0; idx < solids.length; idx++) {
+      const item = solids[idx];
+      if (!item || item.carbsG <= 0) continue;
+      const isLast = idx === solids.length - 1;
+      const slotsRemaining = solids.length - idx;
+      const slotTarget = remainingSolidCarbs / slotsRemaining;
+      let units = Math.max(0, Math.round(slotTarget / item.carbsG));
+
+      // Guarantee minimum 1 unit if significant unallocated carbs remain on the final item
+      if (isLast && remainingSolidCarbs >= item.carbsG * 0.4 && units === 0) {
+        units = 1;
+      }
+
+      if (units > 0) {
+        remainingSolidCarbs = Math.max(0, remainingSolidCarbs - units * item.carbsG);
+        items.push({
+          name: isFr ? item.nameFr : item.nameEn,
+          quantity: isFr ? `${units} portion${units > 1 ? 's' : ''}` : `${units} serving${units > 1 ? 's' : ''}`,
+          carbsGrams: units * item.carbsG,
+          proteinGrams: units * item.proteinG,
+          fatsGrams: 0,
+          kcals: units * item.kcal,
+          quantitativeLabel: isFr
+            ? `${item.nameFr} (${units * item.carbsG}g C)`
+            : `${item.nameEn} (${units * item.carbsG}g C)`,
+          portionLabel:
+            units === 1
+              ? isFr
+                ? item.portionLabelFr
+                : item.portionLabelEn
+              : `${units}x ${isFr ? item.portionLabelFr : item.portionLabelEn}`,
+          notes: isFr
+            ? item.flavor === 'savory'
+              ? 'Apport salé anti-saturation sucrée.'
+              : 'Recharge glucidique digeste.'
+            : item.flavor === 'savory'
+            ? 'Savory fuel to prevent sweet palate fatigue.'
+            : 'Digestible carbohydrate replenishment.',
+          isRealFoodVerified:
+            !item.id.includes('gel') &&
+            !item.id.includes('isotonic') &&
+            !item.id.includes('maltodextrin'),
+        });
+      }
+    }
+
+    return items;
+  }
+
+  // Legacy fallback when string preference is passed
+  const preference = preferenceOrLiquid as 'real-food' | 'mixed' | 'sports-fuel';
 
   const counts = getBottomUpPortionCounts(targetOnBikeCarbsG, preference, rideHours);
   const items: NutritionItem[] = [];
@@ -390,11 +489,12 @@ export interface RealFoodNutritionPlanOptions {
   carbOxidationGramPerHour?: number;
   totalDays?: number;
   activeChips?: string[];
+  compliantPantry?: ResolvedCompliantPantry;
 }
 
 /**
  * Returns the 4-phase Nutrition Protocol scaled dynamically with intensity-modulated
- * carbohydrate targeting and bottom-up discrete portion allocation.
+ * carbohydrate targeting, personal pantry items, and dietary guardrails.
  */
 export function getRealFoodNutritionPlan(
   lockerArrivalTime: string = '08:30',
@@ -410,6 +510,7 @@ export function getRealFoodNutritionPlan(
   const pref = options?.nutritionPreference ?? storedSpecs.nutritionPreference ?? 'real-food';
   const totalDays = options?.totalDays ?? 1;
   const activeChips = options?.activeChips ?? [];
+  const compliantPantry = options?.compliantPantry ?? resolveCompliantPantry(storedSpecs);
 
   // Use physiological intensity if available, otherwise baseline Zone 2
   const pctFtp = options?.pctFtp ?? 72;
@@ -424,7 +525,122 @@ export function getRealFoodNutritionPlan(
     activeChips,
   });
 
-  const onBikeItems = allocatePhase2OnBikeItems(targetOnBikeCarbsG, pref, rideHours, lang);
+  const onBikeItems = allocatePhase2OnBikeItems(
+    targetOnBikeCarbsG,
+    compliantPantry.onBikeLiquid,
+    rideHours,
+    lang,
+    compliantPantry.onBikeSolids
+  );
+
+  // Dietary & allergen filter checks for Phase 4 break room items
+  const dietaryFilters = storedSpecs.dietaryFilters || [];
+  const isVegan = dietaryFilters.includes('vegan');
+  const isGF = dietaryFilters.includes('gluten-free');
+  const isNutFree = dietaryFilters.includes('nut-free');
+  const isLowFodmap = dietaryFilters.includes('low-fodmap');
+
+  const oatsItem: NutritionItem = {
+    name: isGF
+      ? isFr
+        ? "Flocons d'Avoine Sans Gluten au Lait Végétal"
+        : 'Certified GF Overnight Oats with Plant Milk'
+      : isFr
+      ? "Overnight Oats au Lait d'Avoine & Chia"
+      : 'Oat Milk Overnight Oats with Chia',
+    quantity: isFr ? 'Bocal 250 g' : '250g jar',
+    carbsGrams: 42,
+    proteinGrams: 8,
+    fatsGrams: 6,
+    kcals: 255,
+    quantitativeLabel: isFr
+      ? `${isGF ? 'Oats sans gluten' : "Overnight oats au lait d'avoine"} (250g, 42g C, 8g P)`
+      : `${isGF ? 'GF overnight oats' : 'Oat milk overnight oats'} (250g jar, 42g C, 8g P)`,
+    portionLabel: isFr ? "1 bocal d'avoine préparée" : '1 jar prepared oats',
+    notes: isFr ? 'Fibres bêta-glucanes infusées à froid.' : 'Beta-glucan complex fibers soaked overnight in oat milk.',
+    isRealFoodVerified: true,
+  };
+
+  const fruitItem: NutritionItem = isLowFodmap
+    ? {
+        name: isFr ? '1 Banane Ferme ou Portion de Fraises' : '1 Firm Banana or Fresh Strawberries',
+        quantity: '120g',
+        carbsGrams: 27,
+        proteinGrams: 1,
+        fatsGrams: 0,
+        kcals: 105,
+        quantitativeLabel: isFr ? '1 banane ferme (120g, 27g C)' : '1 firm banana (120g, 27g C)',
+        portionLabel: isFr ? '1 portion de fruits frais' : '1 serving fresh fruit',
+        notes: isFr ? 'Faible en FODMAP, énergie douce.' : 'Low-FODMAP, gentle on stomach.',
+        isRealFoodVerified: true,
+      }
+    : {
+        name: isFr ? '1 Pomme Granny Smith Croquante' : '1 Whole Crisp Grated Granny Smith Apple',
+        quantity: '140g',
+        carbsGrams: 19,
+        proteinGrams: 0,
+        fatsGrams: 0,
+        kcals: 75,
+        quantitativeLabel: isFr ? '1 pomme Granny Smith (140g, 19g C)' : '1 crisp Granny Smith apple (140g, 19g C)',
+        portionLabel: isFr ? '1 pomme croquante fraîche' : '1 crisp fresh apple',
+        notes: isFr ? 'Fraîcheur acide malique et pectine.' : 'Tart malic acid freshness, pectin, enzymes.',
+        isRealFoodVerified: true,
+      };
+
+  const nutOrSeedItem: NutritionItem = isNutFree
+    ? {
+        name: isFr ? 'Graines de Courge & Tournesol Grillées' : 'Toasted Pumpkin & Sunflower Seeds',
+        quantity: '20g',
+        carbsGrams: 4,
+        proteinGrams: 6,
+        fatsGrams: 10,
+        kcals: 125,
+        quantitativeLabel: isFr ? 'Graines de courge & tournesol (20g, 10g lipides)' : 'Pumpkin & sunflower seeds (20g, 10g fats)',
+        portionLabel: isFr ? '1 poignée de graines' : '1 small handful seeds',
+        notes: isFr ? 'Minéraux et acides gras sains sans allergènes.' : 'Rich in zinc, magnesium, and healthy fats (100% nut-free).',
+        isRealFoodVerified: true,
+      }
+    : {
+        name: isFr ? 'Cerneaux de Noix Concassés' : 'Lightly Crushed Raw Walnuts',
+        quantity: '20g',
+        carbsGrams: 3,
+        proteinGrams: 3,
+        fatsGrams: 13,
+        kcals: 130,
+        quantitativeLabel: isFr ? 'Cerneaux de noix concassés (20g, 13g lipides)' : 'Lightly crushed walnuts (20g, 13g fats)',
+        portionLabel: isFr ? '1 poignée de noix' : '1 small handful walnuts',
+        notes: isFr ? 'Oméga-3 ALA anti-inflammatoires.' : 'Omega-3 ALA nutrients and healthy fats.',
+        isRealFoodVerified: true,
+      };
+
+  const sandwichItem: NutritionItem = {
+    name: isGF
+      ? isVegan
+        ? isFr
+          ? '1/2 Pain Sans Gluten Artisanal (Avocat & Houmous)'
+          : '1/2 GF Artisan Roll (Avocado & Hummus)'
+        : isFr
+        ? '1/2 Pain Sans Gluten Artisanal (Dinde ou Avocat)'
+        : '1/2 GF Artisan Roll (Turkey or Avocado)'
+      : isVegan
+      ? isFr
+        ? '1/2 Sandwich Baguette Fraîche (Avocat & Houmous)'
+        : '1/2 Fresh Baguette Sandwich (Avocado & Hummus)'
+      : isFr
+      ? '1/2 Sandwich Baguette Fraîche (Dinde ou Avocat)'
+      : '1/2 Fresh Baguette Sandwich (Turkey or Avocado)',
+    quantity: isFr ? '100 g (demi-baguette)' : '100g half sandwich',
+    carbsGrams: 36,
+    proteinGrams: isVegan ? 10 : 14,
+    fatsGrams: 5,
+    kcals: 245,
+    quantitativeLabel: isFr
+      ? `1/2 sandwich ${isGF ? 'sans gluten' : 'baguette'} (100g, 36g C, ${isVegan ? '10g' : '14g'} P)`
+      : `1/2 ${isGF ? 'GF roll' : 'fresh baguette'} sandwich (100g, 36g C, ${isVegan ? '10g' : '14g'} P)`,
+    portionLabel: isFr ? '1 demi-sandwich frais' : '1 half fresh sandwich',
+    notes: isFr ? 'Satiété salée et énergie stable toute la matinée.' : 'Savory satiation and sustained energy for the morning.',
+    isRealFoodVerified: true,
+  };
 
   return [
     {
@@ -437,28 +653,18 @@ export function getRealFoodNutritionPlan(
         : 'Gentle easily digestible carbs, zero heavy fats, high gastro-comfort. Complete 35-45m prior to rollout.',
       items: [
         {
-          name: isFr ? 'Baguette Blanche Grillée / Pain de Campagne' : 'Toasted White Baguette / Country Loaf',
-          quantity: isFr ? '75 g (2 tranches)' : '75g (2 thick slices)',
-          carbsGrams: 41,
-          proteinGrams: 6,
+          name: isFr ? compliantPantry.preRide.nameFr : compliantPantry.preRide.nameEn,
+          quantity: isFr ? '1 portion' : '1 portion',
+          carbsGrams: compliantPantry.preRide.carbsG,
+          proteinGrams: compliantPantry.preRide.proteinG,
           fatsGrams: 1,
-          kcals: 200,
-          quantitativeLabel: isFr ? 'Baguette blanche grillée (75g, 41g C)' : 'Toasted white baguette (75g, 41g C)',
-          portionLabel: isFr ? '2 tranches de pain grillé' : '2 slices toasted bread',
-          notes: isFr ? 'Vidange gastrique rapide, sans fibres irritantes.' : 'Rapid gastric emptying, zero resistant fiber.',
-          isRealFoodVerified: true,
-        },
-        {
-          name: isFr ? "Miel Pur d'Acacia ou de Fleurs" : 'Pure Acacia or Wildflower Honey',
-          quantity: isFr ? '25 g (1,5 c.à.s)' : '25g (1.5 tbsp)',
-          carbsGrams: 21,
-          proteinGrams: 0,
-          fatsGrams: 0,
-          kcals: 85,
-          quantitativeLabel: isFr ? "Miel pur d'acacia (25g, 21g C)" : 'Pure wildflower honey (25g, 21g C)',
-          portionLabel: isFr ? '1 cuillère de miel' : '1 spoonful honey',
-          notes: isFr ? 'Ratio 50/50 glucose-fructose pour assimilation directe.' : '50/50 glucose-fructose ratio for cellular uptake.',
-          isRealFoodVerified: true,
+          kcals: compliantPantry.preRide.kcal,
+          quantitativeLabel: isFr
+            ? `${compliantPantry.preRide.nameFr} (${compliantPantry.preRide.carbsG}g C, ${compliantPantry.preRide.proteinG}g P)`
+            : `${compliantPantry.preRide.nameEn} (${compliantPantry.preRide.carbsG}g C, ${compliantPantry.preRide.proteinG}g P)`,
+          portionLabel: isFr ? compliantPantry.preRide.portionLabelFr : compliantPantry.preRide.portionLabelEn,
+          notes: isFr ? 'Vidange gastrique rapide, sans fibres irritantes.' : 'Rapid gastric emptying, gentle on digestion.',
+          isRealFoodVerified: !compliantPantry.preRide.id.includes('gel'),
         },
         {
           name: isFr ? 'Double Ristretto / Expresso' : 'Double Ristretto / Espresso',
@@ -534,28 +740,18 @@ export function getRealFoodNutritionPlan(
         : 'Immediate post-effort replenishment. Eaten comfortably at locker bench before shower.',
       items: [
         {
-          name: isFr ? 'Skyr 0 % Nature' : 'Skyr 0% Natural (Thick Icelandic Strained)',
-          quantity: isFr ? 'Pot de 200 g' : '200g tub',
-          carbsGrams: 8,
-          proteinGrams: 22,
+          name: isFr ? compliantPantry.postRide.nameFr : compliantPantry.postRide.nameEn,
+          quantity: isFr ? '1 portion de récupération' : '1 recovery portion',
+          carbsGrams: compliantPantry.postRide.carbsG,
+          proteinGrams: compliantPantry.postRide.proteinG,
           fatsGrams: 0,
-          kcals: 120,
-          quantitativeLabel: isFr ? 'Skyr 0% Nature (pot de 200g, 22g P)' : 'Skyr 0% Natural (200g tub, 22g P)',
-          portionLabel: isFr ? '1 bol yaourt ou collation protéinée' : '1 bowl yogurt or protein snack',
-          notes: isFr ? 'Apport protéiné pur caséine & lactosérum sans graisses.' : 'Lactose-strained pure casein & whey matrix, spoonable without mess.',
-          isRealFoodVerified: true,
-        },
-        {
-          name: isFr ? 'Pur Jus de Raisin Noir 100 %' : '100% Pure Dark Concord Grape Juice',
-          quantity: isFr ? 'Flasque 250 ml' : '250ml flask',
-          carbsGrams: 38,
-          proteinGrams: 1,
-          fatsGrams: 0,
-          kcals: 155,
-          quantitativeLabel: isFr ? 'Pur jus de raisin noir (flasque 250ml, 38g C)' : 'Pure concord grape juice (250ml flask, 38g C)',
-          portionLabel: isFr ? '1 petit verre de jus de fruit' : '1 small glass fruit juice',
-          notes: isFr ? 'Recharge rapide du glycogène musculaire.' : 'Rapid glycogen replenishment after arrival.',
-          isRealFoodVerified: true,
+          kcals: compliantPantry.postRide.kcal,
+          quantitativeLabel: isFr
+            ? `${compliantPantry.postRide.nameFr} (${compliantPantry.postRide.carbsG}g C, ${compliantPantry.postRide.proteinG}g P)`
+            : `${compliantPantry.postRide.nameEn} (${compliantPantry.postRide.carbsG}g C, ${compliantPantry.postRide.proteinG}g P)`,
+          portionLabel: isFr ? compliantPantry.postRide.portionLabelFr : compliantPantry.postRide.portionLabelEn,
+          notes: isFr ? 'Recharge immédiate du glycogène et synthèse protéique.' : 'Immediate glycogen resynthesis and protein recovery.',
+          isRealFoodVerified: !compliantPantry.postRide.id.includes('shake'),
         },
       ],
     },
@@ -568,54 +764,10 @@ export function getRealFoodNutritionPlan(
         ? 'Espace convivial : Petit-déjeuner partagé en salle de pause dédiée avant la prise de poste.'
         : 'Break room lounge: Relaxed pre-shift breakfast in the dedicated shared kitchen before starting your day.',
       items: [
-        {
-          name: isFr ? "Overnight Oats au Lait d'Avoine & Chia" : 'Oat Milk Overnight Oats with Chia',
-          quantity: isFr ? 'Bocal 250 g' : '250g jar',
-          carbsGrams: 42,
-          proteinGrams: 8,
-          fatsGrams: 6,
-          kcals: 255,
-          quantitativeLabel: isFr ? "Overnight oats au lait d'avoine (250g, 42g C, 8g P)" : 'Oat milk overnight oats (250g jar, 42g C, 8g P)',
-          portionLabel: isFr ? "1 bocal d'avoine préparée" : '1 jar prepared oats',
-          notes: isFr ? 'Fibres bêta-glucanes infusées à froid.' : 'Beta-glucan complex fibers soaked overnight in oat milk.',
-          isRealFoodVerified: true,
-        },
-        {
-          name: isFr ? '1 Pomme Granny Smith Croquante' : '1 Whole Crisp Grated Granny Smith Apple',
-          quantity: '140g',
-          carbsGrams: 19,
-          proteinGrams: 0,
-          fatsGrams: 0,
-          kcals: 75,
-          quantitativeLabel: isFr ? '1 pomme Granny Smith (140g, 19g C)' : '1 crisp Granny Smith apple (140g, 19g C)',
-          portionLabel: isFr ? '1 pomme croquante fraîche' : '1 crisp fresh apple',
-          notes: isFr ? 'Fraîcheur acide malique et pectine.' : 'Tart malic acid freshness, pectin, enzymes.',
-          isRealFoodVerified: true,
-        },
-        {
-          name: isFr ? 'Cerneaux de Noix Concassés' : 'Lightly Crushed Raw Walnuts',
-          quantity: '20g',
-          carbsGrams: 3,
-          proteinGrams: 3,
-          fatsGrams: 13,
-          kcals: 130,
-          quantitativeLabel: isFr ? 'Cerneaux de noix concassés (20g, 13g lipides)' : 'Lightly crushed walnuts (20g, 13g fats)',
-          portionLabel: isFr ? '1 poignée de noix' : '1 small handful walnuts',
-          notes: isFr ? 'Oméga-3 ALA anti-inflammatoires.' : 'Omega-3 ALA nutrients and healthy fats.',
-          isRealFoodVerified: true,
-        },
-        {
-          name: isFr ? '1/2 Sandwich Baguette Fraîche (Dinde ou Avocat)' : '1/2 Fresh Baguette Sandwich (Turkey or Avocado)',
-          quantity: isFr ? '100 g (demi-baguette)' : '100g half sandwich',
-          carbsGrams: 36,
-          proteinGrams: 14,
-          fatsGrams: 5,
-          kcals: 245,
-          quantitativeLabel: isFr ? '1/2 sandwich baguette (100g, 36g C, 14g P)' : '1/2 fresh baguette sandwich (100g, 36g C, 14g P)',
-          portionLabel: isFr ? '1 demi-sandwich frais' : '1 half fresh sandwich',
-          notes: isFr ? 'Satiété salée et énergie stable toute la matinée.' : 'Savory satiation and sustained energy for the morning.',
-          isRealFoodVerified: true,
-        },
+        oatsItem,
+        fruitItem,
+        nutOrSeedItem,
+        sandwichItem,
         {
           name: isFr ? 'Café Filtre ou Allongé' : 'Fresh Office Filter Coffee or Long Black',
           quantity: isFr ? 'Tasse 200 ml' : '200ml mug',

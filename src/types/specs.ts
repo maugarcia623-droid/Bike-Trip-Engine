@@ -4,6 +4,25 @@ export type CockpitViewMode = 'essential' | 'pro';
 export type TelemetryMode = 'quantitative' | 'fuel-first' | 'intuitive';
 export type PacingInputMode = 'feel' | 'power';
 
+export type DietaryFilter = 'vegan' | 'gluten-free' | 'dairy-free' | 'nut-free' | 'low-fodmap';
+export type PantrySlot = 'pre-ride' | 'on-bike-liquid' | 'on-bike-solid' | 'post-ride-recovery';
+export type FlavorProfile = 'sweet' | 'savory' | 'neutral';
+
+export interface PantryItem {
+  id: string;
+  slot: PantrySlot;
+  nameEn: string;
+  nameFr: string;
+  portionLabelEn: string; // Used in 'fuel-first' mode (no gram weights/kcals)
+  portionLabelFr: string;
+  carbsG: number;
+  proteinG: number;
+  kcal: number;
+  flavor: FlavorProfile;
+  compliance: Record<DietaryFilter, boolean>;
+  isCustom?: boolean;
+}
+
 export interface BikeSpec {
   id: string;
   name: string;
@@ -20,6 +39,9 @@ export interface RiderBikeSpecs {
   ftpWatts: number;
   carbTargetGPerHr: number;
   nutritionPreference: NutritionPreference;
+  dietaryFilters?: DietaryFilter[];
+  activePantryIds?: string[];
+  customPantryItems?: PantryItem[];
   riderLevel: RiderLevel;
   cockpitViewMode?: CockpitViewMode;
   telemetryMode?: TelemetryMode;
@@ -36,6 +58,15 @@ export const DEFAULT_RIDER_BIKE_SPECS: RiderBikeSpecs = {
   ftpWatts: 210,
   carbTargetGPerHr: 60,
   nutritionPreference: 'real-food',
+  dietaryFilters: [],
+  activePantryIds: [
+    'pre-baguette-honey',
+    'liq-pressed-apple-grape',
+    'sol-medjool-date',
+    'sol-fruit-chew-fig',
+    'rec-skyr-grape',
+  ],
+  customPantryItems: [],
   riderLevel: 'regular',
   cockpitViewMode: 'pro',
   telemetryMode: 'quantitative',
@@ -101,6 +132,9 @@ export function getEffectiveRiderSpecs(specs: RiderSpecs): RiderSpecs {
           : 68,
       ftpWatts: effectiveFtp,
       carbTargetGPerHr: specs.carbTargetGPerHr ?? 60,
+      dietaryFilters: specs.dietaryFilters ?? [],
+      activePantryIds: specs.activePantryIds ?? DEFAULT_RIDER_BIKE_SPECS.activePantryIds,
+      customPantryItems: specs.customPantryItems ?? [],
     };
   }
 
@@ -111,6 +145,9 @@ export function getEffectiveRiderSpecs(specs: RiderSpecs): RiderSpecs {
     riderWeightKg: 68,
     ftpWatts: effectiveFtp,
     carbTargetGPerHr: mode === 'intuitive' ? 60 : (specs.carbTargetGPerHr ?? 60),
+    dietaryFilters: specs.dietaryFilters ?? [],
+    activePantryIds: specs.activePantryIds ?? DEFAULT_RIDER_BIKE_SPECS.activePantryIds,
+    customPantryItems: specs.customPantryItems ?? [],
   };
 }
 

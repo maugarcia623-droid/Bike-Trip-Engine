@@ -28,6 +28,7 @@ import { RiderBikeSpecs, TelemetryMode, formatFuelTarget } from '../../types/spe
 import { useTranslation } from '../../context/LanguageContext';
 import { getArchetypeFromTag } from '../../utils/archetypeChips';
 import { loadRiderBikeSpecs } from '../../utils/specsStorage';
+import { resolveCompliantPantry } from '../../data/pantryCatalog';
 import {
   getRealFoodNutritionPlan,
   calculateDynamicCarbTarget,
@@ -91,6 +92,8 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
 
   // Reactive rider gut absorption & telemetry philosophy settings
   const riderSpecs = riderSpecsProp || loadRiderBikeSpecs();
+  const compliantPantry = resolveCompliantPantry(riderSpecs);
+  const dietaryFilters = riderSpecs.dietaryFilters || [];
   const telemetryMode: TelemetryMode = riderSpecs.telemetryMode ?? 'quantitative';
   const isQuantitative = telemetryMode === 'quantitative';
   const isFuelFirst = telemetryMode === 'fuel-first';
@@ -184,6 +187,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         physicsResult?.carbOxidationGramPerHour ?? Math.round(carbTarget * 1.8),
       totalDays,
       activeChips,
+      compliantPantry,
     }
   );
 
@@ -273,41 +277,24 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
   const renderExpeditionManifest = () => {
     if (totalDays <= 1) return null;
 
-    const dailyPortions = getBottomUpPortionCounts(targetOnBikeCarbsG, nutPref, movingMinutes / 60);
+    const solidItems = compliantPantry.onBikeSolids;
+    const solidRations = solidItems.slice(0, 3).map((item) => {
+      const allocated = onBikeItems.find((it) => it.name === (isFr ? item.nameFr : item.nameEn));
+      const dailyUnits = allocated ? Math.max(1, Math.round(allocated.carbsGrams / Math.max(1, item.carbsG))) : 2;
+      const totalUnits = dailyUnits * totalDays;
+      return {
+        id: item.id,
+        name: isFr ? item.nameFr : item.nameEn,
+        portionLabel: isFr ? item.portionLabelFr : item.portionLabelEn,
+        totalUnits,
+        totalCarbs: totalUnits * item.carbsG,
+        totalKcal: totalUnits * item.kcal,
+      };
+    });
 
-    // Multi-day ration totals: multiply daily bottom-up integer unit counts by totalDays
-    const dailyDates = Math.max(2, dailyPortions.datesCount);
-    const dailyFigs = Math.max(2, Math.round(dailyPortions.chewsCount > 0 ? dailyPortions.chewsCount : 2));
-    const dailyPastes = Math.max(
-      1,
-      Math.round(
-        nutPref === 'sports-fuel'
-          ? dailyPortions.gelsCount
-          : dailyPortions.chewsCount > 0
-          ? dailyPortions.chewsCount
-          : 1
-      )
-    );
-
-    const datesCount = dailyDates * totalDays;
-    const figsCount = dailyFigs * totalDays;
-    const fruitPastesCount = dailyPastes * totalDays;
     const electrolyteTabsCount = totalDays * 2;
-
-    // Derive manifest totals strictly from integer counts
-    const manifestDatesCarbs = datesCount * MEDJOOL_DATE.carbsG;
-    const manifestDatesKcal = datesCount * MEDJOOL_DATE.kcal;
-
-    const manifestFigsCarbs = figsCount * FRUIT_CHEW_PIECE.carbsG;
-    const manifestFigsKcal = figsCount * FRUIT_CHEW_PIECE.kcal;
-
-    const pasteUnitCarbs = nutPref === 'sports-fuel' ? ENERGY_GEL_UNIT.carbsG : FRUIT_CHEW_PIECE.carbsG;
-    const pasteUnitKcal = nutPref === 'sports-fuel' ? ENERGY_GEL_UNIT.kcal : FRUIT_CHEW_PIECE.kcal;
-    const manifestPastesCarbs = fruitPastesCount * pasteUnitCarbs;
-    const manifestPastesKcal = fruitPastesCount * pasteUnitKcal;
-
-    const totalManifestCarbs = manifestDatesCarbs + manifestFigsCarbs + manifestPastesCarbs;
-    const totalManifestKcal = manifestDatesKcal + manifestFigsKcal + manifestPastesKcal;
+    const totalManifestCarbs = solidRations.reduce((sum, r) => sum + r.totalCarbs, 0);
+    const totalManifestKcal = solidRations.reduce((sum, r) => sum + r.totalKcal, 0);
     const totalManifestUnits = Math.max(1, Math.round(totalManifestCarbs / 20));
 
     const manifestTitle = isQuantitative
@@ -374,55 +361,26 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           open={manifestOpen}
           innerClassName="px-3.5 pb-3.5 pt-3 border-t border-dashed border-ink/10 dark:border-white/10 space-y-3"
         >
-          {/* 4-Item Cumulative Ration Grid */}
+          {/* Cumulative Ration Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <div className="p-2 sm:p-2.5 rounded-sub-pod bg-card border border-ink/5 dark:border-white/5 flex flex-col justify-between">
-              <span className="text-[10px] font-semibold text-ink-muted uppercase">
-                {isFr ? 'Dattes Medjool' : 'Medjool Dates'}
-              </span>
-              <span className="text-sm sm:text-base font-extrabold text-ink tnum mt-0.5">
-                {datesCount}x
-              </span>
-              <span className="text-[10px] text-ink-muted tnum">
-                {isQuantitative
-                  ? `~${manifestDatesKcal} kcal (${manifestDatesCarbs}g C)`
-                  : `${datesCount} ${isFr ? 'fruits' : 'fruit snacks'}`}
-              </span>
-            </div>
-
-            <div className="p-2 sm:p-2.5 rounded-sub-pod bg-card border border-ink/5 dark:border-white/5 flex flex-col justify-between">
-              <span className="text-[10px] font-semibold text-ink-muted uppercase">
-                {isFr ? 'Figues Séchées' : 'Turkish Figs'}
-              </span>
-              <span className="text-sm sm:text-base font-extrabold text-ink tnum mt-0.5">
-                {figsCount}x
-              </span>
-              <span className="text-[10px] text-ink-muted tnum">
-                {isQuantitative
-                  ? `~${manifestFigsKcal} kcal (${manifestFigsCarbs}g C)`
-                  : `${figsCount} ${isFr ? 'fruits' : 'fruit snacks'}`}
-              </span>
-            </div>
-
-            <div className="p-2 sm:p-2.5 rounded-sub-pod bg-card border border-ink/5 dark:border-white/5 flex flex-col justify-between">
-              <span className="text-[10px] font-semibold text-ink-muted uppercase">
-                {nutPref === 'sports-fuel'
-                  ? isFr
-                    ? 'Gels Énergétiques'
-                    : 'Energy Gels'
-                  : isFr
-                  ? 'Pâtes de Fruits'
-                  : 'Fruit Chews'}
-              </span>
-              <span className="text-sm sm:text-base font-extrabold text-ink tnum mt-0.5">
-                {fruitPastesCount}x
-              </span>
-              <span className="text-[10px] text-ink-muted tnum">
-                {isQuantitative
-                  ? `~${manifestPastesKcal} kcal (${manifestPastesCarbs}g C)`
-                  : `${fruitPastesCount} ${isFr ? 'snacks de poche' : 'pocket snacks'}`}
-              </span>
-            </div>
+            {solidRations.map((r) => (
+              <div
+                key={r.id}
+                className="p-2 sm:p-2.5 rounded-sub-pod bg-card border border-ink/5 dark:border-white/5 flex flex-col justify-between"
+              >
+                <span className="text-[10px] font-semibold text-ink-muted uppercase line-clamp-1">
+                  {r.name}
+                </span>
+                <span className="text-sm sm:text-base font-extrabold text-ink tnum mt-0.5">
+                  {r.totalUnits}x
+                </span>
+                <span className="text-[10px] text-ink-muted tnum">
+                  {isQuantitative
+                    ? `~${r.totalKcal} kcal (${r.totalCarbs}g C)`
+                    : `${r.totalUnits} ${r.portionLabel}`}
+                </span>
+              </div>
+            ))}
 
             <div className="p-2 sm:p-2.5 rounded-sub-pod bg-card border border-ink/5 dark:border-white/5 flex flex-col justify-between">
               <span className="text-[10px] font-semibold text-ink-muted uppercase">
@@ -439,13 +397,21 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
             </div>
           </div>
 
-          {/* Daily Morning Bakery Resupply Notice */}
+          {/* Daily Morning Resupply Notice */}
           <div className="pt-2 border-t border-dashed border-ink/10 dark:border-white/10 flex items-center gap-2 text-xs text-ink-secondary">
-            <span className="text-sm">🥖</span>
+            <span className="text-sm">{dietaryFilters.includes('gluten-free') ? '🌾' : '🥖'}</span>
             <span className="text-[11px] sm:text-xs">
-              {isFr
-                ? `Ravitaillement boulangerie : 1 baguette fraîche + fruits frais chaque matin au départ d’étape.`
-                : `Daily morning bakery resupply: 1 fresh baguette + fresh local fruit at each stage start.`}
+              {dietaryFilters.includes('gluten-free')
+                ? isFr
+                  ? 'Ravitaillement matin : pain ou galettes sans gluten + fruits frais locaux au départ d’étape.'
+                  : 'Daily morning resupply: fresh gluten-free bread & fresh local fruit at each stage start.'
+                : dietaryFilters.includes('vegan')
+                ? isFr
+                  ? 'Ravitaillement matin : pain au levain végétal + fruits frais locaux au départ d’étape.'
+                  : 'Daily morning bakery resupply: fresh sourdough & fresh local fruit at each stage start.'
+                : isFr
+                ? 'Ravitaillement boulangerie : 1 baguette fraîche + fruits frais chaque matin au départ d’étape.'
+                : 'Daily morning bakery resupply: 1 fresh baguette + fresh local fruit at each stage start.'}
             </span>
           </div>
         </Collapsible>
@@ -801,8 +767,8 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         body:
           nutPref === 'real-food'
             ? isFr
-              ? `Profil ajusté sans produits industriels : bidon 50/50 jus pressé + eau salée, dattes Medjool et pâtes de fruits artisanales.`
-              : `Adjusted to steady fueling using whole foods: 50/50 pressed juice bottle with pinch of salt, Medjool dates & artisanal fruit pastes.`
+              ? `Profil ajusté sans produits industriels : ${compliantPantry.onBikeLiquid.nameFr} et collations de poche (${compliantPantry.onBikeSolids.map((s) => s.nameFr).join(', ')}).`
+              : `Adjusted to steady fueling using whole foods: ${compliantPantry.onBikeLiquid.nameEn} and pocket snacks (${compliantPantry.onBikeSolids.map((s) => s.nameEn).join(', ')}).`
             : isHydration
             ? isFr
               ? `Apport régulier + 750 mg sodium/litre pour maximiser l’absorption intestinale sans troubles digestifs.`
@@ -913,11 +879,23 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           : t('nutriBp2Title'),
         body: isMountain
           ? isFr
-            ? 'Prise toutes les 20 min : dattes, pâtes d’amandes et bidon électrolytes pour compenser la forte sudation en côte.'
+            ? dietaryFilters.includes('nut-free')
+              ? 'Prise toutes les 20 min : dattes, pâtes de fruits artisanales et bidon électrolytes (garanti sans fruits à coque).'
+              : 'Prise toutes les 20 min : dattes, pâtes d’amandes et bidon électrolytes pour compenser la forte sudation en côte.'
+            : dietaryFilters.includes('nut-free')
+            ? 'Intake every 20 min: dates, artisanal fruit chews, and sodium bottle (100% nut-free electrolyte buffer).'
             : 'Intake every 20 min: dates, almond paste, and sodium bottle to offset heavy climbing sweat rates.'
           : isResupply
           ? isFr
-            ? 'Halte boulangerie villageoise : pain d’épices, fruits frais et ravitaillement à la fontaine d’eau potable.'
+            ? dietaryFilters.includes('gluten-free')
+              ? 'Halte ravitaillement villageois : gâteaux ou galettes de riz sans gluten, fruits frais et ravitaillement en eau.'
+              : dietaryFilters.includes('vegan')
+              ? 'Halte boulangerie villageoise : pain au levain végétal, fruits frais et ravitaillement à la fontaine.'
+              : 'Halte boulangerie villageoise : pain d’épices, fruits frais et ravitaillement à la fontaine d’eau potable.'
+            : dietaryFilters.includes('gluten-free')
+            ? 'Village resupply halt: gluten-free baked treats, fresh fruit, and icy fountain water.'
+            : dietaryFilters.includes('vegan')
+            ? 'Village bakery halt: plant-based sourdough, fresh fruit, and icy fountain water.'
             : 'Village bakery halt: spiced honey cake, fresh fruit, and icy spring fountain water.'
           : t('nutriBp2Body'),
       },
@@ -1040,7 +1018,15 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           : t('nutriEsc2Title', { carbs: recommendedGPerHr }),
         body: isPicnic
           ? isFr
-            ? 'Pain au levain frais, fromage de chèvre fermier, avocat, tomates fraîches, dattes et eau minérale fraîche au soleil.'
+            ? dietaryFilters.includes('gluten-free')
+              ? 'Pain sans gluten aux graines, tartinade végétale, avocat, tomates fraîches, fruits secs et eau minérale fraîche au soleil.'
+              : dietaryFilters.includes('vegan') || dietaryFilters.includes('dairy-free')
+              ? 'Pain au levain frais, houmous fermier, avocat, tomates fraîches, dattes et eau minérale fraîche au soleil.'
+              : 'Pain au levain frais, fromage de chèvre fermier, avocat, tomates fraîches, dattes et eau minérale fraîche au soleil.'
+            : dietaryFilters.includes('gluten-free')
+            ? 'Seeded gluten-free artisan bread, plant-based spread, avocado, fresh tomatoes, figs & chilled spring water.'
+            : dietaryFilters.includes('vegan') || dietaryFilters.includes('dairy-free')
+            ? 'Crusty sourdough baguette, artisan hummus, avocado, fresh tomatoes, figs & chilled spring water.'
             : 'Crusty sourdough baguette, local farm goat cheese, avocado, fresh tomatoes, figs & chilled spring water.'
           : t('nutriEsc2Body'),
       },
@@ -1136,10 +1122,10 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       timingLabel: '−45 min',
       timingVariant: 'zinc',
       macroHeadline: isQuantitative
-        ? '~300 kcal · Baguette + honey'
+        ? `~${compliantPantry.preRide.kcal} kcal · ${isFr ? compliantPantry.preRide.nameFr : compliantPantry.preRide.nameEn}`
         : isFr
-        ? '2 tranches de pain & miel'
-        : '2 slices bread & honey',
+        ? compliantPantry.preRide.portionLabelFr
+        : compliantPantry.preRide.portionLabelEn,
       macroIcon: isQuantitative ? Flame : Coffee,
       macroTheme: 'amber',
       title: t('nutriCom1Title'),
@@ -1185,7 +1171,19 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
             ? `Collation planifiée (${trip.ruleSettings?.coffeeDurationMin ?? 15} min) : ${customRation}.`
             : `Scheduled coffee pause (${trip.ruleSettings?.coffeeDurationMin ?? 15} min): ${customRation}.`
           : isFr
-          ? 'Double expresso fraîchement extrait + viennoiserie aux amandes pour booster la vigilance et l’énergie avant la prise de poste.'
+          ? dietaryFilters.includes('nut-free') && dietaryFilters.includes('gluten-free')
+            ? 'Double expresso fraîchement extrait + collation moelleuse artisanale sans gluten ni fruits à coque.'
+            : dietaryFilters.includes('nut-free')
+            ? 'Double expresso fraîchement extrait + chausson aux pommes ou viennoiserie pur beurre (100% sans amandes).'
+            : dietaryFilters.includes('vegan')
+            ? 'Double expresso fraîchement extrait + viennoiserie végétale au levain.'
+            : 'Double expresso fraîchement extrait + viennoiserie aux amandes pour booster la vigilance et l’énergie avant la prise de poste.'
+          : dietaryFilters.includes('nut-free') && dietaryFilters.includes('gluten-free')
+          ? 'Freshly pulled double espresso + artisan gluten-free, nut-free bakery treat for cognitive focus.'
+          : dietaryFilters.includes('nut-free')
+          ? 'Freshly pulled double espresso + warm apple turnover (100% nut-free) for morning focus.'
+          : dietaryFilters.includes('vegan')
+          ? 'Freshly pulled double espresso + plant-based sourdough pastry for morning fuel.'
           : 'Freshly pulled double espresso + artisanal almond pastry for sharp cognitive focus and rapid morning fuel.'
         : isTempo
         ? isFr
@@ -1206,10 +1204,10 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         : t('nutriCom3Badge'),
       timingVariant: 'yellow-vest',
       macroHeadline: isQuantitative
-        ? '25g protein · 200g Skyr'
+        ? `${compliantPantry.postRide.proteinG}g protein · ~${compliantPantry.postRide.kcal} kcal`
         : isFr
-        ? '1 bol yaourt & jus de fruit'
-        : '1 bowl yogurt & fruit juice',
+        ? compliantPantry.postRide.portionLabelFr
+        : compliantPantry.postRide.portionLabelEn,
       macroIcon: isQuantitative ? Flame : Package,
       macroTheme: 'yellow-vest',
       title: isShower
@@ -1219,8 +1217,8 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         : t('nutriCom3Title'),
       body: isShower
         ? isFr
-          ? 'Yaourt ou Skyr frais avec une cuillère de miel de fleurs consommé dès l’arrivée au vestiaire avant la douche chaude (zéro poudre).'
-          : 'Chilled Skyr or yogurt with wildflower honey consumed immediately upon arriving at the locker room before hot shower (zero powders).'
+          ? `${compliantPantry.postRide.nameFr} consommé dès l’arrivée au vestiaire avant la douche chaude (zéro poudre).`
+          : `${compliantPantry.postRide.nameEn} consumed immediately upon arriving at the locker room before hot shower (zero powders).`
         : t('nutriCom3Body'),
       items: lockerItems,
     },

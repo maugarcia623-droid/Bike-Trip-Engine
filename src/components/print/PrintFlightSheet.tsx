@@ -6,6 +6,7 @@ import { calculatePhysics } from '../../utils/physics';
 import { calculateReverseTimeline } from '../../utils/timeline';
 import { getChipsExtraBufferMinutes } from '../../utils/archetypeChips';
 import { getRealFoodNutritionPlan, addMinutesToTime } from '../../utils/nutrition';
+import { resolveCompliantPantry } from '../../data/pantryCatalog';
 import { getExpeditionTotals } from '../../utils/stageManager';
 import { calculateAmenityEta } from '../../services/overpassCorridor';
 import {
@@ -71,6 +72,7 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
       carbOxidationGramPerHour: physicsResult.carbOxidationGramPerHour,
       totalDays: expeditionTotals?.totalDays || (trip.stages?.length || 1),
       activeChips: trip.customChips || [],
+      compliantPantry: resolveCompliantPantry(effectiveSpecs),
     }
   );
 

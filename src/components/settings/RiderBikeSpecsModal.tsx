@@ -24,6 +24,7 @@ import { saveUserProfile } from '../../utils/userProfileStorage';
 import { useTranslation } from '../../context/LanguageContext';
 import { IconBadge } from '../common/IconBadge';
 import { Badge } from '../common/Badge';
+import { PantryBuilderSection } from './PantryBuilderSection';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
   CHIP_RING_BASE,
@@ -750,52 +751,11 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
               </div>
             )}
 
-            {/* Nutritional Preference */}
-            <div className="p-3.5 rounded-pod bg-card">
-              <label className="block text-xs font-semibold text-ink mb-2">
-                {isFr ? 'Préférences nutritionnelles en selle' : 'On-Bike Nutritional Preference'}
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                {(
-                  [
-                    {
-                      id: 'real-food',
-                      label: isFr ? 'Aliments vrais' : 'Real Food',
-                      sub: isFr ? 'Dattes, fruits, boulangerie' : 'Dates, figs, bakery',
-                    },
-                    {
-                      id: 'mixed',
-                      label: isFr ? 'Mixte' : 'Mixed Fuel',
-                      sub: isFr ? 'Solide + 1 gel secours' : 'Whole food + backup gel',
-                    },
-                    {
-                      id: 'sports-fuel',
-                      label: isFr ? 'Sport / Iso' : 'Sports Fuel',
-                      sub: isFr ? 'Boisson iso & gels' : 'Isotonic mix & gels',
-                    },
-                  ] as { id: NutritionPreference; label: string; sub: string }[]
-                ).map((opt) => {
-                  const active = (localSpecs.nutritionPreference || 'real-food') === opt.id;
-                  return (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() =>
-                        setLocalSpecs((prev) => ({ ...prev, nutritionPreference: opt.id }))
-                      }
-                      className={`p-2.5 rounded-pod text-left flex flex-col justify-start transition-all cursor-pointer ${
-                        active
-                          ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.emerald.selectedRing}`
-                          : 'bg-pod text-ink-secondary hover:text-ink'
-                      }`}
-                    >
-                      <div className="text-xs font-semibold leading-snug">{opt.label}</div>
-                      <div className="text-[11px] opacity-80 mt-0.5 leading-snug">{opt.sub}</div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            {/* Personal Pantry & Dietary Guardrails (Phase 4) */}
+            <PantryBuilderSection
+              specs={localSpecs}
+              onChange={(updated) => setLocalSpecs(updated)}
+            />
           </div>
 
           {/* ── RIGHT COLUMN: DEDICATED BIKE PROFILE & GARAGE ── */}

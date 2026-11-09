@@ -4,6 +4,8 @@ import {
   BikeSpec,
   TelemetryMode,
   PacingInputMode,
+  DietaryFilter,
+  PantryItem,
   getEffectiveRiderSpecs,
   formatFuelTarget,
 } from '../types/specs';
@@ -104,6 +106,21 @@ export function loadRiderBikeSpecs(): RiderBikeSpecs {
         ? parsed.pacingInputMode
         : DEFAULT_RIDER_BIKE_SPECS.pacingInputMode ?? 'feel';
 
+    const resolvedDietaryFilters: DietaryFilter[] =
+      Array.isArray(parsed.dietaryFilters)
+        ? parsed.dietaryFilters
+        : DEFAULT_RIDER_BIKE_SPECS.dietaryFilters ?? [];
+
+    const resolvedActivePantryIds: string[] =
+      Array.isArray(parsed.activePantryIds) && parsed.activePantryIds.length > 0
+        ? parsed.activePantryIds
+        : DEFAULT_RIDER_BIKE_SPECS.activePantryIds ?? [];
+
+    const resolvedCustomPantryItems: PantryItem[] =
+      Array.isArray(parsed.customPantryItems)
+        ? parsed.customPantryItems
+        : DEFAULT_RIDER_BIKE_SPECS.customPantryItems ?? [];
+
     return {
       ...DEFAULT_RIDER_BIKE_SPECS,
       ...parsed,
@@ -113,6 +130,9 @@ export function loadRiderBikeSpecs(): RiderBikeSpecs {
       ftpWatts: resolvedFtp,
       carbTargetGPerHr: resolvedCarbTarget,
       nutritionPreference: resolvedNutritionPref,
+      dietaryFilters: resolvedDietaryFilters,
+      activePantryIds: resolvedActivePantryIds,
+      customPantryItems: resolvedCustomPantryItems,
       riderLevel: resolvedLevel,
       cockpitViewMode: resolvedViewMode,
       telemetryMode: resolvedTelemetryMode,
