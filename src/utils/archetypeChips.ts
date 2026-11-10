@@ -346,8 +346,8 @@ export const ARCHETYPE_CHIP_DEFINITIONS: Record<ArchetypeMode, ArchetypeChipDef[
         },
         {
           id: 'hiVisMandate',
-          labelEn: 'Hi-vis reflective sash on',
-          labelFr: 'Baudrier réfléchissant obligatoire',
+          labelEn: 'Recommended packing: Hi-vis reflective sash',
+          labelFr: 'Équipement conseillé : baudrier réfléchissant',
           type: 'boolean',
           defaultValue: true,
         },
@@ -451,8 +451,8 @@ export const ARCHETYPE_CHIP_DEFINITIONS: Record<ArchetypeMode, ArchetypeChipDef[
       descriptionFr: 'Douche complète au vestiaire, tenue civile et ravito express',
       ruleTitleEn: 'Locker Room & Shower',
       ruleTitleFr: 'Vestiaire, douche & tenue',
-      ruleDescriptionEn: 'Adds time for a hot shower, changing clothes, and a quick locker room snack.',
-      ruleDescriptionFr: 'Planifie le temps de douche, changement de tenue et collation au casier.',
+      ruleDescriptionEn: 'Opens post-ride recovery window and adds time for a hot shower and changing clothes.',
+      ruleDescriptionFr: 'Ouvre la fenêtre de récupération et planifie le temps de douche et changement de tenue.',
       defaultSettings: {
         showerMinutes: 12,
         lockerRefuelMinutes: 10,
@@ -1000,8 +1000,8 @@ export const ARCHETYPE_CHIP_DEFINITIONS: Record<ArchetypeMode, ArchetypeChipDef[
       descriptionFr: 'Pistes gravel, chemins de terre et bitume dégradé nécessitant vigilance pneus',
       ruleTitleEn: 'Off-Road & Gravel Tire Management',
       ruleTitleFr: 'Gestion pneus gravel & hors-piste',
-      ruleDescriptionEn: 'Adjusts rolling resistance for unpaved sectors and reminds you to bring a puncture repair kit.',
-      ruleDescriptionFr: 'Ajuste le Crr pour les pistes et impose un kit mèches tubeless prêt à l’emploi.',
+      ruleDescriptionEn: 'Adjusts rolling resistance for unpaved sectors · Recommended packing: puncture repair kit.',
+      ruleDescriptionFr: 'Ajuste le Crr pour les pistes · Équipement conseillé : kit mèches tubeless prêt à l’emploi.',
       defaultSettings: {
         tirePressureBar: 2.6,
       },
@@ -1100,8 +1100,8 @@ export const ARCHETYPE_CHIP_DEFINITIONS: Record<ArchetypeMode, ArchetypeChipDef[
       descriptionFr: 'Traversées urbaines, zones piétonnes et marge pour feux tricolores',
       ruleTitleEn: 'City Streets & Pedestrian Zones',
       ruleTitleFr: 'Traversée urbaine & feux',
-      ruleDescriptionEn: 'Factors city traffic stops and reminds you to bring a sturdy bike lock.',
-      ruleDescriptionFr: 'Prend en compte les arrêts aux feux et impose un antivol de haute sécurité.',
+      ruleDescriptionEn: 'Factors city traffic stops · Recommended packing: sturdy bike lock.',
+      ruleDescriptionFr: 'Prend en compte les arrêts aux feux · Équipement conseillé : antivol de haute sécurité.',
       defaultSettings: {
         urbanTrafficBufferMin: 14,
       },
@@ -1973,6 +1973,8 @@ export function toggleArchetypeChip(
       isTubeless: Boolean(savedBike?.isTubeless),
       carbTargetGPerHr: savedSpecs.carbTargetGPerHr ?? 60,
       nutritionPreference: savedSpecs.nutritionPreference ?? 'mixed',
+      bidonSizeMl: savedSpecs.bidonSizeMl,
+      frameBottleSlots: savedSpecs.frameBottleSlots,
     }
   );
   const checkedMap = new Map((updatedTrip.checklist || []).map((item) => [item.id, item.checked]));

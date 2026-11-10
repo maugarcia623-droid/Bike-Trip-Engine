@@ -442,6 +442,120 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
         </div>
       </div>
 
+      {/* ── 2.5 FUEL DELIVERY & PALATE STRATEGY (PHASE 9) ── */}
+      <div className="p-3.5 rounded-pod bg-card border border-ink/5 dark:border-white/5 space-y-3">
+        <div className="flex items-center gap-2">
+          <IconBadge theme="sky" icon={Droplets} size="sm" solidBacker />
+          <div>
+            <div className="text-xs font-bold text-ink">
+              {t('fuelSplitTitle')}
+            </div>
+            <div className="text-[11px] text-ink-muted">
+              {t('fuelSplitSubtitle')}
+            </div>
+          </div>
+        </div>
+
+        {/* Liquid vs Pocket Solid Split Slider */}
+        <div className="space-y-1.5 p-2.5 rounded-pod bg-pod/60">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-semibold text-ink">
+              {t('liquidRatioLabel')}
+            </span>
+            <span className="font-mono font-bold text-sky-600 dark:text-sky-400">
+              {Math.round((specs.liquidCarbRatio ?? 0.35) * 100)}% {isFr ? 'Liquide' : 'Liquid'} · {Math.round((1 - (specs.liquidCarbRatio ?? 0.35)) * 100)}% {isFr ? 'Solide' : 'Pocket Solids'}
+            </span>
+          </div>
+
+          <input
+            type="range"
+            min={0.15}
+            max={0.85}
+            step={0.05}
+            value={specs.liquidCarbRatio ?? 0.35}
+            onChange={(e) => {
+              const val = parseFloat(e.target.value);
+              onChange({
+                ...specs,
+                liquidCarbRatio: Math.min(0.85, Math.max(0.15, Math.round(val * 100) / 100)),
+              });
+            }}
+            aria-label={t('liquidRatioLabel')}
+            className="w-full accent-sky-500 cursor-pointer"
+          />
+
+          <div className="flex justify-between text-[10px] text-ink-muted font-mono">
+            <span>15% {isFr ? 'Liquide' : 'Liquid'}</span>
+            <span>50 / 50</span>
+            <span>85% {isFr ? 'Liquide' : 'Liquid'}</span>
+          </div>
+        </div>
+
+        {/* Auto-Modulate Liquid Toggle */}
+        <div className="flex items-start justify-between gap-3 p-2.5 rounded-pod bg-pod/60">
+          <div className="space-y-0.5">
+            <div className="text-xs font-semibold text-ink">
+              {t('autoModulateLiquidLabel')}
+            </div>
+            <div className="text-[11px] text-ink-muted leading-relaxed">
+              {t('autoModulateLiquidHint')}
+            </div>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={specs.autoModulateLiquidInHeatOrEffort !== false}
+            onClick={() => {
+              onChange({
+                ...specs,
+                autoModulateLiquidInHeatOrEffort: !(specs.autoModulateLiquidInHeatOrEffort !== false),
+              });
+            }}
+            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-hidden ${
+              specs.autoModulateLiquidInHeatOrEffort !== false ? 'bg-sky-500' : 'bg-ink/20 dark:bg-white/20'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition duration-200 ease-in-out mt-0.5 ml-0.5 ${
+                specs.autoModulateLiquidInHeatOrEffort !== false ? 'translate-x-4' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
+
+        {/* Savory Palate Resets Toggle */}
+        <div className="flex items-start justify-between gap-3 p-2.5 rounded-pod bg-pod/60">
+          <div className="space-y-0.5">
+            <div className="text-xs font-semibold text-ink">
+              {t('savoryResetLabel')}
+            </div>
+            <div className="text-[11px] text-ink-muted leading-relaxed">
+              {t('savoryResetHint')}
+            </div>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={specs.enableSavoryPalateResets !== false}
+            onClick={() => {
+              onChange({
+                ...specs,
+                enableSavoryPalateResets: !(specs.enableSavoryPalateResets !== false),
+              });
+            }}
+            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-hidden ${
+              specs.enableSavoryPalateResets !== false ? 'bg-emerald-500' : 'bg-ink/20 dark:bg-white/20'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition duration-200 ease-in-out mt-0.5 ml-0.5 ${
+                specs.enableSavoryPalateResets !== false ? 'translate-x-4' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
+      </div>
+
       {/* ── 3. SLOT CHECKLISTS ── */}
       <div className="space-y-3">
         {/* SLOT 1: PRE-RIDE */}

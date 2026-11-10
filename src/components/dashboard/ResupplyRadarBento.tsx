@@ -23,6 +23,8 @@ import {
   getCachedScan,
 } from '../../services/overpassCorridor';
 import { useTranslation } from '../../context/LanguageContext';
+import { loadRiderBikeSpecs } from '../../utils/specsStorage';
+import { calculateHydrationPlan } from '../../utils/nutrition';
 import { Collapsible, DisclosureChevron } from '../common/Collapsible';
 import { Badge } from '../common/Badge';
 import { InfoTooltip } from '../common/InfoTooltip';
@@ -248,8 +250,29 @@ export const ResupplyRadarBento: React.FC<ResupplyRadarBentoProps> = ({
         allWaterItems.push(pinned);
       }
     }
-    return calculateWaterGaps(allWaterItems, totalDistanceKm);
-  }, [amenities, pinnedAmenities, totalDistanceKm]);
+    const specs = loadRiderBikeSpecs();
+    const sectorSpeed = effectiveSpeedKmH || trip.route?.targetSpeedKmH || 25;
+    const hydration = calculateHydrationPlan({
+      rideHours: totalDistanceKm / Math.max(8, sectorSpeed),
+      tempC: trip.weather?.temperatureC ?? 18,
+      legWatts: 150,
+      bidonSizeMl: specs.bidonSizeMl ?? 650,
+      frameBottleSlots: specs.frameBottleSlots ?? 2,
+    });
+    return calculateWaterGaps(allWaterItems, totalDistanceKm, {
+      sectorSpeedKmH: sectorSpeed,
+      targetFluidMlPerHr: hydration.targetFluidMlPerHr,
+      bidonSizeMl: specs.bidonSizeMl ?? 650,
+      frameBottleSlots: specs.frameBottleSlots ?? 2,
+    });
+  }, [
+    amenities,
+    pinnedAmenities,
+    totalDistanceKm,
+    effectiveSpeedKmH,
+    trip.route?.targetSpeedKmH,
+    trip.weather?.temperatureC,
+  ]);
 
   // Category badges configuration
   const categoryConfig: {
@@ -401,29 +424,46 @@ export const ResupplyRadarBento: React.FC<ResupplyRadarBentoProps> = ({
             {waterGaps.status === 'critical' ? (
               <div className="rounded-pod p-2.5 sm:p-3 bg-rose-50 dark:bg-rose-950/40 text-rose-900 dark:text-rose-200 ring-1 ring-rose-500/40 flex items-start gap-2.5 shadow-beacon-red transition-all">
                 <TriangleAlert className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
-                <div className="text-xs min-w-0">
-                  <span className="font-bold font-rounded">
+                <div className="text-xs min-w-0 space-y-1">
+                  <span className="font-bold font-rounded block">
                     {t('hydrationCritical', {
                       gap: waterGaps.criticalGaps[0]?.distanceKm || waterGaps.maxGapKm,
                       start: waterGaps.criticalGaps[0]?.startKm || 0,
                       end: waterGaps.criticalGaps[0]?.endKm || totalDistanceKm,
                       bidons: waterGaps.criticalGaps[0]?.recommendedBidons || 2,
-                      ml: (waterGaps.criticalGaps[0]?.recommendedBidons || 2) * 750,
+                      ml:
+                        waterGaps.criticalGaps[0]?.recommendedMl ||
+                        (waterGaps.criticalGaps[0]?.recommendedBidons || 2) *
+                          (loadRiderBikeSpecs().bidonSizeMl ?? 650),
                     })}
                   </span>
+                  {waterGaps.criticalGaps[0] && (
+                    <div className="text-[11px] font-mono opacity-90 flex items-center gap-2 flex-wrap">
+                      <span>{waterGaps.criticalGaps[0].distanceKm.toFixed(1)} km (~{Math.round((waterGaps.criticalGaps[0].gapHours ?? 0) * 60)} min)</span>
+                      <span>&middot;</span>
+                      <span>{waterGaps.criticalGaps[0].gapFluidNeedMl} ml ({waterGaps.criticalGaps[0].depletionPct}% {isFr ? 'capacité' : 'capacity'})</span>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : waterGaps.status === 'caution' ? (
               <div className="rounded-pod p-2.5 sm:p-3 bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 ring-1 ring-amber-500/40 flex items-start gap-2.5 shadow-beacon-amber transition-all">
                 <ShieldAlert className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                <div className="text-xs min-w-0">
-                  <span className="font-bold font-rounded">
+                <div className="text-xs min-w-0 space-y-1">
+                  <span className="font-bold font-rounded block">
                     {t('hydrationCaution', {
                       gap: waterGaps.cautionGaps[0]?.distanceKm || waterGaps.maxGapKm,
                       start: waterGaps.cautionGaps[0]?.startKm || 0,
                       end: waterGaps.cautionGaps[0]?.endKm || totalDistanceKm,
                     })}
                   </span>
+                  {waterGaps.cautionGaps[0] && (
+                    <div className="text-[11px] font-mono opacity-90 flex items-center gap-2 flex-wrap">
+                      <span>{waterGaps.cautionGaps[0].distanceKm.toFixed(1)} km (~{Math.round((waterGaps.cautionGaps[0].gapHours ?? 0) * 60)} min)</span>
+                      <span>&middot;</span>
+                      <span>{waterGaps.cautionGaps[0].gapFluidNeedMl} ml ({waterGaps.cautionGaps[0].depletionPct}% {isFr ? 'capacité' : 'capacity'})</span>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (

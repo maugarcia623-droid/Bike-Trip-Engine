@@ -4,6 +4,7 @@ import { fr } from '../locales/fr';
 import { ChecklistItem, TripProfile } from '../types/trip';
 import { PRESET_TRIP_TRANSLATIONS } from '../utils/presetTrips';
 import { loadRiderBikeSpecs, getActiveBike } from '../utils/specsStorage';
+import { calculateHydrationPlan } from '../utils/nutrition';
 
 export type Language = 'en' | 'fr';
 
@@ -226,6 +227,11 @@ export function getChecklistItemLabel(
     isTubeless?: boolean;
     carbTargetGPerHr?: number;
     nutritionPreference?: 'real-food' | 'mixed' | 'sports-fuel';
+    bidonSizeMl?: number;
+    frameBottleSlots?: number;
+    tempC?: number;
+    rideHours?: number;
+    legWatts?: number;
   }
 ): string {
   const specs = loadRiderBikeSpecs();
@@ -233,6 +239,25 @@ export function getChecklistItemLabel(
   const isTubeless = options?.isTubeless ?? Boolean(activeBike?.isTubeless);
   const carbTarget = options?.carbTargetGPerHr ?? specs.carbTargetGPerHr ?? 60;
   const nutritionPref = options?.nutritionPreference ?? specs.nutritionPreference ?? 'real-food';
+  const bidonSizeMl = options?.bidonSizeMl ?? specs.bidonSizeMl ?? 650;
+  const frameBottleSlots = options?.frameBottleSlots ?? specs.frameBottleSlots ?? 2;
+  const rideHours = options?.rideHours ?? Math.max(0.25, distanceKm / 25);
+  const hydrationPlan = calculateHydrationPlan({
+    rideHours,
+    tempC: options?.tempC ?? 18,
+    legWatts: options?.legWatts ?? 150,
+    bidonSizeMl,
+    frameBottleSlots,
+    isShortRide: rideHours < 0.75,
+  });
+  const hydrationEn =
+    hydrationPlan.plannedRefillBidons === 0
+      ? `${hydrationPlan.carriedOnFrameBidons}x ${bidonSizeMl}ml bidon(s) on bike (${hydrationPlan.totalFluidNeedMl}ml target)`
+      : `${hydrationPlan.carriedOnFrameBidons}x ${bidonSizeMl}ml bidon(s) on frame + ${hydrationPlan.plannedRefillBidons} planned refill(s) en route`;
+  const hydrationFr =
+    hydrationPlan.plannedRefillBidons === 0
+      ? `${hydrationPlan.carriedOnFrameBidons}x bidon(s) de ${bidonSizeMl} ml sur le vélo (${hydrationPlan.totalFluidNeedMl} ml cible)`
+      : `${hydrationPlan.carriedOnFrameBidons}x bidon(s) de ${bidonSizeMl} ml sur cadre + ${hydrationPlan.plannedRefillBidons} recharge(s) prévue(s) en route`;
   const bar = isTubeless
     ? distanceKm > 60
       ? '2.4'
@@ -280,8 +305,8 @@ export function getChecklistItemLabel(
       fr: 'Veste pluie compacte Gore-Tex rangée dans la poche centrale',
     },
     'chk-bidon': {
-      en: 'Bidon: 650ml 50/50 Water & 100% Pressed Grape/Apple juice',
-      fr: 'Bidon : 650 ml 50/50 eau & pur jus de raisin/pomme pressé',
+      en: hydrationEn,
+      fr: hydrationFr,
     },
     'chk-dates': {
       en: 'Pocket Fuel: 2 Medjool dates + 2 dried Turkish figs',
@@ -366,14 +391,8 @@ export function getChecklistItemLabel(
       fr: 'Antivol compact pour le local vélo de l’hôtel',
     },
     'esc-fuel': {
-      en:
-        distanceKm > 40
-          ? '2x 650ml bidons + energy snacks'
-          : '1x Bidon + snack',
-      fr:
-        distanceKm > 40
-          ? '2 bidons de 650 ml + encas ravito'
-          : '1 bidon + encas ravito',
+      en: hydrationEn,
+      fr: hydrationFr,
     },
     'esc-lights': {
       en: 'Front headlight & rear safety flasher',

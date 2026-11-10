@@ -18,6 +18,8 @@ import {
   NutritionPreference,
   RiderLevel,
   TelemetryMode,
+  BidonSizeMl,
+  FrameBottleSlots,
 } from '../../types/specs';
 import { saveRiderBikeSpecs, getActiveBike } from '../../utils/specsStorage';
 import { saveUserProfile } from '../../utils/userProfileStorage';
@@ -993,6 +995,77 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                           }`}
                         >
                           {p.short}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Phase 7: Bottle Size & Frame Cage Slots */}
+              <div className="mt-3 pt-3 border-t border-dashed border-ink/10 dark:border-white/10 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-2.5 rounded-pod bg-card">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[11px] font-medium text-ink-muted flex items-center gap-1">
+                      <Droplets className="w-3 h-3 text-sky-500" />
+                      {isFr ? 'Volume Bidon' : 'Bottle Size'}
+                    </span>
+                    <span className="text-[10px] font-semibold text-sky-600 dark:text-sky-400 tnum">
+                      {localSpecs.bidonSizeMl ?? 650}ml
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {([500, 550, 650, 750, 950] as BidonSizeMl[]).map((sz) => {
+                      const active = (localSpecs.bidonSizeMl ?? 650) === sz;
+                      return (
+                        <button
+                          key={sz}
+                          type="button"
+                          onClick={() =>
+                            setLocalSpecs((prev) => ({ ...prev, bidonSizeMl: sz }))
+                          }
+                          className={`px-2 py-1 rounded-pod text-[11px] font-semibold cursor-pointer transition-colors tnum ${
+                            active
+                              ? `${CHIP_TOKENS.sky.surface} ${CHIP_TOKENS.sky.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.sky.selectedRing}`
+                              : 'bg-pod text-ink-muted hover:text-ink'
+                          }`}
+                        >
+                          {sz}ml
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-pod bg-card">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[11px] font-medium text-ink-muted">
+                      {isFr ? 'Porte-bidons Cadre' : 'Frame Cage Slots'}
+                    </span>
+                    <span className="text-[10px] font-semibold text-sky-600 dark:text-sky-400 tnum">
+                      {(localSpecs.frameBottleSlots ?? 2) * (localSpecs.bidonSizeMl ?? 650)}ml max
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {([1, 2, 3] as FrameBottleSlots[]).map((slots) => {
+                      const active = (localSpecs.frameBottleSlots ?? 2) === slots;
+                      return (
+                        <button
+                          key={slots}
+                          type="button"
+                          onClick={() =>
+                            setLocalSpecs((prev) => ({
+                              ...prev,
+                              frameBottleSlots: slots,
+                            }))
+                          }
+                          className={`py-1 rounded-pod text-[11px] font-semibold cursor-pointer transition-colors tnum ${
+                            active
+                              ? `${CHIP_TOKENS.sky.surface} ${CHIP_TOKENS.sky.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.sky.selectedRing}`
+                              : 'bg-pod text-ink-muted hover:text-ink'
+                          }`}
+                        >
+                          {slots}x
                         </button>
                       );
                     })}

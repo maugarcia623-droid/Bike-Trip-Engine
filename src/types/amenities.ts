@@ -33,6 +33,13 @@ export interface WaterGapAlert {
   distanceKm: number;
   severity: WaterGapSeverity;
   recommendedBidons?: number;
+  recommendedMl?: number;
+  gapHours?: number;
+  gapFluidNeedMl?: number;
+  onboardCapacityMl?: number;
+  depletionPct?: number;
+  recommendedBidonsForGap?: number;
+  extraPackableBidons?: number;
 }
 
 export interface WaterGapsSummary {

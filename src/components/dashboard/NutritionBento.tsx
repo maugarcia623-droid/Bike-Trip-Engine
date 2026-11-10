@@ -44,11 +44,19 @@ import {
   getRealFoodNutritionPlan,
   calculateDynamicCarbTarget,
   calculateIntensityModulatedCarbTarget,
+  calculateHydrationPlan,
+  resolveEffectiveFuelSplit,
   getBottomUpPortionCounts,
   MEDJOOL_DATE,
   FRUIT_CHEW_PIECE,
   ENERGY_GEL_UNIT,
 } from '../../utils/nutrition';
+import {
+  calculateWaterGaps,
+  getRouteHashKey,
+  getCachedScan,
+} from '../../services/overpassCorridor';
+import { DEFAULT_CORRIDOR } from './HeroRouteCard';
 
 interface NutritionBentoProps {
   trip: TripProfile;
@@ -78,6 +86,7 @@ interface NutritionPhaseSpec {
   /** Detailed protocol guidance split into scannable bullets when expanded */
   body: string;
   items?: NutritionItem[];
+  liquidShiftPill?: string;
 }
 
 function splitIntoBullets(text: string): string[] {
@@ -182,9 +191,6 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       : Math.round(distance * 28)
   ).toLocaleString(isFr ? 'fr-FR' : 'en-US');
 
-  // Hydration calculation: 1 bidon per ~45 km or 1.5h
-  const recommendedBidons = Math.min(3, Math.max(1, Math.ceil(distance / 45)));
-
   const totalDays = trip.stages?.length || 1;
   const currentDay = (trip.activeStageIndex || 0) + 1;
 
@@ -196,6 +202,39 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
     )
   );
   const isShortRide = movingMinutes < 45 && totalDays <= 1;
+
+  // Phase 7: Sweat-Driven Hydration Solver
+  const bidonSizeMl = riderSpecs.bidonSizeMl ?? 650;
+  const frameBottleSlots = riderSpecs.frameBottleSlots ?? 2;
+  const hydrationPlan = useMemo(
+    () =>
+      calculateHydrationPlan({
+        rideHours: movingMinutes / 60,
+        tempC: trip.weather?.temperatureC ?? 18,
+        legWatts: physicsResult?.legWatts ?? 150,
+        bidonSizeMl,
+        frameBottleSlots,
+        isShortRide,
+        activeChips,
+      }),
+    [
+      movingMinutes,
+      trip.weather?.temperatureC,
+      physicsResult?.legWatts,
+      bidonSizeMl,
+      frameBottleSlots,
+      isShortRide,
+      activeChips,
+    ]
+  );
+  const recommendedBidons = hydrationPlan.totalBidonsNeeded;
+  const hydrationBadgeLabel =
+    hydrationPlan.plannedRefillBidons > 0
+      ? isFr
+        ? `${hydrationPlan.carriedOnFrameBidons}x ${bidonSizeMl}ml + ${hydrationPlan.plannedRefillBidons} recharge${hydrationPlan.plannedRefillBidons > 1 ? 's' : ''}`
+        : `${hydrationPlan.carriedOnFrameBidons}x ${bidonSizeMl}ml + ${hydrationPlan.plannedRefillBidons} refill${hydrationPlan.plannedRefillBidons > 1 ? 's' : ''}`
+      : `${hydrationPlan.carriedOnFrameBidons}x ${bidonSizeMl}ml`;
+  void recommendedBidons;
 
   // Single-Anchor Deterministic Timeline Solver (INP-20 upgrade)
   const solvedTimeline = useMemo(() => {
@@ -247,6 +286,59 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
     setOpenPhases((prev) => ({ ...prev, [idx]: !prev[idx] }));
   }, []);
 
+  // Fuel Delivery & Palate Strategy (Phase 9)
+  const fuelSplit = resolveEffectiveFuelSplit({
+    rideHours: movingMinutes / 60,
+    pctFtp,
+    tempC: trip.weather?.temperatureC ?? 18,
+    liquidCarbRatio: riderSpecs.liquidCarbRatio,
+    autoModulateLiquidInHeatOrEffort: riderSpecs.autoModulateLiquidInHeatOrEffort,
+    enableSavoryPalateResets: riderSpecs.enableSavoryPalateResets,
+  });
+
+  const liquidShiftPill = fuelSplit.isLiquidShifted
+    ? isFr
+      ? `Glucides liquides majorés (+${fuelSplit.liquidShiftPct}%)`
+      : `Liquid-shifted (+${fuelSplit.liquidShiftPct}%)`
+    : undefined;
+
+  // Water desert radar sectional gap analysis (Phase 8)
+  const activeStage = trip.stages && trip.activeStageIndex !== undefined
+    ? trip.stages[trip.activeStageIndex]
+    : undefined;
+  const currentCoords = useMemo(() => {
+    return trip.route?.coordinates && trip.route.coordinates.length >= 2
+      ? trip.route.coordinates
+      : DEFAULT_CORRIDOR;
+  }, [trip.route?.coordinates]);
+  const totalDistanceKm = trip.route?.distanceKm || 45;
+  const stageId = activeStage?.id || trip.id;
+  const routeCacheKey = useMemo(
+    () => getRouteHashKey(currentCoords, stageId, totalDistanceKm),
+    [currentCoords, stageId, totalDistanceKm]
+  );
+  const cachedAmenities = useMemo(() => {
+    return getCachedScan(routeCacheKey) || [];
+  }, [routeCacheKey]);
+
+  const waterGaps = useMemo(() => {
+    const allWaterItems = [...cachedAmenities];
+    if (trip.pinnedAmenities) {
+      for (const pinned of trip.pinnedAmenities) {
+        if (!allWaterItems.some((a) => a.id === pinned.id)) {
+          allWaterItems.push(pinned);
+        }
+      }
+    }
+    const sectorSpeed = physicsResult?.effectiveSpeedKmH || trip.route?.targetSpeedKmH || 25;
+    return calculateWaterGaps(allWaterItems, totalDistanceKm, {
+      sectorSpeedKmH: sectorSpeed,
+      targetFluidMlPerHr: hydrationPlan.targetFluidMlPerHr,
+      bidonSizeMl,
+      frameBottleSlots,
+    });
+  }, [cachedAmenities, trip.pinnedAmenities, totalDistanceKm, physicsResult?.effectiveSpeedKmH, trip.route?.targetSpeedKmH, hydrationPlan.targetFluidMlPerHr, bidonSizeMl, frameBottleSlots]);
+
   // Fetch structured nutrition plan items with quantitative & portion labels
   const planPhases = getRealFoodNutritionPlan(
     solvedTimeline.arrivalTimeHHMM,
@@ -265,6 +357,12 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       compliantPantry,
       logistics: localLogistics,
       solvedTimeline,
+      tempC: trip.weather?.temperatureC ?? 18,
+      legWatts: physicsResult?.legWatts ?? 150,
+      bidonSizeMl,
+      frameBottleSlots,
+      hydrationPlan,
+      fuelSplit,
     }
   );
 
@@ -711,10 +809,15 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
                 />
 
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5 min-w-0">
+                  <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                     <span className="text-[13px] sm:text-sm font-bold font-rounded text-ink leading-snug break-words tnum">
                       {idx + 1}. {phase.title}
                     </span>
+                    {phase.liquidShiftPill && (
+                      <Badge variant="sky" size="xs" dot className="font-semibold text-[10px]">
+                        {phase.liquidShiftPill}
+                      </Badge>
+                    )}
                   </div>
                   <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-ink-muted flex-wrap tnum">
                     <span className="font-rounded font-semibold uppercase tracking-wide text-[10px]">
@@ -757,35 +860,103 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
 
               {/* Portion-Label or Quantitative-Label Food Items List */}
               {phase.items && phase.items.length > 0 && (
-                <div className="pt-2 border-t border-dashed border-ink/10 dark:border-white/10 space-y-1.5">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block">
-                    {isFuelFirst
-                      ? isFr
-                        ? 'Portions Repères'
-                        : 'Portion Guidance'
-                      : isFr
-                      ? 'Détail des Aliments'
-                      : 'Prescribed Food Items'}
-                  </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                    {phase.items.map((itm, iIdx) => (
-                      <div
-                        key={iIdx}
-                        className="p-2 rounded-sub-pod bg-card border border-ink/5 dark:border-white/5 flex items-center justify-between gap-1.5 text-xs"
-                      >
-                        <span className="font-medium text-ink break-words">
-                          {isFuelFirst
-                            ? itm.portionLabel || itm.name
-                            : itm.quantitativeLabel || `${itm.name} (${itm.quantity})`}
-                        </span>
-                        {itm.notes && (
-                          <span className="text-[10px] text-ink-muted truncate max-w-[40%] text-right">
-                            {itm.notes}
+                <div className="pt-2 border-t border-dashed border-ink/10 dark:border-white/10 space-y-2">
+                  {phase.items.some((i) => i.isSavoryReset) ? (
+                    <div className="space-y-2.5">
+                      {/* Sub-group 1: Sweet / Fast Energy */}
+                      {phase.items.filter((i) => !i.isSavoryReset).length > 0 && (
+                        <div className="space-y-1">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                            <span>⚡</span>
+                            <span>{t('sweetFastEnergy')}</span>
                           </span>
-                        )}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                            {phase.items
+                              .filter((i) => !i.isSavoryReset)
+                              .map((itm, iIdx) => (
+                                <div
+                                  key={iIdx}
+                                  className="p-2 rounded-sub-pod bg-card border border-ink/5 dark:border-white/5 flex items-center justify-between gap-1.5 text-xs"
+                                >
+                                  <span className="font-medium text-ink break-words">
+                                    {isFuelFirst
+                                      ? itm.portionLabel || itm.name
+                                      : itm.quantitativeLabel || `${itm.name} (${itm.quantity})`}
+                                  </span>
+                                  {itm.notes && (
+                                    <span className="text-[10px] text-ink-muted truncate max-w-[40%] text-right">
+                                      {itm.notes}
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Sub-group 2: Savory Palate Resets */}
+                      {phase.items.filter((i) => i.isSavoryReset).length > 0 && (
+                        <div className="space-y-1">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                            <span>🧂</span>
+                            <span>{t('savoryPalateResets')}</span>
+                          </span>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                            {phase.items
+                              .filter((i) => i.isSavoryReset)
+                              .map((itm, iIdx) => (
+                                <div
+                                  key={iIdx}
+                                  className="p-2 rounded-sub-pod bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between gap-1.5 text-xs"
+                                >
+                                  <span className="font-medium text-emerald-800 dark:text-emerald-300 break-words">
+                                    {isFuelFirst
+                                      ? itm.portionLabel || itm.name
+                                      : itm.quantitativeLabel || `${itm.name} (${itm.quantity})`}
+                                  </span>
+                                  {itm.notes && (
+                                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 truncate max-w-[40%] text-right">
+                                      {itm.notes}
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block">
+                        {isFuelFirst
+                          ? isFr
+                            ? 'Portions Repères'
+                            : 'Portion Guidance'
+                          : isFr
+                          ? 'Détail des Aliments'
+                          : 'Prescribed Food Items'}
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                        {phase.items.map((itm, iIdx) => (
+                          <div
+                            key={iIdx}
+                            className="p-2 rounded-sub-pod bg-card border border-ink/5 dark:border-white/5 flex items-center justify-between gap-1.5 text-xs"
+                          >
+                            <span className="font-medium text-ink break-words">
+                              {isFuelFirst
+                                ? itm.portionLabel || itm.name
+                                : itm.quantitativeLabel || `${itm.name} (${itm.quantity})`}
+                            </span>
+                            {itm.notes && (
+                              <span className="text-[10px] text-ink-muted truncate max-w-[40%] text-right">
+                                {itm.notes}
+                              </span>
+                            )}
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -806,6 +977,63 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       })}
     </div>
   );
+
+  const renderWaterGapAlertBanner = () => {
+    if (!waterGaps || (waterGaps.status !== 'critical' && waterGaps.status !== 'caution')) {
+      return null;
+    }
+
+    const targetGap =
+      waterGaps.criticalGaps[0] ||
+      waterGaps.cautionGaps[0] ||
+      waterGaps.gaps.find((g) => g.distanceKm === waterGaps.maxGapKm) ||
+      waterGaps.gaps[0];
+
+    if (!targetGap) return null;
+
+    const isCritical = waterGaps.status === 'critical';
+    const gapDist = targetGap.distanceKm;
+    const gapHours = targetGap.gapHours ?? 0;
+    const gapFluid = targetGap.gapFluidNeedMl ?? 0;
+    const depletion = targetGap.depletionPct ?? 0;
+
+    return (
+      <div
+        className={`mb-3 p-3 rounded-pod border flex items-start gap-2.5 ${
+          isCritical
+            ? 'bg-rose-500/10 border-rose-500/30 text-rose-900 dark:text-rose-200'
+            : 'bg-amber-500/10 border-amber-500/30 text-amber-900 dark:text-amber-200'
+        }`}
+      >
+        <TriangleAlert
+          className={`w-4 h-4 mt-0.5 shrink-0 ${
+            isCritical ? 'text-rose-500' : 'text-amber-500'
+          }`}
+        />
+        <div className="min-w-0 flex-1 space-y-0.5 text-xs">
+          <div className="font-bold flex items-center justify-between gap-2 flex-wrap">
+            <span>
+              {isCritical
+                ? isFr
+                  ? 'Alerte Désert Hydrique Critique'
+                  : 'Critical Water Desert Warning'
+                : isFr
+                ? 'Zone d’Attention Hydrique'
+                : 'Caution: Extended Water Gap'}
+            </span>
+            <span className="font-mono font-bold text-[11px]">
+              {gapDist.toFixed(1)} km (~{Math.round(gapHours * 60)} min) · {gapFluid} ml ({depletion}% {isFr ? 'capacité' : 'capacity'})
+            </span>
+          </div>
+          <p className="text-[11px] opacity-90 leading-relaxed">
+            {isFr
+              ? `Section sans point d'eau entre km ${targetGap.startKm.toFixed(1)} et km ${targetGap.endKm.toFixed(1)}. Prévoyez de remplir vos ${targetGap.recommendedBidonsForGap ?? 2} bidons au préalable.`
+              : `Long water gap between km ${targetGap.startKm.toFixed(1)} and km ${targetGap.endKm.toFixed(1)}. Plan to top up ${targetGap.recommendedBidonsForGap ?? 2} bidons before entering.`}
+          </p>
+        </div>
+      </div>
+    );
+  };
 
   // ── INTUITIVE MODE: CHRONOLOGICAL RHYTHM CUES & HYDRATION RADAR ONLY ──
   if (isIntuitive) {
@@ -871,13 +1099,14 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
               {t('nutriIntuitiveCadenceCue')}
             </Badge>
             <Badge variant="sky" size="md" icon={Droplets} className="py-1.5 px-3 tnum">
-              {recommendedBidons}x {isFr ? 'bidons' : 'bidons'}
+              {hydrationBadgeLabel}
             </Badge>
           </div>
         }
       >
         {renderLogisticsControlBar()}
         {renderExpeditionManifest()}
+        {renderWaterGapAlertBanner()}
         {renderPhaseAccordion(intuitivePhases)}
       </Card>
     );
@@ -940,13 +1169,14 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
               </Badge>
             )}
             <Badge variant="sky" size="md" icon={Droplets} className="py-1.5 px-3 tnum">
-              {recommendedBidons}x {isFr ? 'bidons' : 'bidons'}
+              {hydrationBadgeLabel}
             </Badge>
           </div>
         }
       >
         {renderLogisticsControlBar()}
         {renderExpeditionManifest()}
+        {renderWaterGapAlertBanner()}
         {renderPhaseAccordion(shortPhases)}
 
         <div className="mt-3 flex justify-end">
@@ -1013,6 +1243,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         macroIcon: Lightning,
         macroTheme: 'yellow-vest',
         items: onBikeItems,
+        liquidShiftPill,
         title:
           nutPref === 'real-food'
             ? isFr
@@ -1082,6 +1313,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       >
         {renderLogisticsControlBar()}
         {renderExpeditionManifest()}
+        {renderWaterGapAlertBanner()}
         {renderPhaseAccordion(sportPhases)}
       </Card>
     );
@@ -1132,6 +1364,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         macroIcon: Lightning,
         macroTheme: 'lime',
         items: onBikeItems,
+        liquidShiftPill,
         title: isMountain
           ? isFr
             ? 'Rations Roulantes & Électrolytes en Montée'
@@ -1222,6 +1455,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       >
         {renderLogisticsControlBar()}
         {renderExpeditionManifest()}
+        {renderWaterGapAlertBanner()}
         {renderPhaseAccordion(bpPhases)}
       </Card>
     );
@@ -1276,6 +1510,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         macroIcon: Lightning,
         macroTheme: 'emerald',
         items: onBikeItems,
+        liquidShiftPill,
         title: isPicnic
           ? isFr
             ? 'Déjeuner Pique-Nique du Terroir au Bord de l’Eau'
@@ -1362,6 +1597,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       >
         {renderLogisticsControlBar()}
         {renderExpeditionManifest()}
+        {renderWaterGapAlertBanner()}
         {renderPhaseAccordion(escPhases)}
       </Card>
     );
@@ -1484,10 +1720,11 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           : 'Freshly pulled double espresso + artisanal almond pastry for sharp cognitive focus and rapid morning fuel.'
         : isTempo
         ? isFr
-          ? 'Bidon eau/pur jus 650 ml + collation en selle pour maintenir un rythme soutenu sans baisse de régime.'
-          : '650ml 50/50 juice bottle + fruit chew in the saddle to maintain steady tempo without mid-commute fading.'
+          ? `Bidon eau/pur jus ${bidonSizeMl} ml + collation en selle pour maintenir un rythme soutenu sans baisse de régime.`
+          : `${bidonSizeMl}ml 50/50 juice bottle + fruit chew in the saddle to maintain steady tempo without mid-commute fading.`
         : t('nutriCom2Body'),
       items: onBikeItems,
+      liquidShiftPill,
     },
   ];
 
@@ -1521,8 +1758,8 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         macroTheme: 'yellow-vest',
         title: isShower
           ? isFr
-            ? `Collation Protéinée (${stage1Loc})`
-            : `Immediate Protein Window (${stage1Loc})`
+            ? `Ouvre la fenêtre de récupération (${stage1Loc})`
+            : `Opens post-ride recovery window (${stage1Loc})`
           : isFr
           ? `Collation de Récupération (${stage1Loc})`
           : `Immediate Recovery Snack (${stage1Loc})`,
@@ -1601,20 +1838,20 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
             </Badge>
           )}
           {renderPacingBadge('yellow-vest')}
-          {isQuantitative ? (
+          {isQuantitative && (
             <Badge variant="amber" size="md" icon={Flame} className="py-1.5 px-3 tnum">
               {estimatedBurnKcal} kcal
             </Badge>
-          ) : (
-            <Badge variant="sky" size="md" icon={Droplets} className="py-1.5 px-3 tnum">
-              {recommendedBidons}x {isFr ? 'bidons' : 'bidons'}
-            </Badge>
           )}
+          <Badge variant="sky" size="md" icon={Droplets} className="py-1.5 px-3 tnum">
+            {hydrationBadgeLabel}
+          </Badge>
         </div>
       }
     >
       {renderLogisticsControlBar()}
       {renderExpeditionManifest()}
+      {renderWaterGapAlertBanner()}
       {renderPhaseAccordion(commutePhases)}
     </Card>
   );

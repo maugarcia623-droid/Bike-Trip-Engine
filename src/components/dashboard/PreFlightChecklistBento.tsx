@@ -68,6 +68,8 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
       isTubeless,
       carbTargetGPerHr: riderSpecs.carbTargetGPerHr,
       nutritionPreference: riderSpecs.nutritionPreference,
+      bidonSizeMl: riderSpecs.bidonSizeMl,
+      frameBottleSlots: riderSpecs.frameBottleSlots,
     });
 
     const tireSetupItem: ChecklistItem = {
@@ -116,6 +118,9 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
     isTubeless,
     riderSpecs.carbTargetGPerHr,
     riderSpecs.nutritionPreference,
+    riderSpecs.bidonSizeMl,
+    riderSpecs.frameBottleSlots,
+    trip.weather?.temperatureC,
     lang,
   ]);
 
@@ -165,6 +170,8 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
       isTubeless,
       carbTargetGPerHr: riderSpecs.carbTargetGPerHr,
       nutritionPreference: riderSpecs.nutritionPreference,
+      bidonSizeMl: riderSpecs.bidonSizeMl,
+      frameBottleSlots: riderSpecs.frameBottleSlots,
     });
     const tireSetupItem: ChecklistItem = {
       id: isTubeless ? 'tire-setup-tubeless' : 'tire-setup-tube',
@@ -319,6 +326,9 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
                   isTubeless,
                   carbTargetGPerHr: riderSpecs.carbTargetGPerHr,
                   nutritionPreference: riderSpecs.nutritionPreference,
+                  bidonSizeMl: riderSpecs.bidonSizeMl,
+                  frameBottleSlots: riderSpecs.frameBottleSlots,
+                  tempC: trip.weather?.temperatureC,
                 });
             return (
               <div

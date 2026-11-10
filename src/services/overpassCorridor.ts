@@ -579,12 +579,40 @@ export async function scanCorridorAmenities(params: {
  * - Gap 35–50 km: Caution Amber
  * - Gap > 50 km: Critical Red with extra bidon capacity recommendation
  */
+export interface WaterGapsOptions {
+  sectorSpeedKmH?: number;
+  targetFluidMlPerHr?: number;
+  bidonSizeMl?: number;
+  frameBottleSlots?: number;
+  cautionThresholdKm?: number;
+  criticalThresholdKm?: number;
+}
+
+/**
+ * Evaluates water gaps along the route based on Sectional Fluid Depletion (Phase 8):
+ * Computes gapHours, gapFluidNeedMl, onboardCapacityMl, and depletionPct relative
+ * to the rider's actual bottle capacity (frameBottleSlots * bidonSizeMl) and sweat rate.
+ * - depletionPct > 100 || gapDistanceKm > 60: Critical Red alert
+ * - depletionPct >= 65 && depletionPct <= 100: Caution Amber alert
+ * - depletionPct < 65: Clear Green
+ */
 export function calculateWaterGaps(
   amenities: StageAmenity[],
   totalDistanceKm: number,
-  cautionThresholdKm: number = 35,
-  criticalThresholdKm: number = 50
+  optionsOrCaution?: number | WaterGapsOptions,
+  criticalThresholdKmLegacy?: number,
+  legacyBidonSizeMl?: number
 ): WaterGapsSummary {
+  const isOptionsObj = typeof optionsOrCaution === 'object' && optionsOrCaution !== null;
+  const options: WaterGapsOptions = isOptionsObj ? optionsOrCaution : {};
+
+  const sectorSpeedKmH = Math.max(8, options.sectorSpeedKmH ?? 25);
+  const targetFluidMlPerHr = Math.max(100, options.targetFluidMlPerHr ?? 500);
+  const bidonSizeMl = options.bidonSizeMl ?? (typeof optionsOrCaution === 'number' ? legacyBidonSizeMl : undefined) ?? 650;
+  const frameBottleSlots = Math.max(1, options.frameBottleSlots ?? 2);
+  const cautionThresholdKm = typeof optionsOrCaution === 'number' ? optionsOrCaution : (options.cautionThresholdKm ?? 35);
+  const criticalThresholdKm = typeof criticalThresholdKmLegacy === 'number' ? criticalThresholdKmLegacy : (options.criticalThresholdKm ?? 50);
+
   const waterStops = amenities
     .filter((a) => a.category === 'water' || a.category === 'cemetery')
     .map((a) => a.routeKm)
@@ -611,15 +639,22 @@ export function calculateWaterGaps(
       maxGapKm = distKm;
     }
 
-    let severity: WaterGapAlert['severity'] = 'clear';
-    let recommendedBidons: number | undefined;
+    // Physiological gap depletion calculation (EQ-21 & EQ-22 Phase 8 upgrade)
+    const gapHours = distKm / sectorSpeedKmH;
+    const gapFluidNeedMl = Math.round(gapHours * targetFluidMlPerHr);
+    const onboardCapacityMl = frameBottleSlots * bidonSizeMl;
+    const depletionPct = Math.round((gapFluidNeedMl / onboardCapacityMl) * 100);
+    const recommendedBidonsForGap = Math.max(1, Math.ceil(gapFluidNeedMl / bidonSizeMl));
+    const extraPackableBidons = Math.max(0, recommendedBidonsForGap - frameBottleSlots);
 
-    if (distKm > criticalThresholdKm) {
+    let severity: WaterGapAlert['severity'] = 'clear';
+
+    if (depletionPct > 100 || distKm > 60 || distKm > criticalThresholdKm) {
       severity = 'critical';
-      recommendedBidons = Math.min(3, Math.ceil((distKm - 35) / 25) + 1);
-    } else if (distKm >= cautionThresholdKm) {
+    } else if (depletionPct >= 65 || distKm >= cautionThresholdKm) {
       severity = 'caution';
-      recommendedBidons = 1;
+    } else {
+      severity = 'clear';
     }
 
     gaps.push({
@@ -627,7 +662,14 @@ export function calculateWaterGaps(
       endKm,
       distanceKm: distKm,
       severity,
-      recommendedBidons,
+      recommendedBidons: recommendedBidonsForGap,
+      recommendedMl: gapFluidNeedMl,
+      gapHours,
+      gapFluidNeedMl,
+      onboardCapacityMl,
+      depletionPct,
+      recommendedBidonsForGap,
+      extraPackableBidons,
     });
   }
 

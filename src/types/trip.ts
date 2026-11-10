@@ -1,6 +1,8 @@
 import { StageAmenity } from './amenities';
 export type { TelemetryMode, RiderSpecs, RiderBikeSpecs } from './specs';
 export { formatFuelTarget, getEffectiveRiderSpecs } from './specs';
+import { calculateHydrationPlan } from '../utils/nutrition';
+import { loadRiderBikeSpecs } from '../utils/specsStorage';
 
 export interface WeatherCondition {
   source?: "live" | "planned" | "simulated";
@@ -101,6 +103,7 @@ export interface NutritionItem {
   isRealFoodVerified: boolean;
   quantitativeLabel?: string;
   portionLabel?: string;
+  isSavoryReset?: boolean;
 }
 
 export interface NutritionPhase {
@@ -298,6 +301,10 @@ export function generateTripChecklist(
     isTubeless?: boolean;
     carbTargetGPerHr?: number;
     nutritionPreference?: 'real-food' | 'mixed' | 'sports-fuel';
+    bidonSizeMl?: number;
+    frameBottleSlots?: number;
+    rideHours?: number;
+    legWatts?: number;
   }
 ): ChecklistItem[] {
   const isFr = options?.lang === 'fr';
@@ -305,6 +312,27 @@ export function generateTripChecklist(
   const isTubeless = options?.isTubeless ?? false;
   const carbTarget = options?.carbTargetGPerHr ?? 60;
   const nutritionPref = options?.nutritionPreference ?? 'real-food';
+  const storedSpecs = loadRiderBikeSpecs();
+  const bidonSizeMl = options?.bidonSizeMl ?? storedSpecs.bidonSizeMl ?? 650;
+  const frameBottleSlots = options?.frameBottleSlots ?? storedSpecs.frameBottleSlots ?? 2;
+  const rideHours = options?.rideHours ?? Math.max(0.25, distanceKm / 25);
+  const hydrationPlan = calculateHydrationPlan({
+    rideHours,
+    tempC: weather?.temperatureC ?? 18,
+    legWatts: options?.legWatts ?? 150,
+    bidonSizeMl,
+    frameBottleSlots,
+    isShortRide: rideHours < 0.75 && totalDays === 1,
+    activeChips: options?.customChips ?? [],
+  });
+  const hydrationChecklistLabel =
+    hydrationPlan.plannedRefillBidons === 0
+      ? isFr
+        ? `${hydrationPlan.carriedOnFrameBidons}x bidon(s) de ${bidonSizeMl} ml sur le vélo (${hydrationPlan.totalFluidNeedMl} ml cible)`
+        : `${hydrationPlan.carriedOnFrameBidons}x ${bidonSizeMl}ml bidon(s) on bike (${hydrationPlan.totalFluidNeedMl}ml target)`
+      : isFr
+      ? `${hydrationPlan.carriedOnFrameBidons}x bidon(s) de ${bidonSizeMl} ml sur cadre + ${hydrationPlan.plannedRefillBidons} recharge(s) prévue(s) en route`
+      : `${hydrationPlan.carriedOnFrameBidons}x ${bidonSizeMl}ml bidon(s) on frame + ${hydrationPlan.plannedRefillBidons} planned refill(s) en route`;
   const t = (tag || "")
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -385,7 +413,7 @@ export function generateTripChecklist(
       { id: "esc-clothes", label: isFr ? "Tenue civile pour le soir & chaussures de marche légères" : "Casual off-bike evening clothes & walking shoes", checked: false, category: "gear", critical: true },
       { id: "esc-charge", label: isFr ? "Chargeur téléphone & batterie externe" : "Phone charger & portable power bank", checked: false, category: "gear", critical: true },
       { id: "esc-lock", label: isFr ? "Antivol compact pour le local vélo de l’hôtel" : "Compact bike lock for hotel storage", checked: false, category: "mechanics", critical: true },
-      { id: "esc-fuel", label: isFr ? (distanceKm > 40 ? "2 bidons de 650 ml + encas ravito" : "1 bidon + encas ravito") : (distanceKm > 40 ? "2x 650ml bidons + energy snacks" : "1x Bidon + snack"), checked: false, category: "nutrition", critical: true },
+      { id: "esc-fuel", label: hydrationChecklistLabel, checked: false, category: "nutrition", critical: true },
       { id: "esc-lights", label: isFr ? "Éclairage avant & feu arrière flash de sécurité" : "Front headlight & rear safety flasher", checked: false, category: "mechanics", critical: true }
     );
   } else if (isSport) {
@@ -451,6 +479,7 @@ export function generateTripChecklist(
     }
   } else {
     items.push(
+      { id: "chk-bidon", label: hydrationChecklistLabel, checked: false, category: "nutrition", critical: true },
       { id: "com-badge", label: isFr ? "Badge d'accès entreprise & identifiants" : "Security badge & credentials", checked: false, category: "logistics", critical: true },
       { id: "com-laptop", label: isFr ? "Ordinateur portable pro & chargeur USB-C" : "Work laptop & USB-C charger", checked: false, category: "gear", critical: false },
       { id: "com-clothes", label: isFr ? "Tenue de travail propre rangée en sac étanche" : "Clean work clothes packed in dry-bag", checked: false, category: "gear", critical: false },

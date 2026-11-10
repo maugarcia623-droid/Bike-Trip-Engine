@@ -143,6 +143,7 @@ export function calculateReverseTimeline(
     departureTime?: string;
     movingTimeSeconds?: number;
     logistics?: LogisticsSettings;
+    savoryResetCount?: number;
   }
 ): ReverseTimelineCalculation {
   const isFr = lang === 'fr';
@@ -708,8 +709,8 @@ export function calculateReverseTimeline(
         category: 'nutrition',
         isCrucialCheckpoint: true,
         description: isFr
-          ? 'Baguette blanche grillée + miel de fleurs + double expresso. Zéro lait ni poudre.'
-          : 'White toasted baguette + wildflower honey + double espresso. Zero milk/powders.',
+          ? 'Baguette blanche grillée + miel de fleurs + double expresso. Digestion matinale légère.'
+          : 'White toasted baguette + wildflower honey + double espresso. Easy morning digestion.',
         iconName: 'Utensils',
       },
       {
@@ -857,6 +858,33 @@ export function calculateReverseTimeline(
           ? ' Ordinateur portable 15" rangé dans la sacoche étanche IPX6.'
           : ' 15" Work laptop secured in IPX6 waterproof pannier.';
       }
+    }
+  }
+
+  // Inject Savory Palate Reset Milestones at 90-minute intervals on rides >= 2.5h (Phase 9)
+  const specs = loadRiderBikeSpecs();
+  const enableSavory = specs.enableSavoryPalateResets !== false;
+  const savoryCount =
+    physicsSpeedOverride?.savoryResetCount !== undefined
+      ? physicsSpeedOverride.savoryResetCount
+      : enableSavory && totalRideMinutes >= 150
+      ? Math.floor(totalRideMinutes / 90)
+      : 0;
+
+  if (savoryCount > 0 && totalRideMinutes >= 150) {
+    for (let m = 90; m <= totalRideMinutes - 10; m += 90) {
+      steps.push({
+        id: `savory-palate-reset-${m}`,
+        time: addMinutesToTime(hardDepartureTime, m),
+        title: isFr ? `Pause salée (T+${m}m)` : `Savory palate reset (T+${m}m)`,
+        location: isFr ? 'En selle' : 'On-bike',
+        category: 'nutrition',
+        isCrucialCheckpoint: false,
+        description: isFr
+          ? 'Pause salée : Alternez le sucré avec une collation salée + gorgée d’eau pure'
+          : 'Savory palate reset: Swap sweet fuel for salted snack + plain water sip',
+        iconName: 'Utensils',
+      });
     }
   }
 

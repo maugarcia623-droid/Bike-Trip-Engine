@@ -238,6 +238,166 @@ export function getBottomUpPortionCounts(
   };
 }
 
+export interface HydrationPlanParams {
+  rideHours: number;
+  tempC?: number;
+  legWatts?: number;
+  bidonSizeMl?: number;
+  frameBottleSlots?: number;
+  isShortRide?: boolean;
+  activeChips?: string[];
+}
+
+export interface HydrationPlanResult {
+  sweatRateMlPerHr: number;
+  targetFluidMlPerHr: number;
+  totalFluidNeedMl: number;
+  totalBidonsNeeded: number;
+  carriedOnFrameBidons: number;
+  plannedRefillBidons: number;
+  sodiumMgPerL: 500 | 750 | 0;
+  bidonSizeMl: number;
+}
+
+/**
+ * Sweat-Driven Hydration Solver (Phase 7):
+ * Decouples fluid volume from carbohydrate scaling and calculates sweat loss,
+ * replacement fluid rate, frame vs. refill bidon split, and sodium concentration.
+ */
+export function calculateHydrationPlan(params: HydrationPlanParams): HydrationPlanResult {
+  const rideHours = Math.max(0.1, params.rideHours);
+  const tempC = params.tempC ?? 18;
+  const legWatts = Math.max(0, params.legWatts ?? 150);
+  const bidonSizeMl = params.bidonSizeMl ?? 650;
+  const frameBottleSlots = Math.max(1, params.frameBottleSlots ?? 2);
+  const isShortRide = params.isShortRide ?? rideHours < 0.75;
+  const activeChips = params.activeChips ?? [];
+
+  // Step 1 (Short-Ride < 45m)
+  if (isShortRide) {
+    return {
+      sweatRateMlPerHr: 0,
+      targetFluidMlPerHr: 0,
+      totalFluidNeedMl: 450,
+      totalBidonsNeeded: 1,
+      carriedOnFrameBidons: 1,
+      plannedRefillBidons: 0,
+      sodiumMgPerL: 0,
+      bidonSizeMl,
+    };
+  }
+
+  // Step 2 (Hourly Sweat & Replacement Rate)
+  const thermalSweat = 18 * Math.max(0, tempC - 10);
+  const metabolicSweat = 1.15 * legWatts;
+  const sweatRateMlPerHr = Math.min(1400, Math.max(350, Math.round(400 + thermalSweat + metabolicSweat)));
+  const targetFluidMlPerHr = Math.round(sweatRateMlPerHr * 0.80);
+
+  // Step 3 (Total Volume & Frame vs. Refill Split)
+  const totalFluidNeedMl = Math.round(targetFluidMlPerHr * rideHours);
+  const totalBidonsNeeded = Math.max(1, Math.ceil(totalFluidNeedMl / bidonSizeMl));
+  const carriedOnFrameBidons = Math.min(frameBottleSlots, totalBidonsNeeded);
+  const plannedRefillBidons = Math.max(0, totalBidonsNeeded - carriedOnFrameBidons);
+
+  // Step 4 (Electrolyte Sodium Concentration)
+  const isHighSodium =
+    tempC >= 24 ||
+    sweatRateMlPerHr >= 850 ||
+    activeChips.includes('hydration-electrolytes');
+  const sodiumMgPerL: 500 | 750 = isHighSodium ? 750 : 500;
+
+  return {
+    sweatRateMlPerHr,
+    targetFluidMlPerHr,
+    totalFluidNeedMl,
+    totalBidonsNeeded,
+    carriedOnFrameBidons,
+    plannedRefillBidons,
+    sodiumMgPerL,
+    bidonSizeMl,
+  };
+}
+
+export interface FuelSplitParams {
+  rideHours: number;
+  pctFtp?: number;
+  tempC?: number;
+  liquidCarbRatio?: number;
+  autoModulateLiquidInHeatOrEffort?: boolean;
+  enableSavoryPalateResets?: boolean;
+}
+
+export interface EffectiveFuelSplitResult {
+  baselineLiquidRatio: number;
+  effectiveLiquidRatio: number;
+  intensityShift: number;
+  heatShift: number;
+  isLiquidShifted: boolean;
+  liquidShiftPct: number;
+  savoryResetCount: number;
+}
+
+/**
+ * Resolves effective liquid-to-solid fuel split and savory palate fatigue resets (Phase 9).
+ * Shifts intake toward liquid carbs during high effort (%FTP >= 85%) or heat (tempC >= 26°C),
+ * and injects savory palate-reset snacks every 90 minutes on rides >= 2.5 hours.
+ */
+export function resolveEffectiveFuelSplit(params: FuelSplitParams): EffectiveFuelSplitResult {
+  const baselineLiquidRatio = Math.min(0.85, Math.max(0.15, params.liquidCarbRatio ?? 0.35));
+  const autoModulate = params.autoModulateLiquidInHeatOrEffort !== false;
+  const pctFtp = params.pctFtp ?? 72;
+  const tempC = params.tempC ?? 18;
+  const rideHours = Math.max(0.1, params.rideHours);
+
+  let intensityShift = 0;
+  let heatShift = 0;
+
+  if (autoModulate) {
+    // Splanchnic vasoconstriction impairs gastric emptying at higher relative intensity
+    if (pctFtp > 105) {
+      intensityShift = 0.30;
+    } else if (pctFtp >= 85) {
+      intensityShift = 0.20;
+    } else if (pctFtp >= 80) {
+      intensityShift = 0.10;
+    }
+
+    // Thermal strain shifts circulating blood to skin for evaporative heat dissipation
+    if (tempC >= 31) {
+      heatShift = 0.15;
+    } else if (tempC >= 26) {
+      heatShift = 0.10;
+    }
+  }
+
+  const effectiveLiquidRatio = Math.min(
+    0.85,
+    Math.max(0.15, Math.round((baselineLiquidRatio + intensityShift + heatShift) * 100) / 100)
+  );
+
+  const isLiquidShifted = effectiveLiquidRatio > baselineLiquidRatio;
+  const liquidShiftPct = Math.round((effectiveLiquidRatio - baselineLiquidRatio) * 100);
+
+  let savoryResetCount = 0;
+  if (params.enableSavoryPalateResets !== false && rideHours >= 2.5) {
+    if (pctFtp < 90) {
+      savoryResetCount = Math.floor(rideHours / 1.5);
+    } else if (rideHours >= 3.5) {
+      savoryResetCount = 1;
+    }
+  }
+
+  return {
+    baselineLiquidRatio,
+    effectiveLiquidRatio,
+    intensityShift,
+    heatShift,
+    isLiquidShifted,
+    liquidShiftPct,
+    savoryResetCount,
+  };
+}
+
 /**
  * Allocates concrete on-bike items with strict unit-based macro integrity (EQ-14 to EQ-20).
  * Supports dynamic N-item Personal Pantry items (liquidItem + solidItems) with fallback
@@ -248,15 +408,18 @@ export function allocatePhase2OnBikeItems(
   preferenceOrLiquid: 'real-food' | 'mixed' | 'sports-fuel' | PantryItem,
   rideHours: number,
   lang: Language = getCurrentLanguage(),
-  solidItems?: PantryItem[]
+  solidItems?: PantryItem[],
+  hydrationPlan?: HydrationPlanResult,
+  fuelSplit?: EffectiveFuelSplitResult
 ): NutritionItem[] {
   const isFr = lang === 'fr';
+  const bidonSizeMl = hydrationPlan?.bidonSizeMl ?? 650;
 
   if (targetOnBikeCarbsG <= 0) {
     return [
       {
         name: isFr ? 'Eau Pure & Électrolytes' : 'Pure Water & Electrolytes',
-        quantity: isFr ? '1x Bidon 500 ml' : '1x 500ml bidon',
+        quantity: isFr ? `1x Bidon ${bidonSizeMl} ml (450 ml cible)` : `1x ${bidonSizeMl}ml bidon (450ml target)`,
         carbsGrams: 0,
         proteinGrams: 0,
         fatsGrams: 0,
@@ -274,44 +437,118 @@ export function allocatePhase2OnBikeItems(
     const liquidItem = preferenceOrLiquid;
     const items: NutritionItem[] = [];
 
-    // Liquid allocation: 50% for high-carb mixes (>=50g C or maltodextrin/cluster dextrin), 35% for fruit juices
+    // Liquid allocation: modulated by fuelSplit if available, otherwise baseline 50% / 35%
     const isHighCarb =
       liquidItem.carbsG >= 50 ||
       liquidItem.id.includes('maltodextrin') ||
       liquidItem.id.includes('isotonic');
-    const liquidShare = isHighCarb ? 0.5 : 0.35;
-    const liquidUnits = Math.max(1, Math.round((targetOnBikeCarbsG * liquidShare) / Math.max(1, liquidItem.carbsG)));
+    const liquidShare = fuelSplit
+      ? fuelSplit.effectiveLiquidRatio
+      : isHighCarb
+      ? 0.5
+      : 0.35;
+    const rawLiquidUnits = Math.max(1, Math.round((targetOnBikeCarbsG * liquidShare) / Math.max(1, liquidItem.carbsG)));
+    const totalBidonsNeeded = hydrationPlan?.totalBidonsNeeded ?? rawLiquidUnits;
+    const liquidCarbBidons = Math.min(totalBidonsNeeded, rawLiquidUnits);
+    const pureWaterBidons = Math.max(0, totalBidonsNeeded - liquidCarbBidons);
+    const sodiumMgPerL = hydrationPlan?.sodiumMgPerL ?? 500;
+
+    const quantityLabel =
+      pureWaterBidons > 0
+        ? isFr
+          ? `${liquidCarbBidons}x Bidon Glucidique (${bidonSizeMl} ml) + ${pureWaterBidons}x Bidon${pureWaterBidons > 1 ? 's' : ''} Eau/Électrolytes (${bidonSizeMl} ml)`
+          : `${liquidCarbBidons}x Carbohydrate Bidon (${bidonSizeMl}ml) + ${pureWaterBidons}x Pure/Electrolyte Water Bidon${pureWaterBidons > 1 ? 's' : ''} (${bidonSizeMl}ml)`
+        : isFr
+        ? `${liquidCarbBidons}x Bidon${liquidCarbBidons > 1 ? 's' : ''} ${bidonSizeMl} ml`
+        : `${liquidCarbBidons}x ${bidonSizeMl}ml bidon${liquidCarbBidons > 1 ? 's' : ''}`;
+
+    const portionLabel =
+      pureWaterBidons > 0
+        ? isFr
+          ? `${liquidCarbBidons}x Bidon glucidique + ${pureWaterBidons}x Bidon${pureWaterBidons > 1 ? 's' : ''} eau/électrolytes`
+          : `${liquidCarbBidons}x Carbohydrate Bidon + ${pureWaterBidons}x Pure/Electrolyte Water Bidon${pureWaterBidons > 1 ? 's' : ''}`
+        : isFr
+        ? `${liquidCarbBidons} ${liquidCarbBidons > 1 ? 'bidons' : 'bidon'} ${liquidItem.portionLabelFr}`
+        : `${liquidCarbBidons} ${liquidCarbBidons > 1 ? 'bottles' : 'bottle'} ${liquidItem.portionLabelEn}`;
 
     items.push({
       name: isFr ? liquidItem.nameFr : liquidItem.nameEn,
-      quantity: isFr ? `${liquidUnits}x Bidon 650 ml` : `${liquidUnits}x 650ml bidon`,
-      carbsGrams: liquidUnits * liquidItem.carbsG,
-      proteinGrams: liquidUnits * liquidItem.proteinG,
+      quantity: quantityLabel,
+      carbsGrams: liquidCarbBidons * liquidItem.carbsG,
+      proteinGrams: liquidCarbBidons * liquidItem.proteinG,
       fatsGrams: 0,
-      kcals: liquidUnits * liquidItem.kcal,
+      kcals: liquidCarbBidons * liquidItem.kcal,
       quantitativeLabel: isFr
-        ? `${liquidItem.nameFr} (${liquidUnits * liquidItem.carbsG}g C)`
-        : `${liquidItem.nameEn} (${liquidUnits * liquidItem.carbsG}g C)`,
-      portionLabel: isFr
-        ? `${liquidUnits} ${liquidUnits > 1 ? 'bidons' : 'bidon'} ${liquidItem.portionLabelFr}`
-        : `${liquidUnits} ${liquidUnits > 1 ? 'bottles' : 'bottle'} ${liquidItem.portionLabelEn}`,
+        ? `${liquidItem.nameFr} (${liquidCarbBidons * liquidItem.carbsG}g C · ${totalBidonsNeeded}x ${bidonSizeMl}ml)`
+        : `${liquidItem.nameEn} (${liquidCarbBidons * liquidItem.carbsG}g C · ${totalBidonsNeeded}x ${bidonSizeMl}ml)`,
+      portionLabel,
       notes: isFr
-        ? 'Assimilation hydrique et minérale continue.'
-        : 'Smooth on-bike hydration and mineral intake.',
+        ? `Hydratation continue · Sodium conseillé : ~${sodiumMgPerL} mg/L.`
+        : `Smooth on-bike hydration · Suggested sodium: ~${sodiumMgPerL}mg/L.`,
       isRealFoodVerified:
         !liquidItem.id.includes('gel') &&
         !liquidItem.id.includes('isotonic') &&
         !liquidItem.id.includes('maltodextrin'),
     });
 
-    let remainingSolidCarbs = Math.max(0, targetOnBikeCarbsG - liquidUnits * liquidItem.carbsG);
-    const solids = solidItems && solidItems.length > 0 ? solidItems : [];
+    let remainingSolidCarbs = Math.max(0, targetOnBikeCarbsG - liquidCarbBidons * liquidItem.carbsG);
+    const solids = solidItems && solidItems.length > 0 ? [...solidItems] : [];
 
-    for (let idx = 0; idx < solids.length; idx++) {
-      const item = solids[idx];
+    // Savory Palate Reset Allocation (Phase 9)
+    const savoryResetCount = fuelSplit?.savoryResetCount ?? 0;
+    if (savoryResetCount > 0) {
+      let savoryItem = solids.find((s) => s.flavor === 'savory');
+      if (!savoryItem) {
+        savoryItem = DEFAULT_PANTRY_CATALOG.find(
+          (c) => c.slot === 'on-bike-solid' && c.flavor === 'savory'
+        );
+      }
+
+      if (savoryItem) {
+        const units = savoryResetCount;
+        const allocatedCarbs = units * savoryItem.carbsG;
+        remainingSolidCarbs = Math.max(0, remainingSolidCarbs - allocatedCarbs);
+
+        items.push({
+          name: isFr ? savoryItem.nameFr : savoryItem.nameEn,
+          quantity: isFr
+            ? `${units} portion${units > 1 ? 's' : ''} salée${units > 1 ? 's' : ''}`
+            : `${units} savory serving${units > 1 ? 's' : ''}`,
+          carbsGrams: allocatedCarbs,
+          proteinGrams: units * savoryItem.proteinG,
+          fatsGrams: 0,
+          kcals: units * savoryItem.kcal,
+          quantitativeLabel: isFr
+            ? `${savoryItem.nameFr} (${allocatedCarbs}g C)`
+            : `${savoryItem.nameEn} (${allocatedCarbs}g C)`,
+          portionLabel:
+            units === 1
+              ? isFr
+                ? savoryItem.portionLabelFr
+                : savoryItem.portionLabelEn
+              : `${units}x ${isFr ? savoryItem.portionLabelFr : savoryItem.portionLabelEn}`,
+          notes: isFr
+            ? 'Pause salée anti-écœurement toutes les 90 min.'
+            : 'Savory palate reset every 90 min to prevent flavor fatigue.',
+          isRealFoodVerified:
+            !savoryItem.id.includes('gel') &&
+            !savoryItem.id.includes('isotonic') &&
+            !savoryItem.id.includes('maltodextrin'),
+          isSavoryReset: true,
+        });
+      }
+    }
+
+    // Allocate remaining solid carbs across sweet/neutral solid items
+    const sweetNeutralSolids = solids.filter((s) => s.flavor !== 'savory');
+    const allocationSolids = sweetNeutralSolids.length > 0 ? sweetNeutralSolids : solids;
+
+    for (let idx = 0; idx < allocationSolids.length; idx++) {
+      const item = allocationSolids[idx];
       if (!item || item.carbsG <= 0) continue;
-      const isLast = idx === solids.length - 1;
-      const slotsRemaining = solids.length - idx;
+      if (item.flavor === 'savory' && savoryResetCount > 0) continue;
+      const isLast = idx === allocationSolids.length - 1;
+      const slotsRemaining = allocationSolids.length - idx;
       const slotTarget = remainingSolidCarbs / slotsRemaining;
       let units = Math.max(0, Math.round(slotTarget / item.carbsG));
 
@@ -349,6 +586,7 @@ export function allocatePhase2OnBikeItems(
             !item.id.includes('gel') &&
             !item.id.includes('isotonic') &&
             !item.id.includes('maltodextrin'),
+          isSavoryReset: item.flavor === 'savory',
         });
       }
     }
@@ -364,19 +602,34 @@ export function allocatePhase2OnBikeItems(
 
   if (preference === 'sports-fuel') {
     if (counts.isoBidons > 0) {
+      const totalBidonsNeeded = hydrationPlan?.totalBidonsNeeded ?? counts.isoBidons;
+      const liquidCarbBidons = Math.min(totalBidonsNeeded, counts.isoBidons);
+      const pureWaterBidons = Math.max(0, totalBidonsNeeded - liquidCarbBidons);
       items.push({
         name: isFr ? 'Boisson Glucidique Isotonique + Électrolytes' : 'Isotonic Carb Drink Mix + Electrolytes',
-        quantity: isFr ? `${counts.isoBidons}x Bidon 650 ml` : `${counts.isoBidons}x 650ml bidon`,
-        carbsGrams: counts.isoBidons * ISOTONIC_SCOOP_BIDON.carbsG,
+        quantity:
+          pureWaterBidons > 0
+            ? isFr
+              ? `${liquidCarbBidons}x Bidon Glucidique (${bidonSizeMl} ml) + ${pureWaterBidons}x Bidon${pureWaterBidons > 1 ? 's' : ''} Eau/Électrolytes (${bidonSizeMl} ml)`
+              : `${liquidCarbBidons}x Carbohydrate Bidon (${bidonSizeMl}ml) + ${pureWaterBidons}x Pure/Electrolyte Water Bidon${pureWaterBidons > 1 ? 's' : ''} (${bidonSizeMl}ml)`
+            : isFr
+            ? `${liquidCarbBidons}x Bidon${liquidCarbBidons > 1 ? 's' : ''} ${bidonSizeMl} ml`
+            : `${liquidCarbBidons}x ${bidonSizeMl}ml bidon${liquidCarbBidons > 1 ? 's' : ''}`,
+        carbsGrams: liquidCarbBidons * ISOTONIC_SCOOP_BIDON.carbsG,
         proteinGrams: 0,
         fatsGrams: 0,
-        kcals: counts.isoBidons * ISOTONIC_SCOOP_BIDON.kcal,
+        kcals: liquidCarbBidons * ISOTONIC_SCOOP_BIDON.kcal,
         quantitativeLabel: isFr
-          ? `Boisson glucidique isotonique (${counts.isoBidons * ISOTONIC_SCOOP_BIDON.carbsG}g C)`
-          : `Isotonic carb mix (${counts.isoBidons * ISOTONIC_SCOOP_BIDON.carbsG}g C)`,
-        portionLabel: isFr
-          ? `${counts.isoBidons} ${counts.isoBidons > 1 ? 'bidons' : 'bidon'} d'eau & électrolytes`
-          : `${counts.isoBidons} ${counts.isoBidons > 1 ? 'bottles' : 'bottle'} hydration drink`,
+          ? `Boisson glucidique isotonique (${liquidCarbBidons * ISOTONIC_SCOOP_BIDON.carbsG}g C)`
+          : `Isotonic carb mix (${liquidCarbBidons * ISOTONIC_SCOOP_BIDON.carbsG}g C)`,
+        portionLabel:
+          pureWaterBidons > 0
+            ? isFr
+              ? `${liquidCarbBidons}x Bidon glucidique + ${pureWaterBidons}x Bidon${pureWaterBidons > 1 ? 's' : ''} eau/électrolytes`
+              : `${liquidCarbBidons}x Carbohydrate Bidon + ${pureWaterBidons}x Pure/Electrolyte Water Bidon${pureWaterBidons > 1 ? 's' : ''}`
+            : isFr
+            ? `${liquidCarbBidons} ${liquidCarbBidons > 1 ? 'bidons' : 'bidon'} d'eau & électrolytes`
+            : `${liquidCarbBidons} ${liquidCarbBidons > 1 ? 'bottles' : 'bottle'} hydration drink`,
         notes: isFr ? 'Assimilation liquide rapide sans mastication.' : 'Rapid liquid gastric uptake without chewing.',
         isRealFoodVerified: false,
       });
@@ -406,19 +659,34 @@ export function allocatePhase2OnBikeItems(
 
   // Real-food or mixed fuel
   if (counts.juiceBidons > 0) {
+    const totalBidonsNeeded = hydrationPlan?.totalBidonsNeeded ?? counts.juiceBidons;
+    const liquidCarbBidons = Math.min(totalBidonsNeeded, counts.juiceBidons);
+    const pureWaterBidons = Math.max(0, totalBidonsNeeded - liquidCarbBidons);
     items.push({
       name: isFr ? '50/50 Eau & Pur Jus de Pomme/Raisin Pressé' : '50/50 Water & 100% Pressed Apple/Grape Juice',
-      quantity: isFr ? `${counts.juiceBidons}x Bidon 650 ml` : `${counts.juiceBidons}x 650ml bidon`,
-      carbsGrams: counts.juiceBidons * JUICE_BIDON_650ML.carbsG,
+      quantity:
+        pureWaterBidons > 0
+          ? isFr
+            ? `${liquidCarbBidons}x Bidon Glucidique (${bidonSizeMl} ml) + ${pureWaterBidons}x Bidon${pureWaterBidons > 1 ? 's' : ''} Eau/Électrolytes (${bidonSizeMl} ml)`
+            : `${liquidCarbBidons}x Carbohydrate Bidon (${bidonSizeMl}ml) + ${pureWaterBidons}x Pure/Electrolyte Water Bidon${pureWaterBidons > 1 ? 's' : ''} (${bidonSizeMl}ml)`
+          : isFr
+          ? `${liquidCarbBidons}x Bidon${liquidCarbBidons > 1 ? 's' : ''} ${bidonSizeMl} ml`
+          : `${liquidCarbBidons}x ${bidonSizeMl}ml bidon${liquidCarbBidons > 1 ? 's' : ''}`,
+      carbsGrams: liquidCarbBidons * JUICE_BIDON_650ML.carbsG,
       proteinGrams: 0,
       fatsGrams: 0,
-      kcals: counts.juiceBidons * JUICE_BIDON_650ML.kcal,
+      kcals: liquidCarbBidons * JUICE_BIDON_650ML.kcal,
       quantitativeLabel: isFr
-        ? `50/50 eau & pur jus pressé (${counts.juiceBidons * JUICE_BIDON_650ML.carbsG}g C)`
-        : `50/50 water & 100% pressed juice (${counts.juiceBidons * JUICE_BIDON_650ML.carbsG}g C)`,
-      portionLabel: isFr
-        ? `${counts.juiceBidons} ${counts.juiceBidons > 1 ? 'bidons' : 'bidon'} jus naturel dilué`
-        : `${counts.juiceBidons} ${counts.juiceBidons > 1 ? 'bottles' : 'bottle'} diluted fruit juice`,
+        ? `50/50 eau & pur jus pressé (${liquidCarbBidons * JUICE_BIDON_650ML.carbsG}g C)`
+        : `50/50 water & 100% pressed juice (${liquidCarbBidons * JUICE_BIDON_650ML.carbsG}g C)`,
+      portionLabel:
+        pureWaterBidons > 0
+          ? isFr
+            ? `${liquidCarbBidons}x Bidon glucidique + ${pureWaterBidons}x Bidon${pureWaterBidons > 1 ? 's' : ''} eau/électrolytes`
+            : `${liquidCarbBidons}x Carbohydrate Bidon + ${pureWaterBidons}x Pure/Electrolyte Water Bidon${pureWaterBidons > 1 ? 's' : ''}`
+          : isFr
+          ? `${liquidCarbBidons} ${liquidCarbBidons > 1 ? 'bidons' : 'bidon'} jus naturel dilué`
+          : `${liquidCarbBidons} ${liquidCarbBidons > 1 ? 'bottles' : 'bottle'} diluted fruit juice`,
       notes: isFr ? 'Solution isotonique naturelle ~6 % de glucides.' : 'Isotonic ~6% natural carbohydrate solution, effortless stomach transit.',
       isRealFoodVerified: true,
     });
@@ -479,6 +747,26 @@ export function allocatePhase2OnBikeItems(
     });
   }
 
+  // Savory Palate Reset for legacy preset mode (Phase 9)
+  if ((fuelSplit?.savoryResetCount ?? 0) > 0) {
+    const savoryCount = fuelSplit!.savoryResetCount;
+    items.push({
+      name: isFr ? 'Petites Pommes de Terre Salées à la Vapeur' : 'Steamed Salted Baby Potatoes',
+      quantity: isFr ? `${savoryCount} portion${savoryCount > 1 ? 's' : ''} salée${savoryCount > 1 ? 's' : ''}` : `${savoryCount} savory serving${savoryCount > 1 ? 's' : ''}`,
+      carbsGrams: savoryCount * 22,
+      proteinGrams: savoryCount * 2,
+      fatsGrams: 0,
+      kcals: savoryCount * 95,
+      quantitativeLabel: isFr
+        ? `Pommes de terre salées (${savoryCount * 22}g C)`
+        : `Salted potatoes (${savoryCount * 22}g C)`,
+      portionLabel: isFr ? `${savoryCount}x sachet de pommes vapeur salées` : `${savoryCount}x zip-pouch salted potatoes`,
+      notes: isFr ? 'Pause salée anti-écœurement toutes les 90 min.' : 'Savory palate reset every 90 min to prevent flavor fatigue.',
+      isRealFoodVerified: true,
+      isSavoryReset: true,
+    });
+  }
+
   return items;
 }
 
@@ -493,6 +781,12 @@ export interface RealFoodNutritionPlanOptions {
   compliantPantry?: ResolvedCompliantPantry;
   logistics?: LogisticsSettings;
   solvedTimeline?: SolvedTripTimeline;
+  tempC?: number;
+  legWatts?: number;
+  bidonSizeMl?: number;
+  frameBottleSlots?: number;
+  hydrationPlan?: HydrationPlanResult;
+  fuelSplit?: EffectiveFuelSplitResult;
 }
 
 /**
@@ -673,12 +967,37 @@ export function getRealFoodNutritionPlan(
 
   const finalOnBikeCarbsG = targetOnBikeCarbsG + effectiveOnBikeShift;
 
+  const hydrationPlan =
+    options?.hydrationPlan ??
+    calculateHydrationPlan({
+      rideHours,
+      tempC: options?.tempC ?? 18,
+      legWatts: options?.legWatts ?? 150,
+      bidonSizeMl: options?.bidonSizeMl ?? storedSpecs.bidonSizeMl ?? 650,
+      frameBottleSlots: options?.frameBottleSlots ?? storedSpecs.frameBottleSlots ?? 2,
+      isShortRide: rideHours < 0.75 && totalDays === 1,
+      activeChips,
+    });
+
+  const fuelSplit =
+    options?.fuelSplit ??
+    resolveEffectiveFuelSplit({
+      rideHours,
+      pctFtp,
+      tempC: options?.tempC ?? 18,
+      liquidCarbRatio: storedSpecs.liquidCarbRatio,
+      autoModulateLiquidInHeatOrEffort: storedSpecs.autoModulateLiquidInHeatOrEffort,
+      enableSavoryPalateResets: storedSpecs.enableSavoryPalateResets,
+    });
+
   const onBikeItems = allocatePhase2OnBikeItems(
     finalOnBikeCarbsG,
     compliantPantry.onBikeLiquid,
     rideHours,
     lang,
-    compliantPantry.onBikeSolids
+    compliantPantry.onBikeSolids,
+    hydrationPlan,
+    fuelSplit
   );
 
   // Shift remaining deficit into Post-Ride Recovery
@@ -864,12 +1183,12 @@ export function getRealFoodNutritionPlan(
           ? 'Amorce métabolique sans calories solides. Hydratation et caféine uniquement.'
           : preRideStyle === 'light-liquid'
           ? 'Glucides liquides légers à absorption ultra-rapide 20 min avant le départ.'
-          : 'Glucides digestes à assimilation douce, zéro graisses lourdes, confort digestif maximal. Terminer avant le départ.'
+          : 'Glucides digestes à assimilation douce, digestion matinale légère et confort digestif optimal. Terminer avant le départ.'
         : preRideStyle === 'fasted-rollout'
         ? 'Metabolic primer without solid calories. Pure hydration and espresso only.'
         : preRideStyle === 'light-liquid'
         ? 'Rapid liquid carbohydrate uptake 20 min before rollout, effortless transit.'
-        : 'Gentle easily digestible carbs, zero heavy fats, high gastro-comfort. Complete before rollout.',
+        : 'Gentle easily digestible carbs, easy morning digestion, high gastro-comfort. Complete before rollout.',
       items: phase1Items,
     },
     {

@@ -6,6 +6,8 @@ import {
   PacingInputMode,
   DietaryFilter,
   PantryItem,
+  BidonSizeMl,
+  FrameBottleSlots,
   getEffectiveRiderSpecs,
   formatFuelTarget,
 } from '../types/specs';
@@ -121,6 +123,40 @@ export function loadRiderBikeSpecs(): RiderBikeSpecs {
         ? parsed.customPantryItems
         : DEFAULT_RIDER_BIKE_SPECS.customPantryItems ?? [];
 
+    const resolvedBidonSizeMl: BidonSizeMl =
+      parsed.bidonSizeMl === 500 ||
+      parsed.bidonSizeMl === 550 ||
+      parsed.bidonSizeMl === 650 ||
+      parsed.bidonSizeMl === 750 ||
+      parsed.bidonSizeMl === 950
+        ? parsed.bidonSizeMl
+        : DEFAULT_RIDER_BIKE_SPECS.bidonSizeMl ?? 650;
+
+    const resolvedFrameBottleSlots: FrameBottleSlots =
+      parsed.frameBottleSlots === 1 ||
+      parsed.frameBottleSlots === 2 ||
+      parsed.frameBottleSlots === 3
+        ? parsed.frameBottleSlots
+        : DEFAULT_RIDER_BIKE_SPECS.frameBottleSlots ?? 2;
+
+    const resolvedLiquidCarbRatio =
+      typeof parsed.liquidCarbRatio === 'number' &&
+      Number.isFinite(parsed.liquidCarbRatio) &&
+      parsed.liquidCarbRatio >= 0.15 &&
+      parsed.liquidCarbRatio <= 0.85
+        ? parsed.liquidCarbRatio
+        : DEFAULT_RIDER_BIKE_SPECS.liquidCarbRatio ?? 0.35;
+
+    const resolvedAutoModulateLiquid =
+      typeof parsed.autoModulateLiquidInHeatOrEffort === 'boolean'
+        ? parsed.autoModulateLiquidInHeatOrEffort
+        : DEFAULT_RIDER_BIKE_SPECS.autoModulateLiquidInHeatOrEffort ?? true;
+
+    const resolvedEnableSavoryPalateResets =
+      typeof parsed.enableSavoryPalateResets === 'boolean'
+        ? parsed.enableSavoryPalateResets
+        : DEFAULT_RIDER_BIKE_SPECS.enableSavoryPalateResets ?? true;
+
     return {
       ...DEFAULT_RIDER_BIKE_SPECS,
       ...parsed,
@@ -137,6 +173,11 @@ export function loadRiderBikeSpecs(): RiderBikeSpecs {
       cockpitViewMode: resolvedViewMode,
       telemetryMode: resolvedTelemetryMode,
       pacingInputMode: resolvedPacingMode,
+      bidonSizeMl: resolvedBidonSizeMl,
+      frameBottleSlots: resolvedFrameBottleSlots,
+      liquidCarbRatio: resolvedLiquidCarbRatio,
+      autoModulateLiquidInHeatOrEffort: resolvedAutoModulateLiquid,
+      enableSavoryPalateResets: resolvedEnableSavoryPalateResets,
       bikes,
     };
   } catch (e) {
