@@ -1,7 +1,8 @@
-import React from 'react';
-import { Wind, Printer, Warning, CheckCircle, ShieldCheck, Bicycle, Pulse, BadgeInfo, Receipt, Send } from '@/components/icons';
+import React, { useMemo } from 'react';
+import { Wind, Printer, Warning, CheckCircle, ShieldCheck, Bicycle, Pulse, BadgeInfo, Receipt, Send, Download, Compass } from '@/components/icons';
 import { useTranslation } from '../../context/LanguageContext';
 import { TripProfile, PhysicsCalculationResult } from '../../types/trip';
+import { downloadTripGpx, downloadTripTcx } from '../../utils/gpxExporter';
 import {
   CHIP_TOKENS,
   CHIP_RING_BASE,
@@ -38,6 +39,25 @@ export const FlightDeckHeader: React.FC<FlightDeckHeaderProps> = ({
   const isGo = physicsResult.goStatus === 'GO';
   const isCaution = physicsResult.goStatus === 'CAUTION';
 
+  const isRadius =
+    trip.route.routeMode === 'manual-radius' ||
+    Boolean(trip.route.radiusMeters && trip.route.radiusMeters > 0);
+
+  const displayTitle = useMemo(() => {
+    if (isRadius) {
+      const originShort = (trip.route.origin || 'Start').split(',')[0].trim();
+      const loopKm = Math.round(((trip.route.distanceKm || 30) / 2) * 10) / 10;
+      return `${originShort} · ${trip.route.distanceKm} km Loop (${loopKm} km radius)`;
+    }
+    return trip.name;
+  }, [isRadius, trip.name, trip.route.origin, trip.route.distanceKm]);
+
+  const displaySubtitle = useMemo(() => {
+    if (!trip.description) return '';
+    const currentDist = Number(trip.route.distanceKm) || 0;
+    return trip.description.replace(/^\d+(\.\d+)?\s*km\b/i, `${currentDist.toFixed(1)} km`);
+  }, [trip.description, trip.route.distanceKm]);
+
   return (
     <div className="bg-card text-ink rounded-card p-4 mb-6 transition-colors">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -56,11 +76,11 @@ export const FlightDeckHeader: React.FC<FlightDeckHeaderProps> = ({
           </div>
 
           <h1 className="text-2xl lg:text-3xl font-extrabold text-ink tracking-tight">
-            {trip.name}
+            {displayTitle}
           </h1>
 
           <p className="text-ink-secondary text-xs mt-1 max-w-2xl leading-relaxed">
-            {trip.description}
+            {displaySubtitle}
           </p>
         </div>
 
@@ -142,6 +162,26 @@ export const FlightDeckHeader: React.FC<FlightDeckHeaderProps> = ({
           >
             <Printer className="w-4 h-4 text-ink-secondary dual-tone-sky" />
             <span>Print A4</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => downloadTripGpx(trip)}
+            title="Download .GPX GPS Track for Garmin, Wahoo, Hammerhead"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-pod hover:bg-chip text-xs font-mono font-bold text-ink transition-all duration-150 active:scale-[0.98] cursor-pointer border border-ink/5 dark:border-white/10"
+          >
+            <Download className="w-4 h-4 text-sky-500" />
+            <span>.GPX</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => downloadTripTcx(trip)}
+            title="Download .TCX Course with elevation and pacing"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-pod hover:bg-chip text-xs font-mono font-bold text-ink transition-all duration-150 active:scale-[0.98] cursor-pointer border border-ink/5 dark:border-white/10"
+          >
+            <Compass className="w-4 h-4 text-emerald-500" />
+            <span>.TCX</span>
           </button>
 
           {onShareReceipt && (

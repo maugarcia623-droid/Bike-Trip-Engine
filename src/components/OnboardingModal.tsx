@@ -411,7 +411,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
         <main
           ref={scrollContentRef}
           tabIndex={-1}
-          className="flex-1 min-h-0 flex flex-col overflow-y-auto overscroll-contain scroll-smooth focus:outline-none pb-6 sm:pb-8"
+          className="flex-1 min-h-0 flex flex-col overflow-y-auto overscroll-contain scroll-smooth focus:outline-none"
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
           <div key={currentStep} className="flex-1 min-h-0 flex flex-col animate-apple-step-in">
@@ -534,6 +534,8 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 targetMode={targetMode}
                 isWeatherFetched={isWeatherFetched}
                 weatherSummary={weatherSummary}
+                purpose={PURPOSES.find((p) => p.id === purpose)?.name}
+                selectedBikeName={BIKE_OPTIONS.find((b) => b.id === selectedBikeId)?.name}
                 onEditRoute={() => setCurrentStep(2)}
                 onEditTiming={() => setCurrentStep(3)}
                 onEditSetup={() => setCurrentStep(4)}

@@ -97,6 +97,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
 
   const cda = trip.physics.cda ?? 0.4;
   const crr = trip.physics.crr ?? 0.006;
+  const formattedCrr = typeof crr === 'number' ? Number(crr.toFixed(4)) : crr;
   const rho = trip.physics.rho ?? 1.225;
   const gmePercent = Math.round((trip.physics.grossMechanicalEfficiency ?? 0.21) * 100);
   const drivetrainEffPercent = Math.round((trip.physics.drivetrainEfficiency ?? 0.95) * 100);
@@ -598,7 +599,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
               CdA {cda}
             </Badge>
             <Badge variant="zinc" size="xs" className="hidden md:inline-flex font-mono tnum">
-              Crr {crr}
+              Crr {formattedCrr}
             </Badge>
             <Badge variant="zinc" size="xs" className="hidden sm:inline-flex font-mono tnum">
               {totalSystemMass} kg
@@ -624,7 +625,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
                 />
               </span>
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium font-mono bg-card text-ink tnum">
-                <span>Crr {crr}</span>
+                <span>Crr {formattedCrr}</span>
                 <InfoTooltip
                   title={t('crrTooltipTitle')}
                   content={t('crrTooltipContent')}
@@ -725,12 +726,12 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-1 text-[11px] font-mono text-ink-muted mt-1 tnum">
-                  <p className="break-words leading-tight" title={`Crr(${crr}) × ${totalSystemMass}kg × g × v`}>
-                    Crr({crr}) &middot; {totalSystemMass}kg &middot; g &middot; v
+                  <p className="break-words leading-tight" title={`Crr(${formattedCrr}) × ${totalSystemMass}kg × g × v`}>
+                    Crr({formattedCrr}) &middot; {totalSystemMass}kg &middot; g &middot; v
                   </p>
                   <InfoTooltip
                     title={t('rollingFormulaTooltipTitle')}
-                    content={t('rollingFormulaTooltipContent', { crr, mass: totalSystemMass })}
+                    content={t('rollingFormulaTooltipContent', { crr: formattedCrr, mass: totalSystemMass })}
                     size="sm"
                   />
                 </div>

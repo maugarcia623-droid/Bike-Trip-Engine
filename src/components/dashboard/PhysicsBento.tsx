@@ -50,7 +50,7 @@ export const PhysicsBento: React.FC<PhysicsBentoProps> = ({
             />
           </span>
           <span className="inline-flex items-center gap-1 text-[10px] font-mono uppercase bg-pod text-ink dark:text-volt px-2.5 py-1 rounded-full font-bold">
-            <span>Crr {physics.crr}</span>
+            <span>Crr {typeof physics.crr === 'number' ? Number(physics.crr.toFixed(4)) : physics.crr}</span>
             <InfoTooltip
               title="Rolling Resistance (Crr)"
               content="Measures friction and energy lost as tires flex against pavement or gravel."

@@ -38,6 +38,12 @@ export const fr: TranslationDictionary = {
   drawerSpecsSub: "CdA, Crr & masse de référence",
   drawerPrintTitle: "Imprimer la feuille de route",
   drawerPrintSub: "Exporter la synthèse A4",
+  drawerGpxTitle: "Exporter la trace GPX",
+  drawerGpxSub: "Trace GPS pour Garmin, Wahoo, Hammerhead",
+  drawerTcxTitle: "Exporter le parcours TCX",
+  drawerTcxSub: "Parcours avec dénivelé et allure",
+  exportGpxBtn: "Exporter .GPX",
+  exportTcxBtn: "Exporter .TCX",
 
   // ── Alerts & System Prompts ──
   minOneProfileAlert: "Au moins un profil de trajet doit être conservé dans le système.",

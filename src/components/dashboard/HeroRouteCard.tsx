@@ -23,7 +23,9 @@ import {
   Check,
   BadgeInfo,
   Radar,
+  Download,
 } from '@/components/icons';
+import { downloadTripGpx } from '../../utils/gpxExporter';
 import { TripProfile, PhysicsCalculationResult } from '../../types/trip';
 import { StageAmenity } from '../../types/amenities';
 import { ResupplyRadarOverlay } from './ResupplyRadarOverlay';
@@ -408,8 +410,18 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
     const oldElev = trip.route.elevationGainM ?? Math.round(oldKm * 6.6);
     const scaledElev = Math.max(0, Math.round(oldElev * (clampedKm / oldKm)));
     const nextLoopKm = Math.round((clampedKm / 2) * 10) / 10;
+    const originShort = (trip.route.origin || 'Start').split(',')[0].trim();
+    const updatedName = isRadiusMode
+      ? (isFr ? `${originShort} · Boucle de ${clampedKm} km` : `${originShort} · ${clampedKm} km Loop`)
+      : trip.name;
+    const updatedDesc = trip.description
+      ? trip.description.replace(/^\d+(\.\d+)?\s*km\b/i, `${clampedKm.toFixed(1)} km`)
+      : `${clampedKm.toFixed(1)} km ride`;
+
     onUpdateTrip({
       ...trip,
+      name: updatedName,
+      description: updatedDesc,
       updatedAt: new Date().toISOString(),
       route: {
         ...trip.route,
@@ -1478,6 +1490,20 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                           {trip.route.gpxFileName
                             ? `${t('gpxLoadedBadge')} · ${trip.route.gpxFileName}`
                             : t('gpxUploadBtn')}
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          downloadTripGpx(trip);
+                          setActivePopover(null);
+                        }}
+                        className={`w-full h-8 mt-2 px-3.5 rounded-full bg-volt text-[#4d5200] ring-1 ring-inset ring-[#a3b300] text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer shadow-xs`}
+                      >
+                        <Download className="w-3.5 h-3.5 shrink-0" />
+                        <span className="break-words leading-tight">
+                          {t('exportGpxBtn')} (Garmin / Wahoo)
                         </span>
                       </button>
                     </div>

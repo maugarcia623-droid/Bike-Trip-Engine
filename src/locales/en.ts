@@ -36,6 +36,12 @@ export const en = {
   drawerSpecsSub: "Rider weight, bike & tire setup",
   drawerPrintTitle: "Print cue sheet",
   drawerPrintSub: "Export summary",
+  drawerGpxTitle: "Export GPX route",
+  drawerGpxSub: "Garmin, Wahoo, Hammerhead GPS track",
+  drawerTcxTitle: "Export TCX course",
+  drawerTcxSub: "Course with elevation & pacing",
+  exportGpxBtn: "Export .GPX",
+  exportTcxBtn: "Export .TCX",
 
   // ── Alerts & System Prompts ──
   minOneProfileAlert: "At least one trip must be kept.",

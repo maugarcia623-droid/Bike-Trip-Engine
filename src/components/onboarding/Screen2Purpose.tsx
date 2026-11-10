@@ -91,7 +91,7 @@ export const Screen2Purpose: React.FC<Screen2PurposeProps> = ({
                       <div className="text-sm font-rounded font-bold text-ink leading-snug">
                         {isFr ? purpose.nameFr : purpose.name}
                       </div>
-                      <div className="text-xs text-ink-muted leading-tight mt-0.5 font-body truncate">
+                      <div className="text-xs text-ink-muted leading-tight mt-0.5 font-body break-words">
                         {isFr ? purpose.subtitleFr : purpose.subtitle}
                       </div>
                     </div>
@@ -138,8 +138,8 @@ export const Screen2Purpose: React.FC<Screen2PurposeProps> = ({
         </div>
       </div>
 
-      {/* Footer Navigation Bar */}
-      <div className="pt-4 sm:pt-6 mt-4 sm:mt-6 pb-2 sm:pb-4 border-t border-black/5 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 shrink-0">
+      {/* Footer Navigation Bar - Sticky Mobile Bar */}
+      <div className="sticky bottom-0 z-20 bg-card/95 backdrop-blur-md pt-3 sm:pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-4 border-t border-black/10 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 shrink-0 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_16px_rgba(0,0,0,0.3)] -mx-4 sm:-mx-8 md:-mx-10 px-4 sm:px-8 md:px-10 mt-auto">
         {/* Back Button */}
         <button
           type="button"

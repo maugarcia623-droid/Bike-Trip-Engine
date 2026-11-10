@@ -251,7 +251,7 @@ const RouteLocationInput: React.FC<RouteLocationInputProps> = ({
                 inputRef.current?.focus();
               }}
               className="p-1 text-ink-muted hover:text-ink cursor-pointer"
-              title="Effacer"
+              title={isFr ? 'Effacer' : 'Clear'}
             >
               <X size={13} />
             </button>
@@ -632,19 +632,41 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
               <div>
                 <div className="flex items-center justify-between text-xs font-medium text-ink-secondary mb-2">
                   <span>{isFr ? 'Distance cible' : 'Target distance'}</span>
-                  <span className="font-rounded font-bold text-ink tnum text-sm">
-                    {distanceKm.toFixed(1)} km
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min="2"
+                      max="300"
+                      step="1"
+                      value={distanceKm}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (!isNaN(val)) {
+                          onUpdateDistance(Math.max(2, Math.min(300, val)));
+                        }
+                      }}
+                      className="w-16 px-2 py-0.5 rounded-lg bg-card text-ink font-rounded font-bold text-sm text-right tnum border border-black/15 dark:border-white/20 focus:outline-none focus:ring-2 focus:ring-volt"
+                    />
+                    <span className="font-rounded font-bold text-ink tnum text-sm">km</span>
+                  </div>
                 </div>
                 <input
                   type="range"
                   min="2"
-                  max="120"
-                  step="0.5"
+                  max="250"
+                  step="1"
                   value={distanceKm}
                   onChange={(e) => onUpdateDistance(Number(e.target.value))}
                   className="peloton-slider w-full cursor-pointer"
                 />
+                <div className="flex justify-between text-[10px] text-ink-muted mt-1 font-mono">
+                  <span>2 km</span>
+                  <span>50 km</span>
+                  <span>100 km</span>
+                  <span>150 km</span>
+                  <span>200 km</span>
+                  <span>250 km</span>
+                </div>
               </div>
             </div>
           )}
@@ -752,8 +774,8 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
         </div>
       </div>
 
-      {/* Footer Navigation Bar */}
-      <div className="pt-4 sm:pt-6 mt-4 sm:mt-6 pb-2 sm:pb-4 border-t border-black/5 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 shrink-0">
+      {/* Footer Navigation Bar - Sticky Mobile Bar */}
+      <div className="sticky bottom-0 z-20 bg-card/95 backdrop-blur-md pt-3 sm:pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-4 border-t border-black/10 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 shrink-0 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_16px_rgba(0,0,0,0.3)] -mx-4 sm:-mx-8 md:-mx-10 px-4 sm:px-8 md:px-10 mt-auto">
         <button
           type="button"
           onClick={onBack}

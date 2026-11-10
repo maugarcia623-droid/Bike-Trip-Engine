@@ -18,6 +18,8 @@ interface Screen6RideReadyProps {
   targetMode: 'arrive' | 'depart';
   isWeatherFetched?: boolean;
   weatherSummary?: string;
+  purpose?: string;
+  selectedBikeName?: string;
   onEditRoute: () => void;
   onEditTiming: () => void;
   onEditSetup: () => void;
@@ -40,6 +42,8 @@ export const Screen6RideReady: React.FC<Screen6RideReadyProps> = ({
   targetMode,
   isWeatherFetched = false,
   weatherSummary,
+  purpose,
+  selectedBikeName,
   onEditRoute,
   onEditTiming,
   onEditSetup,
@@ -67,8 +71,8 @@ export const Screen6RideReady: React.FC<Screen6RideReadyProps> = ({
 
         <p className="text-sm text-ink-secondary font-body">
           {isFr
-            ? 'Un plan clair pour votre trajet. Vérifiez les estimations, modifiez un point ou continuez sans créer de compte.'
-            : 'A clear plan for your commute. Review the estimates, make a change, or keep going without an account.'}
+            ? `Un plan clair pour votre sortie ${purpose ? purpose.toLowerCase() : ''}. Vérifiez les estimations, modifiez un point ou continuez sans créer de compte.`
+            : `A clear plan for your ${purpose ? purpose.toLowerCase() : 'ride'}. Review the estimates, make a change, or keep going without an account.`}
         </p>
       </div>
 
@@ -233,7 +237,9 @@ export const Screen6RideReady: React.FC<Screen6RideReadyProps> = ({
                 onClick={onEditSetup}
                 className="font-medium text-ink underline hover:text-ink-secondary cursor-pointer"
               >
-                {isFr ? 'Défauts · Modifier' : 'Defaults · Edit setup'}
+                {selectedBikeName
+                  ? `${selectedBikeName} · ${isFr ? 'Modifier' : 'Edit setup'}`
+                  : (isFr ? 'Défauts · Modifier' : 'Defaults · Edit setup')}
               </button>
             </div>
 
@@ -276,8 +282,8 @@ export const Screen6RideReady: React.FC<Screen6RideReadyProps> = ({
         </div>
       </div>
 
-      {/* Footer Navigation Bar */}
-      <div className="pt-4 sm:pt-6 mt-4 sm:mt-6 pb-2 sm:pb-4 border-t border-black/5 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 shrink-0">
+      {/* Footer Navigation Bar - Sticky Mobile Bar */}
+      <div className="sticky bottom-0 z-20 bg-card/95 backdrop-blur-md pt-3 sm:pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-4 border-t border-black/10 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 shrink-0 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_16px_rgba(0,0,0,0.3)] -mx-4 sm:-mx-8 md:-mx-10 px-4 sm:px-8 md:px-10 mt-auto">
         <button
           type="button"
           onClick={onEditSetup}

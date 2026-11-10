@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   FloppyDisk,
   ArrowLeft,
@@ -138,7 +138,10 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
   };
 
   const [originInput, setOriginInput] = useState(trip.route.origin || 'Nantes');
-  const [destInput, setDestInput] = useState(trip.route.destination || trip.office.gateName || 'Saint-Nazaire');
+  const initialDest = trip.route.destination || trip.office.gateName || 'Saint-Nazaire';
+  const isInitialDestRadius = Boolean(initialDest.match(/loop radius|rayon boucle/i));
+  const [destInput, setDestInput] = useState(isInitialDestRadius ? 'Saint-Nazaire' : initialDest);
+  const lastCorridorDestRef = useRef<string>(isInitialDestRadius ? 'Saint-Nazaire' : initialDest);
   const [originCoords, setOriginCoords] = useState<[number, number] | null>(() => {
     if (initialTrip.route?.coordinates && initialTrip.route.coordinates.length > 0) {
       return initialTrip.route.coordinates[0];
@@ -290,6 +293,10 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
 
   const handleCalculateRoute = async () => {
     if (!originInput.trim() || !destInput.trim()) return;
+    if (destInput.match(/loop radius|rayon boucle/i)) {
+      setRouteError(isFr ? 'Veuillez saisir une destination valide pour le corridor.' : 'Please enter a valid destination for corridor routing.');
+      return;
+    }
     setIsRouting(true);
     setRouteError(null);
     setRouteSuccess(false);
@@ -385,7 +392,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
     nextDistanceRaw: number
   ) => {
     const nextOrigin = nextOriginRaw.trim() || 'Nantes';
-    const clampedKm = Math.max(5, Math.min(250, Math.round((nextDistanceRaw || 30) * 10) / 10));
+    const clampedKm = Math.max(5, Math.min(300, Math.round((nextDistanceRaw || 30) * 10) / 10));
     const center = resolveStartHubCoords(nextOrigin, nextCoords);
     const loopKm = Math.round((clampedKm / 2) * 10) / 10;
     const radiusMeters = Math.max(1000, Math.round((clampedKm / 2) * 1000));
@@ -393,26 +400,40 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
 
     setOriginInput(nextOriginRaw);
     if (nextCoords) setOriginCoords(nextCoords);
-    setDestInput(destLabel);
     setRouteError(null);
 
-    commitTrip((prev) => ({
-      ...prev,
-      route: {
-        ...prev.route,
-        routeMode: 'manual-radius',
-        origin: nextOrigin,
-        destination: destLabel,
-        originCoords: center,
-        radiusMeters,
-        distanceKm: clampedKm,
-        elevationGainM: Math.round(clampedKm * 6.5),
-        coordinates: [center],
-        gpxFileName: undefined,
-        elevationProfile: undefined,
-        terrainSummary: undefined,
-      },
-    }));
+    const originShort = nextOrigin.split(',')[0].trim();
+    const newName = isFr
+      ? `${originShort} · Boucle de ${clampedKm} km`
+      : `${originShort} · ${clampedKm} km Loop`;
+    const newDesc = isFr
+      ? `Sortie de ${clampedKm.toFixed(1)} km en boucle au départ de ${originShort}.`
+      : `${clampedKm.toFixed(1)} km loop ride starting from ${originShort}.`;
+
+    commitTrip((prev) => {
+      const updatedDesc = prev.description
+        ? prev.description.replace(/^\d+(\.\d+)?\s*km\b/i, `${clampedKm.toFixed(1)} km`)
+        : newDesc;
+      return {
+        ...prev,
+        name: newName,
+        description: updatedDesc,
+        route: {
+          ...prev.route,
+          routeMode: 'manual-radius',
+          origin: nextOrigin,
+          destination: destLabel,
+          originCoords: center,
+          radiusMeters,
+          distanceKm: clampedKm,
+          elevationGainM: Math.round(clampedKm * 6.5),
+          coordinates: [center],
+          gpxFileName: undefined,
+          elevationProfile: undefined,
+          terrainSummary: undefined,
+        },
+      };
+    });
   };
 
   const handleConfigGpxUpload = async (file: File) => {
@@ -608,10 +629,33 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
     .filter((def): def is NonNullable<typeof def> => Boolean(def));
 
   const handleSave = (): TripProfile => {
-    const updated = commitTrip((prev) => ({
-      ...prev,
-      arriveAtMode: isArriveAtMode,
-    }));
+    const updated = commitTrip((prev) => {
+      const isRadius =
+        prev.route.routeMode === 'manual-radius' || Boolean(prev.route.radiusMeters);
+      const dist = prev.route.distanceKm || 30;
+      let syncName = prev.name;
+      if (
+        isRadius &&
+        (prev.name.includes('→') ||
+          prev.name.includes('Pornic') ||
+          (!prev.name.includes('Loop') && !prev.name.includes('Boucle')))
+      ) {
+        const originShort = (prev.route.origin || 'Start').split(',')[0].trim();
+        syncName = isFr
+          ? `${originShort} · Boucle de ${dist} km`
+          : `${originShort} · ${dist} km Loop`;
+      }
+      const syncDesc = prev.description
+        ? prev.description.replace(/^\d+(\.\d+)?\s*km\b/i, `${dist.toFixed(1)} km`)
+        : `${dist.toFixed(1)} km ride`;
+
+      return {
+        ...prev,
+        name: syncName,
+        description: syncDesc,
+        arriveAtMode: isArriveAtMode,
+      };
+    });
     onSave(updated);
     setHasSaved(true);
     setTimeout(() => setHasSaved(false), 2000);
@@ -892,6 +936,22 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                               originCoords,
                               trip.route.distanceKm || 35
                             );
+                          } else if (modeOpt.id === 'corridor') {
+                            let sanitized = destInput;
+                            if (!sanitized || sanitized.match(/loop radius|rayon boucle/i)) {
+                              sanitized = lastCorridorDestRef.current && !lastCorridorDestRef.current.match(/loop radius|rayon boucle/i)
+                                ? lastCorridorDestRef.current
+                                : 'Saint-Nazaire';
+                              setDestInput(sanitized);
+                            }
+                            commitTrip((prev) => ({
+                              ...prev,
+                              route: {
+                                ...prev.route,
+                                routeMode: 'corridor',
+                                destination: sanitized,
+                              },
+                            }));
                           }
                         }}
                         className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all cursor-pointer whitespace-nowrap ${
@@ -1109,6 +1169,9 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                     dropdownAlign="right"
                     onChange={(val) => {
                       setDestInput(val);
+                      if (!val.match(/loop radius|rayon boucle/i)) {
+                        lastCorridorDestRef.current = val;
+                      }
                       setDestCoords(null);
                       setRouteSuccess(false);
                       setRouteError(null);
@@ -1119,6 +1182,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                     }}
                     onSelectLocation={(loc) => {
                       setDestInput(loc.name);
+                      lastCorridorDestRef.current = loc.name;
                       setDestCoords(loc.coordinates);
                       setRouteSuccess(false);
                       setRouteError(null);
@@ -1171,12 +1235,29 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                         <MapIcon className={`w-3.5 h-3.5 text-beacon-red dark:text-rose-400 dual-tone-rose shrink-0 ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
                         {t('routeDistInputLabel')}
                       </span>
-                      <span className="font-mono font-bold tnum">{trip.route.distanceKm} km</span>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="number"
+                          min={5}
+                          max={300}
+                          step={1}
+                          value={trip.route.distanceKm}
+                          onChange={(e) =>
+                            handleUpdateRadiusRoute(
+                              originInput || trip.route.origin || 'Nantes',
+                              originCoords || trip.route.originCoords || null,
+                              parseFloat(e.target.value) || 30
+                            )
+                          }
+                          className="w-16 px-1.5 py-0.5 rounded-lg bg-card text-ink font-mono font-bold text-xs text-right tnum border border-ink/10 dark:border-white/10 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                        />
+                        <span className="font-mono font-bold tnum">km</span>
+                      </div>
                     </div>
                     <input
                       type="range"
                       min={5}
-                      max={200}
+                      max={250}
                       step={5}
                       value={trip.route.distanceKm}
                       onChange={(e) =>
@@ -1189,7 +1270,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                       className="w-full accent-[#10b981] cursor-pointer"
                     />
                     <div className="mt-1.5 flex items-center justify-between gap-1">
-                      {[20, 40, 60, 90, 130].map((kmPreset) => (
+                      {[30, 60, 100, 150, 200].map((kmPreset) => (
                         <button
                           key={kmPreset}
                           type="button"

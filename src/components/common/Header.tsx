@@ -6,6 +6,7 @@ import {
   SquaresFour,
   HomeSmile,
   Printer,
+  Download,
   CaretDown,
   Plus,
   Sun,
@@ -14,6 +15,7 @@ import {
   X,
 } from '@/components/icons';
 import { TripProfile } from '../../types/trip';
+import { downloadTripGpx, downloadTripTcx } from '../../utils/gpxExporter';
 import { useTheme } from '../../context/ThemeContext';
 import { useTranslation, getLocalizedTripMeta } from '../../context/LanguageContext';
 
@@ -511,6 +513,40 @@ export const Header: React.FC<HeaderProps> = ({
                     <div className="min-w-0">
                       <div className="font-semibold text-ink break-words leading-tight">{t('drawerPrintTitle')}</div>
                       <div className="text-[11px] text-ink-muted break-words leading-tight mt-0.5">{t('drawerPrintSub')}</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      downloadTripGpx(activeTrip);
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="flex items-center gap-3 pl-2 pr-4 py-2 rounded-full text-xs text-ink bg-pod hover:bg-chip transition-colors cursor-pointer text-left"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-card flex items-center justify-center shrink-0">
+                      <Download className="w-4 h-4 text-sky-500" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-semibold text-ink break-words leading-tight">{t('drawerGpxTitle')}</div>
+                      <div className="text-[11px] text-ink-muted break-words leading-tight mt-0.5">{t('drawerGpxSub')}</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      downloadTripTcx(activeTrip);
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="flex items-center gap-3 pl-2 pr-4 py-2 rounded-full text-xs text-ink bg-pod hover:bg-chip transition-colors cursor-pointer text-left"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-card flex items-center justify-center shrink-0">
+                      <Compass className="w-4 h-4 text-emerald-500" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-semibold text-ink break-words leading-tight">{t('drawerTcxTitle')}</div>
+                      <div className="text-[11px] text-ink-muted break-words leading-tight mt-0.5">{t('drawerTcxSub')}</div>
                     </div>
                   </button>
                 </div>

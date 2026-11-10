@@ -340,8 +340,8 @@ export const Screen5RiderBike: React.FC<Screen5RiderBikeProps> = ({
         </div>
       </div>
 
-      {/* Footer Navigation Bar */}
-      <div className="pt-4 sm:pt-6 mt-4 sm:mt-6 pb-2 sm:pb-4 border-t border-black/5 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 shrink-0">
+      {/* Footer Navigation Bar - Sticky Mobile Bar */}
+      <div className="sticky bottom-0 z-20 bg-card/95 backdrop-blur-md pt-3 sm:pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-4 border-t border-black/10 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 shrink-0 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_16px_rgba(0,0,0,0.3)] -mx-4 sm:-mx-8 md:-mx-10 px-4 sm:px-8 md:px-10 mt-auto">
         <button
           type="button"
           onClick={onBack}
@@ -373,7 +373,7 @@ export const Screen5RiderBike: React.FC<Screen5RiderBikeProps> = ({
             onClick={onContinue}
             className="flex-1 sm:flex-none min-h-[44px] px-5 py-2 rounded-full bg-volt text-[#4d5200] ring-2 ring-inset ring-[#a3b300] text-xs font-rounded font-bold hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
           >
-            <span>{isFr ? 'Utiliser et voir la sortie' : 'Use defaults & view ride'}</span>
+            <span>{isFr ? 'Appliquer et voir la sortie' : 'Apply setup & view ride'}</span>
             <ArrowRight size={14} className="stroke-[2.5]" />
           </button>
         </div>

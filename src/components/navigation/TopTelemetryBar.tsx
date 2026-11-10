@@ -22,7 +22,10 @@ import {
   Languages,
   ChevronRight,
   RefreshCw,
+  Download,
+  Compass,
 } from '@/components/icons';
+import { downloadTripGpx, downloadTripTcx } from '../../utils/gpxExporter';
 import { IconBadge } from '../common/IconBadge';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
@@ -526,6 +529,32 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
               sub={isFr ? 'Feuille de route A4 imprimable' : 'Printable A4 route summary'}
               onClick={onPrint}
             />
+          )}
+          {activeTrip && (
+            <>
+              {(onShareReceipt || onPrint) && <Divider />}
+              <Row
+                theme="sky"
+                icon={Download}
+                label={t('drawerGpxTitle')}
+                sub={isFr ? 'Trace GPS .gpx pour Garmin, Wahoo, Hammerhead' : 'GPS .gpx track for Garmin, Wahoo, Hammerhead'}
+                onClick={() => {
+                  downloadTripGpx(activeTrip);
+                  setIsMenuOpen(false);
+                }}
+              />
+              <Divider />
+              <Row
+                theme="emerald"
+                icon={Compass}
+                label={t('drawerTcxTitle')}
+                sub={isFr ? 'Parcours .tcx avec dénivelé et allure' : '.tcx course with elevation & pacing'}
+                onClick={() => {
+                  downloadTripTcx(activeTrip);
+                  setIsMenuOpen(false);
+                }}
+              />
+            </>
           )}
         </Group>
 

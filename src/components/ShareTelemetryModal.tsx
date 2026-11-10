@@ -10,7 +10,9 @@ import {
   Loader2,
   ExternalLink,
   Receipt,
+  Compass,
 } from '@/components/icons';
+import { downloadTripGpx, downloadTripTcx } from '../utils/gpxExporter';
 import {
   renderTelemetryCard,
   extractTelemetryShareData,
@@ -595,6 +597,30 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
                   <span>{t('shareSavePngBtn')}</span>
                 </button>
               </div>
+
+              {trip && (
+                <div className="grid grid-cols-2 gap-2 min-w-0 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => downloadTripGpx(trip)}
+                    className={`py-2 px-3 rounded-xl bg-pod hover:bg-chip text-ink text-xs font-semibold font-rounded flex items-center justify-center gap-1.5 transition-all border border-ink/5 dark:border-white/10 cursor-pointer active:scale-[0.98]`}
+                    title="Export .GPX file for Garmin, Wahoo, Hammerhead"
+                  >
+                    <Download className="w-3.5 h-3.5 text-sky-500 shrink-0" />
+                    <span>{t('exportGpxBtn')} (GPS)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => downloadTripTcx(trip)}
+                    className={`py-2 px-3 rounded-xl bg-pod hover:bg-chip text-ink text-xs font-semibold font-rounded flex items-center justify-center gap-1.5 transition-all border border-ink/5 dark:border-white/10 cursor-pointer active:scale-[0.98]`}
+                    title="Export .TCX course with elevation and pacing"
+                  >
+                    <Compass className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                    <span>{t('exportTcxBtn')} (Course)</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
