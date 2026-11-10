@@ -1,4 +1,4 @@
-import { NutritionPhase, NutritionItem } from '../types/trip';
+import { NutritionPhase, NutritionItem, LogisticsSettings } from '../types/trip';
 import { Language, getCurrentLanguage } from '../context/LanguageContext';
 import { loadRiderBikeSpecs } from './specsStorage';
 import {
@@ -7,6 +7,7 @@ import {
   resolveCompliantPantry,
   DEFAULT_PANTRY_CATALOG,
 } from '../data/pantryCatalog';
+import { SolvedTripTimeline, solveTripTimeline } from './timeline';
 
 /**
  * Canonical per-unit nutritional constants for discrete bottom-up fueling allocation.
@@ -490,11 +491,13 @@ export interface RealFoodNutritionPlanOptions {
   totalDays?: number;
   activeChips?: string[];
   compliantPantry?: ResolvedCompliantPantry;
+  logistics?: LogisticsSettings;
+  solvedTimeline?: SolvedTripTimeline;
 }
 
 /**
- * Returns the 4-phase Nutrition Protocol scaled dynamically with intensity-modulated
- * carbohydrate targeting, personal pantry items, and dietary guardrails.
+ * Returns the Nutrition Protocol scaled dynamically with intensity-modulated
+ * carbohydrate targeting, personal pantry items, dietary guardrails, and single-anchor logistics.
  */
 export function getRealFoodNutritionPlan(
   lockerArrivalTime: string = '08:30',
@@ -510,13 +513,26 @@ export function getRealFoodNutritionPlan(
   const pref = options?.nutritionPreference ?? storedSpecs.nutritionPreference ?? 'real-food';
   const totalDays = options?.totalDays ?? 1;
   const activeChips = options?.activeChips ?? [];
-  const compliantPantry = options?.compliantPantry ?? resolveCompliantPantry(storedSpecs);
+  const logistics = options?.logistics;
+  const preRideStyle = logistics?.preRideStyle ?? 'full-breakfast';
+  const hasFridge = logistics?.hasDestinationFridge ?? true;
+  const isSplitRecovery = logistics?.splitPostRideRecovery ?? Boolean(activeChips.includes('shower-locker'));
+
+  const compliantPantry = options?.compliantPantry
+    ? options.compliantPantry
+    : resolveCompliantPantry(storedSpecs, { hasDestinationFridge: hasFridge });
+
+  // If passed pantry has chilled post-ride item but hasFridge is false, swap to shelf-stable
+  const resolvedPostRidePantry =
+    !hasFridge && compliantPantry.postRide.requiresFridge
+      ? resolveCompliantPantry(storedSpecs, { hasDestinationFridge: false }).postRide
+      : compliantPantry.postRide;
 
   // Use physiological intensity if available, otherwise baseline Zone 2
   const pctFtp = options?.pctFtp ?? 72;
   const carbOxidation = options?.carbOxidationGramPerHour ?? Math.round(gutCeilingGPerHr * 1.8);
 
-  const { recommendedGPerHr, targetOnBikeCarbsG, effectiveHourlyRateG } = calculateIntensityModulatedCarbTarget({
+  const { recommendedGPerHr, targetOnBikeCarbsG, effectiveHourlyRateG, effectiveCeilingGPerHr } = calculateIntensityModulatedCarbTarget({
     rideHours,
     pctFtp,
     carbOxidationGramPerHour: carbOxidation,
@@ -525,13 +541,172 @@ export function getRealFoodNutritionPlan(
     activeChips,
   });
 
+  // Pre-Ride Carb Deficit & Redistribution
+  const basePreRideCarbs = compliantPantry.preRide.carbsG; // e.g. 62g
+  let preDeficitG = 0;
+  let phase1Items: NutritionItem[] = [];
+
+  if (preRideStyle === 'light-liquid') {
+    // Light liquid primer: ~28g carbs
+    preDeficitG = Math.max(0, basePreRideCarbs - 28);
+    phase1Items = [
+      {
+        name: isFr
+          ? 'Élixir Glucidique Léger & Minéraux (Pur Jus ou Eau d’Érable)'
+          : 'Light Liquid Carb Primer (Pure Juice or Salted Maple Water)',
+        quantity: '250ml',
+        carbsGrams: 28,
+        proteinGrams: 0,
+        fatsGrams: 0,
+        kcals: 115,
+        quantitativeLabel: isFr
+          ? 'Élixir glucidique léger (250ml, 28g C)'
+          : 'Light liquid carb primer (250ml, 28g C)',
+        portionLabel: isFr ? '1 petit verre de jus ou boisson légère' : '1 small glass juice or light primer',
+        notes: isFr ? 'Assimilation immédiate en T-20m, digestion ultra-légère.' : 'Instant cellular uptake at T-20m, ultra-light digestion.',
+        isRealFoodVerified: true,
+      },
+      {
+        name: isFr ? 'Double Ristretto / Expresso' : 'Double Ristretto / Espresso',
+        quantity: isFr ? '60 ml (2 doses)' : '60ml (2 shots)',
+        carbsGrams: 0,
+        proteinGrams: 0,
+        fatsGrams: 0,
+        kcals: 5,
+        quantitativeLabel: isFr ? 'Double expresso (60ml, ~140mg caféine)' : 'Double espresso (60ml, ~140mg caffeine)',
+        portionLabel: isFr ? '1 café ou expresso' : '1 coffee or espresso',
+        notes: isFr ? '~140 mg caféine, éveil cognitif.' : '~140mg caffeine, alertness and focus.',
+        isRealFoodVerified: true,
+      },
+      {
+        name: isFr ? 'Eau de Source + Pincée de Sel de Guérande' : 'Spring Water with Pinch of Celtic Salt',
+        quantity: '300ml',
+        carbsGrams: 0,
+        proteinGrams: 0,
+        fatsGrams: 0,
+        kcals: 0,
+        quantitativeLabel: isFr ? 'Eau de source + sel (300ml)' : 'Spring water with salt pinch (300ml)',
+        portionLabel: isFr ? "1 grand verre d'eau salée" : '1 large glass water & trace minerals',
+        notes: isFr ? 'Pré-hydratation avec électrolytes naturels.' : 'Pre-hydration volume with trace electrolytes.',
+        isRealFoodVerified: true,
+      },
+    ];
+  } else if (preRideStyle === 'fasted-rollout') {
+    // Fasted rollout: 0g carbs
+    preDeficitG = basePreRideCarbs; // 62g
+    phase1Items = [
+      {
+        name: isFr ? 'Double Ristretto / Expresso (Amorce Métabolique)' : 'Double Ristretto / Espresso (Metabolic Primer)',
+        quantity: isFr ? '60 ml (2 doses)' : '60ml (2 shots)',
+        carbsGrams: 0,
+        proteinGrams: 0,
+        fatsGrams: 0,
+        kcals: 5,
+        quantitativeLabel: isFr ? 'Double expresso (60ml, ~140mg caféine, 0g C)' : 'Double espresso (60ml, ~140mg caffeine, 0g C)',
+        portionLabel: isFr ? '1 café ou expresso' : '1 coffee or espresso',
+        notes: isFr ? 'Stimulation de l’oxydation lipidique sans charge gastrique.' : 'Stimulates fat oxidation with zero gastric volume.',
+        isRealFoodVerified: true,
+      },
+      {
+        name: isFr ? 'Eau de Source + Pincée de Sel de Guérande' : 'Spring Water with Pinch of Celtic Salt',
+        quantity: '350ml',
+        carbsGrams: 0,
+        proteinGrams: 0,
+        fatsGrams: 0,
+        kcals: 0,
+        quantitativeLabel: isFr ? 'Eau de source + sel (350ml)' : 'Spring water with salt pinch (350ml)',
+        portionLabel: isFr ? "1 grand verre d'eau salée" : '1 large glass water & trace minerals',
+        notes: isFr ? 'Volémie plasmatique et électrolytes sans calories.' : 'Plasma volume support with zero calories.',
+        isRealFoodVerified: true,
+      },
+    ];
+  } else {
+    // Full breakfast: standard compliant pre-ride item
+    preDeficitG = 0;
+    phase1Items = [
+      {
+        name: isFr ? compliantPantry.preRide.nameFr : compliantPantry.preRide.nameEn,
+        quantity: isFr ? '1 portion' : '1 portion',
+        carbsGrams: compliantPantry.preRide.carbsG,
+        proteinGrams: compliantPantry.preRide.proteinG,
+        fatsGrams: 1,
+        kcals: compliantPantry.preRide.kcal,
+        quantitativeLabel: isFr
+          ? `${compliantPantry.preRide.nameFr} (${compliantPantry.preRide.carbsG}g C, ${compliantPantry.preRide.proteinG}g P)`
+          : `${compliantPantry.preRide.nameEn} (${compliantPantry.preRide.carbsG}g C, ${compliantPantry.preRide.proteinG}g P)`,
+        portionLabel: isFr ? compliantPantry.preRide.portionLabelFr : compliantPantry.preRide.portionLabelEn,
+        notes: isFr ? 'Vidange gastrique rapide, sans fibres irritantes.' : 'Rapid gastric emptying, gentle on digestion.',
+        isRealFoodVerified: !compliantPantry.preRide.id.includes('gel'),
+      },
+      {
+        name: isFr ? 'Double Ristretto / Expresso' : 'Double Ristretto / Espresso',
+        quantity: isFr ? '60 ml (2 doses)' : '60ml (2 shots)',
+        carbsGrams: 0,
+        proteinGrams: 0,
+        fatsGrams: 0,
+        kcals: 5,
+        quantitativeLabel: isFr ? 'Double expresso (60ml, ~140mg caféine)' : 'Double espresso (60ml, ~140mg caffeine)',
+        portionLabel: isFr ? '1 café ou expresso' : '1 coffee or espresso',
+        notes: isFr ? '~140 mg caféine, éveil cognitif.' : '~140mg caffeine, alertness and focus.',
+        isRealFoodVerified: true,
+      },
+      {
+        name: isFr ? 'Eau de Source + Pincée de Sel de Guérande' : 'Spring Water with Pinch of Celtic Salt',
+        quantity: '300ml',
+        carbsGrams: 0,
+        proteinGrams: 0,
+        fatsGrams: 0,
+        kcals: 0,
+        quantitativeLabel: isFr ? 'Eau de source + sel (300ml)' : 'Spring water with salt pinch (300ml)',
+        portionLabel: isFr ? "1 grand verre d'eau salée" : '1 large glass water & trace minerals',
+        notes: isFr ? 'Pré-hydratation avec électrolytes naturels.' : 'Pre-hydration volume with trace electrolytes.',
+        isRealFoodVerified: true,
+      },
+    ];
+  }
+
+  // Shift 50% of deficit into Phase 2 on-bike fueling (clamped by effectiveCeilingGPerHr * rideHours)
+  const onBikeShiftWanted = Math.round(preDeficitG * 0.50);
+  const maxOnBikeCarbs = Math.max(25, Math.round(effectiveCeilingGPerHr * rideHours));
+  const maxShiftAllowed = Math.max(0, maxOnBikeCarbs - targetOnBikeCarbsG);
+  const effectiveOnBikeShift = Math.min(onBikeShiftWanted, maxShiftAllowed);
+
+  const finalOnBikeCarbsG = targetOnBikeCarbsG + effectiveOnBikeShift;
+
   const onBikeItems = allocatePhase2OnBikeItems(
-    targetOnBikeCarbsG,
+    finalOnBikeCarbsG,
     compliantPantry.onBikeLiquid,
     rideHours,
     lang,
     compliantPantry.onBikeSolids
   );
+
+  // Shift remaining deficit into Post-Ride Recovery
+  const recoveryCarbBonus = preDeficitG - effectiveOnBikeShift;
+  const postRideCarbs = resolvedPostRidePantry.carbsG + recoveryCarbBonus;
+  const postRideKcal = resolvedPostRidePantry.kcal + recoveryCarbBonus * 4;
+
+  const postRideItem: NutritionItem = {
+    name: resolvedPostRidePantry[isFr ? 'nameFr' : 'nameEn'],
+    quantity: isFr ? '1 portion de récupération' : '1 recovery portion',
+    carbsGrams: postRideCarbs,
+    proteinGrams: resolvedPostRidePantry.proteinG,
+    fatsGrams: 0,
+    kcals: postRideKcal,
+    quantitativeLabel: isFr
+      ? `${resolvedPostRidePantry.nameFr} (${postRideCarbs}g C, ${resolvedPostRidePantry.proteinG}g P)`
+      : `${resolvedPostRidePantry.nameEn} (${postRideCarbs}g C, ${resolvedPostRidePantry.proteinG}g P)`,
+    portionLabel: isFr ? resolvedPostRidePantry.portionLabelFr : resolvedPostRidePantry.portionLabelEn,
+    notes:
+      recoveryCarbBonus > 0
+        ? isFr
+          ? `Recharge majorée (+${recoveryCarbBonus}g C) compensant le départ léger.`
+          : `Boosted recovery (+${recoveryCarbBonus}g C) replenishing early morning deficit.`
+        : isFr
+        ? 'Recharge immédiate du glycogène et synthèse protéique.'
+        : 'Immediate glycogen resynthesis and protein recovery.',
+    isRealFoodVerified: !resolvedPostRidePantry.id.includes('shake'),
+  };
 
   // Dietary & allergen filter checks for Phase 4 break room items
   const dietaryFilters = storedSpecs.dietaryFilters || [];
@@ -642,60 +817,65 @@ export function getRealFoodNutritionPlan(
     isRealFoodVerified: true,
   };
 
-  return [
+  const coffeeItem: NutritionItem = {
+    name: isFr ? 'Café Filtre ou Allongé' : 'Fresh Office Filter Coffee or Long Black',
+    quantity: isFr ? 'Tasse 200 ml' : '200ml mug',
+    carbsGrams: 0,
+    proteinGrams: 0,
+    fatsGrams: 0,
+    kcals: 2,
+    quantitativeLabel: isFr ? 'Café filtre de bureau (200ml)' : 'Office filter coffee (200ml mug)',
+    portionLabel: isFr ? '1 tasse de café ou thé' : '1 mug coffee or tea',
+    notes: isFr ? 'Vigilance cognitive avant le début de journée.' : 'Alertness and comfort before the morning sync.',
+    isRealFoodVerified: true,
+  };
+
+  // Timeline clock windows derived dynamically
+  const solved = options?.solvedTimeline;
+  const resolvedDeparture = solved?.departureTimeHHMM ?? departureTime;
+  const resolvedArrival = solved?.arrivalTimeHHMM ?? lockerArrivalTime;
+  const preBufferMin = preRideStyle === 'full-breakfast' ? 45 : preRideStyle === 'light-liquid' ? 20 : 15;
+  const resolvedPreRideWindow = solved?.preRideWindow ?? `${subtractMinutesFromTime(resolvedDeparture, preBufferMin)} – ${resolvedDeparture}`;
+  const resolvedPostRideImmediateWindow = solved?.postRideImmediateWindow ?? `${resolvedArrival} – ${addMinutesToTime(resolvedArrival, 10)}`;
+  const resolvedPostRideMealWindow = solved?.postRideMealWindow ?? `${breakRoomTime} – ${addMinutesToTime(breakRoomTime, 15)}`;
+  const resolvedPostRideConsolidatedWindow = solved?.postRideConsolidatedWindow ?? `${addMinutesToTime(resolvedArrival, 10)} – ${addMinutesToTime(resolvedArrival, 30)}`;
+
+  const stage1Location = logistics?.stage1LocationLabel || (isFr ? 'Destination / Vestiaire' : 'Destination / Locker');
+  const stage2Location = logistics?.stage2LocationLabel || (isFr ? 'Salle de Pause / Espace Bureau' : 'Break Room / Workspace');
+
+  const phases: NutritionPhase[] = [
     {
       phaseId: 'pre-ride',
-      title: isFr ? 'Petit-Déjeuner Pré-Sortie' : 'Pre-Ride Breakfast',
-      timeWindow: `${subtractMinutesFromTime(departureTime, 45)} – ${departureTime}`,
+      title: isFr
+        ? preRideStyle === 'fasted-rollout'
+          ? 'Amorce à Jeun & Hydratation'
+          : preRideStyle === 'light-liquid'
+          ? 'Collation Liquide Rapide (T-20m)'
+          : 'Petit-Déjeuner Pré-Sortie'
+        : preRideStyle === 'fasted-rollout'
+        ? 'Fasted Primer & Hydration'
+        : preRideStyle === 'light-liquid'
+        ? 'Light Liquid Primer (T-20m)'
+        : 'Pre-Ride Breakfast',
+      timeWindow: resolvedPreRideWindow,
       location: isFr ? 'Cuisine Domicile' : 'Home Kitchen',
       rules: isFr
-        ? 'Glucides digestes à assimilation douce, zéro graisses lourdes, confort digestif maximal. Terminer 35-45 min avant le départ.'
-        : 'Gentle easily digestible carbs, zero heavy fats, high gastro-comfort. Complete 35-45m prior to rollout.',
-      items: [
-        {
-          name: isFr ? compliantPantry.preRide.nameFr : compliantPantry.preRide.nameEn,
-          quantity: isFr ? '1 portion' : '1 portion',
-          carbsGrams: compliantPantry.preRide.carbsG,
-          proteinGrams: compliantPantry.preRide.proteinG,
-          fatsGrams: 1,
-          kcals: compliantPantry.preRide.kcal,
-          quantitativeLabel: isFr
-            ? `${compliantPantry.preRide.nameFr} (${compliantPantry.preRide.carbsG}g C, ${compliantPantry.preRide.proteinG}g P)`
-            : `${compliantPantry.preRide.nameEn} (${compliantPantry.preRide.carbsG}g C, ${compliantPantry.preRide.proteinG}g P)`,
-          portionLabel: isFr ? compliantPantry.preRide.portionLabelFr : compliantPantry.preRide.portionLabelEn,
-          notes: isFr ? 'Vidange gastrique rapide, sans fibres irritantes.' : 'Rapid gastric emptying, gentle on digestion.',
-          isRealFoodVerified: !compliantPantry.preRide.id.includes('gel'),
-        },
-        {
-          name: isFr ? 'Double Ristretto / Expresso' : 'Double Ristretto / Espresso',
-          quantity: isFr ? '60 ml (2 doses)' : '60ml (2 shots)',
-          carbsGrams: 0,
-          proteinGrams: 0,
-          fatsGrams: 0,
-          kcals: 5,
-          quantitativeLabel: isFr ? 'Double expresso (60ml, ~140mg caféine)' : 'Double espresso (60ml, ~140mg caffeine)',
-          portionLabel: isFr ? '1 café ou expresso' : '1 coffee or espresso',
-          notes: isFr ? '~140 mg caféine, éveil cognitif.' : '~140mg caffeine, alertness and focus.',
-          isRealFoodVerified: true,
-        },
-        {
-          name: isFr ? 'Eau de Source + Pincée de Sel de Guérande' : 'Spring Water with Pinch of Celtic Salt',
-          quantity: '300ml',
-          carbsGrams: 0,
-          proteinGrams: 0,
-          fatsGrams: 0,
-          kcals: 0,
-          quantitativeLabel: isFr ? 'Eau de source + sel (300ml)' : 'Spring water with salt pinch (300ml)',
-          portionLabel: isFr ? "1 grand verre d'eau salée" : '1 large glass water & trace minerals',
-          notes: isFr ? 'Pré-hydratation avec électrolytes naturels.' : 'Pre-hydration volume with trace electrolytes.',
-          isRealFoodVerified: true,
-        },
-      ],
+        ? preRideStyle === 'fasted-rollout'
+          ? 'Amorce métabolique sans calories solides. Hydratation et caféine uniquement.'
+          : preRideStyle === 'light-liquid'
+          ? 'Glucides liquides légers à absorption ultra-rapide 20 min avant le départ.'
+          : 'Glucides digestes à assimilation douce, zéro graisses lourdes, confort digestif maximal. Terminer avant le départ.'
+        : preRideStyle === 'fasted-rollout'
+        ? 'Metabolic primer without solid calories. Pure hydration and espresso only.'
+        : preRideStyle === 'light-liquid'
+        ? 'Rapid liquid carbohydrate uptake 20 min before rollout, effortless transit.'
+        : 'Gentle easily digestible carbs, zero heavy fats, high gastro-comfort. Complete before rollout.',
+      items: phase1Items,
     },
     {
       phaseId: 'on-bike',
       title:
-        targetOnBikeCarbsG === 0
+        finalOnBikeCarbsG === 0
           ? isFr
             ? 'Hydratation en Selle (< 45 min)'
             : 'On-Bike Hydration (< 45m)'
@@ -713,7 +893,7 @@ export function getRealFoodNutritionPlan(
       timeWindow: isFr ? 'Du départ à l’arrivée (boire toutes les 15-20 min)' : 'Rollout to Arrival (sip every 15-20 min)',
       location: isFr ? 'En Route / Cockpit' : 'On Route / Cockpit',
       rules:
-        targetOnBikeCarbsG === 0
+        finalOnBikeCarbsG === 0
           ? isFr
             ? 'Sortie courte : les réserves hépatiques et musculaires suffisent. Hydratation à l’eau claire uniquement.'
             : 'Short ride: liver and muscular glycogen are sufficient. Hydration with plain water only.'
@@ -730,59 +910,45 @@ export function getRealFoodNutritionPlan(
           : `Calibrated to ${effectiveHourlyRateG}g/h — pure whole-food sugars and natural energy.`,
       items: onBikeItems,
     },
-    {
-      phaseId: 'locker-refuel',
-      title: isFr ? 'Phase 1 : Ravito Vestiaire' : 'Phase 1: Locker Refuel',
-      timeWindow: `${lockerArrivalTime} – ${addMinutesToTime(lockerArrivalTime, 10)}`,
-      location: isFr ? 'Vestiaires Sous-Sol (Après Porte 17)' : 'Basement Locker Bay (Post-Gate 17)',
-      rules: isFr
-        ? 'Recharge immédiate post-effort. Consommé confortablement sur le banc du vestiaire.'
-        : 'Immediate post-effort replenishment. Eaten comfortably at locker bench before shower.',
-      items: [
-        {
-          name: isFr ? compliantPantry.postRide.nameFr : compliantPantry.postRide.nameEn,
-          quantity: isFr ? '1 portion de récupération' : '1 recovery portion',
-          carbsGrams: compliantPantry.postRide.carbsG,
-          proteinGrams: compliantPantry.postRide.proteinG,
-          fatsGrams: 0,
-          kcals: compliantPantry.postRide.kcal,
-          quantitativeLabel: isFr
-            ? `${compliantPantry.postRide.nameFr} (${compliantPantry.postRide.carbsG}g C, ${compliantPantry.postRide.proteinG}g P)`
-            : `${compliantPantry.postRide.nameEn} (${compliantPantry.postRide.carbsG}g C, ${compliantPantry.postRide.proteinG}g P)`,
-          portionLabel: isFr ? compliantPantry.postRide.portionLabelFr : compliantPantry.postRide.portionLabelEn,
-          notes: isFr ? 'Recharge immédiate du glycogène et synthèse protéique.' : 'Immediate glycogen resynthesis and protein recovery.',
-          isRealFoodVerified: !compliantPantry.postRide.id.includes('shake'),
-        },
-      ],
-    },
-    {
-      phaseId: 'break-room',
-      title: isFr ? 'Phase 2 : Petit-Déjeuner Salle de Pause' : 'Phase 2: Break Room Breakfast',
-      timeWindow: `${breakRoomTime} – ${addMinutesToTime(breakRoomTime, 15)}`,
-      location: isFr ? 'Salle de Pause Dédiée (3e étage)' : '3rd Floor Dedicated Break Room',
-      rules: isFr
-        ? 'Espace convivial : Petit-déjeuner partagé en salle de pause dédiée avant la prise de poste.'
-        : 'Break room lounge: Relaxed pre-shift breakfast in the dedicated shared kitchen before starting your day.',
-      items: [
-        oatsItem,
-        fruitItem,
-        nutOrSeedItem,
-        sandwichItem,
-        {
-          name: isFr ? 'Café Filtre ou Allongé' : 'Fresh Office Filter Coffee or Long Black',
-          quantity: isFr ? 'Tasse 200 ml' : '200ml mug',
-          carbsGrams: 0,
-          proteinGrams: 0,
-          fatsGrams: 0,
-          kcals: 2,
-          quantitativeLabel: isFr ? 'Café filtre de bureau (200ml)' : 'Office filter coffee (200ml mug)',
-          portionLabel: isFr ? '1 tasse de café ou thé' : '1 mug coffee or tea',
-          notes: isFr ? 'Vigilance cognitive avant le début de journée.' : 'Alertness and comfort before the morning sync.',
-          isRealFoodVerified: true,
-        },
-      ],
-    },
   ];
+
+  if (isSplitRecovery) {
+    phases.push(
+      {
+        phaseId: 'locker-refuel',
+        title: isFr ? `Phase 1 : ${stage1Location}` : `Phase 1: ${stage1Location}`,
+        timeWindow: resolvedPostRideImmediateWindow,
+        location: stage1Location,
+        rules: isFr
+          ? 'Recharge immédiate post-effort. Consommation rapide avant la douche.'
+          : 'Immediate post-effort replenishment. Consumed upon arrival before shower.',
+        items: [postRideItem],
+      },
+      {
+        phaseId: 'break-room',
+        title: isFr ? `Phase 2 : ${stage2Location}` : `Phase 2: ${stage2Location}`,
+        timeWindow: resolvedPostRideMealWindow,
+        location: stage2Location,
+        rules: isFr
+          ? 'Petit-déjeuner ou collation partagée à l’espace de travail.'
+          : 'Relaxed breakfast or meal before starting workday / daily activity.',
+        items: [oatsItem, fruitItem, nutOrSeedItem, sandwichItem, coffeeItem],
+      }
+    );
+  } else {
+    phases.push({
+      phaseId: 'arrival-recovery',
+      title: isFr ? `Repas Récupérateur d’Arrivée (${stage1Location})` : `Arrival Recovery Meal (${stage1Location})`,
+      timeWindow: resolvedPostRideConsolidatedWindow,
+      location: stage1Location,
+      rules: isFr
+        ? 'Repas complet et équilibré à destination (recharge glycogène + protéines complètes).'
+        : 'Consolidated recovery meal at destination (glycogen resynthesis + complete protein).',
+      items: [postRideItem, sandwichItem, fruitItem, nutOrSeedItem, coffeeItem],
+    });
+  }
+
+  return phases;
 }
 
 // Helpers for timeline math

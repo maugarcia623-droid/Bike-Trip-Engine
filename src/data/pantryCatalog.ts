@@ -418,6 +418,7 @@ export const DEFAULT_PANTRY_CATALOG: PantryItem[] = [
       'nut-free': true,
       'low-fodmap': false,
     },
+    requiresFridge: true,
   },
   {
     id: 'rec-soy-yogurt-maple-tart',
@@ -437,6 +438,7 @@ export const DEFAULT_PANTRY_CATALOG: PantryItem[] = [
       'nut-free': true,
       'low-fodmap': true,
     },
+    requiresFridge: true,
   },
   {
     id: 'rec-pea-rice-shake-banana',
@@ -456,6 +458,7 @@ export const DEFAULT_PANTRY_CATALOG: PantryItem[] = [
       'nut-free': true,
       'low-fodmap': true,
     },
+    requiresFridge: false,
   },
   {
     id: 'rec-savory-tofu-rice-bowl',
@@ -475,6 +478,7 @@ export const DEFAULT_PANTRY_CATALOG: PantryItem[] = [
       'nut-free': true,
       'low-fodmap': true,
     },
+    requiresFridge: false,
   },
 ];
 
@@ -543,7 +547,10 @@ export function getDefaultPantryIdsForPreference(
  * Guarantees that if a filter is active, any non-compliant item is automatically
  * substituted with the first compliant item in that slot so no slot is ever empty.
  */
-export function resolveCompliantPantry(specs: RiderSpecs): ResolvedCompliantPantry {
+export function resolveCompliantPantry(
+  specs: RiderSpecs,
+  options?: { hasDestinationFridge?: boolean }
+): ResolvedCompliantPantry {
   const customItems = specs.customPantryItems || [];
   const fullCatalog: PantryItem[] = [...DEFAULT_PANTRY_CATALOG, ...customItems];
   const filters: DietaryFilter[] = specs.dietaryFilters || [];
@@ -553,7 +560,12 @@ export function resolveCompliantPantry(specs: RiderSpecs): ResolvedCompliantPant
   const compliantPreRide = allCompliantItems.filter((i) => i.slot === 'pre-ride');
   const compliantLiquid = allCompliantItems.filter((i) => i.slot === 'on-bike-liquid');
   const compliantSolids = allCompliantItems.filter((i) => i.slot === 'on-bike-solid');
-  const compliantPostRide = allCompliantItems.filter((i) => i.slot === 'post-ride-recovery');
+
+  // If destination has no fridge, filter out post-ride items that require refrigeration
+  const hasFridge = options?.hasDestinationFridge ?? true;
+  const compliantPostRide = allCompliantItems.filter(
+    (i) => i.slot === 'post-ride-recovery' && (hasFridge || !i.requiresFridge)
+  );
 
   const activeIds =
     specs.activePantryIds && specs.activePantryIds.length > 0
@@ -579,7 +591,7 @@ export function resolveCompliantPantry(specs: RiderSpecs): ResolvedCompliantPant
 
   // 4. Post-ride: find active compliant or fallback to first compliant
   const activePostRide = compliantPostRide.find((i) => activeIds.includes(i.id));
-  const postRide = activePostRide || compliantPostRide[0] || DEFAULT_PANTRY_CATALOG[20];
+  const postRide = activePostRide || compliantPostRide[0] || DEFAULT_PANTRY_CATALOG[22] || DEFAULT_PANTRY_CATALOG[20];
 
   return {
     preRide,

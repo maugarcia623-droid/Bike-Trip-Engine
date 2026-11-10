@@ -514,6 +514,20 @@ export const en = {
   itemIncompatibleBadge: "Incompatible with active filters",
   itemCustomBadge: "Custom Item",
 
+  // ── Logistics & Timeline (Phase 5) ──
+  logisticsAnchorLabel: "Timeline Anchor",
+  logisticsArriveBy: "Arrive by",
+  logisticsDepartAt: "Depart at",
+  logisticsRolloutLabel: "Morning Rollout",
+  logisticsFullMeal: "Full Meal (T-45m)",
+  logisticsLightLiquid: "Light Liquid (T-20m)",
+  logisticsFasted: "Fasted (T-15m)",
+  logisticsFridgeOnSite: "Fridge on site",
+  logistics2StageLocker: "2-Stage: Locker + Meal",
+  logisticsSingleArrival: "Single Arrival Meal",
+  logisticsStage1Location: "Stage 1 Location",
+  logisticsStage2Location: "Stage 2 Location",
+
   // ── Configurator Screen ──
   backToFlightDeck: "Back to ride plan",
   createNewProfileHeading: "Create new trip",

@@ -3,7 +3,7 @@ import { TripProfile } from '../../types/trip';
 import { RiderBikeSpecs } from '../../types/specs';
 import { loadRiderBikeSpecs, getActiveBike } from '../../utils/specsStorage';
 import { calculatePhysics } from '../../utils/physics';
-import { calculateReverseTimeline } from '../../utils/timeline';
+import { calculateReverseTimeline, solveTripTimeline } from '../../utils/timeline';
 import { getChipsExtraBufferMinutes } from '../../utils/archetypeChips';
 import { getRealFoodNutritionPlan, addMinutesToTime } from '../../utils/nutrition';
 import { resolveCompliantPantry } from '../../data/pantryCatalog';
@@ -53,16 +53,23 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
       calmSpeedKmH: physicsResult.calmSpeedKmH,
       arriveAtMode: trip.arriveAtMode,
       departureTime: trip.departureTime,
+      movingTimeSeconds: physicsResult.movingTimeSeconds,
+      logistics: trip.ruleSettings,
     }
+  );
+  const solvedTimeline = solveTripTimeline(
+    physicsResult.movingTimeSeconds,
+    trip.customChips || [],
+    trip.ruleSettings
   );
   const breakRoomTime = addMinutesToTime(
     timelineResult.gateArrivalTime,
     (trip.office.lockerRefuelMinutes ?? 10) + (trip.office.showerChangeMinutes ?? 10)
   );
   const nutritionPhases = getRealFoodNutritionPlan(
-    timelineResult.gateArrivalTime,
-    breakRoomTime,
-    timelineResult.hardDepartureTime,
+    solvedTimeline.arrivalTimeHHMM,
+    solvedTimeline.postRideMealWindow?.split(' – ')[0] ?? breakRoomTime,
+    solvedTimeline.departureTimeHHMM,
     lang,
     {
       carbTargetGPerHr: effectiveSpecs.carbTargetGPerHr,
@@ -72,7 +79,11 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
       carbOxidationGramPerHour: physicsResult.carbOxidationGramPerHour,
       totalDays: expeditionTotals?.totalDays || (trip.stages?.length || 1),
       activeChips: trip.customChips || [],
-      compliantPantry: resolveCompliantPantry(effectiveSpecs),
+      compliantPantry: resolveCompliantPantry(effectiveSpecs, {
+        hasDestinationFridge: trip.ruleSettings?.hasDestinationFridge,
+      }),
+      logistics: trip.ruleSettings,
+      solvedTimeline,
     }
   );
 

@@ -1,7 +1,118 @@
-import { RouteParams, OfficeConstraints, WeatherCondition, TimelineStep } from '../types/trip';
+import { RouteParams, OfficeConstraints, WeatherCondition, TimelineStep, LogisticsSettings, PreRideStyle, TimelineAnchorMode } from '../types/trip';
 import { subtractMinutesFromTime, addMinutesToTime } from './nutrition';
 import { loadRiderBikeSpecs } from './specsStorage';
 import { Language, getCurrentLanguage } from '../context/LanguageContext';
+
+export interface SolvedTripTimeline {
+  departureTimeHHMM: string;
+  arrivalTimeHHMM: string;
+  totalTransitMin: number;
+  movingMin: number;
+  dwellMin: number;
+  preRideWindow: string;
+  preRideMealTimeHHMM: string;
+  postRideImmediateWindow?: string;
+  postRideMealWindow?: string;
+  postRideConsolidatedWindow?: string;
+  resolvedDepartureMin: number;
+  resolvedArrivalMin: number;
+}
+
+export function parseHHMM(timeStr: string): number {
+  if (!timeStr || typeof timeStr !== 'string' || !timeStr.includes(':')) {
+    return 8 * 60 + 30; // 08:30 default
+  }
+  const [h, m] = timeStr.split(':').map(Number);
+  const validH = isNaN(h) ? 8 : Math.max(0, Math.min(23, h));
+  const validM = isNaN(m) ? 30 : Math.max(0, Math.min(59, m));
+  return validH * 60 + validM;
+}
+
+export function formatHHMM(totalMinutes: number): string {
+  let min = Math.round(totalMinutes) % 1440;
+  while (min < 0) min += 1440;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+}
+
+export function calculateDwellMinutes(
+  activeChips: string[] = [],
+  logistics?: Partial<LogisticsSettings>
+): number {
+  let dwell = 0;
+  if (activeChips.includes('coffee-stop')) {
+    dwell += logistics?.coffeeDurationMin ?? 15;
+  }
+  if (activeChips.includes('picnic-outing')) {
+    dwell += 45;
+  }
+  if (activeChips.includes('resupply-points')) {
+    dwell += 15;
+  }
+  return dwell;
+}
+
+export function solveTripTimeline(
+  movingSeconds: number,
+  activeChips: string[] = [],
+  logistics?: Partial<LogisticsSettings>
+): SolvedTripTimeline {
+  const dwellMin = calculateDwellMinutes(activeChips, logistics);
+  const movingMin = Math.ceil(Math.max(60, movingSeconds) / 60);
+  const totalTransitMin = movingMin + dwellMin;
+
+  const anchorMode = logistics?.timelineAnchorMode ?? 'arrive-by';
+  const defaultAnchor = anchorMode === 'arrive-by' ? '08:30' : '07:35';
+  const anchorTime = logistics?.anchorTimeHHMM || defaultAnchor;
+
+  let resolvedDepartureMin: number;
+  let resolvedArrivalMin: number;
+
+  if (anchorMode === 'arrive-by') {
+    resolvedArrivalMin = parseHHMM(anchorTime);
+    resolvedDepartureMin = resolvedArrivalMin - totalTransitMin;
+  } else {
+    resolvedDepartureMin = parseHHMM(anchorTime);
+    resolvedArrivalMin = resolvedDepartureMin + totalTransitMin;
+  }
+
+  const departureTimeHHMM = formatHHMM(resolvedDepartureMin);
+  const arrivalTimeHHMM = formatHHMM(resolvedArrivalMin);
+
+  const preStyle = logistics?.preRideStyle ?? 'full-breakfast';
+  const preBufferMin = preStyle === 'full-breakfast' ? 45 : preStyle === 'light-liquid' ? 20 : 15;
+  const preRideMealTimeHHMM = formatHHMM(resolvedDepartureMin - preBufferMin);
+  const preRideWindow = `${preRideMealTimeHHMM} – ${departureTimeHHMM}`;
+
+  const isSplit = Boolean(logistics?.splitPostRideRecovery || activeChips.includes('shower-locker'));
+
+  let postRideImmediateWindow: string | undefined;
+  let postRideMealWindow: string | undefined;
+  let postRideConsolidatedWindow: string | undefined;
+
+  if (isSplit) {
+    postRideImmediateWindow = `${arrivalTimeHHMM} – ${formatHHMM(resolvedArrivalMin + 10)}`;
+    postRideMealWindow = `${formatHHMM(resolvedArrivalMin + 22)} – ${formatHHMM(resolvedArrivalMin + 37)}`;
+  } else {
+    postRideConsolidatedWindow = `${formatHHMM(resolvedArrivalMin + 10)} – ${formatHHMM(resolvedArrivalMin + 30)}`;
+  }
+
+  return {
+    departureTimeHHMM,
+    arrivalTimeHHMM,
+    totalTransitMin,
+    movingMin,
+    dwellMin,
+    preRideWindow,
+    preRideMealTimeHHMM,
+    postRideImmediateWindow,
+    postRideMealWindow,
+    postRideConsolidatedWindow,
+    resolvedDepartureMin,
+    resolvedArrivalMin,
+  };
+}
 
 export interface ReverseTimelineCalculation {
   shiftStartTime: string;
@@ -30,6 +141,8 @@ export function calculateReverseTimeline(
     calmSpeedKmH: number;
     arriveAtMode?: boolean;
     departureTime?: string;
+    movingTimeSeconds?: number;
+    logistics?: LogisticsSettings;
   }
 ): ReverseTimelineCalculation {
   const isFr = lang === 'fr';
@@ -69,18 +182,28 @@ export function calculateReverseTimeline(
   const defaultAnchor = isSport ? '11:00' : isBikepacking ? '18:00' : isEscapade ? '15:00' : '08:30';
   const totalEnRouteMinutes = totalRideMinutes + routeBuffer + arrivalBuffer + extraBufferMinutes;
 
+  // Check if deterministic single-anchor logistics solver is active
+  const hasLogistics = Boolean(physicsSpeedOverride?.logistics);
+  const solved = hasLogistics
+    ? solveTripTimeline(physicsSpeedOverride?.movingTimeSeconds || actualMovingMinutes * 60, customChips, physicsSpeedOverride!.logistics)
+    : null;
+
   // Support both Reverse Chronometry ("Arrive at") and Forward Chronometry ("Depart at")
   const isDepartAtMode =
     physicsSpeedOverride?.arriveAtMode === false && Boolean(physicsSpeedOverride?.departureTime);
 
-  const hardDepartureTime = isDepartAtMode
+  const hardDepartureTime = solved
+    ? solved.departureTimeHHMM
+    : isDepartAtMode
     ? (physicsSpeedOverride!.departureTime as string)
     : subtractMinutesFromTime(
         office.targetGateArrivalTime || office.shiftStartTime || defaultAnchor,
         totalEnRouteMinutes
       );
 
-  const targetArrival = isDepartAtMode
+  const targetArrival = solved
+    ? solved.arrivalTimeHHMM
+    : isDepartAtMode
     ? addMinutesToTime(hardDepartureTime, totalEnRouteMinutes)
     : office.targetGateArrivalTime || office.shiftStartTime || defaultAnchor;
 
@@ -99,7 +222,9 @@ export function calculateReverseTimeline(
 
   // Pre-rollout checkpoints
   const bikePrepTime = subtractMinutesFromTime(hardDepartureTime, 15);
-  const preRideMealTime = subtractMinutesFromTime(hardDepartureTime, 45);
+  const preRideMealTime = solved
+    ? solved.preRideMealTimeHHMM
+    : subtractMinutesFromTime(hardDepartureTime, 45);
   const wakeUpTime = subtractMinutesFromTime(hardDepartureTime, 60);
 
   const destTitle = destinationName || route.destination || 'Destination';

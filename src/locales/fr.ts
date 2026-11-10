@@ -516,6 +516,20 @@ export const fr: TranslationDictionary = {
   itemIncompatibleBadge: "Incompatible avec vos filtres actifs",
   itemCustomBadge: "Aliment personnalisé",
 
+  // ── Logistics & Timeline (Phase 5) ──
+  logisticsAnchorLabel: "Ancrage Horaire",
+  logisticsArriveBy: "Arriver à",
+  logisticsDepartAt: "Partir à",
+  logisticsRolloutLabel: "Format de Départ",
+  logisticsFullMeal: "Repas Complet (T−45m)",
+  logisticsLightLiquid: "Liquide Léger (T−20m)",
+  logisticsFasted: "À Jeun (T−15m)",
+  logisticsFridgeOnSite: "Frigo disponible",
+  logistics2StageLocker: "2 étapes : Vestiaire + Pause",
+  logisticsSingleArrival: "Repas d'Arrivée Unique",
+  logisticsStage1Location: "Lieu Étape 1",
+  logisticsStage2Location: "Lieu Étape 2",
+
   // ── Configurator Screen ──
   backToFlightDeck: "Retour au plan de route",
   createNewProfileHeading: "Créer un nouveau profil de trajet",

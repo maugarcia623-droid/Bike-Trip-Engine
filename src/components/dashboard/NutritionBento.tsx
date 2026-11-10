@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   ForkKnife,
   Compass,
@@ -12,6 +12,9 @@ import {
   Wine,
   Droplets,
   TriangleAlert,
+  Clock,
+  Check,
+  MapPin,
 } from '@/components/icons';
 import { Card } from '../common/Card';
 import { Badge, BadgeVariant } from '../common/Badge';
@@ -23,12 +26,20 @@ import {
   GREYSCALE_TOKENS,
   ChipTheme,
 } from '../../tokens/chipTokens';
-import { TripProfile, PhysicsCalculationResult, NutritionItem } from '../../types/trip';
+import {
+  TripProfile,
+  PhysicsCalculationResult,
+  NutritionItem,
+  LogisticsSettings,
+  PreRideStyle,
+  TimelineAnchorMode,
+} from '../../types/trip';
 import { RiderBikeSpecs, TelemetryMode, formatFuelTarget } from '../../types/specs';
 import { useTranslation } from '../../context/LanguageContext';
 import { getArchetypeFromTag } from '../../utils/archetypeChips';
 import { loadRiderBikeSpecs } from '../../utils/specsStorage';
 import { resolveCompliantPantry } from '../../data/pantryCatalog';
+import { solveTripTimeline, SolvedTripTimeline } from '../../utils/timeline';
 import {
   getRealFoodNutritionPlan,
   calculateDynamicCarbTarget,
@@ -46,6 +57,7 @@ interface NutritionBentoProps {
   physicsResult?: PhysicsCalculationResult;
   riderSpecs?: RiderBikeSpecs;
   onOpenSpecs?: () => void;
+  onUpdateTrip?: (updated: TripProfile) => void;
 }
 
 interface NutritionPhaseSpec {
@@ -78,10 +90,12 @@ function splitIntoBullets(text: string): string[] {
 
 export const NutritionBento: React.FC<NutritionBentoProps> = ({
   trip,
+  hardDepartureTime,
   gateArrivalTime,
   physicsResult,
   riderSpecs: riderSpecsProp,
   onOpenSpecs,
+  onUpdateTrip,
 }) => {
   const { lang, t } = useTranslation();
   const isFr = lang === 'fr';
@@ -90,9 +104,53 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
   const isSport = mode === 'SPORT';
   const isBikepacking = mode === 'BIKEPACKING';
 
+  // Logistics & Single-Anchor Timeline Settings (Phase 5)
+  const [localLogistics, setLocalLogistics] = useState<LogisticsSettings>(() => ({
+    preRideStyle: trip.ruleSettings?.preRideStyle ?? 'full-breakfast',
+    hasDestinationFridge: trip.ruleSettings?.hasDestinationFridge ?? true,
+    splitPostRideRecovery: trip.ruleSettings?.splitPostRideRecovery ?? Boolean(trip.customChips?.includes('shower-locker')),
+    timelineAnchorMode: trip.ruleSettings?.timelineAnchorMode ?? (mode === 'COMMUTE' ? 'arrive-by' : 'depart-at'),
+    anchorTimeHHMM: trip.ruleSettings?.anchorTimeHHMM ?? (mode === 'COMMUTE' ? (gateArrivalTime || trip.office?.targetGateArrivalTime || '08:30') : (hardDepartureTime || trip.departureTime || '07:35')),
+    stage1LocationLabel: trip.ruleSettings?.stage1LocationLabel ?? (isFr ? 'Destination / Vestiaire' : 'Destination / Locker'),
+    stage2LocationLabel: trip.ruleSettings?.stage2LocationLabel ?? (isFr ? 'Salle de Pause / Bureau' : 'Break Room / Workspace'),
+    coffeeDurationMin: trip.ruleSettings?.coffeeDurationMin ?? 15,
+    cafeName: trip.ruleSettings?.cafeName,
+    rationType: trip.ruleSettings?.rationType,
+  }));
+
+  useEffect(() => {
+    setLocalLogistics({
+      preRideStyle: trip.ruleSettings?.preRideStyle ?? 'full-breakfast',
+      hasDestinationFridge: trip.ruleSettings?.hasDestinationFridge ?? true,
+      splitPostRideRecovery: trip.ruleSettings?.splitPostRideRecovery ?? Boolean(trip.customChips?.includes('shower-locker')),
+      timelineAnchorMode: trip.ruleSettings?.timelineAnchorMode ?? (mode === 'COMMUTE' ? 'arrive-by' : 'depart-at'),
+      anchorTimeHHMM: trip.ruleSettings?.anchorTimeHHMM ?? (mode === 'COMMUTE' ? (gateArrivalTime || trip.office?.targetGateArrivalTime || '08:30') : (hardDepartureTime || trip.departureTime || '07:35')),
+      stage1LocationLabel: trip.ruleSettings?.stage1LocationLabel ?? (isFr ? 'Destination / Vestiaire' : 'Destination / Locker'),
+      stage2LocationLabel: trip.ruleSettings?.stage2LocationLabel ?? (isFr ? 'Salle de Pause / Bureau' : 'Break Room / Workspace'),
+      coffeeDurationMin: trip.ruleSettings?.coffeeDurationMin ?? 15,
+      cafeName: trip.ruleSettings?.cafeName,
+      rationType: trip.ruleSettings?.rationType,
+    });
+  }, [trip.id, trip.ruleSettings, mode, gateArrivalTime, hardDepartureTime, isFr]);
+
+  const handleUpdateLogistics = useCallback((partial: Partial<LogisticsSettings>) => {
+    setLocalLogistics((prev) => {
+      const updated = { ...prev, ...partial };
+      if (onUpdateTrip) {
+        onUpdateTrip({
+          ...trip,
+          ruleSettings: {
+            ...trip.ruleSettings,
+            ...updated,
+          },
+        });
+      }
+      return updated;
+    });
+  }, [trip, onUpdateTrip]);
+
   // Reactive rider gut absorption & telemetry philosophy settings
   const riderSpecs = riderSpecsProp || loadRiderBikeSpecs();
-  const compliantPantry = resolveCompliantPantry(riderSpecs);
   const dietaryFilters = riderSpecs.dietaryFilters || [];
   const telemetryMode: TelemetryMode = riderSpecs.telemetryMode ?? 'quantitative';
   const isQuantitative = telemetryMode === 'quantitative';
@@ -139,6 +197,23 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
   );
   const isShortRide = movingMinutes < 45 && totalDays <= 1;
 
+  // Single-Anchor Deterministic Timeline Solver (INP-20 upgrade)
+  const solvedTimeline = useMemo(() => {
+    const movingSecs = physicsResult?.movingTimeSeconds || movingMinutes * 60;
+    return solveTripTimeline(movingSecs, activeChips, localLogistics);
+  }, [physicsResult?.movingTimeSeconds, movingMinutes, activeChips, localLogistics]);
+
+  // Fridge-compliant pantry resolution
+  const compliantPantry = useMemo(
+    () => resolveCompliantPantry(riderSpecs, { hasDestinationFridge: localLogistics.hasDestinationFridge }),
+    [riderSpecs, localLogistics.hasDestinationFridge]
+  );
+
+  const resolvedPostRidePantry =
+    !localLogistics.hasDestinationFridge && compliantPantry.postRide.requiresFridge
+      ? resolveCompliantPantry(riderSpecs, { hasDestinationFridge: false }).postRide
+      : compliantPantry.postRide;
+
   // Intensity-modulated carbohydrate target (EQ-13 upgrade)
   const pctFtp = physicsResult?.ftpPercent ?? 72;
   const powerZoneLabel = physicsResult?.powerZone || 'Z2';
@@ -174,9 +249,9 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
 
   // Fetch structured nutrition plan items with quantitative & portion labels
   const planPhases = getRealFoodNutritionPlan(
-    gateArrivalTime || trip.office?.targetGateArrivalTime || '08:30',
-    trip.office?.shiftStartTime || '09:00',
-    trip.departureTime || '07:35',
+    solvedTimeline.arrivalTimeHHMM,
+    solvedTimeline.postRideMealWindow?.split(' – ')[0] ?? '08:50',
+    solvedTimeline.departureTimeHHMM,
     lang,
     {
       carbTargetGPerHr: carbTarget,
@@ -188,6 +263,8 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       totalDays,
       activeChips,
       compliantPantry,
+      logistics: localLogistics,
+      solvedTimeline,
     }
   );
 
@@ -271,6 +348,190 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           cap: carbTarget,
         })}
       </Badge>
+    );
+  };
+
+  const renderLogisticsControlBar = () => {
+    const updateLogistics = handleUpdateLogistics;
+    const isArriveBy = localLogistics.timelineAnchorMode === 'arrive-by';
+    const activeRollout = localLogistics.preRideStyle;
+
+    return (
+      <div className="rounded-pod bg-pod mb-3 border border-ink/5 dark:border-white/5 p-3 sm:p-3.5 space-y-2.5 transition-colors">
+        {/* Top Row: Anchor Toggle & Time Input & Live Timeline Summary */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="inline-flex items-center rounded-sub-pod bg-card p-0.5 border border-ink/5 dark:border-white/5 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => updateLogistics({ timelineAnchorMode: 'arrive-by' })}
+                className={`px-2.5 py-1 rounded-sub-pod transition-all cursor-pointer ${
+                  isArriveBy
+                    ? 'bg-ink text-paper dark:bg-white dark:text-ink font-bold shadow-xs'
+                    : 'text-ink-muted hover:text-ink'
+                }`}
+              >
+                {t('logisticsArriveBy')}
+              </button>
+              <button
+                type="button"
+                onClick={() => updateLogistics({ timelineAnchorMode: 'depart-at' })}
+                className={`px-2.5 py-1 rounded-sub-pod transition-all cursor-pointer ${
+                  !isArriveBy
+                    ? 'bg-ink text-paper dark:bg-white dark:text-ink font-bold shadow-xs'
+                    : 'text-ink-muted hover:text-ink'
+                }`}
+              >
+                {t('logisticsDepartAt')}
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1.5 bg-card px-2.5 py-1 rounded-sub-pod border border-ink/5 dark:border-white/5 text-xs font-mono">
+              <Clock className="w-3.5 h-3.5 text-ink-muted shrink-0" />
+              <input
+                type="time"
+                value={localLogistics.anchorTimeHHMM || (isArriveBy ? '08:30' : '07:35')}
+                onChange={(e) => {
+                  if (e.target.value) {
+                    updateLogistics({ anchorTimeHHMM: e.target.value });
+                  }
+                }}
+                className="bg-transparent text-ink font-bold focus:outline-none cursor-pointer"
+                aria-label={t('logisticsAnchorLabel')}
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 text-[11px] text-ink-secondary font-mono flex-wrap">
+            {isArriveBy ? (
+              <Badge variant="zinc" size="sm" className="tnum">
+                {isFr ? 'Départ' : 'Rollout'} <strong className="ml-1 text-ink">{solvedTimeline.departureTimeHHMM}</strong>
+              </Badge>
+            ) : (
+              <Badge variant="zinc" size="sm" className="tnum">
+                {isFr ? 'Arrivée' : 'Arrival'} <strong className="ml-1 text-ink">{solvedTimeline.arrivalTimeHHMM}</strong>
+              </Badge>
+            )}
+            <span className="text-[10px] text-ink-muted">
+              ({solvedTimeline.movingMin}m {isFr ? 'vélo' : 'ride'}{solvedTimeline.dwellMin > 0 ? ` + ${solvedTimeline.dwellMin}m pause` : ''})
+            </span>
+          </div>
+        </div>
+
+        {/* Second Row: Rollout Style & Pre-Ride Window */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-dashed border-ink/10 dark:border-white/10">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mr-1">
+              {t('logisticsRolloutLabel')}:
+            </span>
+            <button
+              type="button"
+              onClick={() => updateLogistics({ preRideStyle: 'full-breakfast' })}
+              className={`px-2 py-0.5 rounded-full text-[11px] font-semibold transition-all cursor-pointer ${
+                activeRollout === 'full-breakfast'
+                  ? 'bg-ink text-paper dark:bg-white dark:text-ink shadow-xs'
+                  : 'bg-card text-ink-secondary border border-ink/5 dark:border-white/5 hover:border-ink/20'
+              }`}
+            >
+              {t('logisticsFullMeal')}
+            </button>
+            <button
+              type="button"
+              onClick={() => updateLogistics({ preRideStyle: 'light-liquid' })}
+              className={`px-2 py-0.5 rounded-full text-[11px] font-semibold transition-all cursor-pointer ${
+                activeRollout === 'light-liquid'
+                  ? 'bg-ink text-paper dark:bg-white dark:text-ink shadow-xs'
+                  : 'bg-card text-ink-secondary border border-ink/5 dark:border-white/5 hover:border-ink/20'
+              }`}
+            >
+              {t('logisticsLightLiquid')}
+            </button>
+            <button
+              type="button"
+              onClick={() => updateLogistics({ preRideStyle: 'fasted-rollout' })}
+              className={`px-2 py-0.5 rounded-full text-[11px] font-semibold transition-all cursor-pointer ${
+                activeRollout === 'fasted-rollout'
+                  ? 'bg-ink text-paper dark:bg-white dark:text-ink shadow-xs'
+                  : 'bg-card text-ink-secondary border border-ink/5 dark:border-white/5 hover:border-ink/20'
+              }`}
+            >
+              {t('logisticsFasted')}
+            </button>
+          </div>
+
+          <div className="text-[11px] font-mono text-ink-muted">
+            <span className="text-[10px] uppercase mr-1">{isFr ? 'Créneau :' : 'Window:'}</span>
+            <span className="font-semibold text-ink">{solvedTimeline.preRideWindow}</span>
+          </div>
+        </div>
+
+        {/* Third Row: Destination Logistics (Fridge & Split Recovery & Locations) */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-dashed border-ink/10 dark:border-white/10">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Fridge Toggle */}
+            <button
+              type="button"
+              onClick={() => updateLogistics({ hasDestinationFridge: !localLogistics.hasDestinationFridge })}
+              className={`px-2.5 py-1 rounded-sub-pod text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${
+                localLogistics.hasDestinationFridge
+                  ? 'bg-emerald/10 text-emerald-800 dark:text-emerald-300 border-emerald/30'
+                  : 'bg-card text-ink-muted border-ink/10 dark:border-white/10'
+              }`}
+            >
+              <span>{localLogistics.hasDestinationFridge ? '❄️' : '🧊'}</span>
+              <span>{t('logisticsFridgeOnSite')}</span>
+              {localLogistics.hasDestinationFridge && <Check className="w-3 h-3 ml-0.5" />}
+            </button>
+
+            {/* Split Recovery vs Single Meal Toggle */}
+            <button
+              type="button"
+              onClick={() => updateLogistics({ splitPostRideRecovery: !localLogistics.splitPostRideRecovery })}
+              className={`px-2.5 py-1 rounded-sub-pod text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${
+                localLogistics.splitPostRideRecovery
+                  ? 'bg-amber/10 text-amber-800 dark:text-amber-300 border-amber/30'
+                  : 'bg-card text-ink-muted border-ink/10 dark:border-white/10'
+              }`}
+            >
+              <span>{localLogistics.splitPostRideRecovery ? '🚿' : '🍽️'}</span>
+              <span>
+                {localLogistics.splitPostRideRecovery
+                  ? t('logistics2StageLocker')
+                  : t('logisticsSingleArrival')}
+              </span>
+            </button>
+          </div>
+
+          {/* Location inputs */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="flex items-center gap-1 bg-card px-2 py-0.5 rounded-sub-pod border border-ink/5 dark:border-white/5 text-[11px]">
+              <MapPin className="w-3 h-3 text-ink-muted shrink-0" />
+              <input
+                type="text"
+                value={localLogistics.stage1LocationLabel ?? ''}
+                placeholder={isFr ? 'Lieu Arrivée' : 'Stage 1 Location'}
+                onChange={(e) => updateLogistics({ stage1LocationLabel: e.target.value })}
+                className="bg-transparent text-ink placeholder:text-ink-muted w-28 sm:w-36 focus:outline-none"
+                title={t('logisticsStage1Location')}
+              />
+            </div>
+
+            {localLogistics.splitPostRideRecovery && (
+              <div className="flex items-center gap-1 bg-card px-2 py-0.5 rounded-sub-pod border border-ink/5 dark:border-white/5 text-[11px]">
+                <MapPin className="w-3 h-3 text-ink-muted shrink-0" />
+                <input
+                  type="text"
+                  value={localLogistics.stage2LocationLabel ?? ''}
+                  placeholder={isFr ? 'Lieu Étape 2' : 'Stage 2 Location'}
+                  onChange={(e) => updateLogistics({ stage2LocationLabel: e.target.value })}
+                  className="bg-transparent text-ink placeholder:text-ink-muted w-28 sm:w-36 focus:outline-none"
+                  title={t('logisticsStage2Location')}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     );
   };
 
@@ -615,6 +876,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           </div>
         }
       >
+        {renderLogisticsControlBar()}
         {renderExpeditionManifest()}
         {renderPhaseAccordion(intuitivePhases)}
       </Card>
@@ -683,6 +945,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           </div>
         }
       >
+        {renderLogisticsControlBar()}
         {renderExpeditionManifest()}
         {renderPhaseAccordion(shortPhases)}
 
@@ -817,6 +1080,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           </div>
         }
       >
+        {renderLogisticsControlBar()}
         {renderExpeditionManifest()}
         {renderPhaseAccordion(sportPhases)}
       </Card>
@@ -956,6 +1220,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           </div>
         }
       >
+        {renderLogisticsControlBar()}
         {renderExpeditionManifest()}
         {renderPhaseAccordion(bpPhases)}
       </Card>
@@ -1095,23 +1360,27 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           </div>
         }
       >
+        {renderLogisticsControlBar()}
         {renderExpeditionManifest()}
         {renderPhaseAccordion(escPhases)}
       </Card>
     );
   }
 
-  // 4. VÉLOTAF / COMMUTE DEFAULT PROTOCOL (4 Meal Phases with Real Food Items)
+  // 4. VÉLOTAF / COMMUTE DEFAULT PROTOCOL (Real Food Items with Dynamic Macros & Logistics)
   const isCoffee = activeChips.includes('coffee-stop');
   const isTempo = activeChips.includes('fitness-boost');
   const isShower = activeChips.includes('shower-locker');
-  const resolvedLockerTime = gateArrivalTime || trip.office.targetGateArrivalTime || '08:30';
   const customCafeName = trip.ruleSettings?.cafeName ? String(trip.ruleSettings.cafeName) : '';
   const customRation = trip.ruleSettings?.rationType ? String(trip.ruleSettings.rationType) : '';
 
-  const preRideItems = planPhases.find((p) => p.phaseId === 'pre-ride')?.items;
-  const lockerItems = planPhases.find((p) => p.phaseId === 'locker-refuel')?.items;
-  const breakRoomItems = planPhases.find((p) => p.phaseId === 'break-room')?.items;
+  const preRideItems = planPhases.find((p) => p.phaseId === 'pre-ride')?.items || [];
+  const p1Kcal = preRideItems.reduce((s, it) => s + it.kcals, 0);
+  const p1Carbs = preRideItems.reduce((s, it) => s + it.carbsGrams, 0);
+  const p1Protein = preRideItems.reduce((s, it) => s + it.proteinGrams, 0);
+
+  const stage1Loc = localLogistics.stage1LocationLabel || (isFr ? 'Destination / Vestiaire' : 'Destination / Locker');
+  const stage2Loc = localLogistics.stage2LocationLabel || (isFr ? 'Salle de Pause / Espace Bureau' : 'Break Room / Workspace');
 
   const commutePhases: NutritionPhaseSpec[] = [
     {
@@ -1119,17 +1388,45 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       icon: Coffee,
       theme: 'amber',
       stageLabel: isFr ? 'Avant de partir' : 'Before you ride',
-      timingLabel: '−45 min',
+      timingLabel: solvedTimeline.preRideWindow,
       timingVariant: 'zinc',
       macroHeadline: isQuantitative
-        ? `~${compliantPantry.preRide.kcal} kcal · ${isFr ? compliantPantry.preRide.nameFr : compliantPantry.preRide.nameEn}`
+        ? `~${p1Kcal} kcal · ${p1Carbs}g C, ${p1Protein}g P`
+        : isFuelFirst
+        ? p1Carbs > 0
+          ? formatFuelTarget(p1Carbs, 'fuel-first', lang)
+          : isFr
+          ? 'Hydratation seule'
+          : 'Hydration only'
         : isFr
-        ? compliantPantry.preRide.portionLabelFr
-        : compliantPantry.preRide.portionLabelEn,
+        ? 'Repas digeste au calme'
+        : 'Digestible morning meal',
       macroIcon: isQuantitative ? Flame : Coffee,
       macroTheme: 'amber',
-      title: t('nutriCom1Title'),
-      body: t('nutriCom1Body'),
+      title:
+        localLogistics.preRideStyle === 'fasted-rollout'
+          ? isFr
+            ? 'Départ à Jeun & Hydratation'
+            : 'Fasted Rollout & Hydration'
+          : localLogistics.preRideStyle === 'light-liquid'
+          ? isFr
+            ? 'Collation Liquide Rapide (T-20m)'
+            : 'Light Liquid Primer (T-20m)'
+          : isFr
+          ? 'Petit-Déjeuner Avant Départ'
+          : 'Breakfast Before You Ride',
+      body:
+        localLogistics.preRideStyle === 'fasted-rollout'
+          ? isFr
+            ? 'Double expresso et hydratation à l’eau de source avec pincée de sel minéral 15 minutes avant le départ. Zéro glucides solides, stimulation douce de l’oxydation des graisses.'
+            : 'Double espresso and spring water with trace mineral salt 15 minutes before rollout. Zero solid calories, gentle stimulation of fat oxidation.'
+          : localLogistics.preRideStyle === 'light-liquid'
+          ? isFr
+            ? 'Pur jus pressé ou boisson légère (250 ml), double expresso et eau minérale 20 minutes avant le départ. Assimilation cellulaire ultra-rapide sans surcharge gastrique.'
+            : 'Pure pressed juice or light carbohydrate primer (250ml), double espresso and spring water 20 minutes before rollout. Rapid cellular uptake with zero stomach heaviness.'
+          : isFr
+          ? `${compliantPantry.preRide.nameFr}, double expresso et grand verre d’eau avec pincée de sel 45 minutes avant le départ pour stabiliser la glycémie.`
+          : `${compliantPantry.preRide.nameEn}, double espresso and tall glass of water with mineral salt 45 minutes before rollout for stable morning blood glucose.`,
       items: preRideItems,
     },
     {
@@ -1145,7 +1442,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         ? isFr
           ? 'Boost Tempo'
           : 'Tempo Fuel'
-        : t('nutriCom2Badge'),
+        : `${solvedTimeline.departureTimeHHMM} – ${solvedTimeline.arrivalTimeHHMM}`,
       timingVariant: isCoffee ? 'amber' : 'lime',
       macroHeadline:
         isCoffee && isQuantitative
@@ -1168,8 +1465,8 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       body: isCoffee
         ? customRation
           ? isFr
-            ? `Collation planifiée (${trip.ruleSettings?.coffeeDurationMin ?? 15} min) : ${customRation}.`
-            : `Scheduled coffee pause (${trip.ruleSettings?.coffeeDurationMin ?? 15} min): ${customRation}.`
+            ? `Collation planifiée (${localLogistics.coffeeDurationMin ?? 15} min) : ${customRation}.`
+            : `Scheduled coffee pause (${localLogistics.coffeeDurationMin ?? 15} min): ${customRation}.`
           : isFr
           ? dietaryFilters.includes('nut-free') && dietaryFilters.includes('gluten-free')
             ? 'Double expresso fraîchement extrait + collation moelleuse artisanale sans gluten ni fruits à coque.'
@@ -1192,55 +1489,104 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         : t('nutriCom2Body'),
       items: onBikeItems,
     },
-    {
-      id: 'com-3',
-      icon: Package,
-      theme: 'yellow-vest',
-      stageLabel: isFr ? 'Au travail · Vestiaire' : 'At work · Locker room',
-      timingLabel: isShower
-        ? isFr
-          ? `Vestiaire ${resolvedLockerTime}`
-          : `Locker room ${resolvedLockerTime}`
-        : t('nutriCom3Badge'),
-      timingVariant: 'yellow-vest',
-      macroHeadline: isQuantitative
-        ? `${compliantPantry.postRide.proteinG}g protein · ~${compliantPantry.postRide.kcal} kcal`
-        : isFr
-        ? compliantPantry.postRide.portionLabelFr
-        : compliantPantry.postRide.portionLabelEn,
-      macroIcon: isQuantitative ? Flame : Package,
-      macroTheme: 'yellow-vest',
-      title: isShower
-        ? isFr
-          ? 'Collation Protéinée au Vestiaire'
-          : 'Immediate Locker Room Protein Window'
-        : t('nutriCom3Title'),
-      body: isShower
-        ? isFr
-          ? `${compliantPantry.postRide.nameFr} consommé dès l’arrivée au vestiaire avant la douche chaude (zéro poudre).`
-          : `${compliantPantry.postRide.nameEn} consumed immediately upon arriving at the locker room before hot shower (zero powders).`
-        : t('nutriCom3Body'),
-      items: lockerItems,
-    },
-    {
-      id: 'com-4',
+  ];
+
+  if (localLogistics.splitPostRideRecovery) {
+    const lockerItems = planPhases.find((p) => p.phaseId === 'locker-refuel')?.items || [];
+    const p3Kcal = lockerItems.reduce((s, it) => s + it.kcals, 0);
+    const p3Carbs = lockerItems.reduce((s, it) => s + it.carbsGrams, 0);
+    const p3Protein = lockerItems.reduce((s, it) => s + it.proteinGrams, 0);
+
+    const breakRoomItems = planPhases.find((p) => p.phaseId === 'break-room')?.items || [];
+    const p4Kcal = breakRoomItems.reduce((s, it) => s + it.kcals, 0);
+    const p4Carbs = breakRoomItems.reduce((s, it) => s + it.carbsGrams, 0);
+    const p4Protein = breakRoomItems.reduce((s, it) => s + it.proteinGrams, 0);
+
+    commutePhases.push(
+      {
+        id: 'com-3',
+        icon: Package,
+        theme: 'yellow-vest',
+        stageLabel: stage1Loc,
+        timingLabel: solvedTimeline.postRideImmediateWindow || '08:30 – 08:40',
+        timingVariant: 'yellow-vest',
+        macroHeadline: isQuantitative
+          ? `~${p3Kcal} kcal · ${p3Carbs}g C, ${p3Protein}g P`
+          : isFuelFirst
+          ? formatFuelTarget(p3Carbs, 'fuel-first', lang)
+          : isFr
+          ? resolvedPostRidePantry.portionLabelFr
+          : resolvedPostRidePantry.portionLabelEn,
+        macroIcon: isQuantitative ? Flame : Package,
+        macroTheme: 'yellow-vest',
+        title: isShower
+          ? isFr
+            ? `Collation Protéinée (${stage1Loc})`
+            : `Immediate Protein Window (${stage1Loc})`
+          : isFr
+          ? `Collation de Récupération (${stage1Loc})`
+          : `Immediate Recovery Snack (${stage1Loc})`,
+        body: isFr
+          ? `${resolvedPostRidePantry.nameFr} consommé dès l’arrivée (${stage1Loc}) pour recharger les réserves et favoriser la régénération musculaire.`
+          : `${resolvedPostRidePantry.nameEn} consumed upon arrival (${stage1Loc}) to replenish glycogen and support muscular recovery.`,
+        items: lockerItems,
+      },
+      {
+        id: 'com-4',
+        icon: ForkKnife,
+        theme: 'emerald',
+        stageLabel: stage2Loc,
+        timingLabel: solvedTimeline.postRideMealWindow || '08:50 – 09:05',
+        timingVariant: 'emerald',
+        macroHeadline: isQuantitative
+          ? `~${p4Kcal} kcal · ${p4Carbs}g C, ${p4Protein}g P`
+          : isFuelFirst
+          ? formatFuelTarget(p4Carbs, 'fuel-first', lang)
+          : isFr
+          ? 'Collation repas au bureau'
+          : 'Seated workplace breakfast',
+        macroIcon: isQuantitative ? Flame : ForkKnife,
+        macroTheme: 'emerald',
+        title: isFr
+          ? `Repas & Café du Matin (${stage2Loc})`
+          : `Morning Meal & Coffee (${stage2Loc})`,
+        body: isFr
+          ? 'Repas complet et équilibré au calme : flocons d’avoine, fruit frais, oléagineux, sandwich frais et café chaud pour une énergie stable tout au long de la matinée.'
+          : 'Complete balanced seated meal: overnight oats, fresh fruit, nuts or seeds, fresh sandwich, and warm coffee for sustained morning focus.',
+        items: breakRoomItems,
+      }
+    );
+  } else {
+    const arrivalItems = planPhases.find((p) => p.phaseId === 'arrival-recovery')?.items || [];
+    const arrKcal = arrivalItems.reduce((s, it) => s + it.kcals, 0);
+    const arrCarbs = arrivalItems.reduce((s, it) => s + it.carbsGrams, 0);
+    const arrProtein = arrivalItems.reduce((s, it) => s + it.proteinGrams, 0);
+
+    commutePhases.push({
+      id: 'com-arrival',
       icon: ForkKnife,
       theme: 'emerald',
-      stageLabel: isFr ? 'Au travail · Collation bureau' : 'At work · Desk snack',
-      timingLabel: t('nutriCom4Badge'),
+      stageLabel: stage1Loc,
+      timingLabel: solvedTimeline.postRideConsolidatedWindow || '08:40 – 09:00',
       timingVariant: 'emerald',
       macroHeadline: isQuantitative
-        ? '~420 kcal · Overnight oats'
+        ? `~${arrKcal} kcal · ${arrCarbs}g C, ${arrProtein}g P`
+        : isFuelFirst
+        ? formatFuelTarget(arrCarbs, 'fuel-first', lang)
         : isFr
-        ? '1 bocal avoine & 1/2 sandwich'
-        : '1 jar oats & 1/2 sandwich',
+        ? 'Repas de récupération complet'
+        : 'Consolidated recovery meal',
       macroIcon: isQuantitative ? Flame : ForkKnife,
       macroTheme: 'emerald',
-      title: t('nutriCom4Title'),
-      body: t('nutriCom4Body'),
-      items: breakRoomItems,
-    },
-  ];
+      title: isFr
+        ? `Repas Récupérateur d’Arrivée (${stage1Loc})`
+        : `Arrival Recovery Meal (${stage1Loc})`,
+      body: isFr
+        ? `Repas complet regroupant votre collation (${resolvedPostRidePantry.nameFr}), sandwich frais, fruit de saison, graines et café chaud pour reconstituer vos réserves en une seule fois.`
+        : `Consolidated recovery meal combining your post-ride portion (${resolvedPostRidePantry.nameEn}), fresh sandwich, seasonal fruit, seeds, and warm coffee to replenish all reserves at once.`,
+      items: arrivalItems,
+    });
+  }
 
   return (
     <Card
@@ -1267,6 +1613,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         </div>
       }
     >
+      {renderLogisticsControlBar()}
       {renderExpeditionManifest()}
       {renderPhaseAccordion(commutePhases)}
     </Card>

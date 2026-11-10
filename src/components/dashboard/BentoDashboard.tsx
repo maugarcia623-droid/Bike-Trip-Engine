@@ -150,6 +150,8 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
       calmSpeedKmH: physicsResult.calmSpeedKmH,
       arriveAtMode: trip.arriveAtMode,
       departureTime: trip.departureTime,
+      movingTimeSeconds: physicsResult.movingTimeSeconds,
+      logistics: trip.ruleSettings,
     }
   );
   const meta = getLocalizedTripMeta(trip, lang);
@@ -349,6 +351,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
                 physicsResult={physicsResult}
                 riderSpecs={effectiveSpecs}
                 onOpenSpecs={onOpenSpecs}
+                onUpdateTrip={onUpdateTrip}
               />
             </div>
           </div>
@@ -417,6 +420,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
               physicsResult={physicsResult}
               riderSpecs={effectiveSpecs}
               onOpenSpecs={onOpenSpecs}
+              onUpdateTrip={onUpdateTrip}
             />
           </div>
 

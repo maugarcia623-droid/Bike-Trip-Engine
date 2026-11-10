@@ -20,6 +20,7 @@ export interface PantryItem {
   kcal: number;
   flavor: FlavorProfile;
   compliance: Record<DietaryFilter, boolean>;
+  requiresFridge?: boolean;
   isCustom?: boolean;
 }
 

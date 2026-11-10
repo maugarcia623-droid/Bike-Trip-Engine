@@ -104,7 +104,7 @@ export interface NutritionItem {
 }
 
 export interface NutritionPhase {
-  phaseId: 'pre-ride' | 'on-bike' | 'locker-refuel' | 'break-room';
+  phaseId: 'pre-ride' | 'on-bike' | 'locker-refuel' | 'break-room' | 'arrival-recovery';
   title: string;
   timeWindow: string;
   location: string;
@@ -146,6 +146,23 @@ export interface TripStage {
   pinnedAmenities?: StageAmenity[];
 }
 
+export type PreRideStyle = 'full-breakfast' | 'light-liquid' | 'fasted-rollout';
+export type TimelineAnchorMode = 'arrive-by' | 'depart-at';
+
+export interface LogisticsSettings {
+  preRideStyle?: PreRideStyle;           // default: 'full-breakfast'
+  hasDestinationFridge?: boolean;        // default: true
+  splitPostRideRecovery?: boolean;       // default: false (single arrival meal unless user enables 2-stage locker + breakroom)
+  timelineAnchorMode?: TimelineAnchorMode; // default: 'arrive-by' for COMMUTE, 'depart-at' for SPORT/BIKEPACKING/ESCAPADE
+  anchorTimeHHMM?: string;               // default: '08:30' when 'arrive-by', '07:35' when 'depart-at'
+  stage1LocationLabel?: string;         // default: "Destination / Locker" (replaces hardcoded "Basement Locker Bay (Post-Gate 17)")
+  stage2LocationLabel?: string;         // default: "Break Room / Workspace" (replaces hardcoded "3rd Floor Dedicated Break Room")
+  coffeeDurationMin?: number;           // default: 15
+  cafeName?: string;
+  rationType?: string;
+  [key: string]: any;
+}
+
 export interface TripProfile {
   departureDate?: string;
   departureTime?: string;
@@ -161,7 +178,7 @@ export interface TripProfile {
   weather: WeatherCondition;
   checklist: ChecklistItem[];
   customChips?: string[];
-  ruleSettings?: Record<string, any>;
+  ruleSettings?: LogisticsSettings;
   arriveAtMode?: boolean;
   stages?: TripStage[];
   activeStageIndex?: number;
