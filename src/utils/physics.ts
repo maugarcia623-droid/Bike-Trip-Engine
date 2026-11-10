@@ -79,8 +79,11 @@ export function calculatePhysics(
   // Resolve effective rider baselines (body-neutral mode safe)
   const configuredSpecs = loadRiderBikeSpecs();
   const effectiveSpecs = getEffectiveRiderSpecs(configuredSpecs);
+  // In body-neutral modes the trip snapshot may still carry a previously entered weight;
+  // always defer to the effective (baseline or opted-in) value there.
+  const isBodyNeutral = (configuredSpecs.telemetryMode ?? 'quantitative') !== 'quantitative';
   const effectiveRiderKg =
-    typeof riderWeightKg === 'number' && riderWeightKg > 25
+    !isBodyNeutral && typeof riderWeightKg === 'number' && riderWeightKg > 25
       ? riderWeightKg
       : effectiveSpecs.riderWeightKg;
 
@@ -93,8 +96,13 @@ export function calculatePhysics(
   const sinTheta = Math.sin(Math.atan(gradeFraction));
   const effectiveRho = weather.airDensityRho ?? rho ?? 1.225;
 
-  // Resolve rider FTP baseline
-  const ftpWatts = Math.max(80, Math.round(ftpOverride || effectiveSpecs.ftpWatts || 210));
+  // Resolve rider FTP baseline. Callers pass the stored FTP as an override, so it is routed
+  // through the same body-neutral guard (Phase 2 §1): 'feel' pacing in non-quantitative modes
+  // must use the riderLevel baseline instead of a stale or default stored value.
+  const guardedFtp = ftpOverride
+    ? getEffectiveRiderSpecs({ ...configuredSpecs, ftpWatts: ftpOverride }).ftpWatts
+    : effectiveSpecs.ftpWatts;
+  const ftpWatts = Math.max(80, Math.round(guardedFtp || 210));
 
   // 2. Calm Baseline at Target Cruising Speed
   const targetSpeedKmH = Math.max(5, route.targetSpeedKmH || 25);

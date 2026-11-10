@@ -104,6 +104,10 @@ export interface NutritionItem {
   quantitativeLabel?: string;
   portionLabel?: string;
   isSavoryReset?: boolean;
+  /** Marks the on-bike bottle plan item (liquid carbs + water bottles) */
+  isLiquid?: boolean;
+  /** Discrete fuel units (snacks / carb bottles) this item represents, for Fuel-First counts */
+  unitCount?: number;
 }
 
 export interface NutritionPhase {
@@ -313,6 +317,9 @@ export function generateTripChecklist(
   const carbTarget = options?.carbTargetGPerHr ?? 60;
   const nutritionPref = options?.nutritionPreference ?? 'real-food';
   const storedSpecs = loadRiderBikeSpecs();
+  const isQuant = (storedSpecs.telemetryMode ?? 'quantitative') === 'quantitative';
+  const isFuelFirst = storedSpecs.telemetryMode === 'fuel-first';
+  const fuelUnitsPerHr = Math.max(1, Math.round(carbTarget / 20));
   const bidonSizeMl = options?.bidonSizeMl ?? storedSpecs.bidonSizeMl ?? 650;
   const frameBottleSlots = options?.frameBottleSlots ?? storedSpecs.frameBottleSlots ?? 2;
   const rideHours = options?.rideHours ?? Math.max(0.25, distanceKm / 25);
@@ -327,9 +334,13 @@ export function generateTripChecklist(
   });
   const hydrationChecklistLabel =
     hydrationPlan.plannedRefillBidons === 0
-      ? isFr
-        ? `${hydrationPlan.carriedOnFrameBidons}x bidon(s) de ${bidonSizeMl} ml sur le vélo (${hydrationPlan.totalFluidNeedMl} ml cible)`
-        : `${hydrationPlan.carriedOnFrameBidons}x ${bidonSizeMl}ml bidon(s) on bike (${hydrationPlan.totalFluidNeedMl}ml target)`
+      ? isQuant
+        ? isFr
+          ? `${hydrationPlan.carriedOnFrameBidons}x bidon(s) de ${bidonSizeMl} ml sur le vélo (${hydrationPlan.totalFluidNeedMl} ml cible)`
+          : `${hydrationPlan.carriedOnFrameBidons}x ${bidonSizeMl}ml bidon(s) on bike (${hydrationPlan.totalFluidNeedMl}ml target)`
+        : isFr
+        ? `${hydrationPlan.carriedOnFrameBidons}x bidon(s) de ${bidonSizeMl} ml sur le vélo`
+        : `${hydrationPlan.carriedOnFrameBidons}x ${bidonSizeMl}ml bidon(s) on bike`
       : isFr
       ? `${hydrationPlan.carriedOnFrameBidons}x bidon(s) de ${bidonSizeMl} ml sur cadre + ${hydrationPlan.plannedRefillBidons} recharge(s) prévue(s) en route`
       : `${hydrationPlan.carriedOnFrameBidons}x ${bidonSizeMl}ml bidon(s) on frame + ${hydrationPlan.plannedRefillBidons} planned refill(s) en route`;
@@ -422,12 +433,28 @@ export function generateTripChecklist(
         id: "sport-fuel",
         label:
           nutritionPref === 'real-food'
+            ? isQuant
+              ? isFr
+                ? `Ravito aliments vrais (~${carbTarget}g/h : dattes, pâtes de fruits) & bidons électrolytes`
+                : `Whole-food ride fuel (~${carbTarget}g/hr: dates, fruit chews) & electrolyte bidons`
+              : isFuelFirst
+              ? isFr
+                ? `Ravito aliments vrais (~${fuelUnitsPerHr} unités/h : dattes, pâtes de fruits) & bidons électrolytes`
+                : `Whole-food ride fuel (~${fuelUnitsPerHr} fuel units/hr: dates, fruit chews) & electrolyte bidons`
+              : isFr
+              ? `Ravito aliments vrais (dattes, pâtes de fruits) & bidons électrolytes`
+              : `Whole-food ride fuel (dates, fruit chews) & electrolyte bidons`
+            : isQuant
             ? isFr
-              ? `Ravito aliments vrais (~${carbTarget}g/h : dattes, pâtes de fruits) & bidons isotoniques`
-              : `Whole-food ride fuel (~${carbTarget}g/hr: dates, fruit chews) & electrolyte bidons`
+              ? `Boisson glucidique en bidons (~${carbTarget}g/h) & gels ravito`
+              : `Carb mix in bottles (~${carbTarget}g/hr) & energy gels`
+            : isFuelFirst
+            ? isFr
+              ? `Boisson glucidique en bidons (~${fuelUnitsPerHr} unités/h) & collations rapides`
+              : `Hydration drink in bottles (~${fuelUnitsPerHr} fuel units/hr) & pocket snacks`
             : isFr
-            ? `Boisson glucidique en bidons (~${carbTarget}g/h) & gels ravito`
-            : `Carb mix in bottles (~${carbTarget}g/hr) & energy gels`,
+            ? `Boisson en bidons & collations de poche`
+            : `Hydration bottles & pocket snacks`,
         checked: false,
         category: "nutrition",
         critical: true,

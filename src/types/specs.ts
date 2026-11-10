@@ -156,11 +156,19 @@ export function getEffectiveRiderSpecs(specs: RiderSpecs): RiderSpecs {
     };
   }
 
-  // Body-neutral baseline mapping for 'fuel-first' and 'intuitive'
+  // Body-neutral baseline mapping for 'fuel-first' and 'intuitive'.
+  // Riders who opted into power pacing may have entered a weight for W/kg (Phase 1 §6); keep it.
+  const optedInWeight =
+    pacingMode === 'power' &&
+    typeof specs.riderWeightKg === 'number' &&
+    Number.isFinite(specs.riderWeightKg) &&
+    specs.riderWeightKg > 25
+      ? specs.riderWeightKg
+      : 68;
   return {
     ...specs,
     telemetryMode: mode,
-    riderWeightKg: 68,
+    riderWeightKg: optedInWeight,
     ftpWatts: effectiveFtp,
     carbTargetGPerHr: mode === 'intuitive' ? 60 : (specs.carbTargetGPerHr ?? 60),
     bidonSizeMl: specs.bidonSizeMl ?? 650,
@@ -189,7 +197,7 @@ export function formatFuelTarget(
   switch (mode) {
     case 'fuel-first': {
       const units = Math.max(1, Math.round(grams / 20));
-      return isFr ? `${units} ${units > 1 ? 'unités de ravito' : 'unité de ravito'}` : `${units} fuel units`;
+      return isFr ? `${units} ${units > 1 ? 'unités de ravito' : 'unité de ravito'}` : `${units} fuel unit${units > 1 ? 's' : ''}`;
     }
     case 'intuitive':
       return isFr ? 'Rythme de ravito régulier' : 'Steady fueling rhythm';

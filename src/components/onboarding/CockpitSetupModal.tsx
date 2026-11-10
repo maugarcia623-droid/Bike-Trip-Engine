@@ -10,7 +10,7 @@ import {
   Sparkle,
 } from '@/components/icons';
 import { RiderBikeSpecs, TelemetryMode, PacingInputMode } from '../../types/specs';
-import { saveRiderBikeSpecs } from '../../utils/specsStorage';
+import { saveRiderBikeSpecs, hasSavedRiderBikeSpecs } from '../../utils/specsStorage';
 import { useTranslation } from '../../context/LanguageContext';
 import { IconBadge } from '../common/IconBadge';
 import { Badge } from '../common/Badge';
@@ -29,6 +29,15 @@ export interface CockpitSetupModalProps {
   onSave: (updated: RiderBikeSpecs) => void;
 }
 
+/**
+ * First-run users get 'fuel-first' pre-selected (Phase 1 §6). Returning riders who
+ * reopen Calibration keep their saved mode so a pacing-only edit never resets it.
+ */
+function resolveInitialTelemetryMode(specs: RiderBikeSpecs): TelemetryMode {
+  if (hasSavedRiderBikeSpecs() && specs.telemetryMode) return specs.telemetryMode;
+  return 'fuel-first';
+}
+
 export const CockpitSetupModal: React.FC<CockpitSetupModalProps> = ({
   isOpen,
   onClose,
@@ -43,9 +52,7 @@ export const CockpitSetupModal: React.FC<CockpitSetupModalProps> = ({
   );
   // Default to 'fuel-first' as the pre-selected default per brief specification
   const [telemetryMode, setTelemetryMode] = useState<TelemetryMode>(
-    specs.telemetryMode && specs.telemetryMode !== 'quantitative'
-      ? specs.telemetryMode
-      : 'fuel-first'
+    resolveInitialTelemetryMode(specs)
   );
 
   const [ftpWatts, setFtpWatts] = useState<number>(specs.ftpWatts || 210);
@@ -56,9 +63,7 @@ export const CockpitSetupModal: React.FC<CockpitSetupModalProps> = ({
     if (isOpen) {
       setPacingMode(specs.pacingInputMode ?? 'feel');
       setTelemetryMode(
-        specs.telemetryMode && specs.telemetryMode !== 'quantitative'
-          ? specs.telemetryMode
-          : 'fuel-first'
+        resolveInitialTelemetryMode(specs)
       );
       setFtpWatts(specs.ftpWatts || 210);
       setRiderWeightKg(specs.riderWeightKg || 68);
@@ -77,7 +82,7 @@ export const CockpitSetupModal: React.FC<CockpitSetupModalProps> = ({
         pacingMode === 'power' && showWeightInput
           ? riderWeightKg
           : specs.riderWeightKg || 68,
-      carbTargetGPerHr: telemetryMode === 'intuitive' ? 60 : specs.carbTargetGPerHr || 60,
+      carbTargetGPerHr: specs.carbTargetGPerHr || 60,
     };
 
     saveRiderBikeSpecs(updated);
@@ -224,7 +229,7 @@ export const CockpitSetupModal: React.FC<CockpitSetupModalProps> = ({
                       step="5"
                       value={ftpWatts}
                       onChange={(e) => setFtpWatts(parseInt(e.target.value, 10) || 210)}
-                      className="w-16 h-8 text-center text-sm font-mono font-bold rounded-lg bg-pod border border-ink/10 dark:border-white/10 text-ink focus:outline-none"
+                      className="w-16 h-8 text-center text-base sm:text-sm font-mono font-bold tnum rounded-lg bg-pod border border-ink/10 dark:border-white/10 text-ink focus:outline-none"
                     />
                     <span className="text-xs font-mono text-ink-muted">W</span>
                   </div>
@@ -249,7 +254,7 @@ export const CockpitSetupModal: React.FC<CockpitSetupModalProps> = ({
                         step="0.5"
                         value={riderWeightKg}
                         onChange={(e) => setRiderWeightKg(parseFloat(e.target.value) || 68)}
-                        className="w-16 h-8 text-center text-sm font-mono font-bold rounded-lg bg-pod border border-ink/10 dark:border-white/10 text-ink focus:outline-none"
+                        className="w-16 h-8 text-center text-base sm:text-sm font-mono font-bold tnum rounded-lg bg-pod border border-ink/10 dark:border-white/10 text-ink focus:outline-none"
                       />
                       <span className="text-xs font-mono text-ink-muted">kg</span>
                     </div>
@@ -342,7 +347,7 @@ export const CockpitSetupModal: React.FC<CockpitSetupModalProps> = ({
                 </div>
 
                 <div className="mt-2.5 pt-2 border-t border-dashed border-current/20 text-[10px] font-mono opacity-85">
-                  {isFr ? 'Précision : kcal + g/h' : 'Telemetry: kcal + g/h'}
+                  {isFr ? 'Détails : kcal + g/h' : 'Metrics: kcal + g/h'}
                 </div>
               </div>
 

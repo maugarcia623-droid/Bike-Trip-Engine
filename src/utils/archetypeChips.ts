@@ -276,8 +276,8 @@ export const ARCHETYPE_CHIP_DEFINITIONS: Record<ArchetypeMode, ArchetypeChipDef[
       ruleDescriptionFr: 'Intègre une durée d’arrêt café dédiée dans le compte à rebours de départ.',
       defaultSettings: {
         coffeeDurationMin: 15,
-        cafeName: 'Café de la Gare / Estuary Roaster',
-        rationType: 'Double espresso & almond pastry',
+        cafeName: '',
+        rationType: '',
       },
       settingsFields: [
         {
@@ -285,7 +285,7 @@ export const ARCHETYPE_CHIP_DEFINITIONS: Record<ArchetypeMode, ArchetypeChipDef[
           labelEn: 'Cafe stop location / name',
           labelFr: 'Nom / lieu de la pause café',
           type: 'text',
-          defaultValue: 'Café de la Gare / Estuary Roaster',
+          defaultValue: '',
         },
         {
           id: 'coffeeDurationMin',
@@ -300,7 +300,7 @@ export const ARCHETYPE_CHIP_DEFINITIONS: Record<ArchetypeMode, ArchetypeChipDef[
           labelEn: 'Morning fuel item',
           labelFr: 'Collation matinale',
           type: 'text',
-          defaultValue: 'Double espresso & almond pastry',
+          defaultValue: '',
         },
       ],
       applyPresets: () => ({}),

@@ -30,6 +30,7 @@ import {
 import { useTranslation } from '../../context/LanguageContext';
 import { loadRiderBikeSpecs } from '../../utils/specsStorage';
 import { calculateHydrationPlan } from '../../utils/nutrition';
+import { formatKm, formatCriticalGapAdvice, formatGapDetail } from '../../utils/waterGapCopy';
 import { InfoTooltip } from '../common/InfoTooltip';
 import {
   CHIP_TOKENS,
@@ -44,6 +45,8 @@ export interface ResupplyRadarOverlayProps {
   trip: TripProfile;
   hardDepartureTime: string;
   effectiveSpeedKmH: number;
+  /** Rider leg power from physics, so gap fluid needs match the nutrition card */
+  legWatts?: number;
   onUpdateTrip: (updated: TripProfile) => void;
   selectedAmenity?: StageAmenity | null;
   onSelectAmenity?: (amenity: StageAmenity) => void;
@@ -58,6 +61,7 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
   trip,
   hardDepartureTime,
   effectiveSpeedKmH,
+  legWatts,
   onUpdateTrip,
   selectedAmenity,
   onSelectAmenity,
@@ -287,7 +291,12 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
     });
   }, [amenities, activeCategories, detourOnly250m]);
 
-  // Water gap analysis
+  // Water gap analysis (bottle setup read each render so spec edits apply immediately)
+  const radarSpecs = loadRiderBikeSpecs();
+  const radarBidonSizeMl = radarSpecs.bidonSizeMl ?? 650;
+  const radarFrameSlots = radarSpecs.frameBottleSlots ?? 2;
+  const radarActiveChips = trip.customChips;
+  const radarTotalDays = trip.stages?.length || 1;
   const waterGaps = useMemo(() => {
     const allWaterItems = [...amenities];
     for (const pinned of pinnedAmenities) {
@@ -295,28 +304,35 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
         allWaterItems.push(pinned);
       }
     }
-    const specs = loadRiderBikeSpecs();
     const sectorSpeed = effectiveSpeedKmH || trip.route?.targetSpeedKmH || 25;
+    const rideHours = totalDistanceKm / Math.max(8, sectorSpeed);
     const hydration = calculateHydrationPlan({
-      rideHours: totalDistanceKm / Math.max(8, sectorSpeed),
+      rideHours,
       tempC: trip.weather?.temperatureC ?? 18,
-      legWatts: 150,
-      bidonSizeMl: specs.bidonSizeMl ?? 650,
-      frameBottleSlots: specs.frameBottleSlots ?? 2,
+      legWatts: legWatts ?? 150,
+      bidonSizeMl: radarBidonSizeMl,
+      frameBottleSlots: radarFrameSlots,
+      isShortRide: rideHours < 0.75 && radarTotalDays === 1,
+      activeChips: radarActiveChips || [],
     });
     return calculateWaterGaps(allWaterItems, totalDistanceKm, {
       sectorSpeedKmH: sectorSpeed,
       targetFluidMlPerHr: hydration.targetFluidMlPerHr,
-      bidonSizeMl: specs.bidonSizeMl ?? 650,
-      frameBottleSlots: specs.frameBottleSlots ?? 2,
+      bidonSizeMl: radarBidonSizeMl,
+      frameBottleSlots: radarFrameSlots,
     });
   }, [
     amenities,
     pinnedAmenities,
     totalDistanceKm,
     effectiveSpeedKmH,
+    legWatts,
     trip.route?.targetSpeedKmH,
     trip.weather?.temperatureC,
+    radarBidonSizeMl,
+    radarFrameSlots,
+    radarActiveChips,
+    radarTotalDays,
   ]);
 
   // Category badges configuration
@@ -454,7 +470,7 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
         <div className="flex flex-col gap-2.5 pt-3">
           {/* 1. INFORMATION BANNER (Clean, crisp borders, ZERO shadow clipping) */}
           <div className="shrink-0">
-            {waterGaps.status === 'critical' ? (
+            {!hasScanned ? null : waterGaps.status === 'critical' ? (
               <div className="rounded-[22px] p-3.5 sm:p-4 bg-rose-500/[0.1] dark:bg-rose-500/[0.15] text-rose-900 dark:text-rose-200 border border-rose-500/25 dark:border-rose-400/25 flex items-start gap-3 transition-colors shadow-none">
                 <div className="w-8 h-8 rounded-full bg-rose-500/20 text-rose-700 dark:text-rose-300 flex items-center justify-center shrink-0 mt-0.5">
                   <TriangleAlert className="w-4 h-4 text-current" />
@@ -462,21 +478,15 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
                 <div className="text-xs min-w-0 flex-1 leading-snug space-y-1">
                   <span className="font-semibold font-rounded block">
                     {t('hydrationCritical', {
-                      gap: waterGaps.criticalGaps[0]?.distanceKm || waterGaps.maxGapKm,
-                      start: waterGaps.criticalGaps[0]?.startKm || 0,
-                      end: waterGaps.criticalGaps[0]?.endKm || totalDistanceKm,
-                      bidons: waterGaps.criticalGaps[0]?.recommendedBidons || 2,
-                      ml:
-                        waterGaps.criticalGaps[0]?.recommendedMl ||
-                        (waterGaps.criticalGaps[0]?.recommendedBidons || 2) *
-                          (loadRiderBikeSpecs().bidonSizeMl ?? 650),
+                      gap: formatKm(waterGaps.criticalGaps[0]?.distanceKm || waterGaps.maxGapKm, lang),
+                      start: formatKm(waterGaps.criticalGaps[0]?.startKm || 0, lang),
+                      end: formatKm(waterGaps.criticalGaps[0]?.endKm || totalDistanceKm, lang),
+                      advice: formatCriticalGapAdvice(waterGaps.criticalGaps[0], lang),
                     })}
                   </span>
                   {waterGaps.criticalGaps[0] && (
-                    <div className="text-[11px] font-mono opacity-90 flex items-center gap-2 flex-wrap">
-                      <span>{waterGaps.criticalGaps[0].distanceKm.toFixed(1)} km (~{Math.round((waterGaps.criticalGaps[0].gapHours ?? 0) * 60)} min)</span>
-                      <span>&middot;</span>
-                      <span>{waterGaps.criticalGaps[0].gapFluidNeedMl} ml ({waterGaps.criticalGaps[0].depletionPct}% {isFr ? 'capacité' : 'capacity'})</span>
+                    <div className="text-[11px] font-rounded tnum opacity-90">
+                      {formatGapDetail(waterGaps.criticalGaps[0], lang)}
                     </div>
                   )}
                 </div>
@@ -489,16 +499,14 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
                 <div className="text-xs min-w-0 flex-1 leading-snug space-y-1">
                   <span className="font-semibold font-rounded block">
                     {t('hydrationCaution', {
-                      gap: waterGaps.cautionGaps[0]?.distanceKm || waterGaps.maxGapKm,
-                      start: waterGaps.cautionGaps[0]?.startKm || 0,
-                      end: waterGaps.cautionGaps[0]?.endKm || totalDistanceKm,
+                      gap: formatKm(waterGaps.cautionGaps[0]?.distanceKm || waterGaps.maxGapKm, lang),
+                      start: formatKm(waterGaps.cautionGaps[0]?.startKm || 0, lang),
+                      end: formatKm(waterGaps.cautionGaps[0]?.endKm || totalDistanceKm, lang),
                     })}
                   </span>
                   {waterGaps.cautionGaps[0] && (
-                    <div className="text-[11px] font-mono opacity-90 flex items-center gap-2 flex-wrap">
-                      <span>{waterGaps.cautionGaps[0].distanceKm.toFixed(1)} km (~{Math.round((waterGaps.cautionGaps[0].gapHours ?? 0) * 60)} min)</span>
-                      <span>&middot;</span>
-                      <span>{waterGaps.cautionGaps[0].gapFluidNeedMl} ml ({waterGaps.cautionGaps[0].depletionPct}% {isFr ? 'capacité' : 'capacity'})</span>
+                    <div className="text-[11px] font-rounded tnum opacity-90">
+                      {formatGapDetail(waterGaps.cautionGaps[0], lang)}
                     </div>
                   )}
                 </div>
@@ -509,7 +517,7 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
                   <ShieldCheck className="w-4 h-4 text-current" />
                 </div>
                 <span className="text-xs font-medium font-rounded">
-                  {t('hydrationStatusGo', { maxGap: waterGaps.maxGapKm })}
+                  {t('hydrationStatusGo', { maxGap: formatKm(waterGaps.maxGapKm, lang) })}
                 </span>
               </div>
             )}

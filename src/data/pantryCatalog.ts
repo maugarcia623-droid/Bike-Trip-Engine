@@ -37,9 +37,9 @@ export const DEFAULT_PANTRY_CATALOG: PantryItem[] = [
     id: 'pre-oats-maple-banana',
     slot: 'pre-ride',
     nameEn: 'Oatmeal with Maple Syrup & Ripe Banana',
-    nameFr: "Flocons d'avoine au sirop d'érable & banane",
+    nameFr: 'Flocons d’avoine au sirop d’érable & banane',
     portionLabelEn: '1 bowl warm oatmeal with fruit',
-    portionLabelFr: "1 bol de flocons d'avoine aux fruits",
+    portionLabelFr: '1 bol de flocons d’avoine aux fruits',
     carbsG: 68,
     proteinG: 8,
     kcal: 340,
@@ -75,7 +75,7 @@ export const DEFAULT_PANTRY_CATALOG: PantryItem[] = [
     id: 'pre-savory-potato-hash',
     slot: 'pre-ride',
     nameEn: 'Steamed Baby Potato Hash with Olive Oil & Salt',
-    nameFr: "Poêlée de pommes de terre vapeur & huile d'olive",
+    nameFr: 'Poêlée de pommes de terre vapeur & huile d’olive',
     portionLabelEn: '1 bowl savory seasoned potatoes',
     portionLabelFr: '1 bol de pommes de terre assaisonnées',
     carbsG: 58,
@@ -115,9 +115,9 @@ export const DEFAULT_PANTRY_CATALOG: PantryItem[] = [
     id: 'liq-maple-citrus-salted',
     slot: 'on-bike-liquid',
     nameEn: 'Maple Syrup, Lemon Juice & Sea Salt Bidon',
-    nameFr: "Élixir eau, sirop d'érable, citron & sel de mer",
+    nameFr: 'Élixir eau, sirop d’érable, citron & sel de mer',
     portionLabelEn: '1 bottle maple citrus hydration',
-    portionLabelFr: "1 bidon d'hydratation érable-citron",
+    portionLabelFr: '1 bidon d’hydratation érable-citron',
     carbsG: 34,
     proteinG: 0,
     kcal: 136,
@@ -152,8 +152,8 @@ export const DEFAULT_PANTRY_CATALOG: PantryItem[] = [
   {
     id: 'liq-high-carb-cluster-60',
     slot: 'on-bike-liquid',
-    nameEn: 'High-Carb Cluster Dextrin Fuel (60g C)',
-    nameFr: 'Boisson haute énergie cluster dextrine (60g C)',
+    nameEn: 'High-Carb Cluster Dextrin Fuel',
+    nameFr: 'Boisson haute énergie cluster dextrine',
     portionLabelEn: '1 bottle high-concentration carb fuel',
     portionLabelFr: '1 bidon concentré haute intensité',
     carbsG: 60,
@@ -230,10 +230,10 @@ export const DEFAULT_PANTRY_CATALOG: PantryItem[] = [
   {
     id: 'sol-pain-depices',
     slot: 'on-bike-solid',
-    nameEn: 'Traditional Spiced Honey Bread (Pain d\'Épices)',
-    nameFr: "Pain d'épices traditionnel au miel",
+    nameEn: 'Traditional Spiced Honey Bread (Pain d’Épices)',
+    nameFr: 'Pain d’épices traditionnel au miel',
     portionLabelEn: '1 slice spiced honey cake',
-    portionLabelFr: "1 tranche de pain d'épices",
+    portionLabelFr: '1 tranche de pain d’épices',
     carbsG: 22,
     proteinG: 2,
     kcal: 98,
@@ -250,9 +250,9 @@ export const DEFAULT_PANTRY_CATALOG: PantryItem[] = [
     id: 'sol-maple-oat-bar',
     slot: 'on-bike-solid',
     nameEn: 'Chewy Maple Oat Pocket Bar',
-    nameFr: "Barre moelleuse avoine & érable",
+    nameFr: 'Barre moelleuse avoine & érable',
     portionLabelEn: '1 oat flapjack pocket bar',
-    portionLabelFr: "1 barre d'avoine de poche",
+    portionLabelFr: '1 barre d’avoine de poche',
     carbsG: 28,
     proteinG: 3,
     kcal: 140,
@@ -268,10 +268,10 @@ export const DEFAULT_PANTRY_CATALOG: PantryItem[] = [
   {
     id: 'sol-almond-marzipan',
     slot: 'on-bike-solid',
-    nameEn: 'Almond Marzipan / Pâte d\'Amande',
-    nameFr: "Pâte d'amande artisanale",
+    nameEn: 'Almond Marzipan / Pâte d’Amande',
+    nameFr: 'Pâte d’amande artisanale',
     portionLabelEn: '1 roll almond marzipan',
-    portionLabelFr: "1 rouleau de pâte d'amande",
+    portionLabelFr: '1 rouleau de pâte d’amande',
     carbsG: 16,
     proteinG: 3,
     kcal: 115,
@@ -344,8 +344,8 @@ export const DEFAULT_PANTRY_CATALOG: PantryItem[] = [
   {
     id: 'sol-gel-standard-25',
     slot: 'on-bike-solid',
-    nameEn: 'Standard Hydrogel Energy Gel (25g C)',
-    nameFr: 'Gel énergétique standard (25g C)',
+    nameEn: 'Standard Hydrogel Energy Gel',
+    nameFr: 'Gel énergétique standard',
     portionLabelEn: '1 quick energy gel',
     portionLabelFr: '1 gel énergétique rapide',
     carbsG: 25,
@@ -363,10 +363,10 @@ export const DEFAULT_PANTRY_CATALOG: PantryItem[] = [
   {
     id: 'sol-gel-dual-25',
     slot: 'on-bike-solid',
-    nameEn: 'Dual-Source Fructose/Maltodextrin Gel (25g C)',
-    nameFr: 'Gel énergétique double source 2:1 (25g C)',
+    nameEn: 'Dual-Source Fructose/Maltodextrin Gel',
+    nameFr: 'Gel énergétique double source 2:1',
     portionLabelEn: '1 dual-source climb gel',
-    portionLabelFr: "1 gel d'appoint pour les bosses",
+    portionLabelFr: '1 gel d’appoint pour les bosses',
     carbsG: 25,
     proteinG: 0,
     kcal: 100,
@@ -382,10 +382,10 @@ export const DEFAULT_PANTRY_CATALOG: PantryItem[] = [
   {
     id: 'sol-gel-pro-high-40',
     slot: 'on-bike-solid',
-    nameEn: 'High-Carb Hydrogel Pouch (40g C)',
-    nameFr: 'Poche hydrogel haute concentration (40g C)',
+    nameEn: 'High-Carb Hydrogel Pouch',
+    nameFr: 'Poche hydrogel haute concentration',
     portionLabelEn: '1 high-dose energy pouch',
-    portionLabelFr: "1 poche d'énergie concentrée",
+    portionLabelFr: '1 poche d’énergie concentrée',
     carbsG: 40,
     proteinG: 0,
     kcal: 160,
@@ -424,7 +424,7 @@ export const DEFAULT_PANTRY_CATALOG: PantryItem[] = [
     id: 'rec-soy-yogurt-maple-tart',
     slot: 'post-ride-recovery',
     nameEn: 'Organic Soy Yogurt with Maple & Tart Cherry',
-    nameFr: "Yaourt de soja bio à l'érable & griotte",
+    nameFr: 'Yaourt de soja bio à l’érable & griotte',
     portionLabelEn: '1 bowl plant yogurt & cherry juice',
     portionLabelFr: '1 bol yaourt végétal & griotte',
     carbsG: 48,
@@ -600,4 +600,33 @@ export function resolveCompliantPantry(
     postRide,
     allCompliantItems,
   };
+}
+
+/**
+ * Returns a dietary-compliant cafe pause snack suggestion for timeline and checklist copy.
+ */
+export function getCafeSnackSuggestion(
+  filters: DietaryFilter[] = [],
+  lang: 'en' | 'fr' = 'en'
+): string {
+  const isFr = lang === 'fr';
+  const isNutFree = filters.includes('nut-free');
+  const isGlutenFree = filters.includes('gluten-free');
+  const isVegan = filters.includes('vegan');
+  const isDairyFree = filters.includes('dairy-free');
+  const isLowFodmap = filters.includes('low-fodmap');
+
+  if (isGlutenFree || isVegan || isDairyFree || isLowFodmap) {
+    return isFr
+      ? 'Double expresso & galette d’avoine à l’érable ou banane fraîche'
+      : 'Double espresso & maple oat bar or fresh banana';
+  }
+  if (isNutFree) {
+    return isFr
+      ? 'Double expresso & pain au chocolat ou brioche pur beurre'
+      : 'Double espresso & chocolate pastry or brioche';
+  }
+  return isFr
+    ? 'Double expresso & viennoiserie artisanale ou banane'
+    : 'Double espresso & artisanal bakery pastry or banana';
 }

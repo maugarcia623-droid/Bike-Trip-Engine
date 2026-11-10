@@ -3,15 +3,11 @@ import {
   Check,
   Plus,
   Trash,
-  Sparkle,
   ForkKnife,
-  Leaf,
   ShieldCheck,
   Droplets,
-  Bottle,
   Baguette,
-  Package,
-  TriangleAlert,
+  Coffee,
   X,
 } from '@/components/icons';
 import {
@@ -21,6 +17,7 @@ import {
   FlavorProfile,
   PantryItem,
   NutritionPreference,
+  formatFuelTarget,
 } from '../../types/specs';
 import {
   DEFAULT_PANTRY_CATALOG,
@@ -33,9 +30,12 @@ import { TranslationKey } from '../../locales/en';
 import { IconBadge } from '../common/IconBadge';
 import { Badge } from '../common/Badge';
 import {
+  CHIP_DUOTONE_ISOLATION_CLASSES,
   CHIP_RING_BASE,
+  CHIP_RING_UNSELECTED,
   CHIP_TOKENS,
   GREYSCALE_TOKENS,
+  ChipTheme,
 } from '../../tokens/chipTokens';
 
 interface PantryBuilderSectionProps {
@@ -50,6 +50,8 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
   const { t, lang } = useTranslation();
   const isFr = lang === 'fr';
 
+  const [activeSlot, setActiveSlot] = useState<PantrySlot>('pre-ride');
+  const [solidFlavorFilter, setSolidFlavorFilter] = useState<'all' | FlavorProfile>('all');
   const [showCustomForm, setShowCustomForm] = useState(false);
 
   // Custom Item Form state
@@ -62,13 +64,18 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
   const [customFlavor, setCustomFlavor] = useState<FlavorProfile>('sweet');
   const [customPortionEn, setCustomPortionEn] = useState('1 pocket snack');
   const [customPortionFr, setCustomPortionFr] = useState('1 collation de poche');
+  // Unknown until the rider confirms: custom items never pass an allergen guardrail by default
   const [customCompliance, setCustomCompliance] = useState<Record<DietaryFilter, boolean>>({
-    vegan: true,
-    'gluten-free': true,
-    'dairy-free': true,
-    'nut-free': true,
+    vegan: false,
+    'gluten-free': false,
+    'dairy-free': false,
+    'nut-free': false,
     'low-fodmap': false,
   });
+
+  const telemetryMode = specs.telemetryMode ?? 'quantitative';
+  const isQuantitative = telemetryMode === 'quantitative';
+  const isFuelFirst = telemetryMode === 'fuel-first';
 
   const activeFilters = useMemo(
     () => specs.dietaryFilters || [],
@@ -81,6 +88,18 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
     }
     return getDefaultPantryIdsForPreference(specs.nutritionPreference);
   }, [specs.activePantryIds, specs.nutritionPreference]);
+
+  // Resolved compliant pantry so toggling a dietary filter on/off never destroys the user's underlying selection
+  const resolvedPantry = useMemo(() => resolveCompliantPantry(specs), [specs]);
+  const effectiveActiveIds = useMemo(
+    () => [
+      resolvedPantry.preRide.id,
+      resolvedPantry.onBikeLiquid.id,
+      ...resolvedPantry.onBikeSolids.map((s) => s.id),
+      resolvedPantry.postRide.id,
+    ],
+    [resolvedPantry]
+  );
 
   const customItems = useMemo(
     () => specs.customPantryItems || [],
@@ -128,24 +147,9 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
       ? current.filter((f) => f !== filter)
       : [...current, filter];
 
-    // Ensure currently selected items remain compliant
-    const compliant = resolveCompliantPantry({
-      ...specs,
-      dietaryFilters: nextFilters,
-      activePantryIds,
-    });
-
-    const validatedIds = [
-      compliant.preRide.id,
-      compliant.onBikeLiquid.id,
-      ...compliant.onBikeSolids.map((s) => s.id),
-      compliant.postRide.id,
-    ];
-
     onChange({
       ...specs,
       dietaryFilters: nextFilters,
-      activePantryIds: validatedIds,
     });
   };
 
@@ -153,8 +157,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
   const handleSelectSingleSlot = (item: PantryItem) => {
     if (!isItemCompliant(item, activeFilters)) return;
 
-    // Remove existing item for this slot, add selected item
-    const otherSlotIds = activePantryIds.filter((id) => {
+    const otherSlotIds = effectiveActiveIds.filter((id) => {
       const match = fullCatalog.find((c) => c.id === id);
       return match ? match.slot !== item.slot : true;
     });
@@ -169,18 +172,16 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
   const handleToggleSolidSlot = (item: PantryItem) => {
     if (!isItemCompliant(item, activeFilters)) return;
 
-    const currentSolidIds = activePantryIds.filter((id) => {
+    const currentSolidIds = effectiveActiveIds.filter((id) => {
       const match = fullCatalog.find((c) => c.id === id);
       return match?.slot === 'on-bike-solid';
     });
 
     let nextSolidIds: string[];
     if (currentSolidIds.includes(item.id)) {
-      // Must keep at least 1 solid
       if (currentSolidIds.length <= 1) return;
       nextSolidIds = currentSolidIds.filter((id) => id !== item.id);
     } else {
-      // Max 3 solids
       if (currentSolidIds.length >= 3) {
         nextSolidIds = [...currentSolidIds.slice(1), item.id];
       } else {
@@ -188,7 +189,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
       }
     }
 
-    const nonSolidIds = activePantryIds.filter((id) => {
+    const nonSolidIds = effectiveActiveIds.filter((id) => {
       const match = fullCatalog.find((c) => c.id === id);
       return match?.slot !== 'on-bike-solid';
     });
@@ -211,7 +212,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
       nameEn: finalNameEn,
       nameFr: finalNameFr,
       portionLabelEn: customPortionEn.trim() || '1 custom serving',
-      portionLabelFr: customPortionFr.trim() || '1 portion sur mesure',
+      portionLabelFr: customPortionFr.trim() || customPortionEn.trim() || '1 portion sur mesure',
       carbsG: Math.max(0, Math.round(customCarbsG)),
       proteinG: Math.max(0, Math.round(customProteinG)),
       kcal: Math.max(0, Math.round(customKcal)),
@@ -250,7 +251,8 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
       activePantryIds: nextActiveIds,
     });
 
-    // Reset Form
+    // Switch active tab to the created item's slot & reset form
+    setActiveSlot(customSlot);
     setCustomNameEn('');
     setCustomNameFr('');
     setCustomCarbsG(25);
@@ -282,18 +284,13 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
     });
   };
 
-  // Filter Catalog by Slots
-  const preRideCatalog = fullCatalog.filter((i) => i.slot === 'pre-ride');
-  const liquidCatalog = fullCatalog.filter((i) => i.slot === 'on-bike-liquid');
-  const solidCatalog = fullCatalog.filter((i) => i.slot === 'on-bike-solid');
-  const postRideCatalog = fullCatalog.filter((i) => i.slot === 'post-ride-recovery');
-
-  const DIETARY_FILTERS_CONFIG: { id: DietaryFilter; labelKey: TranslationKey; icon: string }[] = [
-    { id: 'vegan', labelKey: 'filterVegan', icon: '🌱' },
-    { id: 'gluten-free', labelKey: 'filterGlutenFree', icon: '🌾' },
-    { id: 'dairy-free', labelKey: 'filterDairyFree', icon: '🥛' },
-    { id: 'nut-free', labelKey: 'filterNutFree', icon: '🥜' },
-    { id: 'low-fodmap', labelKey: 'filterLowFodmap', icon: '🌿' },
+  // Text-only dietary guardrail chips (zero emojis)
+  const DIETARY_FILTERS_CONFIG: { id: DietaryFilter; labelKey: TranslationKey }[] = [
+    { id: 'vegan', labelKey: 'filterVegan' },
+    { id: 'gluten-free', labelKey: 'filterGlutenFree' },
+    { id: 'dairy-free', labelKey: 'filterDairyFree' },
+    { id: 'nut-free', labelKey: 'filterNutFree' },
+    { id: 'low-fodmap', labelKey: 'filterLowFodmap' },
   ];
 
   const STYLE_PRESETS: {
@@ -323,6 +320,66 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
     },
   ];
 
+  const SLOT_TABS: {
+    slot: PantrySlot;
+    icon: React.ElementType;
+    theme: ChipTheme;
+    titleKey: TranslationKey;
+    subKey: TranslationKey;
+    badgeLabel: string;
+    activeSummary: string;
+  }[] = [
+    {
+      slot: 'pre-ride',
+      icon: Coffee,
+      theme: 'amber',
+      titleKey: 'slotPreRide',
+      subKey: 'slotPreRideSub',
+      badgeLabel: '1/1',
+      activeSummary: isFr ? resolvedPantry.preRide.nameFr : resolvedPantry.preRide.nameEn,
+    },
+    {
+      slot: 'on-bike-liquid',
+      icon: Droplets,
+      theme: 'sky',
+      titleKey: 'slotLiquid',
+      subKey: 'slotLiquidSub',
+      badgeLabel: '1/1',
+      activeSummary: isFr
+        ? resolvedPantry.onBikeLiquid.nameFr
+        : resolvedPantry.onBikeLiquid.nameEn,
+    },
+    {
+      slot: 'on-bike-solid',
+      icon: Baguette,
+      theme: 'yellow-vest',
+      titleKey: 'slotSolid',
+      subKey: 'slotSolidSub',
+      badgeLabel: `${resolvedPantry.onBikeSolids.length}/3`,
+      activeSummary: resolvedPantry.onBikeSolids
+        .map((s) => (isFr ? s.nameFr : s.nameEn))
+        .join(' · '),
+    },
+    {
+      slot: 'post-ride-recovery',
+      icon: ForkKnife,
+      theme: 'emerald',
+      titleKey: 'slotPostRide',
+      subKey: 'slotPostRideSub',
+      badgeLabel: '1/1',
+      activeSummary: isFr ? resolvedPantry.postRide.nameFr : resolvedPantry.postRide.nameEn,
+    },
+  ];
+
+  const currentSlotConfig = SLOT_TABS.find((s) => s.slot === activeSlot) || SLOT_TABS[0];
+  const currentSlotItems = useMemo(() => {
+    const items = fullCatalog.filter((i) => i.slot === activeSlot);
+    if (activeSlot === 'on-bike-solid' && solidFlavorFilter !== 'all') {
+      return items.filter((i) => i.flavor === solidFlavorFilter);
+    }
+    return items;
+  }, [fullCatalog, activeSlot, solidFlavorFilter]);
+
   const renderFlavorBadge = (flavor: FlavorProfile) => {
     switch (flavor) {
       case 'savory':
@@ -347,775 +404,739 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
     }
   };
 
-  return (
-    <div className="space-y-4">
-      {/* ── 1. STYLE PRESETS ── */}
-      <div className="p-3.5 rounded-pod bg-card border border-ink/5 dark:border-white/5 space-y-2.5">
-        <div className="flex items-center gap-2">
-          <IconBadge theme="yellow-vest" icon={ForkKnife} size="sm" solidBacker />
-          <div>
-            <div className="text-xs font-bold text-ink">
-              {t('pantryBuilderTitle')}
-            </div>
-            <div className="text-[11px] text-ink-muted">
-              {t('pantryBuilderSubtitle')}
-            </div>
-          </div>
-        </div>
+  const renderItemMetric = (item: PantryItem) => {
+    if (isQuantitative) {
+      if (item.slot === 'on-bike-liquid') {
+        return `${item.carbsG}g C / bidon`;
+      }
+      if (item.slot === 'post-ride-recovery') {
+        return `${item.carbsG}g C · ${item.proteinG}g P · ${item.kcal} kcal`;
+      }
+      return `${item.carbsG}g C · ${item.kcal} kcal`;
+    }
+    if (isFuelFirst) {
+      return formatFuelTarget(item.carbsG, 'fuel-first', lang);
+    }
+    return null;
+  };
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {STYLE_PRESETS.map((preset) => {
-            const isSavory = preset.key === 'savory-endurance';
-            const isActive = isSavory
-              ? activePantryIds.includes('sol-salted-baby-potatoes') ||
-                activePantryIds.includes('pre-savory-potato-hash')
-              : specs.nutritionPreference === preset.key &&
-                !activePantryIds.includes('sol-salted-baby-potatoes');
+  const renderSlotItemCard = (item: PantryItem, isMultiSelect: boolean) => {
+    const compliant = isItemCompliant(item, activeFilters);
+    const isSelected = effectiveActiveIds.includes(item.id);
+    const metricText = renderItemMetric(item);
 
-            return (
-              <button
-                key={preset.key}
-                type="button"
-                onClick={() => handleSelectStyle(preset.key)}
-                className={`p-2.5 rounded-pod text-left flex flex-col justify-between transition-all cursor-pointer ${
-                  isActive
-                    ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.emerald.selectedRing}`
-                    : 'bg-pod text-ink-secondary hover:text-ink'
-                }`}
-              >
-                <div>
-                  <div className="text-xs font-bold leading-tight">
-                    {t(preset.labelKey)}
-                  </div>
-                  <div className="text-[10px] opacity-75 mt-0.5 leading-snug">
-                    {t(preset.subKey)}
-                  </div>
-                </div>
-                {isActive && (
-                  <div className="mt-2 flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-                    <Check className="w-3 h-3" />
-                    <span>{isFr ? 'Actif' : 'Active'}</span>
-                  </div>
+    return (
+      <div key={item.id} className="flex items-stretch gap-1.5">
+        <button
+          type="button"
+          role={isMultiSelect ? 'checkbox' : 'radio'}
+          aria-checked={isSelected}
+          disabled={!compliant}
+          onClick={() =>
+            compliant &&
+            (isMultiSelect ? handleToggleSolidSlot(item) : handleSelectSingleSlot(item))
+          }
+          className={`flex-1 p-2.5 rounded-pod flex flex-col justify-between gap-2 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/40 ${
+            !compliant
+              ? 'opacity-40 bg-pod/40 cursor-not-allowed ring-1 ring-inset ring-red-500/30'
+              : isSelected
+              ? `${CHIP_TOKENS.lime.surface} ${CHIP_RING_BASE} ${CHIP_TOKENS.lime.selectedRing} text-ink cursor-pointer`
+              : `bg-pod/75 hover:bg-pod text-ink-secondary hover:text-ink cursor-pointer ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
+          }`}
+        >
+          <div className="flex items-start gap-2 min-w-0">
+            <div
+              className={`w-4 h-4 mt-0.5 ${
+                isMultiSelect ? 'rounded-md' : 'rounded-full'
+              } flex items-center justify-center shrink-0 border transition-colors ${
+                isSelected
+                  ? 'bg-[#DFFF00] border-[#A3B300] text-[#4D5200]'
+                  : 'border-ink/20 dark:border-white/20 bg-card/60'
+              }`}
+            >
+              {isSelected && <Check className="w-2.5 h-2.5 stroke-[3] animate-apple-check-pop" />}
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-rounded font-bold text-ink leading-snug flex items-center gap-1.5 flex-wrap">
+                <span className="break-words">{isFr ? item.nameFr : item.nameEn}</span>
+                {item.isCustom && (
+                  <Badge variant="sky" size="xs">
+                    {t('itemCustomBadge')}
+                  </Badge>
                 )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── 2. DIETARY & ALLERGEN GUARDRAILS ── */}
-      <div className="p-3.5 rounded-pod bg-card border border-ink/5 dark:border-white/5 space-y-2">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-2">
-            <IconBadge theme="lime" icon={ShieldCheck} size="sm" solidBacker />
-            <div>
-              <div className="text-xs font-bold text-ink">
-                {t('dietaryGuardrailsHeading')}
+                {!compliant && (
+                  <Badge variant="red" size="xs">
+                    {t('itemIncompatibleBadge')}
+                  </Badge>
+                )}
               </div>
-              <div className="text-[11px] text-ink-muted">
-                {t('dietaryGuardrailsHint')}
+              <div className="text-[11px] text-ink-muted mt-0.5 leading-tight">
+                {isFr ? item.portionLabelFr : item.portionLabelEn}
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-1.5 flex-wrap pt-1">
-          {DIETARY_FILTERS_CONFIG.map((filter) => {
-            const active = activeFilters.includes(filter.id);
-            return (
-              <button
-                key={filter.id}
-                type="button"
-                onClick={() => handleToggleFilter(filter.id)}
-                className={`px-2.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                  active
-                    ? 'bg-volt-lime/20 text-volt-lime border border-volt-lime/40 shadow-xs'
-                    : 'bg-pod text-ink-muted hover:text-ink border border-ink/5 dark:border-white/5'
-                }`}
-              >
-                <span>{filter.icon}</span>
-                <span>{t(filter.labelKey)}</span>
-                {active && <Check className="w-3 h-3 text-volt-lime ml-0.5" />}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── 2.5 FUEL DELIVERY & PALATE STRATEGY (PHASE 9) ── */}
-      <div className="p-3.5 rounded-pod bg-card border border-ink/5 dark:border-white/5 space-y-3">
-        <div className="flex items-center gap-2">
-          <IconBadge theme="sky" icon={Droplets} size="sm" solidBacker />
-          <div>
-            <div className="text-xs font-bold text-ink">
-              {t('fuelSplitTitle')}
-            </div>
-            <div className="text-[11px] text-ink-muted">
-              {t('fuelSplitSubtitle')}
-            </div>
+          <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-ink/5 dark:border-white/5 pl-6">
+            {renderFlavorBadge(item.flavor)}
+            {metricText && (
+              <span className="text-[11px] font-mono font-semibold text-ink-secondary tnum">
+                {metricText}
+              </span>
+            )}
           </div>
-        </div>
+        </button>
 
-        {/* Liquid vs Pocket Solid Split Slider */}
-        <div className="space-y-1.5 p-2.5 rounded-pod bg-pod/60">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-semibold text-ink">
-              {t('liquidRatioLabel')}
-            </span>
-            <span className="font-mono font-bold text-sky-600 dark:text-sky-400">
-              {Math.round((specs.liquidCarbRatio ?? 0.35) * 100)}% {isFr ? 'Liquide' : 'Liquid'} · {Math.round((1 - (specs.liquidCarbRatio ?? 0.35)) * 100)}% {isFr ? 'Solide' : 'Pocket Solids'}
-            </span>
-          </div>
-
-          <input
-            type="range"
-            min={0.15}
-            max={0.85}
-            step={0.05}
-            value={specs.liquidCarbRatio ?? 0.35}
-            onChange={(e) => {
-              const val = parseFloat(e.target.value);
-              onChange({
-                ...specs,
-                liquidCarbRatio: Math.min(0.85, Math.max(0.15, Math.round(val * 100) / 100)),
-              });
-            }}
-            aria-label={t('liquidRatioLabel')}
-            className="w-full accent-sky-500 cursor-pointer"
-          />
-
-          <div className="flex justify-between text-[10px] text-ink-muted font-mono">
-            <span>15% {isFr ? 'Liquide' : 'Liquid'}</span>
-            <span>50 / 50</span>
-            <span>85% {isFr ? 'Liquide' : 'Liquid'}</span>
-          </div>
-        </div>
-
-        {/* Auto-Modulate Liquid Toggle */}
-        <div className="flex items-start justify-between gap-3 p-2.5 rounded-pod bg-pod/60">
-          <div className="space-y-0.5">
-            <div className="text-xs font-semibold text-ink">
-              {t('autoModulateLiquidLabel')}
-            </div>
-            <div className="text-[11px] text-ink-muted leading-relaxed">
-              {t('autoModulateLiquidHint')}
-            </div>
-          </div>
+        {item.isCustom && (
           <button
             type="button"
-            role="switch"
-            aria-checked={specs.autoModulateLiquidInHeatOrEffort !== false}
-            onClick={() => {
-              onChange({
-                ...specs,
-                autoModulateLiquidInHeatOrEffort: !(specs.autoModulateLiquidInHeatOrEffort !== false),
-              });
-            }}
-            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-hidden ${
-              specs.autoModulateLiquidInHeatOrEffort !== false ? 'bg-sky-500' : 'bg-ink/20 dark:bg-white/20'
-            }`}
+            onClick={() => handleDeleteCustomItem(item.id)}
+            aria-label={`${isFr ? 'Supprimer' : 'Delete'} ${isFr ? item.nameFr : item.nameEn}`}
+            className="text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 px-2.5 rounded-pod transition-colors cursor-pointer shrink-0 flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
           >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition duration-200 ease-in-out mt-0.5 ml-0.5 ${
-                specs.autoModulateLiquidInHeatOrEffort !== false ? 'translate-x-4' : 'translate-x-0'
-              }`}
-            />
+            <Trash className="w-4 h-4" />
           </button>
-        </div>
-
-        {/* Savory Palate Resets Toggle */}
-        <div className="flex items-start justify-between gap-3 p-2.5 rounded-pod bg-pod/60">
-          <div className="space-y-0.5">
-            <div className="text-xs font-semibold text-ink">
-              {t('savoryResetLabel')}
-            </div>
-            <div className="text-[11px] text-ink-muted leading-relaxed">
-              {t('savoryResetHint')}
-            </div>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={specs.enableSavoryPalateResets !== false}
-            onClick={() => {
-              onChange({
-                ...specs,
-                enableSavoryPalateResets: !(specs.enableSavoryPalateResets !== false),
-              });
-            }}
-            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-hidden ${
-              specs.enableSavoryPalateResets !== false ? 'bg-emerald-500' : 'bg-ink/20 dark:bg-white/20'
-            }`}
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition duration-200 ease-in-out mt-0.5 ml-0.5 ${
-                specs.enableSavoryPalateResets !== false ? 'translate-x-4' : 'translate-x-0'
-              }`}
-            />
-          </button>
-        </div>
-      </div>
-
-      {/* ── 3. SLOT CHECKLISTS ── */}
-      <div className="space-y-3">
-        {/* SLOT 1: PRE-RIDE */}
-        <div className="p-3.5 rounded-pod bg-card border border-ink/5 dark:border-white/5 space-y-2.5">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <span className="text-base">☕</span>
-              <div>
-                <div className="text-xs font-bold text-ink">
-                  {t('slotPreRide')}
-                </div>
-                <div className="text-[10px] text-ink-muted">
-                  {t('slotPreRideSub')}
-                </div>
-              </div>
-            </div>
-            <Badge variant="zinc" size="xs">
-              {isFr ? '1 choix' : 'Select 1'}
-            </Badge>
-          </div>
-
-          <div className="space-y-1.5">
-            {preRideCatalog.map((item) => {
-              const compliant = isItemCompliant(item, activeFilters);
-              const isSelected = activePantryIds.includes(item.id);
-
-              return (
-                <div
-                  key={item.id}
-                  onClick={() => compliant && handleSelectSingleSlot(item)}
-                  className={`p-2.5 rounded-sub-pod flex items-center justify-between gap-2 transition-all ${
-                    !compliant
-                      ? 'opacity-40 bg-pod/40 cursor-not-allowed border border-dashed border-red-500/30'
-                      : isSelected
-                      ? 'bg-volt-lime/10 border border-volt-lime/40 text-ink cursor-pointer'
-                      : 'bg-pod/70 hover:bg-pod text-ink-secondary hover:text-ink cursor-pointer border border-ink/5 dark:border-white/5'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div
-                      className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 border ${
-                        isSelected
-                          ? 'bg-volt-lime border-volt-lime text-black'
-                          : 'border-ink/20 dark:border-white/20'
-                      }`}
-                    >
-                      {isSelected && <Check className="w-2.5 h-2.5 stroke-[3] animate-apple-check-pop" />}
-                    </div>
-
-                    <div className="min-w-0">
-                      <div className="text-xs font-semibold text-ink flex items-center gap-1.5 flex-wrap">
-                        <span>{isFr ? item.nameFr : item.nameEn}</span>
-                        {item.isCustom && (
-                          <Badge variant="sky" size="xs">
-                            {t('itemCustomBadge')}
-                          </Badge>
-                        )}
-                        {!compliant && (
-                          <Badge variant="red" size="xs">
-                            {t('itemIncompatibleBadge')}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="text-[10px] text-ink-muted">
-                        {isFr ? item.portionLabelFr : item.portionLabelEn}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    {renderFlavorBadge(item.flavor)}
-                    <span className="text-[11px] font-mono font-medium text-ink-muted tnum">
-                      {item.carbsG}g C · {item.kcal} kcal
-                    </span>
-                    {item.isCustom && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteCustomItem(item.id);
-                        }}
-                        className="text-red-500 hover:text-red-600 p-1"
-                      >
-                        <Trash className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* SLOT 2: ON-BIKE LIQUID */}
-        <div className="p-3.5 rounded-pod bg-card border border-ink/5 dark:border-white/5 space-y-2.5">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <span className="text-base">💧</span>
-              <div>
-                <div className="text-xs font-bold text-ink">
-                  {t('slotLiquid')}
-                </div>
-                <div className="text-[10px] text-ink-muted">
-                  {t('slotLiquidSub')}
-                </div>
-              </div>
-            </div>
-            <Badge variant="zinc" size="xs">
-              {isFr ? '1 choix' : 'Select 1'}
-            </Badge>
-          </div>
-
-          <div className="space-y-1.5">
-            {liquidCatalog.map((item) => {
-              const compliant = isItemCompliant(item, activeFilters);
-              const isSelected = activePantryIds.includes(item.id);
-
-              return (
-                <div
-                  key={item.id}
-                  onClick={() => compliant && handleSelectSingleSlot(item)}
-                  className={`p-2.5 rounded-sub-pod flex items-center justify-between gap-2 transition-all ${
-                    !compliant
-                      ? 'opacity-40 bg-pod/40 cursor-not-allowed border border-dashed border-red-500/30'
-                      : isSelected
-                      ? 'bg-volt-lime/10 border border-volt-lime/40 text-ink cursor-pointer'
-                      : 'bg-pod/70 hover:bg-pod text-ink-secondary hover:text-ink cursor-pointer border border-ink/5 dark:border-white/5'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div
-                      className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 border ${
-                        isSelected
-                          ? 'bg-volt-lime border-volt-lime text-black'
-                          : 'border-ink/20 dark:border-white/20'
-                      }`}
-                    >
-                      {isSelected && <Check className="w-2.5 h-2.5 stroke-[3] animate-apple-check-pop" />}
-                    </div>
-
-                    <div className="min-w-0">
-                      <div className="text-xs font-semibold text-ink flex items-center gap-1.5 flex-wrap">
-                        <span>{isFr ? item.nameFr : item.nameEn}</span>
-                        {item.isCustom && (
-                          <Badge variant="sky" size="xs">
-                            {t('itemCustomBadge')}
-                          </Badge>
-                        )}
-                        {!compliant && (
-                          <Badge variant="red" size="xs">
-                            {t('itemIncompatibleBadge')}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="text-[10px] text-ink-muted">
-                        {isFr ? item.portionLabelFr : item.portionLabelEn}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    {renderFlavorBadge(item.flavor)}
-                    <span className="text-[11px] font-mono font-medium text-ink-muted tnum">
-                      {item.carbsG}g C / bidon
-                    </span>
-                    {item.isCustom && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteCustomItem(item.id);
-                        }}
-                        className="text-red-500 hover:text-red-600 p-1"
-                      >
-                        <Trash className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* SLOT 3: POCKET SOLIDS */}
-        <div className="p-3.5 rounded-pod bg-card border border-ink/5 dark:border-white/5 space-y-2.5">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <span className="text-base">🥖</span>
-              <div>
-                <div className="text-xs font-bold text-ink">
-                  {t('slotSolid')}
-                </div>
-                <div className="text-[10px] text-ink-muted">
-                  {t('slotSolidSub')}
-                </div>
-              </div>
-            </div>
-            <Badge variant="yellow-vest" size="xs">
-              {isFr ? '1 à 3 choix' : '1 to 3 items'}
-            </Badge>
-          </div>
-
-          <div className="space-y-1.5">
-            {solidCatalog.map((item) => {
-              const compliant = isItemCompliant(item, activeFilters);
-              const isSelected = activePantryIds.includes(item.id);
-
-              return (
-                <div
-                  key={item.id}
-                  onClick={() => compliant && handleToggleSolidSlot(item)}
-                  className={`p-2.5 rounded-sub-pod flex items-center justify-between gap-2 transition-all ${
-                    !compliant
-                      ? 'opacity-40 bg-pod/40 cursor-not-allowed border border-dashed border-red-500/30'
-                      : isSelected
-                      ? 'bg-volt-lime/10 border border-volt-lime/40 text-ink cursor-pointer'
-                      : 'bg-pod/70 hover:bg-pod text-ink-secondary hover:text-ink cursor-pointer border border-ink/5 dark:border-white/5'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div
-                      className={`w-4 h-4 rounded-md flex items-center justify-center shrink-0 border ${
-                        isSelected
-                          ? 'bg-volt-lime border-volt-lime text-black'
-                          : 'border-ink/20 dark:border-white/20'
-                      }`}
-                    >
-                      {isSelected && <Check className="w-2.5 h-2.5 stroke-[3] animate-apple-check-pop" />}
-                    </div>
-
-                    <div className="min-w-0">
-                      <div className="text-xs font-semibold text-ink flex items-center gap-1.5 flex-wrap">
-                        <span>{isFr ? item.nameFr : item.nameEn}</span>
-                        {item.isCustom && (
-                          <Badge variant="sky" size="xs">
-                            {t('itemCustomBadge')}
-                          </Badge>
-                        )}
-                        {!compliant && (
-                          <Badge variant="red" size="xs">
-                            {t('itemIncompatibleBadge')}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="text-[10px] text-ink-muted">
-                        {isFr ? item.portionLabelFr : item.portionLabelEn}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    {renderFlavorBadge(item.flavor)}
-                    <span className="text-[11px] font-mono font-medium text-ink-muted tnum">
-                      {item.carbsG}g C · {item.kcal} kcal
-                    </span>
-                    {item.isCustom && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteCustomItem(item.id);
-                        }}
-                        className="text-red-500 hover:text-red-600 p-1"
-                      >
-                        <Trash className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* SLOT 4: POST-RIDE RECOVERY */}
-        <div className="p-3.5 rounded-pod bg-card border border-ink/5 dark:border-white/5 space-y-2.5">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <span className="text-base">🫐</span>
-              <div>
-                <div className="text-xs font-bold text-ink">
-                  {t('slotPostRide')}
-                </div>
-                <div className="text-[10px] text-ink-muted">
-                  {t('slotPostRideSub')}
-                </div>
-              </div>
-            </div>
-            <Badge variant="zinc" size="xs">
-              {isFr ? '1 choix' : 'Select 1'}
-            </Badge>
-          </div>
-
-          <div className="space-y-1.5">
-            {postRideCatalog.map((item) => {
-              const compliant = isItemCompliant(item, activeFilters);
-              const isSelected = activePantryIds.includes(item.id);
-
-              return (
-                <div
-                  key={item.id}
-                  onClick={() => compliant && handleSelectSingleSlot(item)}
-                  className={`p-2.5 rounded-sub-pod flex items-center justify-between gap-2 transition-all ${
-                    !compliant
-                      ? 'opacity-40 bg-pod/40 cursor-not-allowed border border-dashed border-red-500/30'
-                      : isSelected
-                      ? 'bg-volt-lime/10 border border-volt-lime/40 text-ink cursor-pointer'
-                      : 'bg-pod/70 hover:bg-pod text-ink-secondary hover:text-ink cursor-pointer border border-ink/5 dark:border-white/5'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div
-                      className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 border ${
-                        isSelected
-                          ? 'bg-volt-lime border-volt-lime text-black'
-                          : 'border-ink/20 dark:border-white/20'
-                      }`}
-                    >
-                      {isSelected && <Check className="w-2.5 h-2.5 stroke-[3] animate-apple-check-pop" />}
-                    </div>
-
-                    <div className="min-w-0">
-                      <div className="text-xs font-semibold text-ink flex items-center gap-1.5 flex-wrap">
-                        <span>{isFr ? item.nameFr : item.nameEn}</span>
-                        {item.isCustom && (
-                          <Badge variant="sky" size="xs">
-                            {t('itemCustomBadge')}
-                          </Badge>
-                        )}
-                        {!compliant && (
-                          <Badge variant="red" size="xs">
-                            {t('itemIncompatibleBadge')}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="text-[10px] text-ink-muted">
-                        {isFr ? item.portionLabelFr : item.portionLabelEn}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    {renderFlavorBadge(item.flavor)}
-                    <span className="text-[11px] font-mono font-medium text-ink-muted tnum">
-                      {item.carbsG}g C · {item.proteinG}g P · {item.kcal} kcal
-                    </span>
-                    {item.isCustom && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteCustomItem(item.id);
-                        }}
-                        className="text-red-500 hover:text-red-600 p-1"
-                      >
-                        <Trash className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* ── 4. CUSTOM ITEM CREATOR MODAL / FORM ── */}
-      <div className="pt-1">
-        {!showCustomForm ? (
-          <button
-            type="button"
-            onClick={() => setShowCustomForm(true)}
-            className="w-full py-2.5 px-3 rounded-pod border border-dashed border-ink/15 dark:border-white/15 hover:border-volt-lime/60 hover:bg-volt-lime/5 text-ink-secondary hover:text-ink text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer"
-          >
-            <Plus className="w-4 h-4 text-volt-lime" />
-            <span>{t('addCustomItem')}</span>
-          </button>
-        ) : (
-          <form
-            onSubmit={handleAddCustomItem}
-            className="p-3.5 rounded-pod bg-card border border-volt-lime/30 space-y-3 animate-apple-step-in"
-          >
-            <div className="flex items-center justify-between">
-              <div className="text-xs font-bold text-ink">
-                {t('addCustomItemTitle')}
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowCustomForm(false)}
-                className="text-ink-muted hover:text-ink p-1"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <div>
-                <label className="block text-[11px] font-medium text-ink-muted mb-1">
-                  {t('customItemNameEn')}
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={customNameEn}
-                  onChange={(e) => setCustomNameEn(e.target.value)}
-                  placeholder="e.g. Electrolyte Chew"
-                  className="w-full text-xs p-2 rounded-sub-pod bg-pod border border-ink/10 dark:border-white/10 text-ink focus:outline-none focus:ring-1 focus:ring-volt-lime"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-medium text-ink-muted mb-1">
-                  {t('customItemNameFr')}
-                </label>
-                <input
-                  type="text"
-                  value={customNameFr}
-                  onChange={(e) => setCustomNameFr(e.target.value)}
-                  placeholder="ex. Gomme électrolyte"
-                  className="w-full text-xs p-2 rounded-sub-pod bg-pod border border-ink/10 dark:border-white/10 text-ink focus:outline-none focus:ring-1 focus:ring-volt-lime"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <div>
-                <label className="block text-[11px] font-medium text-ink-muted mb-1">
-                  {t('customItemSlot')}
-                </label>
-                <select
-                  value={customSlot}
-                  onChange={(e) => setCustomSlot(e.target.value as PantrySlot)}
-                  className="w-full text-xs p-2 rounded-sub-pod bg-pod border border-ink/10 dark:border-white/10 text-ink focus:outline-none focus:ring-1 focus:ring-volt-lime"
-                >
-                  <option value="pre-ride">{t('slotPreRide')}</option>
-                  <option value="on-bike-liquid">{t('slotLiquid')}</option>
-                  <option value="on-bike-solid">{t('slotSolid')}</option>
-                  <option value="post-ride-recovery">{t('slotPostRide')}</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-medium text-ink-muted mb-1">
-                  {t('customItemCarbs')}
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="120"
-                  value={customCarbsG}
-                  onChange={(e) => setCustomCarbsG(Number(e.target.value))}
-                  className="w-full text-xs p-2 rounded-sub-pod bg-pod border border-ink/10 dark:border-white/10 text-ink focus:outline-none focus:ring-1 focus:ring-volt-lime tnum"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-medium text-ink-muted mb-1">
-                  {t('customItemProtein')}
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="60"
-                  value={customProteinG}
-                  onChange={(e) => setCustomProteinG(Number(e.target.value))}
-                  className="w-full text-xs p-2 rounded-sub-pod bg-pod border border-ink/10 dark:border-white/10 text-ink focus:outline-none focus:ring-1 focus:ring-volt-lime tnum"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-medium text-ink-muted mb-1">
-                  {t('customItemKcal')}
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="800"
-                  value={customKcal}
-                  onChange={(e) => setCustomKcal(Number(e.target.value))}
-                  className="w-full text-xs p-2 rounded-sub-pod bg-pod border border-ink/10 dark:border-white/10 text-ink focus:outline-none focus:ring-1 focus:ring-volt-lime tnum"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <div>
-                <label className="block text-[11px] font-medium text-ink-muted mb-1">
-                  {t('customItemFlavor')}
-                </label>
-                <select
-                  value={customFlavor}
-                  onChange={(e) => setCustomFlavor(e.target.value as FlavorProfile)}
-                  className="w-full text-xs p-2 rounded-sub-pod bg-pod border border-ink/10 dark:border-white/10 text-ink focus:outline-none focus:ring-1 focus:ring-volt-lime"
-                >
-                  <option value="sweet">{t('flavorSweet')}</option>
-                  <option value="savory">{t('flavorSavory')}</option>
-                  <option value="neutral">{t('flavorNeutral')}</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-medium text-ink-muted mb-1">
-                  {t('customItemPortionEn')}
-                </label>
-                <input
-                  type="text"
-                  value={customPortionEn}
-                  onChange={(e) => setCustomPortionEn(e.target.value)}
-                  placeholder="1 bar / 1 chew"
-                  className="w-full text-xs p-2 rounded-sub-pod bg-pod border border-ink/10 dark:border-white/10 text-ink focus:outline-none focus:ring-1 focus:ring-volt-lime"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-medium text-ink-muted mb-1">
-                {t('customItemComplianceTitle')}
-              </label>
-              <div className="flex items-center gap-3 flex-wrap">
-                {DIETARY_FILTERS_CONFIG.map((f) => (
-                  <label
-                    key={f.id}
-                    className="flex items-center gap-1.5 text-xs text-ink cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={customCompliance[f.id]}
-                      onChange={(e) =>
-                        setCustomCompliance((prev) => ({
-                          ...prev,
-                          [f.id]: e.target.checked,
-                        }))
-                      }
-                      className="rounded border-ink/20 accent-volt-lime"
-                    />
-                    <span>{f.icon} {t(f.labelKey)}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-ink/5 dark:border-white/5">
-              <button
-                type="button"
-                onClick={() => setShowCustomForm(false)}
-                className="px-3 py-1.5 rounded-pod text-xs font-semibold text-ink-muted hover:text-ink cursor-pointer"
-              >
-                {t('customItemCancel')}
-              </button>
-              <button
-                type="submit"
-                className="px-3.5 py-1.5 rounded-pod bg-volt-lime text-black font-bold text-xs hover:bg-volt-lime/90 transition-all cursor-pointer"
-              >
-                {t('customItemSave')}
-              </button>
-            </div>
-          </form>
         )}
       </div>
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* ── 1. STYLE PRESETS & DIETARY GUARDRAILS ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+        {/* Style Presets */}
+        <div className="p-3.5 rounded-pod bg-card border border-ink/5 dark:border-white/5 space-y-2.5">
+          <div className="flex items-center gap-2">
+            <IconBadge theme="yellow-vest" icon={ForkKnife} size="sm" solidBacker />
+            <div>
+              <div className="text-xs font-rounded font-bold text-ink">
+                {t('pantryBuilderTitle')}
+              </div>
+              <div className="text-[11px] text-ink-muted">
+                {t('pantryBuilderSubtitle')}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            {STYLE_PRESETS.map((preset) => {
+              const isSavory = preset.key === 'savory-endurance';
+              const isActive = isSavory
+                ? effectiveActiveIds.includes('sol-salted-baby-potatoes') ||
+                  effectiveActiveIds.includes('pre-savory-potato-hash')
+                : specs.nutritionPreference === preset.key &&
+                  !effectiveActiveIds.includes('sol-salted-baby-potatoes');
+
+              return (
+                <button
+                  key={preset.key}
+                  type="button"
+                  onClick={() => handleSelectStyle(preset.key)}
+                  className={`p-2.5 rounded-pod text-left flex flex-col justify-between transition-all cursor-pointer ${
+                    isActive
+                      ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.emerald.selectedRing}`
+                      : `bg-pod text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
+                  }`}
+                >
+                  <div>
+                    <div className="text-xs font-rounded font-bold leading-tight">
+                      {t(preset.labelKey)}
+                    </div>
+                    <div className="text-[10px] opacity-80 mt-0.5 leading-snug line-clamp-2">
+                      {t(preset.subKey)}
+                    </div>
+                  </div>
+                  {isActive && (
+                    <div className="mt-1.5 flex items-center gap-1 text-[10px] font-rounded font-semibold text-emerald-700 dark:text-emerald-300">
+                      <Check className="w-3 h-3 text-current" />
+                      <span>{isFr ? 'Actif' : 'Active'}</span>
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Dietary & Allergen Guardrails + Fuel Delivery Strategy */}
+        <div className="space-y-3.5">
+          <div className="p-3.5 rounded-pod bg-card border border-ink/5 dark:border-white/5 space-y-2.5">
+            <div className="flex items-center gap-2">
+              <IconBadge theme="lime" icon={ShieldCheck} size="sm" solidBacker />
+              <div>
+                <div className="text-xs font-rounded font-bold text-ink">
+                  {t('dietaryGuardrailsHeading')}
+                </div>
+                <div className="text-[11px] text-ink-muted">
+                  {t('dietaryGuardrailsHint')}
+                </div>
+              </div>
+            </div>
+
+            {/* Text-Only Dietary Guardrail Chips (Zero Emojis) */}
+            <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+              {DIETARY_FILTERS_CONFIG.map((filter) => {
+                const active = activeFilters.includes(filter.id);
+                return (
+                  <button
+                    key={filter.id}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => handleToggleFilter(filter.id)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-rounded font-semibold flex items-center gap-1.5 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/40 ${
+                      active
+                        ? `${CHIP_TOKENS.lime.surface} ${CHIP_TOKENS.lime.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.lime.selectedRing}`
+                        : `bg-pod text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
+                    }`}
+                  >
+                    <span>{t(filter.labelKey)}</span>
+                    {active && <Check className="w-3 h-3 text-current" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Fuel Delivery & Palate Strategy (Phase 9) */}
+          <div className="p-3.5 rounded-pod bg-card border border-ink/5 dark:border-white/5 space-y-2.5">
+            <div className="flex items-center gap-2">
+              <IconBadge theme="sky" icon={Droplets} size="sm" solidBacker />
+              <div>
+                <div className="text-xs font-rounded font-bold text-ink">
+                  {t('fuelSplitTitle')}
+                </div>
+                <div className="text-[11px] text-ink-muted">
+                  {t('fuelSplitSubtitle')}
+                </div>
+              </div>
+            </div>
+
+            {/* Liquid vs Pocket Solid Split Slider */}
+            <div className="space-y-1.5 p-2.5 rounded-pod bg-pod/60">
+              <div className="flex items-center justify-between gap-2 text-xs">
+                <span className="font-rounded font-semibold text-ink">
+                  {t('liquidRatioLabel')}
+                </span>
+                <span className="font-mono font-bold text-sky-600 dark:text-sky-400 tnum">
+                  {Math.round((specs.liquidCarbRatio ?? 0.35) * 100)}% {isFr ? 'Liquide' : 'Liquid'} · {Math.round((1 - (specs.liquidCarbRatio ?? 0.35)) * 100)}% {isFr ? 'Solide' : 'Solids'}
+                </span>
+              </div>
+
+              <input
+                type="range"
+                min={0.15}
+                max={0.85}
+                step={0.05}
+                value={specs.liquidCarbRatio ?? 0.35}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value);
+                  onChange({
+                    ...specs,
+                    liquidCarbRatio: Math.min(0.85, Math.max(0.15, Math.round(val * 100) / 100)),
+                  });
+                }}
+                aria-label={t('liquidRatioLabel')}
+                className="w-full peloton-slider accent-sky-500 cursor-pointer"
+              />
+
+              <div className="flex justify-between text-[10px] text-ink-muted font-mono tnum">
+                <span>15% {isFr ? 'Liquide' : 'Liquid'}</span>
+                <span>50 / 50</span>
+                <span>85% {isFr ? 'Liquide' : 'Liquid'}</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {/* Auto-Modulate Liquid Toggle */}
+              <div className="flex items-start justify-between gap-2.5 p-2.5 rounded-pod bg-pod/60">
+                <div className="space-y-0.5 min-w-0">
+                  <div className="text-xs font-rounded font-semibold text-ink leading-snug">
+                    {t('autoModulateLiquidLabel')}
+                  </div>
+                  <div className="text-[10px] text-ink-muted leading-snug">
+                    {t('autoModulateLiquidHint')}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={specs.autoModulateLiquidInHeatOrEffort !== false}
+                  onClick={() => {
+                    onChange({
+                      ...specs,
+                      autoModulateLiquidInHeatOrEffort: !(specs.autoModulateLiquidInHeatOrEffort !== false),
+                    });
+                  }}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-hidden focus-visible:ring-2 focus-visible:ring-sky-500 ${
+                    specs.autoModulateLiquidInHeatOrEffort !== false ? 'bg-sky-500' : 'bg-ink/20 dark:bg-white/20'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition duration-200 ease-in-out mt-0.5 ml-0.5 ${
+                      specs.autoModulateLiquidInHeatOrEffort !== false ? 'translate-x-4' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Savory Palate Resets Toggle */}
+              <div className="flex items-start justify-between gap-2.5 p-2.5 rounded-pod bg-pod/60">
+                <div className="space-y-0.5 min-w-0">
+                  <div className="text-xs font-rounded font-semibold text-ink leading-snug">
+                    {t('savoryResetLabel')}
+                  </div>
+                  <div className="text-[10px] text-ink-muted leading-snug">
+                    {t('savoryResetHint')}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={specs.enableSavoryPalateResets !== false}
+                  onClick={() => {
+                    onChange({
+                      ...specs,
+                      enableSavoryPalateResets: !(specs.enableSavoryPalateResets !== false),
+                    });
+                  }}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                    specs.enableSavoryPalateResets !== false ? 'bg-emerald-500' : 'bg-ink/20 dark:bg-white/20'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition duration-200 ease-in-out mt-0.5 ml-0.5 ${
+                      specs.enableSavoryPalateResets !== false ? 'translate-x-4' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── 3. SMART 4-SLOT SEGMENTED PANTRY SELECTOR ── */}
+      <div className="p-3.5 sm:p-4 rounded-pod bg-card border border-ink/5 dark:border-white/5 space-y-3.5">
+        {/* 4-Slot Segmented Overview Bar */}
+        <div
+          role="tablist"
+          aria-label={t('pantryBuilderTitle')}
+          className="grid grid-cols-2 sm:grid-cols-4 gap-2"
+        >
+          {SLOT_TABS.map((tab) => {
+            const isActiveTab = activeSlot === tab.slot;
+            const TabIcon = tab.icon;
+            const token = CHIP_TOKENS[tab.theme];
+
+            return (
+              <button
+                key={tab.slot}
+                type="button"
+                role="tab"
+                aria-selected={isActiveTab}
+                onClick={() => setActiveSlot(tab.slot)}
+                className={`p-2.5 rounded-pod text-left flex flex-col justify-between gap-1.5 transition-all cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                  isActiveTab
+                    ? `${token.surface} ${token.primary} ${CHIP_RING_BASE} ${token.selectedRing}`
+                    : `bg-pod/70 hover:bg-pod text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
+                }`}
+              >
+                <div className="flex items-center justify-between gap-1.5 w-full">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <TabIcon className="w-4 h-4 text-current shrink-0" />
+                    <span className="text-xs font-rounded font-bold truncate">
+                      {t(tab.titleKey)}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono font-bold opacity-80 tnum shrink-0">
+                    {tab.badgeLabel}
+                  </span>
+                </div>
+
+                <div className="text-[11px] font-rounded opacity-85 line-clamp-1 w-full">
+                  {tab.activeSummary}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Active Slot Header + Flavor Filter (for Pocket Solids) + Add Custom CTA */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-dashed border-ink/10 dark:border-white/10">
+          <div className="flex items-center gap-2 min-w-0">
+            <IconBadge
+              theme={currentSlotConfig.theme}
+              icon={currentSlotConfig.icon}
+              size="sm"
+              solidBacker
+            />
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs sm:text-[13px] font-rounded font-bold text-ink">
+                  {t(currentSlotConfig.titleKey)}
+                </span>
+                <Badge
+                  variant={activeSlot === 'on-bike-solid' ? 'yellow-vest' : 'zinc'}
+                  size="xs"
+                >
+                  {activeSlot === 'on-bike-solid'
+                    ? isFr
+                      ? '1 à 3 choix'
+                      : '1 to 3 items'
+                    : isFr
+                    ? '1 choix'
+                    : 'Select 1'}
+                </Badge>
+              </div>
+              <div className="text-[11px] text-ink-muted">
+                {t(currentSlotConfig.subKey)}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            {activeSlot === 'on-bike-solid' && (
+              <div className="inline-flex items-center gap-1 p-1 rounded-full bg-pod">
+                {(
+                  [
+                    { id: 'all', label: isFr ? 'Tous' : 'All' },
+                    { id: 'sweet', label: t('flavorSweet') },
+                    { id: 'savory', label: t('flavorSavory') },
+                    { id: 'neutral', label: t('flavorNeutral') },
+                  ] as const
+                ).map((flt) => {
+                  const isFltActive = solidFlavorFilter === flt.id;
+                  return (
+                    <button
+                      key={flt.id}
+                      type="button"
+                      onClick={() => setSolidFlavorFilter(flt.id)}
+                      className={`px-2.5 py-0.5 rounded-full text-[11px] font-rounded font-semibold transition-all cursor-pointer ${
+                        isFltActive
+                          ? 'bg-card text-ink shadow-xs ring-1 ring-inset ring-ink/10 dark:ring-white/10'
+                          : 'text-ink-muted hover:text-ink'
+                      }`}
+                    >
+                      {flt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {!showCustomForm && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomSlot(activeSlot);
+                  setShowCustomForm(true);
+                }}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-rounded font-semibold transition-all cursor-pointer ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} hover:brightness-[0.97]`}
+              >
+                <Plus className="w-3.5 h-3.5 text-current shrink-0" />
+                <span>{t('addCustomItem')}</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Active Slot 2-Column Item Grid */}
+        <div
+          role={activeSlot === 'on-bike-solid' ? 'group' : 'radiogroup'}
+          aria-label={t(currentSlotConfig.titleKey)}
+          className="grid grid-cols-1 sm:grid-cols-2 gap-2"
+        >
+          {currentSlotItems.map((item) =>
+            renderSlotItemCard(item, activeSlot === 'on-bike-solid')
+          )}
+        </div>
+      </div>
+
+      {/* ── 4. DESIGN-SYSTEM CUSTOM PANTRY ITEM CREATOR ── */}
+      {showCustomForm && (
+        <form
+          onSubmit={handleAddCustomItem}
+          className={`p-4 rounded-pod bg-card ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} space-y-4 animate-apple-step-in`}
+        >
+          {/* Form Header */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <IconBadge theme="yellow-vest" icon={Plus} size="sm" solidBacker />
+              <div>
+                <div className="text-xs sm:text-sm font-rounded font-bold text-ink">
+                  {t('addCustomItemTitle')}
+                </div>
+                <div className="text-[11px] text-ink-muted">
+                  {isFr
+                    ? 'Ajoutez votre propre barre, gel, boisson ou collation maison'
+                    : 'Add your own bar, gel, bottle mix, or homemade snack'}
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowCustomForm(false)}
+              aria-label={t('customItemCancel')}
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer hover:bg-chip ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary}`}
+            >
+              <X className="w-4 h-4 text-current" />
+            </button>
+          </div>
+
+          {/* Slot Pill Selector */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-rounded font-semibold text-ink-secondary">
+              {t('customItemSlot')}
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+              {SLOT_TABS.map((slotOpt) => {
+                const isSelected = customSlot === slotOpt.slot;
+                const SlotIcon = slotOpt.icon;
+                const token = CHIP_TOKENS[slotOpt.theme];
+                return (
+                  <button
+                    key={slotOpt.slot}
+                    type="button"
+                    onClick={() => setCustomSlot(slotOpt.slot)}
+                    className={`px-3 py-2 rounded-pod text-xs font-rounded font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                      isSelected
+                        ? `${token.surface} ${token.primary} ${CHIP_RING_BASE} ${token.selectedRing}`
+                        : `bg-pod text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
+                    }`}
+                  >
+                    <SlotIcon className="w-3.5 h-3.5 text-current shrink-0" />
+                    <span className="truncate">{t(slotOpt.titleKey)}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Names & Portion Label Pods */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <div className="p-2.5 rounded-pod bg-pod space-y-1">
+              <label className="block text-[11px] font-rounded font-medium text-ink-muted">
+                {t('customItemNameEn')}
+              </label>
+              <input
+                type="text"
+                required
+                value={customNameEn}
+                onChange={(e) => setCustomNameEn(e.target.value)}
+                placeholder="e.g. Electrolyte Chew"
+                className="w-full text-base sm:text-xs font-rounded font-semibold text-ink bg-transparent focus:outline-none placeholder:text-ink-muted/60"
+              />
+            </div>
+
+            <div className="p-2.5 rounded-pod bg-pod space-y-1">
+              <label className="block text-[11px] font-rounded font-medium text-ink-muted">
+                {t('customItemNameFr')}
+              </label>
+              <input
+                type="text"
+                value={customNameFr}
+                onChange={(e) => setCustomNameFr(e.target.value)}
+                placeholder="ex. Gomme électrolyte"
+                className="w-full text-base sm:text-xs font-rounded font-semibold text-ink bg-transparent focus:outline-none placeholder:text-ink-muted/60"
+              />
+            </div>
+
+            <div className="p-2.5 rounded-pod bg-pod space-y-1">
+              <label className="block text-[11px] font-rounded font-medium text-ink-muted">
+                {t('customItemPortionEn')}
+              </label>
+              <input
+                type="text"
+                value={customPortionEn}
+                onChange={(e) => {
+                  setCustomPortionEn(e.target.value);
+                  setCustomPortionFr(e.target.value);
+                }}
+                placeholder="1 bar / 1 chew"
+                className="w-full text-base sm:text-xs font-rounded font-semibold text-ink bg-transparent focus:outline-none placeholder:text-ink-muted/60"
+              />
+            </div>
+          </div>
+
+          {/* Macros or Portion Units + Flavor Profile */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {isQuantitative ? (
+              <div className="grid grid-cols-3 gap-2">
+                <div className="p-2.5 rounded-pod bg-pod">
+                  <label className="block text-[11px] font-rounded text-ink-muted mb-0.5">
+                    {t('customItemCarbs')}
+                  </label>
+                  <div className="flex items-baseline gap-1">
+                    <input
+                      type="number"
+                      min="0"
+                      max="120"
+                      value={customCarbsG}
+                      onChange={(e) => setCustomCarbsG(Number(e.target.value))}
+                      className="w-full text-base sm:text-lg font-mono font-bold text-ink bg-transparent focus:outline-none tnum"
+                    />
+                    <span className="text-[11px] text-ink-muted font-mono">g</span>
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-pod bg-pod">
+                  <label className="block text-[11px] font-rounded text-ink-muted mb-0.5">
+                    {t('customItemProtein')}
+                  </label>
+                  <div className="flex items-baseline gap-1">
+                    <input
+                      type="number"
+                      min="0"
+                      max="60"
+                      value={customProteinG}
+                      onChange={(e) => setCustomProteinG(Number(e.target.value))}
+                      className="w-full text-base sm:text-lg font-mono font-bold text-ink bg-transparent focus:outline-none tnum"
+                    />
+                    <span className="text-[11px] text-ink-muted font-mono">g</span>
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-pod bg-pod">
+                  <label className="block text-[11px] font-rounded text-ink-muted mb-0.5">
+                    {t('customItemKcal')}
+                  </label>
+                  <div className="flex items-baseline gap-1">
+                    <input
+                      type="number"
+                      min="0"
+                      max="800"
+                      value={customKcal}
+                      onChange={(e) => setCustomKcal(Number(e.target.value))}
+                      className="w-full text-base sm:text-lg font-mono font-bold text-ink bg-transparent focus:outline-none tnum"
+                    />
+                    <span className="text-[10px] text-ink-muted font-mono">kcal</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <label className="block text-xs font-rounded font-semibold text-ink-secondary">
+                  {isFr ? 'Taille de portion' : 'Portion size'}
+                </label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {(
+                    [
+                      { carbs: 20, label: isFr ? '1 unité' : '1 unit', sub: isFr ? 'Collation' : 'Snack' },
+                      { carbs: 40, label: isFr ? '2 unités' : '2 units', sub: isFr ? 'Moyenne' : 'Regular' },
+                      { carbs: 60, label: isFr ? '3 unités' : '3 units', sub: isFr ? 'Repas' : 'Full meal' },
+                    ] as const
+                  ).map((uOpt) => {
+                    const currentBucket = customCarbsG <= 25 ? 20 : customCarbsG <= 45 ? 40 : 60;
+                    const active = currentBucket === uOpt.carbs;
+                    return (
+                      <button
+                        key={uOpt.carbs}
+                        type="button"
+                        onClick={() => {
+                          setCustomCarbsG(uOpt.carbs);
+                          setCustomKcal(uOpt.carbs * 4);
+                        }}
+                        className={`p-2 rounded-pod text-left transition-all cursor-pointer tnum ${
+                          active
+                            ? `${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.amber.selectedRing}`
+                            : `bg-pod text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
+                        }`}
+                      >
+                        <div className="text-xs font-rounded font-bold">{uOpt.label}</div>
+                        <div className="text-[10px] opacity-80">{uOpt.sub}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Flavor Profile Pill Selector */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-rounded font-semibold text-ink-secondary">
+                {t('customItemFlavor')}
+              </label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {(
+                  [
+                    { id: 'sweet' as FlavorProfile, label: t('flavorSweet'), theme: 'amber' as ChipTheme },
+                    { id: 'savory' as FlavorProfile, label: t('flavorSavory'), theme: 'emerald' as ChipTheme },
+                    { id: 'neutral' as FlavorProfile, label: t('flavorNeutral'), theme: 'sky' as ChipTheme },
+                  ] as const
+                ).map((flav) => {
+                  const active = customFlavor === flav.id;
+                  const token = CHIP_TOKENS[flav.theme];
+                  return (
+                    <button
+                      key={flav.id}
+                      type="button"
+                      onClick={() => setCustomFlavor(flav.id)}
+                      className={`py-2.5 px-3 rounded-pod text-xs font-rounded font-semibold text-center transition-all cursor-pointer ${
+                        active
+                          ? `${token.surface} ${token.primary} ${CHIP_RING_BASE} ${token.selectedRing}`
+                          : `bg-pod text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
+                      }`}
+                    >
+                      {flav.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Dietary Compliance Text-Only Chips */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-rounded font-semibold text-ink-secondary">
+              {t('customItemComplianceTitle')}
+            </label>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {DIETARY_FILTERS_CONFIG.map((f) => {
+                const checked = customCompliance[f.id];
+                return (
+                  <button
+                    key={f.id}
+                    type="button"
+                    aria-pressed={checked}
+                    onClick={() =>
+                      setCustomCompliance((prev) => ({
+                        ...prev,
+                        [f.id]: !prev[f.id],
+                      }))
+                    }
+                    className={`px-3 py-1.5 rounded-full text-xs font-rounded font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                      checked
+                        ? `${CHIP_TOKENS.lime.surface} ${CHIP_TOKENS.lime.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.lime.selectedRing}`
+                        : `bg-pod text-ink-muted hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
+                    }`}
+                  >
+                    <span>{t(f.labelKey)}</span>
+                    {checked && <Check className="w-3 h-3 text-current" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Form Action Footer */}
+          <div className="flex items-center justify-end gap-2 pt-2.5 border-t border-dashed border-ink/10 dark:border-white/10">
+            <button
+              type="button"
+              onClick={() => setShowCustomForm(false)}
+              className="px-4 py-2 rounded-full text-xs font-rounded font-semibold bg-pod hover:bg-chip text-ink-secondary hover:text-ink transition-all cursor-pointer"
+            >
+              {t('customItemCancel')}
+            </button>
+            <button
+              type="submit"
+              className={`px-5 py-2 rounded-full text-xs font-rounded font-bold transition-all cursor-pointer hover:brightness-[0.97] active:scale-[0.98] ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`}
+            >
+              {t('customItemSave')}
+            </button>
+          </div>
+        </form>
+      )}
     </div>
   );
 };

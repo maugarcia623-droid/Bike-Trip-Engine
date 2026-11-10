@@ -1,6 +1,8 @@
 import { RouteParams, OfficeConstraints, WeatherCondition, TimelineStep, LogisticsSettings, PreRideStyle, TimelineAnchorMode } from '../types/trip';
 import { subtractMinutesFromTime, addMinutesToTime } from './nutrition';
 import { loadRiderBikeSpecs } from './specsStorage';
+import { formatFuelTarget } from '../types/specs';
+import { resolveCompliantPantry, getCafeSnackSuggestion } from '../data/pantryCatalog';
 import { Language, getCurrentLanguage } from '../context/LanguageContext';
 
 export interface SolvedTripTimeline {
@@ -85,7 +87,9 @@ export function solveTripTimeline(
   const preRideMealTimeHHMM = formatHHMM(resolvedDepartureMin - preBufferMin);
   const preRideWindow = `${preRideMealTimeHHMM} – ${departureTimeHHMM}`;
 
-  const isSplit = Boolean(logistics?.splitPostRideRecovery || activeChips.includes('shower-locker'));
+  // The shower-locker chip only seeds the default; an explicit logistics choice always wins
+  // (kept identical to nutrition.ts and NutritionBento so windows and cards agree).
+  const isSplit = logistics?.splitPostRideRecovery ?? activeChips.includes('shower-locker');
 
   let postRideImmediateWindow: string | undefined;
   let postRideMealWindow: string | undefined;
@@ -234,6 +238,16 @@ export function calculateReverseTimeline(
     ? rawGate.replace(/^Gate\b/i, 'Porte')
     : rawGate.replace(/^Porte\b/i, 'Gate');
 
+  const specs = loadRiderBikeSpecs();
+  const compliantPantry = resolveCompliantPantry(specs);
+  const telemetryMode = specs.telemetryMode ?? 'quantitative';
+  const isQuant = telemetryMode === 'quantitative';
+  const showWatts = isQuant && (specs.pacingInputMode ?? 'feel') === 'power';
+  const bidonMl = specs.bidonSizeMl ?? 650;
+  const slots = specs.frameBottleSlots ?? 2;
+  const riderCarbs = specs.carbTargetGPerHr ?? 60;
+  const fuelRateText = formatFuelTarget(riderCarbs, telemetryMode, lang);
+
   let steps: TimelineStep[] = [];
 
   if (isSport) {
@@ -250,9 +264,13 @@ export function calculateReverseTimeline(
         location: isFr ? 'Domicile' : 'Home Base',
         category: 'nutrition',
         isCrucialCheckpoint: true,
-        description: isFr
-          ? '500 ml de boisson électrolytes + 60 g de glucides à IG élevé. Vérifiez la charge du compteur GPS et de la ceinture cardio.'
-          : '500ml electrolyte mix + 60g high-glycemic carbs. Top off bike computer & heart rate monitor.',
+        description: isQuant
+          ? isFr
+            ? '500 ml de boisson électrolytes + 60 g de glucides à IG élevé. Vérifiez la charge du compteur GPS et de la ceinture cardio.'
+            : '500ml electrolyte mix + 60g high-glycemic carbs. Top off bike computer & heart rate monitor.'
+          : isFr
+          ? `Un grand verre d’eau électrolytes + ${compliantPantry.preRide.nameFr.toLowerCase()}. Vérifiez la charge du compteur GPS.`
+          : `1 tall glass electrolyte water + ${compliantPantry.preRide.nameEn.toLowerCase()}. Top off bike computer.`,
         iconName: 'AlarmClock',
       },
       {
@@ -263,8 +281,8 @@ export function calculateReverseTimeline(
         category: 'prep',
         isCrucialCheckpoint: false,
         description: isFr
-          ? 'Pression ajustée pour minimiser le Crr. Vérification lubrification chaîne et mise en place des 2 bidons de 750 ml.'
-          : 'Tire pressures dialed for low rolling resistance. Lube check and 2x 750ml water bottles.',
+          ? `Pression ajustée pour minimiser le Crr. Vérification lubrification chaîne et mise en place des ${slots} bidon${slots > 1 ? 's' : ''} de ${bidonMl} ml.`
+          : `Tire pressures dialed for low rolling resistance. Lube check and ${slots}x ${bidonMl}ml water bottle${slots > 1 ? 's' : ''}.`,
         iconName: 'CheckCircle2',
       },
       {
@@ -286,9 +304,13 @@ export function calculateReverseTimeline(
         location: isFr ? 'Secteur Allure' : 'Pacing Sector',
         category: 'nutrition',
         isCrucialCheckpoint: false,
-        description: isFr
-          ? `Prise énergétique en selle adaptée à votre profil (~${loadRiderBikeSpecs().carbTargetGPerHr ?? 60} g glucides/h). Contrôle de l’allure et de la dérive cardiaque.`
-          : `On-the-bike fueling scaled to your rider profile (~${loadRiderBikeSpecs().carbTargetGPerHr ?? 60}g carbs/hr target). Smooth pacing & hydration check.`,
+        description: isQuant
+          ? isFr
+            ? `Prise énergétique en selle adaptée à votre profil (~${riderCarbs} g glucides/h). Contrôle de l’allure et de la dérive cardiaque.`
+            : `On-the-bike fueling scaled to your rider profile (~${riderCarbs}g carbs/hr target). Smooth pacing & hydration check.`
+          : isFr
+          ? `Prise énergétique en selle adaptée à votre profil (${fuelRateText}). Gardez une allure fluide et régulière.`
+          : `On-the-bike fueling scaled to your rider profile (${fuelRateText}). Smooth pacing & hydration check.`,
         iconName: 'Wind',
       },
       {
@@ -310,9 +332,13 @@ export function calculateReverseTimeline(
         location: isFr ? 'Zone Récup' : 'Recovery Staging',
         category: 'prep',
         isCrucialCheckpoint: false,
-        description: isFr
-          ? '25 g de protéines + 500 ml d’eau fraîche. Relâchement ischio-jambiers et fléchisseurs de hanche.'
-          : '25g whey/plant protein + 500ml cold water. Hamstring & hip flexor release protocol.',
+        description: isQuant
+          ? isFr
+            ? '25 g de protéines + 500 ml d’eau fraîche. Relâchement ischio-jambiers et fléchisseurs de hanche.'
+            : '25g whey/plant protein + 500ml cold water. Hamstring & hip flexor release protocol.'
+          : isFr
+          ? `${compliantPantry.postRide.nameFr} + grand verre d’eau fraîche. Relâchement ischio-jambiers et fléchisseurs de hanche.`
+          : `${compliantPantry.postRide.nameEn} + tall glass of cold water. Gentle hamstring & hip flexor stretch.`,
         iconName: 'Coffee',
       },
     ];
@@ -325,9 +351,13 @@ export function calculateReverseTimeline(
         location: isFr ? 'Secteur Bosses' : 'KOM Ridge Segment',
         category: 'ride',
         isCrucialCheckpoint: true,
-        description: isFr
-          ? 'Attaques à 380W+ sur les segments clés, relances explosives en danseuse et descente aéro en récupération.'
-          : 'Punchy 380W+ surges on target segments, out-of-the-saddle attacks and aero recovery descents.',
+        description: showWatts
+          ? isFr
+            ? 'Attaques à 380W+ sur les segments clés, relances explosives en danseuse et descente aéro en récupération.'
+            : 'Punchy 380W+ surges on target segments, out-of-the-saddle attacks and aero recovery descents.'
+          : isFr
+          ? 'Attaques soutenues sur les segments clés, relances dynamiques en danseuse et descente souple en récupération.'
+          : 'Punchy hard surges on target segments, out-of-the-saddle attacks and smooth recovery descents.',
         iconName: 'Trophy',
       });
     }
@@ -336,13 +366,23 @@ export function calculateReverseTimeline(
       steps.push({
         id: 'sport-threshold-intervals',
         time: addMinutesToTime(hardDepartureTime, Math.round(totalRideMinutes * 0.35)),
-        title: isFr ? 'Fractionné au Seuil (Séries à 310W+)' : 'Threshold VO2max Interval Sets (310W+)',
+        title: showWatts
+          ? isFr
+            ? 'Fractionné au Seuil (Séries à 310W+)'
+            : 'Threshold VO2max Interval Sets (310W+)'
+          : isFr
+          ? 'Fractionné soutenu au seuil'
+          : 'Sustained Threshold Interval Sets',
         location: isFr ? 'Corridor Chrono' : 'Interval Strip',
         category: 'ride',
         isCrucialCheckpoint: true,
-        description: isFr
-          ? 'Répétitions au seuil anaérobie (310W+) avec maintien d’une cadence stricte à 95–100 tr/min.'
-          : 'Structured threshold repetitions holding 310W+ with tight cadence control (95-100 RPM).',
+        description: showWatts
+          ? isFr
+            ? 'Répétitions au seuil anaérobie (310W+) avec maintien d’une cadence stricte à 95–100 tr/min.'
+            : 'Structured threshold repetitions holding 310W+ with tight cadence control (95-100 RPM).'
+          : isFr
+          ? 'Répétitions soutenues au seuil avec maintien d’une cadence fluide à 95–100 tr/min.'
+          : 'Structured hard threshold repetitions with smooth cadence control (95-100 RPM).',
         iconName: 'Flame',
       });
     }
@@ -356,7 +396,7 @@ export function calculateReverseTimeline(
         category: 'ride',
         isCrucialCheckpoint: false,
         description: isFr
-          ? 'Relais réguliers de 20-30 secondes à 33 km/h avec 15-20% d’économie de watts à l’abri du vent.'
+          ? 'Relais réguliers de 20-30 secondes à 33 km/h avec 15-20% d’économie d’effort à l’abri du vent.'
           : 'Smooth 20-30s pulls at 33 km/h, harvesting 15-20% aerodynamic savings in the echelon.',
         iconName: 'Users',
       });
@@ -364,14 +404,21 @@ export function calculateReverseTimeline(
 
     if (customChips.includes('hydration-electrolytes')) {
       const fuelStep = steps.find((s) => s.id === 'sport-mid-fuel');
-      const riderCarbs = loadRiderBikeSpecs().carbTargetGPerHr ?? 60;
       if (fuelStep) {
-        fuelStep.title = isFr
-          ? `Protocole ${riderCarbs}g Glucides/h & Électrolytes`
-          : `Tailored Carb Pacing (${riderCarbs}g/hr) & Electrolytes`;
-        fuelStep.description = isFr
-          ? `Apport régulier calibré sur votre tolérance digestive (${riderCarbs}g/h) + recharge sodium 500–750 mg pour éviter toute fringale.`
-          : `Steady fueling calibrated to your gut capacity (${riderCarbs}g/hr) + 500–750mg sodium reload to prevent bonking and cramping.`;
+        fuelStep.title = isQuant
+          ? isFr
+            ? `Protocole ${riderCarbs}g Glucides/h & Électrolytes`
+            : `Tailored Carb Pacing (${riderCarbs}g/hr) & Electrolytes`
+          : isFr
+          ? `Protocole Ravito (${fuelRateText}) & Électrolytes`
+          : `Steady Fueling (${fuelRateText}) & Electrolytes`;
+        fuelStep.description = isQuant
+          ? isFr
+            ? `Apport régulier calibré sur votre tolérance digestive (${riderCarbs}g/h) + recharge sodium 500–750 mg pour éviter toute fringale.`
+            : `Steady fueling calibrated to your gut capacity (${riderCarbs}g/hr) + 500–750mg sodium reload to prevent bonking and cramping.`
+          : isFr
+          ? `Apport régulier calibré sur votre confort digestif (${fuelRateText}) + boisson électrolytes pour éviter le coup de mou.`
+          : `Steady fueling calibrated to your digestion comfort (${fuelRateText}) + electrolyte sips to prevent energy dips.`;
       }
     }
   } else if (isBikepacking) {
@@ -407,7 +454,7 @@ export function calculateReverseTimeline(
       {
         id: 'bp-departure',
         time: hardDepartureTime,
-        title: isFr ? `DÉPART EXPÉDITION VERS ${destTitle.toUpperCase()}` : `TRAILHEAD ROLLOUT TOWARD ${destTitle.toUpperCase()}`,
+        title: isFr ? `Départ expédition vers ${destTitle}` : `Trailhead rollout toward ${destTitle}`,
         location: isFr ? 'Départ' : 'Origin',
         category: 'ride',
         isCrucialCheckpoint: true,
@@ -507,7 +554,7 @@ export function calculateReverseTimeline(
         harnessStep.title = isFr ? 'Calibrage Pression Tout-Terrain & Mèches' : 'Off-Grid Trail Pressure & Tubeless Dart Check';
         harnessStep.description = isFr
           ? 'Pression descendue à 2,4 bar pour maximiser l’adhérence sur piste caillouteuse, outil mèches accessible.'
-          : 'Pressures dialed to 2.4 bar for loose trail grip, tubeless dart plug tool mounted on cockpit.';
+          : 'Pressures dialed to 2.4 bar for loose trail grip, tubeless dart plug tool mounted within reach.';
       }
     }
   } else if (isEscapade) {
@@ -537,8 +584,8 @@ export function calculateReverseTimeline(
         category: 'nutrition',
         isCrucialCheckpoint: true,
         description: isFr
-          ? 'Glucides digestes + expresso. Remplissage des 2 bidons pour la route.'
-          : 'Complex carbs + espresso. Fill 2x water bottles for the road.',
+          ? `${compliantPantry.preRide.nameFr} + expresso. Remplissage des ${slots} bidon${slots > 1 ? 's' : ''} pour la route.`
+          : `${compliantPantry.preRide.nameEn} + espresso. Fill ${slots}x water bottle${slots > 1 ? 's' : ''} for the road.`,
         iconName: 'Utensils',
       },
       {
@@ -556,7 +603,7 @@ export function calculateReverseTimeline(
       {
         id: 'hard-departure',
         time: hardDepartureTime,
-        title: isFr ? `DÉPART IMPÉRATIF VERS ${destTitle.toUpperCase()}` : `ROLLOUT FOR ${destTitle.toUpperCase()}`,
+        title: isFr ? `Départ vers ${destTitle}` : `Rollout toward ${destTitle}`,
         location: isFr ? 'Départ' : 'Origin',
         category: 'ride',
         isCrucialCheckpoint: true,
@@ -628,6 +675,8 @@ export function calculateReverseTimeline(
     ];
 
     if (customChips.includes('picnic-outing')) {
+      const hasDietaryFilters = (specs.dietaryFilters?.length ?? 0) > 0;
+      const primarySolid = compliantPantry.onBikeSolids[0] || compliantPantry.preRide;
       steps.push({
         id: 'esc-picnic-lunch',
         time: addMinutesToTime(hardDepartureTime, Math.round(totalRideMinutes * 0.5)),
@@ -635,9 +684,13 @@ export function calculateReverseTimeline(
         location: isFr ? 'Halte Fluviale / Lac' : 'Scenic Riverbank Halt',
         category: 'nutrition',
         isCrucialCheckpoint: true,
-        description: isFr
-          ? 'Pause détente de 45 minutes : pain frais, fromage local du terroir, fruits frais et hydratation au soleil.'
-          : '45-minute waterside pause: artisanal sourdough, regional cheese, fresh fruit and hydration in the sun.',
+        description: hasDietaryFilters
+          ? isFr
+            ? `Pause détente de 45 min : ${primarySolid.nameFr.toLowerCase()}, fruits frais et spécialités locales adaptées au soleil.`
+            : `45-min waterside pause: ${primarySolid.nameEn.toLowerCase()}, fresh fruit and local specialties in the sun.`
+          : isFr
+          ? 'Pause détente de 45 min : pain frais, fromage local du terroir, fruits frais et hydratation au soleil.'
+          : '45-min waterside pause: artisanal sourdough, regional cheese, fresh fruit and hydration in the sun.',
         iconName: 'Utensils',
       });
     }
@@ -687,6 +740,7 @@ export function calculateReverseTimeline(
     const gateArrivalAnchor = targetArrival;
     const gateTurnstileTime = subtractMinutesFromTime(gateArrivalAnchor, arrivalBuffer);
     const lockerRefuelEnd = addMinutesToTime(gateArrivalAnchor, office.lockerRefuelMinutes || 10);
+    const isFasted = physicsSpeedOverride?.logistics?.preRideStyle === 'fasted-rollout';
 
     steps = [
       {
@@ -708,9 +762,13 @@ export function calculateReverseTimeline(
         location: isFr ? 'Cuisine' : 'Kitchen Counter',
         category: 'nutrition',
         isCrucialCheckpoint: true,
-        description: isFr
-          ? 'Baguette blanche grillée + miel de fleurs + double expresso. Digestion matinale légère.'
-          : 'White toasted baguette + wildflower honey + double espresso. Easy morning digestion.',
+        description: isFasted
+          ? isFr
+            ? 'Hydratation légère (eau + café ou thé). Votre encas vous attend à l’arrivée.'
+            : 'Light hydration (water + coffee or tea). Your breakfast awaits at arrival.'
+          : isFr
+          ? `${compliantPantry.preRide.nameFr} (${compliantPantry.preRide.portionLabelFr}) + café ou thé. Digestion matinale légère.`
+          : `${compliantPantry.preRide.nameEn} (${compliantPantry.preRide.portionLabelEn}) + coffee or tea. Easy morning digestion.`,
         iconName: 'Utensils',
       },
       {
@@ -745,9 +803,13 @@ export function calculateReverseTimeline(
         category: 'ride',
         isCrucialCheckpoint: false,
         description: weather.isHeadwindActive
-          ? isFr
-            ? `Vent de face détecté (${windKmh} km/h). Position aéro sur les cocottes pour économiser ~${Math.round(windKmh * 3.5)}W.`
-            : `Headwind detected (${windKmh} km/h). Hold aero tuck to conserve ~${Math.round(windKmh * 3.5)}W.`
+          ? showWatts
+            ? isFr
+              ? `Vent de face détecté (${windKmh} km/h). Position aéro sur les cocottes pour économiser ~${Math.round(windKmh * 3.5)}W.`
+              : `Headwind detected (${windKmh} km/h). Hold aero tuck to conserve ~${Math.round(windKmh * 3.5)}W.`
+            : isFr
+            ? `Vent de face détecté (${windKmh} km/h). Position basse sur les cocottes pour protéger votre allure face au vent.`
+            : `Headwind detected (${windKmh} km/h). Hold a low aero posture to save energy into the wind.`
           : isFr
           ? 'Vent calme sur le parcours. Cadence d’endurance régulière (88–92 tr/min).'
           : 'Calm road conditions. Cruise at steady endurance cadence (88-92 RPM).',
@@ -806,6 +868,7 @@ export function calculateReverseTimeline(
     ];
 
     if (customChips.includes('coffee-stop')) {
+      const cafeSnack = getCafeSnackSuggestion(specs.dietaryFilters || [], lang);
       steps.push({
         id: 'commute-coffee-pause',
         time: addMinutesToTime(hardDepartureTime, Math.max(10, Math.round(totalRideMinutes * 0.35))),
@@ -814,8 +877,8 @@ export function calculateReverseTimeline(
         category: 'nutrition',
         isCrucialCheckpoint: true,
         description: isFr
-          ? 'Pause café matinale planifiée (15 min). Double expresso & viennoiserie aux amandes avant la relance.'
-          : 'Scheduled 15-min morning coffee stop. Double espresso & almond pastry before rolling again.',
+          ? `Pause café matinale planifiée (15 min). ${cafeSnack} avant la relance.`
+          : `Scheduled 15-min morning coffee stop. ${cafeSnack} before rolling again.`,
         iconName: 'Coffee',
       });
     }
@@ -835,9 +898,13 @@ export function calculateReverseTimeline(
       const transitStep = steps.find((s) => s.id === 'estuary-transit');
       if (transitStep) {
         transitStep.title = isFr ? 'Secteur Allure & Relais Cardio Tempo' : 'Tempo Cadence & Cardio Surge Sector';
-        transitStep.description = isFr
-          ? 'Relance en Zone 3 soutenue (~260W). Rythme cardio soutenu pour maximiser le bénéfice entraînement.'
-          : 'Sustained Zone 3 tempo (~260W). High-output aerobic pacing to turn commute into a structured workout.';
+        transitStep.description = showWatts
+          ? isFr
+            ? 'Relance en Zone 3 soutenue (~260W). Rythme cardio soutenu pour maximiser le bénéfice entraînement.'
+            : 'Sustained Zone 3 tempo (~260W). High-output aerobic pacing to turn commute into a structured workout.'
+          : isFr
+          ? 'Relance soutenue en rythme tempo. Effort cardio régulier pour dynamiser le trajet.'
+          : 'Sustained tempo effort. Steady aerobic pacing to turn your ride into an energizing workout.';
       }
     }
 
@@ -862,7 +929,6 @@ export function calculateReverseTimeline(
   }
 
   // Inject Savory Palate Reset Milestones at 90-minute intervals on rides >= 2.5h (Phase 9)
-  const specs = loadRiderBikeSpecs();
   const enableSavory = specs.enableSavoryPalateResets !== false;
   const savoryCount =
     physicsSpeedOverride?.savoryResetCount !== undefined
@@ -876,7 +942,7 @@ export function calculateReverseTimeline(
       steps.push({
         id: `savory-palate-reset-${m}`,
         time: addMinutesToTime(hardDepartureTime, m),
-        title: isFr ? `Pause salée (T+${m}m)` : `Savory palate reset (T+${m}m)`,
+        title: isFr ? `Pause salée (T + ${m} min)` : `Savory palate reset (T + ${m} min)`,
         location: isFr ? 'En selle' : 'On-bike',
         category: 'nutrition',
         isCrucialCheckpoint: false,

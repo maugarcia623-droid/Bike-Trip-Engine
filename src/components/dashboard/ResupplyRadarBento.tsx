@@ -25,6 +25,7 @@ import {
 import { useTranslation } from '../../context/LanguageContext';
 import { loadRiderBikeSpecs } from '../../utils/specsStorage';
 import { calculateHydrationPlan } from '../../utils/nutrition';
+import { formatKm, formatCriticalGapAdvice, formatGapDetail } from '../../utils/waterGapCopy';
 import { Collapsible, DisclosureChevron } from '../common/Collapsible';
 import { Badge } from '../common/Badge';
 import { InfoTooltip } from '../common/InfoTooltip';
@@ -387,7 +388,9 @@ export const ResupplyRadarBento: React.FC<ResupplyRadarBentoProps> = ({
           <div className="flex items-center gap-2 min-w-0 flex-wrap tnum text-xs">
             <Badge
               variant={
-                waterGaps.status === 'clear'
+                !hasScanned
+                  ? 'zinc'
+                  : waterGaps.status === 'clear'
                   ? 'emerald'
                   : waterGaps.status === 'caution'
                   ? 'amber'
@@ -396,13 +399,17 @@ export const ResupplyRadarBento: React.FC<ResupplyRadarBentoProps> = ({
               size="xs"
               dot
             >
-              {waterGaps.status === 'clear'
+              {!hasScanned
                 ? isFr
-                  ? `Eau : Tout est prêt (max ${waterGaps.maxGapKm} km)`
-                  : `Water: All good (max ${waterGaps.maxGapKm} km)`
+                  ? 'Eau : scannez le parcours'
+                  : 'Water: scan the route'
+                : waterGaps.status === 'clear'
+                ? isFr
+                  ? `Eau : tout est prêt (max ${formatKm(waterGaps.maxGapKm, lang)} km)`
+                  : `Water: all good (max ${formatKm(waterGaps.maxGapKm, lang)} km)`
                 : waterGaps.status === 'caution'
-                ? t('hydrationCautionShort', { gap: waterGaps.maxGapKm })
-                : t('hydrationCriticalShort', { gap: waterGaps.maxGapKm })}
+                ? t('hydrationCautionShort', { gap: formatKm(waterGaps.maxGapKm, lang) })
+                : t('hydrationCriticalShort', { gap: formatKm(waterGaps.maxGapKm, lang) })}
             </Badge>
 
             <span className="text-ink-secondary font-medium">
@@ -427,21 +434,15 @@ export const ResupplyRadarBento: React.FC<ResupplyRadarBentoProps> = ({
                 <div className="text-xs min-w-0 space-y-1">
                   <span className="font-bold font-rounded block">
                     {t('hydrationCritical', {
-                      gap: waterGaps.criticalGaps[0]?.distanceKm || waterGaps.maxGapKm,
-                      start: waterGaps.criticalGaps[0]?.startKm || 0,
-                      end: waterGaps.criticalGaps[0]?.endKm || totalDistanceKm,
-                      bidons: waterGaps.criticalGaps[0]?.recommendedBidons || 2,
-                      ml:
-                        waterGaps.criticalGaps[0]?.recommendedMl ||
-                        (waterGaps.criticalGaps[0]?.recommendedBidons || 2) *
-                          (loadRiderBikeSpecs().bidonSizeMl ?? 650),
+                      gap: formatKm(waterGaps.criticalGaps[0]?.distanceKm || waterGaps.maxGapKm, lang),
+                      start: formatKm(waterGaps.criticalGaps[0]?.startKm || 0, lang),
+                      end: formatKm(waterGaps.criticalGaps[0]?.endKm || totalDistanceKm, lang),
+                      advice: formatCriticalGapAdvice(waterGaps.criticalGaps[0], lang),
                     })}
                   </span>
                   {waterGaps.criticalGaps[0] && (
-                    <div className="text-[11px] font-mono opacity-90 flex items-center gap-2 flex-wrap">
-                      <span>{waterGaps.criticalGaps[0].distanceKm.toFixed(1)} km (~{Math.round((waterGaps.criticalGaps[0].gapHours ?? 0) * 60)} min)</span>
-                      <span>&middot;</span>
-                      <span>{waterGaps.criticalGaps[0].gapFluidNeedMl} ml ({waterGaps.criticalGaps[0].depletionPct}% {isFr ? 'capacité' : 'capacity'})</span>
+                    <div className="text-[11px] font-rounded tnum opacity-90">
+                      {formatGapDetail(waterGaps.criticalGaps[0], lang)}
                     </div>
                   )}
                 </div>
@@ -452,16 +453,14 @@ export const ResupplyRadarBento: React.FC<ResupplyRadarBentoProps> = ({
                 <div className="text-xs min-w-0 space-y-1">
                   <span className="font-bold font-rounded block">
                     {t('hydrationCaution', {
-                      gap: waterGaps.cautionGaps[0]?.distanceKm || waterGaps.maxGapKm,
-                      start: waterGaps.cautionGaps[0]?.startKm || 0,
-                      end: waterGaps.cautionGaps[0]?.endKm || totalDistanceKm,
+                      gap: formatKm(waterGaps.cautionGaps[0]?.distanceKm || waterGaps.maxGapKm, lang),
+                      start: formatKm(waterGaps.cautionGaps[0]?.startKm || 0, lang),
+                      end: formatKm(waterGaps.cautionGaps[0]?.endKm || totalDistanceKm, lang),
                     })}
                   </span>
                   {waterGaps.cautionGaps[0] && (
-                    <div className="text-[11px] font-mono opacity-90 flex items-center gap-2 flex-wrap">
-                      <span>{waterGaps.cautionGaps[0].distanceKm.toFixed(1)} km (~{Math.round((waterGaps.cautionGaps[0].gapHours ?? 0) * 60)} min)</span>
-                      <span>&middot;</span>
-                      <span>{waterGaps.cautionGaps[0].gapFluidNeedMl} ml ({waterGaps.cautionGaps[0].depletionPct}% {isFr ? 'capacité' : 'capacity'})</span>
+                    <div className="text-[11px] font-rounded tnum opacity-90">
+                      {formatGapDetail(waterGaps.cautionGaps[0], lang)}
                     </div>
                   )}
                 </div>
@@ -470,7 +469,7 @@ export const ResupplyRadarBento: React.FC<ResupplyRadarBentoProps> = ({
               <div className="rounded-pod p-2 sm:p-2.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 ring-1 ring-emerald-500/30 flex items-center gap-2 transition-all">
                 <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                 <span className="text-xs font-medium font-rounded">
-                  {t('hydrationStatusGo', { maxGap: waterGaps.maxGapKm })}
+                  {t('hydrationStatusGo', { maxGap: formatKm(waterGaps.maxGapKm, lang) })}
                 </span>
               </div>
             )}

@@ -1032,13 +1032,13 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
   return (
     <div
       ref={heroRootRef}
-      className="relative rounded-card bg-card text-ink border border-ink/5 dark:border-white/5 transition-colors shadow-sm min-h-[460px] sm:min-h-[490px] lg:min-h-[520px]"
+      className="relative rounded-card bg-card text-ink border border-ink/5 dark:border-white/5 transition-colors shadow-sm overflow-hidden min-h-[460px] sm:min-h-[490px] lg:min-h-[520px]"
     >
-      <div className="absolute inset-0 z-0 rounded-card overflow-hidden">
+      <div className="absolute inset-0 z-0 rounded-card overflow-hidden isolate [transform:translateZ(0)]">
         <div className="absolute inset-0 z-0 overflow-hidden">
           <div
             ref={mapContainerRef}
-            className="w-full h-full min-h-[460px] sm:min-h-[490px] lg:min-h-[520px] bg-[#E5E3DD] dark:bg-[#121214] dark:[filter:brightness(0.82)_contrast(1.22)_saturate(1.15)]"
+            className="w-full h-full min-h-[460px] sm:min-h-[490px] lg:min-h-[520px] bg-[#E5E3DD] dark:bg-[#121214] dark:[filter:brightness(0.82)_contrast(1.22)_saturate(1.15)] [transform:translateZ(0)]"
           />
         </div>
 
@@ -2001,6 +2001,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
         trip={trip}
         hardDepartureTime={timelineResult.hardDepartureTime}
         effectiveSpeedKmH={physicsResult.effectiveSpeedKmH}
+        legWatts={physicsResult.legWatts}
         onUpdateTrip={onUpdateTrip || (() => {})}
         selectedAmenity={selectedAmenity}
         onSelectAmenity={onSelectAmenity}

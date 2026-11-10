@@ -5,6 +5,7 @@ import {
   getActiveBike,
   hasSavedRiderBikeSpecs,
   getEffectiveRiderSpecs,
+  normalizeRiderBikeSpecs,
 } from "./utils/specsStorage";
 import { CockpitSetupModal } from "./components/onboarding/CockpitSetupModal";
 import { RiderBikeSpecs } from "./types/specs";
@@ -277,8 +278,9 @@ function AppContent() {
           }
 
           if (incomingSpecs && typeof incomingSpecs === 'object') {
-            setRiderSpecs(incomingSpecs);
-            saveRiderBikeSpecs(incomingSpecs);
+            const normalizedSpecs = normalizeRiderBikeSpecs(incomingSpecs);
+            setRiderSpecs(normalizedSpecs);
+            saveRiderBikeSpecs(normalizedSpecs);
           }
 
           if (cloudAppData.userProfile && cloudAppData.userProfile.name) {
@@ -501,6 +503,7 @@ function AppContent() {
   };
 
   const handleToggleHeadwind = () => {
+    if (!activeTrip) return;
     const newHeadwind = !activeTrip.weather.isHeadwindActive;
     const updated: TripProfile = {
       ...activeTrip,
@@ -516,6 +519,7 @@ function AppContent() {
   };
 
   const handleUpdateWeather = (newWeather: WeatherCondition) => {
+    if (!activeTrip) return;
     const updated: TripProfile = {
       ...activeTrip,
       weather: newWeather,
@@ -547,6 +551,8 @@ function AppContent() {
   };
 
   const applySpecsToActiveTrip = (nextSpecs: RiderBikeSpecs) => {
+    // Guard: first-run users may save specs before any trip exists
+    if (!activeTrip) return;
     const selectedBike = getActiveBike(nextSpecs);
     const effective = getEffectiveRiderSpecs(nextSpecs);
     const freshChecklist = generateTripChecklist(
@@ -557,9 +563,12 @@ function AppContent() {
         lang,
         includeExtraRavito: (activeTrip.customChips || []).includes('real-food'),
         customChips: activeTrip.customChips || [],
+        totalDays: activeTrip.stages?.length || 1,
         isTubeless: Boolean(selectedBike.isTubeless),
         carbTargetGPerHr: effective.carbTargetGPerHr ?? 60,
         nutritionPreference: nextSpecs.nutritionPreference ?? 'mixed',
+        bidonSizeMl: nextSpecs.bidonSizeMl,
+        frameBottleSlots: nextSpecs.frameBottleSlots,
       }
     );
     const checkedMap = new Map((activeTrip.checklist || []).map((item) => [item.id, item.checked]));
@@ -626,24 +635,32 @@ function AppContent() {
     }
 
     if (calibratedTrip.id.startsWith('trip-calibrated-') || onboardingSpecsHint) {
+      const hadSavedSpecs = hasSavedRiderBikeSpecs();
       const matchedBike =
         riderSpecs.bikes.find((b) => Math.abs(b.cda - calibratedTrip.physics.cda) <= 0.03) ||
         getActiveBike(riderSpecs);
-      const nextLevel = onboardingSpecsHint?.riderLevel ?? riderSpecs.riderLevel;
+      const nextLevel = !hadSavedSpecs
+        ? onboardingSpecsHint?.riderLevel ?? riderSpecs.riderLevel
+        : riderSpecs.riderLevel;
       const syncedSpecs: RiderBikeSpecs = {
         ...riderSpecs,
         riderWeightKg: calibratedTrip.physics.riderWeightKg || riderSpecs.riderWeightKg,
-        ftpWatts: onboardingSpecsHint?.ftpWatts ?? riderSpecs.ftpWatts,
+        ftpWatts: !hadSavedSpecs
+          ? onboardingSpecsHint?.ftpWatts ?? riderSpecs.ftpWatts
+          : riderSpecs.ftpWatts,
         riderLevel: nextLevel,
         cockpitViewMode:
-          onboardingSpecsHint?.riderLevel !== undefined
+          !hadSavedSpecs && onboardingSpecsHint?.riderLevel !== undefined
             ? nextLevel === 'occasional'
               ? 'essential'
               : 'pro'
             : riderSpecs.cockpitViewMode,
-        carbTargetGPerHr: onboardingSpecsHint?.carbTargetGPerHr ?? riderSpecs.carbTargetGPerHr,
-        nutritionPreference:
-          onboardingSpecsHint?.nutritionPreference ?? riderSpecs.nutritionPreference,
+        carbTargetGPerHr: !hadSavedSpecs
+          ? onboardingSpecsHint?.carbTargetGPerHr ?? riderSpecs.carbTargetGPerHr
+          : riderSpecs.carbTargetGPerHr,
+        nutritionPreference: !hadSavedSpecs
+          ? onboardingSpecsHint?.nutritionPreference ?? riderSpecs.nutritionPreference
+          : riderSpecs.nutritionPreference,
         activeBikeId: matchedBike.id,
         bikes: riderSpecs.bikes.map((b) =>
           b.id === matchedBike.id

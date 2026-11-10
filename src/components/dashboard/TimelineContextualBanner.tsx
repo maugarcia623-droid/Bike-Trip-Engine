@@ -60,6 +60,10 @@ export const TimelineContextualBanner: React.FC<TimelineContextualBannerProps> =
   const { lang, t } = useTranslation();
   const effectiveSpecs = riderSpecsProp || loadRiderBikeSpecs();
   const carbTarget = effectiveSpecs.carbTargetGPerHr || 60;
+  const telemetryMode = effectiveSpecs.telemetryMode ?? 'quantitative';
+  const isQuantitative = telemetryMode === 'quantitative';
+  const isFuelFirst = telemetryMode === 'fuel-first';
+  const fuelUnitsPerHr = Math.max(1, Math.round(carbTarget / 20));
   const panelId = React.useId();
 
   const [isExpanded, setIsExpanded] = React.useState<boolean>(defaultExpanded);
@@ -100,20 +104,35 @@ export const TimelineContextualBanner: React.FC<TimelineContextualBannerProps> =
       case 'sport': {
         const targetSpeed = route?.targetSpeedKmH || 30;
         const dest = route?.destination || (lang === 'fr' ? 'Arrivée' : 'Finish Sector');
+        const rateLabel = isQuantitative
+          ? `${carbTarget}g/h`
+          : isFuelFirst
+          ? `~${fuelUnitsPerHr} ${isFr ? 'unités/h' : 'units/h'}`
+          : isFr
+          ? '15–20 min'
+          : '15–20 min';
 
         return {
           directiveTitle: t('ctxSportTitle'),
-          summaryLine: t('ctxSportSummary', { carbs: carbTarget, speed: targetSpeed }),
+          summaryLine: isQuantitative
+            ? t('ctxSportSummary', { carbs: carbTarget, speed: targetSpeed })
+            : isFr
+            ? `Rythme régulier (${rateLabel}) · Cible ~${targetSpeed} km/h`
+            : `Steady fueling (${rateLabel}) · Target ~${targetSpeed} km/h`,
           badgeValue: `~${targetSpeed} km/h`,
           icon: Lightning,
           theme: 'amber',
-          primaryAdvice: t('ctxSportAdvice', { carbs: carbTarget }),
+          primaryAdvice: isQuantitative
+            ? t('ctxSportAdvice', { carbs: carbTarget })
+            : isFr
+            ? `Maintenez un apport régulier (${rateLabel}) dès les 20 premières minutes pour lisser l’effort.`
+            : `Keep a steady fueling rhythm (${rateLabel}) starting 20 min in for smooth endurance.`,
           contextNote: isHeadwind
             ? t('ctxSportNoteWind', { speed: headwindKmH, min: headwindImpactMin })
             : t('ctxSportNoteCalm', { dest }),
           metrics: [
             { label: t('ctxSportMetric1Label'), value: `~${targetSpeed} km/h`, sub: t('ctxSportMetric1Sub') },
-            { label: t('ctxSportMetric2Label'), value: `${carbTarget}g/h`, sub: t('ctxSportMetric2Sub') },
+            { label: t('ctxSportMetric2Label'), value: rateLabel, sub: t('ctxSportMetric2Sub') },
             {
               label: t('ctxSportMetric3Label'),
               value: `${timeline.pureMovingMinutes} min`,
@@ -217,6 +236,10 @@ export const TimelineContextualBanner: React.FC<TimelineContextualBannerProps> =
     headwindImpactMin,
     trip?.physics,
     carbTarget,
+    isQuantitative,
+    isFuelFirst,
+    fuelUnitsPerHr,
+    isFr,
     lang,
     localizedGate,
     t,

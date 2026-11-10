@@ -41,12 +41,28 @@ export function getCachedScan(key: string): StageAmenity[] | undefined {
   return scanCache.get(key);
 }
 
+type ScanCacheListener = (key: string) => void;
+const scanCacheListeners = new Set<ScanCacheListener>();
+
+/**
+ * Subscribes to scan cache writes so passive consumers (e.g. NutritionBento's water
+ * gap banner) refresh as soon as a corridor scan completes elsewhere in the UI.
+ */
+export function subscribeScanCache(listener: ScanCacheListener): () => void {
+  scanCacheListeners.add(listener);
+  return () => {
+    scanCacheListeners.delete(listener);
+  };
+}
+
 export function setCachedScan(key: string, results: StageAmenity[]): void {
   scanCache.set(key, results);
+  scanCacheListeners.forEach((listener) => listener(key));
 }
 
 export function clearCachedScan(): void {
   scanCache.clear();
+  scanCacheListeners.forEach((listener) => listener('*'));
 }
 
 /**
@@ -573,11 +589,13 @@ export async function scanCorridorAmenities(params: {
 }
 
 /**
- * Water Desert / Dry-Gap Detector:
- * Checks all 'water' and 'cemetery' points between 0 km and totalDistanceKm.
- * - Gap < 35 km: Cleared Green
- * - Gap 35–50 km: Caution Amber
- * - Gap > 50 km: Critical Red with extra bidon capacity recommendation
+ * Water Desert / Dry-Gap Detector (Phase 8 sectional fluid depletion):
+ * Checks all 'water' and 'cemetery' points between 0 km and totalDistanceKm and
+ * compares each gap's fluid need against onboard bottle capacity.
+ * - depletion < 65%: Clear (green)
+ * - depletion 65–100%: Caution (amber)
+ * - depletion > 100% or gap > 60 km: Critical (red), with extra packable bottle count
+ * Legacy numeric-signature callers keep the old 35 / 50 km cutoffs.
  */
 export interface WaterGapsOptions {
   sectorSpeedKmH?: number;
@@ -649,9 +667,14 @@ export function calculateWaterGaps(
 
     let severity: WaterGapAlert['severity'] = 'clear';
 
-    if (depletionPct > 100 || distKm > 60 || distKm > criticalThresholdKm) {
+    // Phase 8: physiological depletion drives classification, with a 60 km safety ceiling.
+    // Static km cutoffs only apply to legacy numeric-signature callers.
+    const legacyCritical = !isOptionsObj && distKm > criticalThresholdKm;
+    const legacyCaution = !isOptionsObj && distKm >= cautionThresholdKm;
+
+    if (depletionPct > 100 || distKm > 60 || legacyCritical) {
       severity = 'critical';
-    } else if (depletionPct >= 65 || distKm >= cautionThresholdKm) {
+    } else if (depletionPct >= 65 || legacyCaution) {
       severity = 'caution';
     } else {
       severity = 'clear';
