@@ -167,7 +167,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
   // Reactive rider gut absorption & telemetry philosophy settings
   const riderSpecs = riderSpecsProp || loadRiderBikeSpecs();
   const dietaryFilters = riderSpecs.dietaryFilters || [];
-  const telemetryMode: TelemetryMode = riderSpecs.telemetryMode ?? 'quantitative';
+  const telemetryMode: TelemetryMode = riderSpecs.telemetryMode ?? 'fuel-first';
   const isQuantitative = telemetryMode === 'quantitative';
   const isFuelFirst = telemetryMode === 'fuel-first';
   const isIntuitive = telemetryMode === 'intuitive';
@@ -237,9 +237,9 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
   const hydrationBadgeLabel =
     hydrationPlan.plannedRefillBidons > 0
       ? isFr
-        ? `${hydrationPlan.carriedOnFrameBidons}x ${bidonSizeMl}ml + ${hydrationPlan.plannedRefillBidons} recharge${hydrationPlan.plannedRefillBidons > 1 ? 's' : ''}`
-        : `${hydrationPlan.carriedOnFrameBidons}x ${bidonSizeMl}ml + ${hydrationPlan.plannedRefillBidons} refill${hydrationPlan.plannedRefillBidons > 1 ? 's' : ''}`
-      : `${hydrationPlan.carriedOnFrameBidons}x ${bidonSizeMl}ml`;
+        ? `${hydrationPlan.carriedOnFrameBidons}× ${bidonSizeMl} ml + ${hydrationPlan.plannedRefillBidons} recharge${hydrationPlan.plannedRefillBidons > 1 ? 's' : ''}`
+        : `${hydrationPlan.carriedOnFrameBidons}× ${bidonSizeMl} ml + ${hydrationPlan.plannedRefillBidons} refill${hydrationPlan.plannedRefillBidons > 1 ? 's' : ''}`
+      : `${hydrationPlan.carriedOnFrameBidons}× ${bidonSizeMl} ml`;
   void recommendedBidons;
 
   // Single-Anchor Deterministic Timeline Solver (INP-20 upgrade)
@@ -278,12 +278,14 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
   const isEmergencySurge = pctFtp > 105;
 
   const [showFullProtocol, setShowFullProtocol] = useState(false);
+  const [showLogisticsForm, setShowLogisticsForm] = useState<boolean>(false);
   const [openPhases, setOpenPhases] = useState<Record<string, boolean>>({});
   const [manifestOpen, setManifestOpen] = useState<boolean>(false);
   const toggleManifest = useCallback(() => setManifestOpen((prev) => !prev), []);
 
   useEffect(() => {
     setShowFullProtocol(false);
+    setShowLogisticsForm(false);
     setOpenPhases({});
     setManifestOpen(false);
   }, [trip.id]);
@@ -416,7 +418,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
   // Unified Phase 2 On-Bike macro headline (shows actual allocated intake + bidons rather than repeating the top pacing badge)
   const onBikeKcal = onBikeItems.reduce((sum, item) => sum + item.kcals, 0);
   const onBikeMacroHeadline = isQuantitative
-    ? `~${onBikeKcal} kcal · ${actualAllocatedCarbsG}g C · ${hydrationBadgeLabel}`
+    ? `~${onBikeKcal} kcal · ${actualAllocatedCarbsG} g C · ${hydrationBadgeLabel}`
     : `${actualFuelUnits} · ${hydrationBadgeLabel}`;
 
   const defaultStage1Loc = isEscapade
@@ -432,8 +434,8 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       ? 'Arrivée d’étape'
       : 'Stage finish'
     : isFr
-    ? 'Destination / Vestiaire'
-    : 'Destination / Locker';
+    ? 'Destination'
+    : 'Destination';
 
   // Unified on-bike pacing badge according to telemetryMode
   const renderPacingBadge = (defaultVariant: BadgeVariant = 'yellow-vest') => {
@@ -494,192 +496,243 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
     const isArriveBy = localLogistics.timelineAnchorMode === 'arrive-by';
     const activeRollout = localLogistics.preRideStyle;
     const isCommuteMode = mode === 'COMMUTE';
+    const rolloutLabel =
+      activeRollout === 'full-breakfast'
+        ? t('logisticsFullMeal')
+        : activeRollout === 'light-liquid'
+        ? t('logisticsLightLiquid')
+        : t('logisticsFasted');
 
     return (
-      <div className="rounded-pod bg-pod mb-3 border border-ink/5 dark:border-white/5 p-3 sm:p-3.5 space-y-2.5 transition-colors">
-        {/* Top Row: Anchor Toggle & Time Input & Live Timeline Summary */}
+      <div className="rounded-pod bg-pod mb-3 p-3 sm:p-3.5 transition-colors">
+        {/* Compact Read-First Summary Row */}
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="inline-flex items-center rounded-full bg-chip/70 p-1 gap-1 text-xs font-rounded font-semibold">
-              <button
-                type="button"
-                aria-pressed={isArriveBy}
-                onClick={() =>
-                  updateLogistics({
-                    timelineAnchorMode: 'arrive-by',
-                    anchorTimeHHMM: solvedTimeline.arrivalTimeHHMM,
-                  })
-                }
-                className={`px-3 py-1 rounded-full transition-all cursor-pointer ${
-                  isArriveBy
-                    ? 'bg-card text-ink font-bold shadow-xs ring-1 ring-inset ring-ink/10 dark:ring-white/10'
-                    : 'text-ink-muted hover:text-ink'
-                }`}
-              >
-                {t('logisticsArriveBy')}
-              </button>
-              <button
-                type="button"
-                aria-pressed={!isArriveBy}
-                onClick={() =>
-                  updateLogistics({
-                    timelineAnchorMode: 'depart-at',
-                    anchorTimeHHMM: solvedTimeline.departureTimeHHMM,
-                  })
-                }
-                className={`px-3 py-1 rounded-full transition-all cursor-pointer ${
-                  !isArriveBy
-                    ? 'bg-card text-ink font-bold shadow-xs ring-1 ring-inset ring-ink/10 dark:ring-white/10'
-                    : 'text-ink-muted hover:text-ink'
-                }`}
-              >
-                {t('logisticsDepartAt')}
-              </button>
-            </div>
-
-            <div className="flex items-center gap-1.5 bg-card px-3 py-1 rounded-full ring-1 ring-inset ring-ink/10 dark:ring-white/10 font-mono">
+          <div className="flex items-center gap-2 flex-wrap text-xs text-ink-secondary tnum">
+            <span className="inline-flex items-center gap-1.5 font-semibold text-ink">
               <Clock className="w-3.5 h-3.5 text-ink-muted shrink-0" />
-              <input
-                type="time"
-                value={localLogistics.anchorTimeHHMM || (isArriveBy ? '08:30' : '07:35')}
-                onChange={(e) => {
-                  if (e.target.value) {
-                    updateLogistics({ anchorTimeHHMM: e.target.value });
-                  }
-                }}
-                className="bg-transparent text-ink text-base sm:text-xs font-bold focus:outline-none cursor-pointer tnum"
-                aria-label={t('logisticsAnchorLabel')}
-              />
-            </div>
+              {isArriveBy
+                ? `${isFr ? 'Départ' : 'Start'} ${solvedTimeline.departureTimeHHMM} → ${solvedTimeline.arrivalTimeHHMM}`
+                : `${solvedTimeline.departureTimeHHMM} → ${isFr ? 'Arrivée' : 'Arrive'} ${solvedTimeline.arrivalTimeHHMM}`}
+            </span>
+            <span className="text-ink-muted">·</span>
+            <span>{rolloutLabel}</span>
+            {localLogistics.hasDestinationFridge && (
+              <>
+                <span className="text-ink-muted hidden sm:inline">·</span>
+                <span className="hidden sm:inline text-ink-muted">{t('logisticsFridgeOnSite')}</span>
+              </>
+            )}
           </div>
 
-          <div className="flex items-center gap-1.5 text-[11px] text-ink-secondary font-mono flex-wrap tnum">
-            {isArriveBy ? (
-              <Badge variant="zinc" size="sm" className="tnum">
-                {isFr ? 'Départ' : 'Rollout'} <strong className="ml-1 text-ink">{solvedTimeline.departureTimeHHMM}</strong>
-              </Badge>
-            ) : (
-              <Badge variant="zinc" size="sm" className="tnum">
-                {isFr ? 'Arrivée' : 'Arrival'} <strong className="ml-1 text-ink">{solvedTimeline.arrivalTimeHHMM}</strong>
-              </Badge>
-            )}
-            <span className="text-[11px] font-rounded text-ink-muted">
-              ({solvedTimeline.movingMin} min {isFr ? 'vélo' : 'ride'}{solvedTimeline.dwellMin > 0 ? ` + ${solvedTimeline.dwellMin} min pause` : ''})
+          <button
+            type="button"
+            onClick={() => setShowLogisticsForm((v) => !v)}
+            aria-expanded={showLogisticsForm}
+            className="inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[34px] px-3.5 py-1.5 rounded-full bg-card hover:bg-chip text-xs font-rounded font-semibold text-ink transition-colors cursor-pointer shrink-0"
+          >
+            <span>
+              {showLogisticsForm
+                ? isFr
+                  ? 'Fermer les options'
+                  : 'Hide options'
+                : isFr
+                ? 'Ajuster repas & horaires'
+                : 'Adjust meal & timing'}
             </span>
-          </div>
+            <DisclosureChevron open={showLogisticsForm} />
+          </button>
         </div>
 
-        {/* Second Row: Rollout Style & Pre-Ride Window */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-dashed border-ink/10 dark:border-white/10">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-xs font-rounded font-semibold text-ink-secondary mr-1">
-              {t('logisticsRolloutLabel')}:
-            </span>
-            {(
-              [
-                { id: 'full-breakfast' as PreRideStyle, label: t('logisticsFullMeal') },
-                { id: 'light-liquid' as PreRideStyle, label: t('logisticsLightLiquid') },
-                { id: 'fasted-rollout' as PreRideStyle, label: t('logisticsFasted') },
-              ] as const
-            ).map((opt) => {
-              const isSelected = activeRollout === opt.id;
-              return (
+        <Collapsible open={showLogisticsForm} innerClassName="pt-3 space-y-2.5">
+          <div className="lane-divider mb-2.5" aria-hidden="true" />
+          {/* Top Row: Anchor Toggle & Time Input & Live Timeline Summary */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="inline-flex items-center rounded-full bg-chip/70 p-1 gap-1 text-xs font-rounded font-semibold">
                 <button
-                  key={opt.id}
                   type="button"
-                  aria-pressed={isSelected}
-                  onClick={() => updateLogistics({ preRideStyle: opt.id })}
-                  className={`px-3 py-1 rounded-full text-xs font-rounded font-semibold transition-all cursor-pointer ${
-                    isSelected
-                      ? `${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.amber.selectedRing}`
-                      : `bg-card text-ink-secondary hover:bg-chip hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
+                  aria-pressed={isArriveBy}
+                  onClick={() =>
+                    updateLogistics({
+                      timelineAnchorMode: 'arrive-by',
+                      anchorTimeHHMM: solvedTimeline.arrivalTimeHHMM,
+                    })
+                  }
+                  className={`min-h-[44px] sm:min-h-[32px] px-3 py-1 rounded-full transition-all cursor-pointer ${
+                    isArriveBy
+                      ? 'bg-card text-ink font-bold shadow-xs ring-1 ring-inset ring-ink/10 dark:ring-white/10'
+                      : 'text-ink-muted hover:text-ink'
                   }`}
                 >
-                  {opt.label}
+                  {t('logisticsArriveBy')}
                 </button>
-              );
-            })}
+                <button
+                  type="button"
+                  aria-pressed={!isArriveBy}
+                  onClick={() =>
+                    updateLogistics({
+                      timelineAnchorMode: 'depart-at',
+                      anchorTimeHHMM: solvedTimeline.departureTimeHHMM,
+                    })
+                  }
+                  className={`min-h-[44px] sm:min-h-[32px] px-3 py-1 rounded-full transition-all cursor-pointer ${
+                    !isArriveBy
+                      ? 'bg-card text-ink font-bold shadow-xs ring-1 ring-inset ring-ink/10 dark:ring-white/10'
+                      : 'text-ink-muted hover:text-ink'
+                  }`}
+                >
+                  {t('logisticsDepartAt')}
+                </button>
+              </div>
+
+              <div className="flex items-center gap-1.5 min-h-[44px] sm:min-h-[34px] bg-card px-3 py-1 rounded-full ring-1 ring-inset ring-ink/10 dark:ring-white/10">
+                <Clock className="w-3.5 h-3.5 text-ink-muted shrink-0" />
+                <input
+                  type="time"
+                  value={localLogistics.anchorTimeHHMM || (isArriveBy ? '08:30' : '07:35')}
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      updateLogistics({ anchorTimeHHMM: e.target.value });
+                    }
+                  }}
+                  className="bg-transparent text-ink text-base sm:text-xs font-bold focus:outline-none cursor-pointer tnum"
+                  aria-label={t('logisticsAnchorLabel')}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 text-[11px] text-ink-secondary flex-wrap tnum">
+              {isArriveBy ? (
+                <Badge variant="zinc" size="sm" className="tnum">
+                  {isFr ? 'Départ' : 'Start'} <strong className="ml-1 text-ink">{solvedTimeline.departureTimeHHMM}</strong>
+                </Badge>
+              ) : (
+                <Badge variant="zinc" size="sm" className="tnum">
+                  {isFr ? 'Arrivée' : 'Arrival'} <strong className="ml-1 text-ink">{solvedTimeline.arrivalTimeHHMM}</strong>
+                </Badge>
+              )}
+              <span className="text-[11px] font-rounded text-ink-muted">
+                ({solvedTimeline.movingMin} min {isFr ? 'vélo' : 'ride'}{solvedTimeline.dwellMin > 0 ? ` + ${solvedTimeline.dwellMin} min pause` : ''})
+              </span>
+            </div>
           </div>
 
-          <div className="text-xs font-mono text-ink-muted tnum">
-            <span className="font-rounded font-medium mr-1">{isFr ? 'Créneau :' : 'Window:'}</span>
-            <span className="font-semibold text-ink">{solvedTimeline.preRideWindow}</span>
+          <div className="lane-divider" aria-hidden="true" />
+
+          {/* Second Row: Rollout Style & Pre-Ride Window */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-xs font-rounded font-semibold text-ink-secondary mr-1">
+                {t('logisticsRolloutLabel')}:
+              </span>
+              {(
+                [
+                  { id: 'full-breakfast' as PreRideStyle, label: t('logisticsFullMeal') },
+                  { id: 'light-liquid' as PreRideStyle, label: t('logisticsLightLiquid') },
+                  { id: 'fasted-rollout' as PreRideStyle, label: t('logisticsFasted') },
+                ] as const
+              ).map((opt) => {
+                const isSelected = activeRollout === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    aria-pressed={isSelected}
+                    onClick={() => updateLogistics({ preRideStyle: opt.id })}
+                    className={`min-h-[44px] sm:min-h-[34px] px-3 py-1 rounded-full text-xs font-rounded font-semibold transition-all cursor-pointer ${
+                      isSelected
+                        ? `${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.amber.selectedRing}`
+                        : `bg-card text-ink-secondary hover:bg-chip hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="text-xs text-ink-muted tnum">
+              <span className="font-rounded font-medium mr-1">{isFr ? 'Créneau :' : 'Window:'}</span>
+              <span className="font-semibold text-ink">{solvedTimeline.preRideWindow}</span>
+            </div>
           </div>
-        </div>
 
-        {/* Third Row: Destination Logistics (Fridge & Split Recovery & Locations) */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-dashed border-ink/10 dark:border-white/10">
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Fridge Toggle (Text-only chip with Check indicator) */}
-            <button
-              type="button"
-              aria-pressed={localLogistics.hasDestinationFridge}
-              onClick={() => updateLogistics({ hasDestinationFridge: !localLogistics.hasDestinationFridge })}
-              className={`px-3 py-1 rounded-full text-xs font-rounded font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                localLogistics.hasDestinationFridge
-                  ? `${CHIP_TOKENS.sky.surface} ${CHIP_TOKENS.sky.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.sky.selectedRing}`
-                  : `bg-card text-ink-muted hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
-              }`}
-            >
-              <span>{t('logisticsFridgeOnSite')}</span>
-              {localLogistics.hasDestinationFridge && <Check className="w-3 h-3 text-current" />}
-            </button>
+          <div className="lane-divider" aria-hidden="true" />
 
-            {/* Split Recovery vs Single Meal Toggle (Commute / Workplace routine) */}
-            {isCommuteMode && (
+          {/* Third Row: Destination Logistics (Fridge & Split Recovery & Locations) */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Fridge Toggle */}
               <button
                 type="button"
-                aria-pressed={localLogistics.splitPostRideRecovery}
-                onClick={() => updateLogistics({ splitPostRideRecovery: !localLogistics.splitPostRideRecovery })}
-                className={`px-3 py-1 rounded-full text-xs font-rounded font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
-                  localLogistics.splitPostRideRecovery
-                    ? `${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.amber.selectedRing}`
+                aria-pressed={localLogistics.hasDestinationFridge}
+                onClick={() => updateLogistics({ hasDestinationFridge: !localLogistics.hasDestinationFridge })}
+                className={`min-h-[44px] sm:min-h-[34px] px-3 py-1 rounded-full text-xs font-rounded font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  localLogistics.hasDestinationFridge
+                    ? `${CHIP_TOKENS.sky.surface} ${CHIP_TOKENS.sky.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.sky.selectedRing}`
                     : `bg-card text-ink-muted hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
                 }`}
               >
-                {localLogistics.splitPostRideRecovery ? (
-                  <Shower className="w-3.5 h-3.5 text-current shrink-0" />
-                ) : (
-                  <ForkKnife className="w-3.5 h-3.5 text-current shrink-0" />
-                )}
-                <span>
-                  {localLogistics.splitPostRideRecovery
-                    ? t('logistics2StageLocker')
-                    : t('logisticsSingleArrival')}
-                </span>
+                <span>{t('logisticsFridgeOnSite')}</span>
+                {localLogistics.hasDestinationFridge && <Check className="w-3 h-3 text-current" />}
               </button>
-            )}
-          </div>
 
-          {/* Location inputs */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <div className="flex items-center gap-1.5 bg-card px-3 py-1 rounded-full ring-1 ring-inset ring-ink/10 dark:ring-white/10 focus-within:ring-2 focus-within:ring-inset focus-within:ring-emerald-500">
-              <MapPin className="w-3.5 h-3.5 text-ink-muted shrink-0" />
-              <input
-                type="text"
-                value={localLogistics.stage1LocationLabel ?? ''}
-                placeholder={defaultStage1Loc}
-                onChange={(e) => updateLogistics({ stage1LocationLabel: e.target.value })}
-                className="bg-transparent text-ink text-base sm:text-xs font-rounded placeholder:text-ink-muted w-32 sm:w-36 focus:outline-none"
-                title={t('logisticsStage1Location')}
-              />
+              {/* Split Recovery vs Single Meal Toggle (Commute / Workplace routine) */}
+              {isCommuteMode && (
+                <button
+                  type="button"
+                  aria-pressed={localLogistics.splitPostRideRecovery}
+                  onClick={() => updateLogistics({ splitPostRideRecovery: !localLogistics.splitPostRideRecovery })}
+                  className={`min-h-[44px] sm:min-h-[34px] px-3 py-1 rounded-full text-xs font-rounded font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                    localLogistics.splitPostRideRecovery
+                      ? `${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.amber.selectedRing}`
+                      : `bg-card text-ink-muted hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
+                  }`}
+                >
+                  {localLogistics.splitPostRideRecovery ? (
+                    <Shower className="w-3.5 h-3.5 text-current shrink-0" />
+                  ) : (
+                    <ForkKnife className="w-3.5 h-3.5 text-current shrink-0" />
+                  )}
+                  <span>
+                    {localLogistics.splitPostRideRecovery
+                      ? t('logistics2StageLocker')
+                      : t('logisticsSingleArrival')}
+                  </span>
+                </button>
+              )}
             </div>
 
-            {isCommuteMode && localLogistics.splitPostRideRecovery && (
-              <div className="flex items-center gap-1.5 bg-card px-3 py-1 rounded-full ring-1 ring-inset ring-ink/10 dark:ring-white/10 focus-within:ring-2 focus-within:ring-inset focus-within:ring-emerald-500">
+            {/* Location inputs */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <div className="flex items-center gap-1.5 min-h-[44px] sm:min-h-[34px] bg-card px-3 py-1 rounded-full ring-1 ring-inset ring-ink/10 dark:ring-white/10 focus-within:ring-2 focus-within:ring-inset focus-within:ring-emerald-500">
                 <MapPin className="w-3.5 h-3.5 text-ink-muted shrink-0" />
                 <input
                   type="text"
-                  value={localLogistics.stage2LocationLabel ?? ''}
-                  placeholder={isFr ? 'Salle de Pause / Bureau' : 'Break Room / Workspace'}
-                  onChange={(e) => updateLogistics({ stage2LocationLabel: e.target.value })}
+                  value={localLogistics.stage1LocationLabel ?? ''}
+                  placeholder={defaultStage1Loc}
+                  onChange={(e) => updateLogistics({ stage1LocationLabel: e.target.value })}
                   className="bg-transparent text-ink text-base sm:text-xs font-rounded placeholder:text-ink-muted w-32 sm:w-36 focus:outline-none"
-                  title={t('logisticsStage2Location')}
+                  title={t('logisticsStage1Location')}
                 />
               </div>
-            )}
+
+              {isCommuteMode && localLogistics.splitPostRideRecovery && (
+                <div className="flex items-center gap-1.5 min-h-[44px] sm:min-h-[34px] bg-card px-3 py-1 rounded-full ring-1 ring-inset ring-ink/10 dark:ring-white/10 focus-within:ring-2 focus-within:ring-inset focus-within:ring-emerald-500">
+                  <MapPin className="w-3.5 h-3.5 text-ink-muted shrink-0" />
+                  <input
+                    type="text"
+                    value={localLogistics.stage2LocationLabel ?? ''}
+                    placeholder={isFr ? 'Salle de Pause / Bureau' : 'Break Room / Workspace'}
+                    onChange={(e) => updateLogistics({ stage2LocationLabel: e.target.value })}
+                    className="bg-transparent text-ink text-base sm:text-xs font-rounded placeholder:text-ink-muted w-32 sm:w-36 focus:outline-none"
+                    title={t('logisticsStage2Location')}
+                  />
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        </Collapsible>
       </div>
     );
   };
@@ -709,15 +762,15 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
 
     const manifestTitle = isQuantitative
       ? (isFr
-          ? `Jour ${currentDay}/${totalDays} · ~${totalManifestCarbs}g C (${totalManifestKcal} kcal)`
-          : `Day ${currentDay}/${totalDays} · ~${totalManifestCarbs}g carbs (${totalManifestKcal} kcal)`)
+          ? `Jour ${currentDay}/${totalDays} · ~${totalManifestCarbs} g C (${totalManifestKcal} kcal)`
+          : `Day ${currentDay}/${totalDays} · ~${totalManifestCarbs} g carbs (${totalManifestKcal} kcal)`)
       : isFuelFirst
       ? (isFr
           ? `Jour ${currentDay}/${totalDays} · ~${totalManifestUnits} unités totales`
           : `Day ${currentDay}/${totalDays} · ~${totalManifestUnits} total units`)
       : (isFr
           ? `Jour ${currentDay}/${totalDays} · ${recommendedBidons} bidons / étape`
-          : `Day ${currentDay}/${totalDays} · ${recommendedBidons} bidons / stage`);
+          : `Day ${currentDay}/${totalDays} · ${recommendedBidons} bottles / stage`);
 
     const manifestSub = isQuantitative
       ? isEmergencySurge
@@ -736,12 +789,12 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       : `${isFr ? 'Rythme régulier' : 'Steady rhythm'} · ${prefBadgeLabel}`;
 
     return (
-      <div className="rounded-pod bg-pod mb-3 border border-ink/5 dark:border-white/5 overflow-hidden transition-colors">
+      <div className="rounded-pod bg-pod mb-3 overflow-hidden transition-colors">
         <button
           type="button"
           onClick={toggleManifest}
           aria-expanded={manifestOpen}
-          className="w-full p-3 sm:p-3.5 flex items-center justify-between gap-2.5 hover:bg-chip/60 transition-colors cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
+          className="w-full min-h-[44px] p-3 sm:p-3.5 flex items-center justify-between gap-2.5 hover:bg-chip/60 transition-colors cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
         >
           <div className="flex items-center gap-2.5 min-w-0">
             <IconBadge theme="amber" icon={Flame} size="sm" solidBacker />
@@ -769,46 +822,48 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
 
         <Collapsible
           open={manifestOpen}
-          innerClassName="px-3.5 pb-3.5 pt-3 border-t border-dashed border-ink/10 dark:border-white/10 space-y-3"
+          innerClassName="px-3.5 pb-3.5 pt-1 space-y-3"
         >
+          <div className="lane-divider mb-2" aria-hidden="true" />
           {/* Cumulative Ration Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {solidRations.map((r) => (
               <div
                 key={r.id}
-                className="p-2 sm:p-2.5 rounded-sub-pod bg-card border border-ink/5 dark:border-white/5 flex flex-col justify-between"
+                className="p-2.5 rounded-sub-pod bg-card flex flex-col justify-between"
               >
                 <span className="text-[11px] font-semibold text-ink-muted line-clamp-1">
                   {r.name}
                 </span>
                 <span className="text-sm sm:text-base font-extrabold text-ink tnum mt-0.5">
-                  {r.totalUnits}x
+                  {r.totalUnits}×
                 </span>
                 <span className="text-[10px] text-ink-muted tnum">
                   {isQuantitative
-                    ? `~${r.totalKcal} kcal (${r.totalCarbs}g C)`
+                    ? `~${r.totalKcal} kcal (${r.totalCarbs} g C)`
                     : `${r.totalUnits} ${r.portionLabel}`}
                 </span>
               </div>
             ))}
 
-            <div className="p-2 sm:p-2.5 rounded-sub-pod bg-card border border-ink/5 dark:border-white/5 flex flex-col justify-between">
+            <div className="p-2.5 rounded-sub-pod bg-card flex flex-col justify-between">
               <span className="text-[11px] font-semibold text-ink-muted">
                 {isFr ? 'Doses électrolytes' : 'Electrolyte tabs'}
               </span>
               <span className="text-sm sm:text-base font-extrabold text-ink tnum mt-0.5">
-                {electrolyteTabsCount}x
+                {electrolyteTabsCount}×
               </span>
               <span className="text-[10px] text-ink-muted tnum">
                 {isQuantitative
-                  ? `~${electrolyteTabsCount * 500}mg Na+`
+                  ? `~${electrolyteTabsCount * 500} mg Na+`
                   : `${electrolyteTabsCount} ${isFr ? 'doses bidons' : 'bottle doses'}`}
               </span>
             </div>
           </div>
 
           {/* Daily Morning Resupply Notice */}
-          <div className={`pt-2 border-t border-dashed border-ink/10 dark:border-white/10 flex items-center gap-2 text-xs text-ink-secondary ${CHIP_DUOTONE_ISOLATION_CLASSES}`}>
+          <div className="lane-divider" aria-hidden="true" />
+          <div className={`pt-0.5 flex items-center gap-2 text-xs text-ink-secondary ${CHIP_DUOTONE_ISOLATION_CLASSES}`}>
             {dietaryFilters.includes('gluten-free') ? (
               <Leaf className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
             ) : (
@@ -883,7 +938,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         return (
           <div
             key={phase.id}
-            className="rounded-pod bg-pod border border-ink/5 dark:border-white/5 overflow-hidden transition-colors"
+            className="rounded-pod bg-pod overflow-hidden transition-colors"
           >
             {/* Collapsible Phase Header */}
             <button
@@ -891,7 +946,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
               onClick={() => togglePhase(phase.id)}
               aria-expanded={isOpen}
               aria-controls={panelId}
-              className="w-full p-3 sm:p-3.5 flex items-center justify-between gap-2.5 hover:bg-chip/60 transition-colors cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
+              className="w-full min-h-[44px] p-3 sm:p-3.5 flex items-center justify-between gap-2.5 hover:bg-chip/60 transition-colors cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
             >
               <div className="flex items-center gap-2.5 min-w-0 flex-1">
                 <IconBadge
@@ -917,7 +972,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
                     <span className="px-2 py-0.5 rounded-full bg-card font-rounded font-semibold text-ink-muted text-[11px]">
                       {phase.stageLabel}
                     </span>
-                    <span className="font-mono font-semibold text-ink-secondary break-words">
+                    <span className="font-semibold text-ink-secondary break-words tnum">
                       {phase.macroHeadline}
                     </span>
                   </div>
@@ -937,8 +992,9 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
             <Collapsible
               open={isOpen}
               id={panelId}
-              innerClassName="px-3.5 pb-3.5 pt-2.5 border-t border-dashed border-ink/10 dark:border-white/10 space-y-2.5"
+              innerClassName="px-3.5 pb-3.5 pt-1 space-y-2.5"
             >
+              <div className="lane-divider mb-1.5" aria-hidden="true" />
               <ul className="space-y-1.5 text-[13px] text-ink-secondary leading-relaxed">
                 {bullets.map((sentence, bIdx) => (
                   <li key={bIdx} className="flex items-start gap-2">
@@ -953,7 +1009,8 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
 
               {/* Portion-Label or Quantitative-Label Food Items List */}
               {phase.items && phase.items.length > 0 && (
-                <div className="pt-2 border-t border-dashed border-ink/10 dark:border-white/10 space-y-2.5">
+                <div className="pt-2 space-y-2.5">
+                  <div className="lane-divider mb-2" aria-hidden="true" />
                   {phase.items.some((i) => i.isSavoryReset) ? (
                     <>
                       {renderItemGroup(t('nutriGroupBottles'), Droplets, 'sky', phase.items.filter((i) => i.isLiquid))}
@@ -981,7 +1038,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
                   {phase.stageLabel}
                 </span>
                 <span
-                  className={`font-mono font-bold text-xs tnum flex items-center gap-1 ${CHIP_TOKENS[phase.macroTheme].primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                  className={`font-bold text-xs tnum flex items-center gap-1 ${CHIP_TOKENS[phase.macroTheme].primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
                 >
                   {MacroIcon && <MacroIcon className="w-4 h-4 text-current shrink-0" />}
                   <span>{phase.macroHeadline}</span>
@@ -1067,7 +1124,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
   const stage2Loc = localLogistics.stage2LocationLabel || (isFr ? 'Salle de Pause / Espace Bureau' : 'Break Room / Workspace');
 
   const p1MacroHeadline = isQuantitative
-    ? `~${p1Kcal} kcal · ${p1Carbs}g C, ${p1Protein}g P`
+    ? `~${p1Kcal} kcal · ${p1Carbs} g C, ${p1Protein} g P`
     : isFuelFirst
     ? p1Carbs > 0
       ? formatFuelTarget(p1Carbs, 'fuel-first', lang)
@@ -1079,7 +1136,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
     : 'Comfortable pre-ride meal';
 
   const arrMacroHeadline = isQuantitative
-    ? `~${arrKcal} kcal · ${arrCarbs}g C, ${arrProtein}g P`
+    ? `~${arrKcal} kcal · ${arrCarbs} g C, ${arrProtein} g P`
     : isFuelFirst
     ? formatFuelTarget(arrCarbs, 'fuel-first', lang)
     : isFr
@@ -1214,10 +1271,12 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         icon: Droplets,
         theme: 'sky',
         stageLabel: isFr ? 'En selle' : 'On-bike intake',
-        timingLabel: 'T − 20 min',
+        timingLabel: isFr ? '20 min avant' : '20 min before',
         timingVariant: 'zinc',
         macroHeadline: isQuantitative
-          ? '0g carbs · 350–500ml H2O'
+          ? isFr
+            ? '0 g glucides · 350–500 ml d’eau'
+            : '0 g carbs · 350–500 ml water'
           : isFr
           ? 'Hydratation · 1 bidon d’eau'
           : 'Hydration · 1 water bottle',
@@ -1323,8 +1382,8 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         stageLabel: isFr ? 'Débit horaire en selle' : 'On-bike hourly rate',
         timingLabel: isKom
           ? isFr
-            ? `Bosses · ${isQuantitative ? `${recommendedGPerHr}g/h` : `${fuelUnitsPerHour} un/h`}`
-            : `KOM · ${isQuantitative ? `${recommendedGPerHr}g/h` : `${fuelUnitsPerHour} un/h`}`
+            ? `Bosses · ${isQuantitative ? `${recommendedGPerHr} g/h` : `${fuelUnitsPerHour} un/h`}`
+            : `KOM · ${isQuantitative ? `${recommendedGPerHr} g/h` : `${fuelUnitsPerHour} un/h`}`
           : isQuantitative
           ? `${recommendedGPerHr} g/h`
           : `${fuelUnitsPerHour} ${isFr ? 'unités/h' : 'fuel units/h'}`,
@@ -1337,8 +1396,8 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         title:
           nutPref === 'real-food'
             ? isFr
-              ? `Ravito naturel calibré (${isQuantitative ? `${recommendedGPerHr}g/h` : `${fuelUnitsPerHour} un/h`})`
-              : `Calibrated real-food fueling (${isQuantitative ? `${recommendedGPerHr}g/h` : `${fuelUnitsPerHour} un/h`})`
+              ? `Ravito naturel calibré (${isQuantitative ? `${recommendedGPerHr} g/h` : `${fuelUnitsPerHour} un/h`})`
+              : `Calibrated real-food fueling (${isQuantitative ? `${recommendedGPerHr} g/h` : `${fuelUnitsPerHour} un/h`})`
             : isHydration
             ? isFr
               ? 'Glucides & recharge électrolytes'
@@ -1357,7 +1416,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
             ? isQuantitative
               ? isFr
                 ? `Apport régulier + ~${hydrationPlan.sodiumMgPerL} mg sodium/litre pour faciliter l’absorption sans inconfort digestif.`
-                : `Steady hydration + ~${hydrationPlan.sodiumMgPerL}mg sodium/liter to match your digestion rate comfortably.`
+                : `Steady hydration + ~${hydrationPlan.sodiumMgPerL} mg sodium/liter to match your digestion rate comfortably.`
               : isFr
               ? 'Buvez par petites gorgées régulières avec des électrolytes pour rester bien hydraté.'
               : 'Sip steadily with electrolytes to stay comfortably hydrated.'
@@ -1398,7 +1457,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
               </Badge>
             ) : (
               <Badge variant="sky" size="md" icon={Droplets} className="py-1.5 px-3 tnum">
-                {recommendedBidons}x {isFr ? 'bidons' : 'bidons'}
+                {recommendedBidons}× {isFr ? 'bidons' : 'bottles'}
               </Badge>
             )}
           </div>
@@ -1548,7 +1607,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
               </Badge>
             ) : (
               <Badge variant="sky" size="md" icon={Droplets} className="py-1.5 px-3 tnum">
-                {recommendedBidons}x {isFr ? 'bidons' : 'bidons'}
+                {recommendedBidons}× {isFr ? 'bidons' : 'bottles'}
               </Badge>
             )}
           </div>
@@ -1688,7 +1747,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
               </Badge>
             ) : (
               <Badge variant="sky" size="md" icon={Droplets} className="py-1.5 px-3 tnum">
-                {recommendedBidons}x {isFr ? 'bidons' : 'bidons'}
+                {recommendedBidons}× {isFr ? 'bidons' : 'bottles'}
               </Badge>
             )}
           </div>
@@ -1782,7 +1841,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         timingLabel: solvedTimeline.postRideImmediateWindow || '08:30 – 08:40',
         timingVariant: 'yellow-vest',
         macroHeadline: isQuantitative
-          ? `~${p3Kcal} kcal · ${p3Carbs}g C, ${p3Protein}g P`
+          ? `~${p3Kcal} kcal · ${p3Carbs} g C, ${p3Protein} g P`
           : isFuelFirst
           ? formatFuelTarget(p3Carbs, 'fuel-first', lang)
           : isFr
@@ -1810,7 +1869,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         timingLabel: solvedTimeline.postRideMealWindow || '08:50 – 09:05',
         timingVariant: 'emerald',
         macroHeadline: isQuantitative
-          ? `~${p4Kcal} kcal · ${p4Carbs}g C, ${p4Protein}g P`
+          ? `~${p4Kcal} kcal · ${p4Carbs} g C, ${p4Protein} g P`
           : isFuelFirst
           ? formatFuelTarget(p4Carbs, 'fuel-first', lang)
           : isFr

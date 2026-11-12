@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useId } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../context/LanguageContext';
+import { ModalPortal } from '../common/ModalPortal';
 import { KeyRound, Eye, EyeOff, Loader2, X, CheckCircle2, AlertCircle } from '@/components/icons';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
@@ -10,7 +11,9 @@ import {
 
 export const ResetPasswordModal: React.FC = () => {
   const { isPasswordRecoveryOpen, setIsPasswordRecoveryOpen, updatePassword } = useAuth();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
+  const isFr = lang === 'fr';
+  const titleId = useId();
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -27,20 +30,6 @@ export const ResetPasswordModal: React.FC = () => {
       setIsSuccess(false);
     }
   }, [isPasswordRecoveryOpen]);
-
-  // Handle ESC key to dismiss
-  useEffect(() => {
-    if (!isPasswordRecoveryOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setIsPasswordRecoveryOpen(false);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPasswordRecoveryOpen, setIsPasswordRecoveryOpen]);
-
-  if (!isPasswordRecoveryOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,42 +65,43 @@ export const ResetPasswordModal: React.FC = () => {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[1000] bg-black/70 flex items-center justify-center p-4 pt-[max(1rem,calc(env(safe-area-inset-top,0px)+1rem))] pb-[max(1rem,calc(env(safe-area-inset-bottom,0px)+1rem))] overflow-y-auto animate-apple-fade-in"
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !isLoading) setIsPasswordRecoveryOpen(false);
+    <ModalPortal
+      isOpen={isPasswordRecoveryOpen}
+      onClose={() => {
+        if (!isLoading) setIsPasswordRecoveryOpen(false);
       }}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="reset-password-modal-title"
+      closeOnEscape={!isLoading}
+      closeOnBackdrop={!isLoading}
+      labelledBy={titleId}
+      zIndexClass="z-[1000]"
+      panelClassName="bg-card text-ink border border-black/10 dark:border-white/10 rounded-card p-6 sm:p-8 max-w-md w-full shadow-2xl relative my-auto overflow-y-auto animate-apple-modal"
     >
-      <div className="bg-card text-ink border border-ink/10 dark:border-white/10 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative my-auto animate-apple-modal">
-        {/* Dismiss Button */}
-        <button
-          type="button"
-          onClick={() => setIsPasswordRecoveryOpen(false)}
-          className="absolute top-5 right-5 w-9 h-9 rounded-full bg-pod dark:bg-canvas hover:bg-chip flex items-center justify-center text-ink-muted hover:text-ink transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer focus:outline-none"
-          aria-label="Close modal"
-        >
-          <X className="w-4.5 h-4.5" />
-        </button>
+      {/* Dismiss Button */}
+      <button
+        type="button"
+        onClick={() => setIsPasswordRecoveryOpen(false)}
+        className="relative before:content-[''] before:absolute before:-inset-1.5 w-9 h-9 rounded-full bg-pod dark:bg-canvas hover:bg-surface-active flex items-center justify-center text-ink-muted hover:text-ink transition-all duration-150 active:scale-95 cursor-pointer focus:outline-none ml-auto float-right"
+        aria-label={isFr ? 'Fermer' : 'Close'}
+      >
+        <X className="w-4.5 h-4.5" />
+      </button>
 
-        {/* Brand Icon Header */}
-        <div className="flex items-center gap-3 mb-5 animate-apple-in stagger-1">
-          <div
-            className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-xs ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
-          >
-            <KeyRound className="w-5 h-5" />
-          </div>
-          <div>
-            <h2 id="reset-password-modal-title" className="text-lg sm:text-xl font-bold tracking-tight text-ink">
-              {t('newPasswordModalTitle')}
-            </h2>
-            <p className="text-xs text-ink-muted">
-              Supabase Password Recovery
-            </p>
-          </div>
+      {/* Brand Icon Header */}
+      <div className="flex items-center gap-3 mb-5 animate-apple-in stagger-1">
+        <div
+          className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-xs ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+        >
+          <KeyRound className="w-5 h-5" />
         </div>
+        <div>
+          <h2 id={titleId} className="text-lg sm:text-xl font-bold font-rounded tracking-tight text-ink">
+            {t('newPasswordModalTitle')}
+          </h2>
+          <p className="text-xs text-ink-muted font-body">
+            {isFr ? 'Récupération du compte' : 'Account recovery'}
+          </p>
+        </div>
+      </div>
 
         <p className="text-xs sm:text-[13px] text-ink-secondary mb-6 leading-relaxed">
           {t('newPasswordModalSubtitle')}
@@ -135,7 +125,7 @@ export const ResetPasswordModal: React.FC = () => {
         {/* Reset Password Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wider">
+            <label className="block text-xs font-rounded font-semibold text-ink-secondary mb-1.5">
               {t('newPasswordLabel')}
             </label>
             <div className="relative">
@@ -148,13 +138,13 @@ export const ResetPasswordModal: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder={t('passwordPlaceholder')}
-                className="w-full pl-4 pr-11 py-2.5 rounded-xl bg-pod dark:bg-canvas border border-ink/10 dark:border-white/10 focus:border-volt focus:ring-1 focus:ring-volt outline-none text-sm text-ink placeholder:text-ink-muted transition-colors font-sans"
+                className="w-full min-h-[44px] pl-4 pr-11 py-2.5 rounded-pod bg-pod dark:bg-canvas border border-black/10 dark:border-white/10 focus:border-transparent focus:ring-2 focus:ring-inset focus:ring-volt outline-none text-base sm:text-sm text-ink placeholder:text-ink-muted transition-colors font-body"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink focus:outline-none cursor-pointer"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                className="relative before:content-[''] before:absolute before:-inset-2 absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink focus:outline-none cursor-pointer"
+                aria-label={showPassword ? (isFr ? 'Masquer' : 'Hide password') : (isFr ? 'Afficher' : 'Show password')}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -162,7 +152,7 @@ export const ResetPasswordModal: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wider">
+            <label className="block text-xs font-rounded font-semibold text-ink-secondary mb-1.5">
               {t('confirmPasswordLabel')}
             </label>
             <div className="relative">
@@ -174,7 +164,7 @@ export const ResetPasswordModal: React.FC = () => {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder={t('passwordPlaceholder')}
-                className="w-full pl-4 pr-11 py-2.5 rounded-xl bg-pod dark:bg-canvas border border-ink/10 dark:border-white/10 focus:border-volt focus:ring-1 focus:ring-volt outline-none text-sm text-ink placeholder:text-ink-muted transition-colors font-sans"
+                className="w-full min-h-[44px] pl-4 pr-11 py-2.5 rounded-pod bg-pod dark:bg-canvas border border-black/10 dark:border-white/10 focus:border-transparent focus:ring-2 focus:ring-inset focus:ring-volt outline-none text-base sm:text-sm text-ink placeholder:text-ink-muted transition-colors font-body"
               />
             </div>
           </div>
@@ -182,7 +172,7 @@ export const ResetPasswordModal: React.FC = () => {
           <button
             type="submit"
             disabled={isLoading || isSuccess}
-            className="w-full mt-2 py-3 px-4 rounded-xl font-bold text-sm bg-volt text-[#111111] hover:brightness-105 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer flex items-center justify-center gap-2 shadow-sm font-sans"
+            className="w-full min-h-[46px] mt-2 py-3 px-4 rounded-pod font-rounded font-bold text-sm bg-volt text-[#111111] hover:brightness-105 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer flex items-center justify-center gap-2 shadow-sm"
           >
             {isLoading ? (
               <>
@@ -194,7 +184,6 @@ export const ResetPasswordModal: React.FC = () => {
             )}
           </button>
         </form>
-      </div>
-    </div>
+    </ModalPortal>
   );
 };

@@ -403,8 +403,8 @@ export const DEFAULT_PANTRY_CATALOG: PantryItem[] = [
   {
     id: 'rec-skyr-grape',
     slot: 'post-ride-recovery',
-    nameEn: 'Skyr 0% Natural with Pure Dark Grape Juice',
-    nameFr: 'Skyr 0% nature & pur jus de raisin noir',
+    nameEn: 'Plain Greek Yogurt with Pure Grape Juice',
+    nameFr: 'Yaourt grec nature & pur jus de raisin noir',
     portionLabelEn: '1 bowl yogurt & fruit juice',
     portionLabelFr: '1 bol yaourt & jus de fruit',
     carbsG: 46,

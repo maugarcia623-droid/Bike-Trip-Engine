@@ -13,6 +13,7 @@ import { calculateReverseTimeline } from '../../utils/timeline';
 import { getChipsExtraBufferMinutes, findChipDef, CHIP_ICONS } from '../../utils/archetypeChips';
 import { useTranslation, getLocalizedTripMeta } from '../../context/LanguageContext';
 import { loadRiderBikeSpecs } from '../../utils/specsStorage';
+import { getExpeditionTotals } from '../../utils/stageManager';
 import { Badge } from '../common/Badge';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
@@ -42,7 +43,7 @@ export const TripCard: React.FC<TripCardProps> = ({
   onLaunch,
 }) => {
   const { lang, t } = useTranslation();
-  const riderSpecs = useMemo(() => loadRiderBikeSpecs(), []);
+  const riderSpecs = loadRiderBikeSpecs();
   const physicsResult = calculatePhysics(trip.physics, trip.route, trip.weather, lang, riderSpecs?.ftpWatts);
   const extraBufferMinutes = getChipsExtraBufferMinutes(trip);
   const timelineResult = calculateReverseTimeline(
@@ -59,6 +60,7 @@ export const TripCard: React.FC<TripCardProps> = ({
       calmSpeedKmH: physicsResult.calmSpeedKmH,
       arriveAtMode: trip.arriveAtMode,
       departureTime: trip.departureTime,
+      pinnedAmenities: trip.pinnedAmenities,
     }
   );
   const meta = getLocalizedTripMeta(trip, lang);
@@ -75,8 +77,18 @@ export const TripCard: React.FC<TripCardProps> = ({
         <div className="flex items-center justify-between gap-2 mb-3.5">
           <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="zinc" size="md">
-              {trip.tag === 'VÉLOTAF' && lang !== 'fr' ? 'Commute' : trip.tag}
+              {trip.tag === 'VÉLOTAF' ? (lang === 'fr' ? 'Vélotaf' : 'Commute') : trip.tag}
             </Badge>
+            {trip.stages && trip.stages.length > 1 && (
+              <Badge variant="yellow-vest" size="md">
+                {t('tourBadgeLabel', { count: trip.stages.length })}
+              </Badge>
+            )}
+            {trip.route?.waypoints && trip.route.waypoints.length > 0 && (
+              <Badge variant="sky" size="md">
+                +{trip.route.waypoints.length} via
+              </Badge>
+            )}
             {isActive && (
               <Badge variant="yellow-vest" size="md" dot>
                 {t('activeBadge')}
@@ -104,7 +116,7 @@ export const TripCard: React.FC<TripCardProps> = ({
               onClick={() => onDuplicate(trip)}
               title={t('duplicateTripTitle')}
               aria-label={t('duplicateTripTitle')}
-              className={`w-9 h-9 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-300 ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+              className={`relative before:content-[''] before:absolute before:-inset-1.5 sm:before:inset-0 w-9 h-9 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-300 ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
               <Copy className="w-4 h-4 text-current" />
             </button>
@@ -113,7 +125,7 @@ export const TripCard: React.FC<TripCardProps> = ({
               onClick={() => onEdit(trip)}
               title={t('editParamsTitle')}
               aria-label={t('editParamsTitle')}
-              className={`w-9 h-9 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} hover:bg-sky-50 hover:text-sky-700 dark:hover:bg-sky-950/40 dark:hover:text-sky-300 ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+              className={`relative before:content-[''] before:absolute before:-inset-1.5 sm:before:inset-0 w-9 h-9 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} hover:bg-sky-50 hover:text-sky-700 dark:hover:bg-sky-950/40 dark:hover:text-sky-300 ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
               <PencilSimple className="w-4 h-4 text-current" />
             </button>
@@ -122,7 +134,7 @@ export const TripCard: React.FC<TripCardProps> = ({
               onClick={() => onDelete(trip.id)}
               title={t('deleteProfileTitle')}
               aria-label={t('deleteProfileTitle')}
-              className={`w-9 h-9 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/40 dark:hover:text-rose-300 ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+              className={`relative before:content-[''] before:absolute before:-inset-1.5 sm:before:inset-0 w-9 h-9 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/40 dark:hover:text-rose-300 ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
               <Trash className="w-4 h-4 text-current" />
             </button>
@@ -131,7 +143,7 @@ export const TripCard: React.FC<TripCardProps> = ({
 
         {/* Title & Description */}
         <h3 className="text-lg font-semibold text-ink tracking-tight leading-snug break-words">
-          {meta.name}
+          {meta.name || t('defaultTripName')}
         </h3>
         <p className="text-[13px] text-ink-muted break-words mt-1 mb-2.5 leading-relaxed">
           {meta.description}
@@ -177,7 +189,7 @@ export const TripCard: React.FC<TripCardProps> = ({
               );
             })}
             {(trip.customChips || []).length > 3 && (
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-pod text-ink-muted self-center">
+              <span className="text-[10px] font-rounded font-medium tnum px-2 py-0.5 rounded-full bg-pod text-ink-muted self-center">
                 +{(trip.customChips || []).length - 3}
               </span>
             )}
@@ -214,12 +226,25 @@ export const TripCard: React.FC<TripCardProps> = ({
               {timelineResult.hardDepartureTime}
             </div>
             <div className="text-right tnum">
-              <span className="text-base font-semibold block">
-                {Math.round(physicsResult.legWatts)} W &middot; {physicsResult.powerZone}
-              </span>
-              <span className={`text-xs block ${isActive ? 'opacity-80' : 'text-ink-muted'}`}>
-                @{physicsResult.effectiveSpeedKmH} km/h{riderSpecs?.telemetryMode === 'quantitative' ? ` · ${physicsResult.wattsPerKg} W/kg` : ''}
-              </span>
+              {riderSpecs?.cockpitViewMode === 'pro' ? (
+                <>
+                  <span className="text-base font-semibold block">
+                    {Math.round(physicsResult.legWatts)} W &middot; {physicsResult.powerZone}
+                  </span>
+                  <span className={`text-xs block ${isActive ? 'opacity-80' : 'text-ink-muted'}`}>
+                    {physicsResult.effectiveSpeedKmH} km/h{riderSpecs?.telemetryMode === 'quantitative' ? ` · ${physicsResult.wattsPerKg} W/kg` : ''}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="text-base font-semibold block">
+                    {physicsResult.effectiveSpeedKmH} km/h
+                  </span>
+                  <span className={`text-xs block ${isActive ? 'opacity-80' : 'text-ink-muted'}`}>
+                    ~{Math.max(5, Math.round((trip.route.distanceKm / Math.max(8, physicsResult.effectiveSpeedKmH)) * 60))} min
+                  </span>
+                </>
+              )}
             </div>
           </div>
 
@@ -245,7 +270,7 @@ export const TripCard: React.FC<TripCardProps> = ({
               ))}
             </div>
 
-            <span className={`font-mono text-xs tnum ${isActive ? 'opacity-85' : 'text-ink-secondary'}`}>
+            <span className={`font-rounded font-medium text-xs tnum ${isActive ? 'opacity-85' : 'text-ink-secondary'}`}>
               {t('readyCountLabel', {
                 checked: String(checkedCount).padStart(2, '0'),
                 total: String(totalChecklist).padStart(2, '0'),
@@ -256,11 +281,24 @@ export const TripCard: React.FC<TripCardProps> = ({
 
         {/* Compact Full-Radius Attribute Pills */}
         <div className="flex flex-wrap items-center gap-2 mb-5 text-xs">
-          <Badge variant="zinc" size="md" className="tnum">
-            {trip.route.distanceKm} km
+          <Badge
+            variant="zinc"
+            size="md"
+            className="tnum"
+            title={
+              trip.stages && trip.stages.length > 1
+                ? `+${getExpeditionTotals(trip).totalElevationM} m`
+                : undefined
+            }
+          >
+            {trip.stages && trip.stages.length > 1
+              ? `${getExpeditionTotals(trip).totalDistanceKm} km`
+              : `${trip.route.distanceKm} km`}
           </Badge>
           <Badge variant="zinc" size="md" className="tnum">
-            {t('rigMassPill', { mass: Number(physicsResult.systemMassKg.toFixed(1)) })}
+            {riderSpecs?.cockpitViewMode === 'pro'
+              ? t('rigMassPill', { mass: Number(physicsResult.systemMassKg.toFixed(1)) })
+              : `${trip.weather.temperatureC}°C · ${trip.weather.baseWindSpeedKmH} km/h ${lang === 'fr' ? 'vent' : 'wind'}`}
           </Badge>
           <Badge
             variant={trip.weather.isHeadwindActive ? 'amber' : 'zinc'}

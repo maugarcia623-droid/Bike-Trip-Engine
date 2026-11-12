@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useState, useId } from 'react';
+import { ModalPortal } from './common/ModalPortal';
 import {
   X,
   Bug,
@@ -43,6 +43,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
   tripName,
 }) => {
   const { lang, t } = useTranslation();
+  const titleId = useId();
   const [category, setCategory] = useState<FeedbackCategory>('Bug');
   const [message, setMessage] = useState<string>('');
   const [name, setName] = useState<string>('');
@@ -74,31 +75,6 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
       theme: 'emerald',
     },
   ];
-
-  // Lock background scrolling when modal is active
-  useEffect(() => {
-    if (!isOpen) return;
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = prevOverflow;
-    };
-  }, [isOpen]);
-
-  // Handle ESC key to dismiss
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        handleClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen]);
-
-  if (!isOpen) return null;
-  if (typeof document === 'undefined') return null;
 
   const handleClose = () => {
     onClose();
@@ -185,18 +161,16 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
       ? t('feedbackPlaceholderPhysics')
       : t('feedbackPlaceholderFeature');
 
-  return createPortal(
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="feedback-modal-title"
-      className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-5 pt-[max(1rem,calc(env(safe-area-inset-top,0px)+1rem))] pb-[max(2.5rem,calc(env(safe-area-inset-bottom)+2.5rem))] bg-black/75 dark:bg-black/85 animate-apple-fade-in overflow-y-auto"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) handleClose();
-      }}
+  return (
+    <ModalPortal
+      isOpen={isOpen}
+      onClose={handleClose}
+      labelledBy={titleId}
+      zIndexClass="z-[1000]"
+      backdropClassName="bg-black/75 dark:bg-black/85 backdrop-blur-sm"
+      panelClassName="relative w-full max-w-lg bg-card text-ink rounded-card p-5 sm:p-6 shadow-2xl border border-black/10 dark:border-white/10 transition-colors my-auto overflow-y-auto animate-apple-modal"
     >
-      <div className="relative w-full max-w-lg bg-card text-ink rounded-card p-5 sm:p-6 shadow-2xl border border-ink/10 dark:border-white/10 transition-colors my-auto overflow-hidden animate-apple-modal">
-        {/* ── Modal Header with High-Contrast Purple Brand Accent ── */}
+        {/* ── Modal Header ── */}
         <div className="flex items-start justify-between gap-3 pb-3 mb-4 border-b border-ink/5 dark:border-white/10 shrink-0 animate-apple-in stagger-1">
           <div className="flex items-center gap-3 min-w-0">
             <div
@@ -206,7 +180,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
             </div>
             <div className="min-w-0">
               <h2
-                id="feedback-modal-title"
+                id={titleId}
                 className="text-base sm:text-lg font-bold font-rounded text-ink tracking-tight break-words"
               >
                 {t('feedbackModalTitle')}
@@ -220,7 +194,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
           <button
             type="button"
             onClick={handleClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-chip transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer shrink-0"
+            className="relative before:content-[''] before:absolute before:-inset-1.5 w-8 h-8 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-surface-active transition-all duration-150 active:scale-95 cursor-pointer shrink-0"
             aria-label={t('menuClose')}
           >
             <X className="w-4 h-4" />
@@ -263,7 +237,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Category Selector */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-mono font-bold uppercase tracking-wider text-ink-muted">
+              <label className="block text-xs font-rounded font-semibold text-ink-secondary">
                 {t('feedbackCategoryLabel')}
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -307,9 +281,9 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
 
             {/* Message Textarea */}
             <div className="space-y-1.5">
-              <label className="flex items-center justify-between text-xs font-mono font-bold uppercase tracking-wider text-ink-muted">
+              <label className="flex items-center justify-between text-xs font-rounded font-semibold text-ink-secondary">
                 <span>{t('feedbackMessageLabel')}</span>
-                <span className="text-[11px] font-sans normal-case text-ink-muted/80">
+                <span className="text-[11px] font-body font-normal text-ink-muted">
                   {t('feedbackRequiredTag')}
                 </span>
               </label>
@@ -319,16 +293,16 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder={messagePlaceholder}
-                className="w-full p-3 rounded-pod bg-pod border border-ink/10 dark:border-white/10 text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-volt font-body text-xs sm:text-sm leading-relaxed transition-colors resize-none"
+                className="w-full p-3 rounded-pod bg-pod border border-black/10 dark:border-white/10 text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-inset focus:ring-volt font-body text-base sm:text-sm leading-relaxed transition-colors resize-none"
               />
             </div>
 
             {/* Optional Contact Fields (Name & Email) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label className="block text-xs font-mono font-bold uppercase tracking-wider text-ink-muted">
+                <label className="block text-xs font-rounded font-semibold text-ink-secondary">
                   {t('feedbackNameLabel')}{' '}
-                  <span className="font-sans normal-case text-ink-muted/80 font-normal">
+                  <span className="font-body text-ink-muted font-normal">
                     {t('feedbackOptionalTag')}
                   </span>
                 </label>
@@ -339,15 +313,15 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder={t('feedbackNamePlaceholder')}
-                    className="w-full pl-9 pr-3 py-2 rounded-pod bg-pod border border-ink/10 dark:border-white/10 text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-volt font-body text-xs sm:text-sm transition-colors"
+                    className="w-full min-h-[44px] pl-9 pr-3 py-2 rounded-pod bg-pod border border-black/10 dark:border-white/10 text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-inset focus:ring-volt font-body text-base sm:text-sm transition-colors"
                   />
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <label className="block text-xs font-mono font-bold uppercase tracking-wider text-ink-muted">
+                <label className="block text-xs font-rounded font-semibold text-ink-secondary">
                   {t('feedbackEmailLabel')}{' '}
-                  <span className="font-sans normal-case text-ink-muted/80 font-normal">
+                  <span className="font-body text-ink-muted font-normal">
                     {t('feedbackOptionalTag')}
                   </span>
                 </label>
@@ -358,7 +332,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder={t('feedbackEmailPlaceholder')}
-                    className="w-full pl-9 pr-3 py-2 rounded-pod bg-pod border border-ink/10 dark:border-white/10 text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-volt font-body text-xs sm:text-sm transition-colors"
+                    className="w-full min-h-[44px] pl-9 pr-3 py-2 rounded-pod bg-pod border border-black/10 dark:border-white/10 text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-inset focus:ring-volt font-body text-base sm:text-sm transition-colors"
                   />
                 </div>
               </div>
@@ -370,7 +344,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                 type="button"
                 onClick={handleClose}
                 disabled={isSubmitting}
-                className="px-4 py-2 rounded-full bg-pod hover:bg-chip text-ink-secondary hover:text-ink font-rounded text-xs sm:text-sm font-semibold transition-colors cursor-pointer disabled:opacity-50"
+                className="min-h-[44px] px-4 py-2 rounded-full bg-pod hover:bg-surface-active text-ink-secondary hover:text-ink font-rounded text-xs sm:text-sm font-semibold transition-colors cursor-pointer disabled:opacity-50"
               >
                 {t('feedbackCancelBtn')}
               </button>
@@ -378,7 +352,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="inline-flex items-center justify-center gap-2 px-5 py-2 rounded-full bg-volt text-[#4d5200] ring-2 ring-inset ring-[#a3b300] font-rounded font-bold text-xs sm:text-sm cursor-pointer hover:brightness-105 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
+                className="min-h-[44px] inline-flex items-center justify-center gap-2 px-5 py-2 rounded-full bg-volt text-[#4d5200] ring-2 ring-inset ring-[#a3b300] font-rounded font-bold text-xs sm:text-sm cursor-pointer hover:brightness-105 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
               >
                 {isSubmitting ? (
                   <>
@@ -395,8 +369,6 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
             </div>
           </form>
         )}
-      </div>
-    </div>,
-    document.body
+    </ModalPortal>
   );
 };

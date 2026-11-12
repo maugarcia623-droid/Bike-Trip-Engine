@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  FloppyDisk,
   ArrowLeft,
+  ArrowUp,
+  ArrowDown,
   ArrowUpRight,
   ArrowsLeftRight,
   Clock,
@@ -24,6 +25,8 @@ import {
   X,
   Map as MapIcon,
   Settings,
+  Bicycle,
+  Mountain,
 } from '@/components/icons';
 import {
   fetchHourlyWeather,
@@ -31,19 +34,25 @@ import {
   getLocalTodayIso,
   computeRouteBearing,
 } from '../../services/weatherService';
-import { TripProfile, TripStage, generateTripChecklist } from '../../types/trip';
+import { TripProfile, TripStage, RouteWaypoint, generateTripChecklist } from '../../types/trip';
 import {
   downsampleCoordinates,
   switchActiveStage,
   addNextStage,
   removeStage,
   getExpeditionTotals,
+  addDaysToIso,
 } from '../../utils/stageManager';
 import { ParameterTabs } from './ParameterTabs';
 import { PresetRuleCard } from './PresetRuleCard';
 import { LocationAutocompleteInput } from './LocationAutocompleteInput';
+import { InteractiveRouteMap } from './InteractiveRouteMap';
+import { TourOverviewCard } from './TourOverviewCard';
+import { ElevationTerrainStrip } from '../common/ElevationTerrainStrip';
 import { POPULAR_CYCLING_HUBS } from '../../services/locationService';
 import { parseGpxFileContent } from '../../utils/gpxParser';
+import { computeSurfaceBreakdown, SURFACE_VISUAL_META } from '../../utils/surfaceProfile';
+import { useOsmSurface } from '../../services/osmSurfaceService';
 import { getActiveBike, loadRiderBikeSpecs, getEffectiveRiderSpecs } from '../../utils/specsStorage';
 import { calculatePhysics } from '../../utils/physics';
 import { calculateReverseTimeline } from '../../utils/timeline';
@@ -72,6 +81,17 @@ import {
   findChipDef,
 } from '../../utils/archetypeChips';
 
+const GripDotsIcon: React.FC<{ className?: string }> = ({ className = 'w-3.5 h-3.5' }) => (
+  <svg viewBox="0 0 16 16" fill="currentColor" className={className} aria-hidden="true">
+    <circle cx="5" cy="3.5" r="1.3" />
+    <circle cx="11" cy="3.5" r="1.3" />
+    <circle cx="5" cy="8" r="1.3" />
+    <circle cx="11" cy="8" r="1.3" />
+    <circle cx="5" cy="12.5" r="1.3" />
+    <circle cx="11" cy="12.5" r="1.3" />
+  </svg>
+);
+
 interface ConfiguratorScreenProps {
   initialTrip: TripProfile;
   isNew: boolean;
@@ -90,11 +110,17 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
   onLaunch,
 }) => {
   const { lang, t } = useTranslation();
+  const initialSnapshotRef = useRef<TripProfile>(JSON.parse(JSON.stringify(initialTrip)));
+  const [hasModified, setHasModified] = useState(false);
+  const [showAllChips, setShowAllChips] = useState(false);
   const [trip, setTrip] = useState<TripProfile>(initialTrip);
   const tripRef = React.useRef<TripProfile>(trip);
   tripRef.current = trip;
 
-  const commitTrip = (updater: TripProfile | ((prev: TripProfile) => TripProfile)): TripProfile => {
+  const commitTripInternal = (
+    updater: TripProfile | ((prev: TripProfile) => TripProfile),
+    markModified = true
+  ): TripProfile => {
     const resolved = typeof updater === 'function' ? updater(tripRef.current) : updater;
 
     let syncedStages = resolved.stages;
@@ -116,6 +142,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
               ...st.route,
               ...resolved.route,
               coordinates: downsampleCoordinates(resolved.route?.coordinates),
+              waypoints: resolved.route?.waypoints ? resolved.route.waypoints.map((w) => ({ ...w })) : undefined,
             },
             office: { ...resolved.office },
             weather: { ...resolved.weather },
@@ -133,9 +160,15 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
     };
     tripRef.current = stamped;
     setTrip(stamped);
+    if (markModified) {
+      setHasModified(true);
+    }
     onAutoSync?.(stamped);
     return stamped;
   };
+
+  const commitTrip = (updater: TripProfile | ((prev: TripProfile) => TripProfile)): TripProfile =>
+    commitTripInternal(updater, true);
 
   const [originInput, setOriginInput] = useState(trip.route.origin || 'Nantes');
   const initialDest = trip.route.destination || trip.office.gateName || 'Saint-Nazaire';
@@ -154,6 +187,24 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
     }
     return null;
   });
+  const [waypoints, setWaypoints] = useState<
+    Array<{ id: string; name: string; coordinates?: [number, number] | null; distanceFromStartKm?: number }>
+  >(() => {
+    if (initialTrip.route?.waypoints && initialTrip.route.waypoints.length > 0) {
+      return initialTrip.route.waypoints.map((w, idx) => ({
+        id: w.id || `wp-${Date.now()}-${idx}`,
+        name: w.name,
+        coordinates: w.coordinates || null,
+        distanceFromStartKm: w.distanceFromStartKm,
+      }));
+    }
+    return [];
+  });
+  const [draggedWaypointIdx, setDraggedWaypointIdx] = useState<number | null>(null);
+  const [isMultiDayFormat, setIsMultiDayFormat] = useState<boolean>(() => {
+    return Boolean(initialTrip.stages && initialTrip.stages.length > 1);
+  });
+  const [isMapCollapsed, setIsMapCollapsed] = useState<boolean>(false);
   const [isRouting, setIsRouting] = useState(false);
   const [routeSuccess, setRouteSuccess] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
@@ -174,8 +225,45 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
     return 'corridor';
   });
   const gpxConfigInputRef = React.useRef<HTMLInputElement>(null);
+  const [activeSurfaceSegmentId, setActiveSurfaceSegmentId] = useState<string | null>(null);
 
   const isFr = lang === 'fr';
+
+  const canQueryOsmSurface =
+    trip.route.routeMode !== 'manual-radius' &&
+    Boolean(trip.route.coordinates && trip.route.coordinates.length >= 2);
+  const {
+    osmData,
+    status: osmStatus,
+    error: osmError,
+  } = useOsmSurface(trip.route.coordinates, trip.route.distanceKm, canQueryOsmSurface);
+
+  const surfaceBreakdown = useMemo(
+    () =>
+      computeSurfaceBreakdown(trip.route, {
+        crr: trip.physics.crr,
+        riderWeightKg: trip.physics.riderWeightKg,
+        bikeWeightKg: trip.physics.bikeWeightKg,
+        luggageWeightKg: trip.physics.luggageWeightKg ?? trip.physics.gearWeightKg,
+        customChips: trip.customChips ?? [],
+        osmData,
+        isLoadingOsm: canQueryOsmSurface && osmStatus === 'loading',
+        osmError,
+      }),
+    [
+      trip.route,
+      trip.physics.crr,
+      trip.physics.riderWeightKg,
+      trip.physics.bikeWeightKg,
+      trip.physics.luggageWeightKg,
+      trip.physics.gearWeightKg,
+      trip.customChips,
+      osmData,
+      canQueryOsmSurface,
+      osmStatus,
+      osmError,
+    ]
+  );
 
   useEffect(() => {
     if (
@@ -206,6 +294,19 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
           setOriginCoords(initialTrip.route?.originCoords || null);
           setDestCoords(null);
         }
+        if (initialTrip.route?.waypoints) {
+          setWaypoints(
+            initialTrip.route.waypoints.map((w, idx) => ({
+              id: w.id || `wp-${Date.now()}-${idx}`,
+              name: w.name,
+              coordinates: w.coordinates || null,
+              distanceFromStartKm: w.distanceFromStartKm,
+            }))
+          );
+        } else {
+          setWaypoints([]);
+        }
+        setIsMultiDayFormat(Boolean(initialTrip.stages && initialTrip.stages.length > 1));
       }
     }
   }, [initialTrip]);
@@ -215,11 +316,13 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
     const prevDest = destInput;
     const prevOriginCoords = originCoords;
     const prevDestCoords = destCoords;
+    const reversedWaypoints = [...waypoints].reverse();
 
     setOriginInput(prevDest);
     setDestInput(prevOrigin);
     setOriginCoords(prevDestCoords);
     setDestCoords(prevOriginCoords);
+    setWaypoints(reversedWaypoints);
     setRouteSuccess(false);
     setRouteError(null);
 
@@ -243,6 +346,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
           origin: prevDest,
           destination: prevOrigin,
           coordinates: reversedCoords,
+          waypoints: reversedWaypoints,
         },
         weather: {
           ...prev.weather,
@@ -273,6 +377,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
       calmSpeedKmH: physicsResult.calmSpeedKmH,
       arriveAtMode: isArriveAtMode,
       departureTime: trip.departureTime,
+      pinnedAmenities: trip.pinnedAmenities,
     }
   );
   const archetype = getTripArchetype(trip.tag, trip.name);
@@ -291,7 +396,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
       ? (lang === 'fr' ? `Dans ${daysOffset} jours` : `In ${daysOffset} days`)
       : (lang === 'fr' ? `Passé (${Math.abs(daysOffset)} j)` : `${Math.abs(daysOffset)} days ago`);
 
-  const handleCalculateRoute = async () => {
+  const handleCalculateRoute = async (customWaypoints?: typeof waypoints) => {
     if (!originInput.trim() || !destInput.trim()) return;
     if (destInput.match(/loop radius|rayon boucle/i)) {
       setRouteError(isFr ? 'Veuillez saisir une destination valide pour le corridor.' : 'Please enter a valid destination for corridor routing.');
@@ -301,25 +406,36 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
     setRouteError(null);
     setRouteSuccess(false);
 
+    const activeWps = customWaypoints !== undefined ? customWaypoints : waypoints;
+
     try {
       const result = await calculateAutoBikeRoute(
         originInput,
         destInput,
         originCoords,
-        destCoords
+        destCoords,
+        activeWps
       );
       if (result) {
+        if (result.resolvedWaypoints) {
+          setWaypoints(result.resolvedWaypoints);
+        }
         commitTrip((prev) => {
           const hasMultipleStages = Boolean(prev.stages && prev.stages.length > 1);
           let newName = prev.name;
+          const isTitleBlank = !prev.name || !prev.name.trim();
           if (!hasMultipleStages) {
-            newName = lang === 'fr' ? `${originInput} → ${destInput}` : `${originInput} → ${destInput} Tour`;
+            if (isTitleBlank) {
+              const hasWps = (result.resolvedWaypoints || activeWps).length > 0;
+              const viaSummary = hasWps
+                ? ` (via ${(result.resolvedWaypoints || activeWps).map((w) => w.name.split(',')[0].trim()).join(', ')})`
+                : '';
+              newName = lang === 'fr'
+                ? `${originInput.split(',')[0].trim()} → ${destInput.split(',')[0].trim()}${viaSummary}`
+                : `${originInput.split(',')[0].trim()} → ${destInput.split(',')[0].trim()}${viaSummary} Tour`;
+            }
           } else {
-            const isSingleStagePattern =
-              !prev.name ||
-              prev.name.includes('→') ||
-              prev.name.startsWith('Custom') ||
-              prev.name.startsWith('Vélotaf');
+            const isSingleStagePattern = isTitleBlank;
             if (isSingleStagePattern) {
               const totals = getExpeditionTotals({
                 ...prev,
@@ -330,6 +446,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                   distanceKm: result.distanceKm,
                   elevationGainM: Math.round(result.distanceKm * 6.5),
                   coordinates: result.coordinates,
+                  waypoints: result.resolvedWaypoints || activeWps,
                 },
               });
               const dayCount = prev.stages!.length;
@@ -353,6 +470,8 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
               distanceKm: result.distanceKm,
               elevationGainM: Math.round(result.distanceKm * 6.5),
               coordinates: result.coordinates,
+              waypoints: result.resolvedWaypoints || activeWps,
+              cueSheet: result.cueSheet,
             },
           };
         });
@@ -366,6 +485,171 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
       setRouteError(err.message || t('routeErrorDefault'));
     } finally {
       setIsRouting(false);
+    }
+  };
+
+  const handleAddWaypoint = () => {
+    const newId = `wp-${Date.now()}`;
+    const newWp = {
+      id: newId,
+      name: '',
+      coordinates: null,
+    };
+    const nextWps = [...waypoints, newWp];
+    setWaypoints(nextWps);
+    commitTrip((prev) => ({
+      ...prev,
+      route: {
+        ...prev.route,
+        waypoints: nextWps,
+      },
+    }));
+    setTimeout(() => {
+      const inputElem = document.getElementById(`waypoint-${newId}`);
+      if (inputElem) inputElem.focus();
+    }, 50);
+  };
+
+  const handleRemoveWaypoint = (id: string) => {
+    const nextWps = waypoints.filter((w) => w.id !== id);
+    setWaypoints(nextWps);
+    commitTrip((prev) => ({
+      ...prev,
+      route: {
+        ...prev.route,
+        waypoints: nextWps,
+      },
+    }));
+    if (originInput.trim() && destInput.trim()) {
+      handleCalculateRoute(nextWps);
+    }
+  };
+
+  const handleUpdateWaypointName = (id: string, name: string) => {
+    setWaypoints((prev) =>
+      prev.map((w) => (w.id === id ? { ...w, name, coordinates: null } : w))
+    );
+    setRouteSuccess(false);
+    setRouteError(null);
+  };
+
+  const handleSelectWaypointLocation = (
+    id: string,
+    loc: { name: string; coordinates: [number, number] }
+  ) => {
+    const nextWps = waypoints.map((w) =>
+      w.id === id ? { ...w, name: loc.name, coordinates: loc.coordinates } : w
+    );
+    setWaypoints(nextWps);
+    setRouteSuccess(false);
+    setRouteError(null);
+    commitTrip((prev) => ({
+      ...prev,
+      route: {
+        ...prev.route,
+        waypoints: nextWps,
+      },
+    }));
+    if (originInput.trim() && destInput.trim()) {
+      handleCalculateRoute(nextWps);
+    }
+  };
+
+  const handleMoveWaypoint = (index: number, direction: -1 | 1) => {
+    const targetIdx = index + direction;
+    if (targetIdx < 0 || targetIdx >= waypoints.length) return;
+    const nextWps = [...waypoints];
+    const [moved] = nextWps.splice(index, 1);
+    nextWps.splice(targetIdx, 0, moved);
+    setWaypoints(nextWps);
+    commitTrip((prev) => ({
+      ...prev,
+      route: {
+        ...prev.route,
+        waypoints: nextWps,
+      },
+    }));
+    if (originInput.trim() && destInput.trim()) {
+      handleCalculateRoute(nextWps);
+    }
+  };
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedWaypointIdx(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    if (draggedWaypointIdx === null || draggedWaypointIdx === dropIndex) return;
+    const nextWps = [...waypoints];
+    const [moved] = nextWps.splice(draggedWaypointIdx, 1);
+    nextWps.splice(dropIndex, 0, moved);
+    setDraggedWaypointIdx(null);
+    setWaypoints(nextWps);
+    commitTrip((prev) => ({
+      ...prev,
+      route: {
+        ...prev.route,
+        waypoints: nextWps,
+      },
+    }));
+    if (originInput.trim() && destInput.trim()) {
+      handleCalculateRoute(nextWps);
+    }
+  };
+
+  const handleMapClickAddWaypoint = async (coords: [number, number], reverseName?: string) => {
+    const newId = `wp-${Date.now()}`;
+    const defaultLabel = reverseName || `${coords[0].toFixed(4)}°N, ${coords[1].toFixed(4)}°E`;
+    const newWp = {
+      id: newId,
+      name: defaultLabel,
+      coordinates: coords,
+    };
+    const nextWps = [...waypoints, newWp];
+    setWaypoints(nextWps);
+    commitTrip((prev) => ({
+      ...prev,
+      route: {
+        ...prev.route,
+        waypoints: nextWps,
+      },
+    }));
+    if (originInput.trim() && destInput.trim()) {
+      handleCalculateRoute(nextWps);
+    }
+  };
+
+  const handleSetTripFormat = (mode: 'single' | 'multi') => {
+    if (mode === 'single') {
+      setIsMultiDayFormat(false);
+      commitTrip((prev) => {
+        const activeStage =
+          prev.stages && typeof prev.activeStageIndex === 'number' && prev.stages[prev.activeStageIndex]
+            ? prev.stages[prev.activeStageIndex]
+            : prev.stages?.[0];
+
+        return {
+          ...prev,
+          stages: undefined,
+          activeStageIndex: undefined,
+          route: activeStage ? activeStage.route : prev.route,
+        };
+      });
+    } else {
+      setIsMultiDayFormat(true);
+      commitTrip((prev) => {
+        if (!prev.stages || prev.stages.length < 2) {
+          return addNextStage(prev);
+        }
+        return prev;
+      });
     }
   };
 
@@ -414,9 +698,12 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
       const updatedDesc = prev.description
         ? prev.description.replace(/^\d+(\.\d+)?\s*km\b/i, `${clampedKm.toFixed(1)} km`)
         : newDesc;
+      const shouldUpdateLoopTitle =
+        !prev.name?.trim() ||
+        /^.+ · (\d+(\.\d+)? km Loop|Boucle de \d+(\.\d+)? km)$/i.test(prev.name.trim());
       return {
         ...prev,
-        name: newName,
+        name: shouldUpdateLoopTitle ? newName : prev.name,
         description: updatedDesc,
         route: {
           ...prev.route,
@@ -460,7 +747,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
             : prev.weather.windDirectionDegrees || 0;
         return {
           ...prev,
-          name: parsed.trackName || prev.name,
+          name: prev.name.trim() ? prev.name : (parsed.trackName || prev.name),
           route: {
             ...prev.route,
             routeMode: 'gpx',
@@ -555,12 +842,89 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
         setDestInput(sanitizedDest);
       }
 
+      const prevGate = prev.office?.gateName || '';
+      const isCommuterGate =
+        !prevGate.trim() ||
+        /gate\s*(b|17)|porte\s*(b|17)|atlantis|campus|office|bureau|workplace|entreprise/i.test(prevGate);
+      const isOtherArchetypeGate =
+        /bivouac|camp|finish\s*line|clubhouse|ligne d[’']arriv[ée]e|sas|h[ôo]tel|r[ée]ception|auberge|h[ée]bergement|lodge|checkpoint/i.test(
+          prevGate
+        );
+      const defaultGateByMode: Record<ArchetypeMode, string> = {
+        COMMUTE: isFr ? 'Bureau · Accueil' : 'Main Office',
+        ESCAPADE: isFr ? 'Réception Hôtel / Étape' : 'Hotel Check-in / Stage Lodging',
+        BIKEPACKING: isFr ? 'Zone de Bivouac / Camp' : 'Camp / Bivouac Site',
+        SPORT: isFr ? 'Ligne d’arrivée / Club' : 'Finish Line / Clubhouse',
+      };
+      const defaultCutoffByMode: Record<ArchetypeMode, string> = {
+        COMMUTE: '09:00',
+        SPORT: '11:30',
+        ESCAPADE: '16:00',
+        BIKEPACKING: '18:30',
+      };
+      const shouldReplaceGate =
+        mode === 'COMMUTE'
+          ? !prevGate.trim() || isOtherArchetypeGate
+          : isCommuterGate || isOtherArchetypeGate;
+      const sanitizedGateName = shouldReplaceGate ? defaultGateByMode[mode] : prevGate;
+
+      const cleanedRuleSettings = { ...mergedRuleSettings };
+      if (mode !== 'COMMUTE') {
+        cleanedRuleSettings.splitPostRideRecovery = false;
+        if (
+          cleanedRuleSettings.stage1LocationLabel &&
+          /locker|vestiaire|break\s*room|desk|bureau|office|open\s*space/i.test(
+            cleanedRuleSettings.stage1LocationLabel
+          )
+        ) {
+          delete cleanedRuleSettings.stage1LocationLabel;
+        }
+        if (
+          cleanedRuleSettings.stage2LocationLabel &&
+          /locker|vestiaire|break\s*room|desk|bureau|office|open\s*space/i.test(
+            cleanedRuleSettings.stage2LocationLabel
+          )
+        ) {
+          delete cleanedRuleSettings.stage2LocationLabel;
+        }
+      }
+
+      const prevNotes = prev.office?.notes || '';
+      const hasCommuterNotes =
+        /open[-\s]?space|locker|vestiaire|badge|shift|poste|atlantis|campus|office|bureau|pantry|cafeteria|skyr/i.test(
+          prevNotes
+        );
+      const sanitizedNotes = mode !== 'COMMUTE' && hasCommuterNotes ? '' : prevNotes;
+
+      const prevDesc = prev.description || '';
+      const hasCommuterDesc =
+        /commute|v[ée]lotaf|morning|matinal|shift|prise de poste|atlantis|bureau|estuary|estuaire/i.test(
+          prevDesc
+        );
+      const defaultDescByMode: Record<ArchetypeMode, string> = {
+        COMMUTE: prevDesc || t('newTripDefaultDesc'),
+        ESCAPADE: isFr
+          ? 'Étape cyclotourisme avec check-in hôtel, sacoches équilibrées et récupération.'
+          : 'Touring stage paced for hotel check-in, balanced panniers, and evening recovery.',
+        BIKEPACKING: isFr
+          ? 'Expédition autonome calibrée pour bivouac, sacoches et gestion hydrique.'
+          : 'Self-supported bikepacking expedition calibrated for saddlebag load and dusk camp.',
+        SPORT: isFr
+          ? 'Sortie sportive rythmée avec cibles de puissance, vent et ravitaillement.'
+          : 'Training ride tuned for power pacing, wind resistance, and fueling.',
+      };
+      const sanitizedDescription =
+        mode !== 'COMMUTE' && (!prevDesc.trim() || hasCommuterDesc)
+          ? defaultDescByMode[mode]
+          : prevDesc;
+
       return {
         ...prev,
         tag: effectiveTag,
+        description: sanitizedDescription,
         checklist: syncedChecklist,
         customChips: retainedChips,
-        ruleSettings: mergedRuleSettings,
+        ruleSettings: cleanedRuleSettings,
         route: shouldResetRadius
           ? {
               ...prev.route,
@@ -571,7 +935,12 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
           : prev.route,
         office: {
           ...prev.office,
+          gateName: sanitizedGateName,
           targetGateArrivalTime: defaultArrival,
+          shiftStartTime: defaultCutoffByMode[mode],
+          strictNoFoodInOpenSpace: mode === 'COMMUTE' ? Boolean(prev.office?.strictNoFoodInOpenSpace) : false,
+          badgeRequiredForGate: mode === 'COMMUTE',
+          notes: sanitizedNotes,
         },
       };
     });
@@ -634,16 +1003,24 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
         prev.route.routeMode === 'manual-radius' || Boolean(prev.route.radiusMeters);
       const dist = prev.route.distanceKm || 30;
       let syncName = prev.name;
-      if (
-        isRadius &&
-        (prev.name.includes('→') ||
-          prev.name.includes('Pornic') ||
-          (!prev.name.includes('Loop') && !prev.name.includes('Boucle')))
-      ) {
+      if (!prev.name.trim()) {
         const originShort = (prev.route.origin || 'Start').split(',')[0].trim();
-        syncName = isFr
-          ? `${originShort} · Boucle de ${dist} km`
-          : `${originShort} · ${dist} km Loop`;
+        if (isRadius) {
+          syncName = isFr
+            ? `${originShort} · Boucle de ${dist} km`
+            : `${originShort} · ${dist} km Loop`;
+        } else if (prev.stages && prev.stages.length > 1 && prev.route.origin && prev.route.destination) {
+          const destShort = prev.route.destination.split(',')[0].trim();
+          const daysLabel = isFr ? `${prev.stages.length} jours` : `${prev.stages.length} days`;
+          syncName = `${originShort} → ${destShort} (${daysLabel})`;
+        } else if (prev.route.origin && prev.route.destination) {
+          const destShort = prev.route.destination.split(',')[0].trim();
+          syncName = isFr
+            ? `${originShort} → ${destShort}`
+            : `${originShort} → ${destShort} Tour`;
+        } else {
+          syncName = t('defaultTripName');
+        }
       }
       const syncDesc = prev.description
         ? prev.description.replace(/^\d+(\.\d+)?\s*km\b/i, `${dist.toFixed(1)} km`)
@@ -667,10 +1044,37 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
     onLaunch(updated);
   };
 
+  const handleRevertChanges = () => {
+    const snap: TripProfile = JSON.parse(JSON.stringify(initialSnapshotRef.current));
+    setHasModified(false);
+    setOriginInput(snap.route.origin || '');
+    setDestInput(snap.route.destination || snap.office.gateName || '');
+    setOriginCoords(snap.route.coordinates?.[0] ?? null);
+    setDestCoords(
+      snap.route.coordinates && snap.route.coordinates.length > 1
+        ? snap.route.coordinates[snap.route.coordinates.length - 1]
+        : null
+    );
+    setWaypoints(
+      (snap.route.waypoints || []).map((w, idx) => ({
+        id: w.id || `wp-${Date.now()}-${idx}`,
+        name: w.name,
+        coordinates: w.coordinates || null,
+        distanceFromStartKm: w.distanceFromStartKm,
+      }))
+    );
+    setIsMultiDayFormat(Boolean(snap.stages && snap.stages.length > 1));
+    setIsArriveAtMode(snap.arriveAtMode !== false);
+    setRouteSuccess(false);
+    setRouteError(null);
+    commitTripInternal(snap, false);
+  };
+
   const isBikepacking = activeArchetypeMode === 'BIKEPACKING';
   const hasMultipleStages = Boolean(trip.stages && trip.stages.length > 1);
-  const showStageSequencer = isBikepacking || hasMultipleStages;
-  const isMultiDayBikepacking = isBikepacking && hasMultipleStages;
+  const isMultiDayTrip = isMultiDayFormat || hasMultipleStages;
+  const showStageSequencer = isMultiDayTrip;
+  const isMultiDayBikepacking = isMultiDayTrip && isBikepacking;
 
   const displayStages: TripStage[] =
     trip.stages && trip.stages.length > 0
@@ -699,6 +1103,13 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
     const nextDest = updated.route.destination || '';
     setOriginInput(nextOrigin);
     setDestInput(nextDest);
+    const nextWps = (updated.route.waypoints || []).map((w, wIdx) => ({
+      id: w.id || `wp-${Date.now()}-${wIdx}`,
+      name: w.name,
+      coordinates: w.coordinates || null,
+      distanceFromStartKm: w.distanceFromStartKm,
+    }));
+    setWaypoints(nextWps);
     if (updated.route.coordinates && updated.route.coordinates.length > 1) {
       setOriginCoords(updated.route.coordinates[0]);
       setDestCoords(updated.route.coordinates[updated.route.coordinates.length - 1]);
@@ -712,10 +1123,12 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
   };
 
   const handleAddDay = () => {
+    setIsMultiDayFormat(true);
     const updated = commitTrip((prev) => addNextStage(prev));
     const nextOrigin = updated.route.origin || '';
     setOriginInput(nextOrigin);
     setDestInput('');
+    setWaypoints([]);
     setOriginCoords(null);
     setDestCoords(null);
     setRouteSuccess(false);
@@ -731,10 +1144,20 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
 
   const handleRemoveStage = (idxToRemove: number) => {
     const updated = commitTrip((prev) => removeStage(prev, idxToRemove));
+    if (!updated.stages || updated.stages.length <= 1) {
+      setIsMultiDayFormat(false);
+    }
     const nextOrigin = updated.route.origin || '';
     const nextDest = updated.route.destination || '';
     setOriginInput(nextOrigin);
     setDestInput(nextDest);
+    const nextWps = (updated.route.waypoints || []).map((w, wIdx) => ({
+      id: w.id || `wp-${Date.now()}-${wIdx}`,
+      name: w.name,
+      coordinates: w.coordinates || null,
+      distanceFromStartKm: w.distanceFromStartKm,
+    }));
+    setWaypoints(nextWps);
     if (updated.route.coordinates && updated.route.coordinates.length > 1) {
       setOriginCoords(updated.route.coordinates[0]);
       setDestCoords(updated.route.coordinates[updated.route.coordinates.length - 1]);
@@ -781,7 +1204,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
     activeStep === 'date-time'
       ? isFr
         ? 'Où et quand ?'
-        : 'Where and when ?'
+        : 'Where & when?'
       : activeStep === 'trip-style'
       ? isFr
         ? 'Style de sortie & règles'
@@ -791,13 +1214,13 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
       : 'Cycling pace & physics';
 
   return (
-    <div className="w-full max-w-[1720px] mx-auto px-3.5 sm:px-5 lg:px-7 pt-2 pb-12 sm:pb-20 space-y-5">
+    <div className="w-full max-w-[1720px] min-w-0 mx-auto px-3.5 sm:px-5 lg:px-7 pt-2 pb-28 sm:pb-20 space-y-5">
       {/* ── Centered Top Step Switcher Pill (Date & Time | Trip Style | Cycling Pace) ── */}
-      <div className="flex justify-center animate-apple-in stagger-1">
+      <div className="flex justify-center w-full min-w-0 animate-apple-in stagger-1">
         <div
           role="tablist"
           aria-label={isFr ? 'Étapes de configuration' : 'Configuration steps'}
-          className="inline-flex items-center p-1.5 gap-1.5 rounded-full bg-card dark:bg-pod border border-ink/5 dark:border-white/5 shadow-xs max-w-full overflow-x-auto scrollbar-none"
+          className="grid grid-cols-3 sm:inline-flex items-center p-1 sm:p-1.5 gap-1 sm:gap-1.5 rounded-2xl sm:rounded-full bg-card dark:bg-pod shadow-xs w-full sm:w-auto max-w-full"
         >
           {stepOptions.map((step) => {
             const StepIcon = step.icon;
@@ -809,28 +1232,29 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                 role="tab"
                 aria-selected={isStepActive}
                 onClick={() => setActiveStep(step.id)}
-                className={`inline-flex items-center gap-2 h-9 px-4 rounded-full text-xs sm:text-[13px] font-semibold transition-all duration-150 cursor-pointer shrink-0 whitespace-nowrap active:scale-[0.98] ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                className={`inline-flex items-center justify-center gap-1.5 sm:gap-2 min-h-[42px] sm:min-h-[40px] sm:h-9 px-2 py-1.5 sm:py-0 sm:px-4 rounded-xl sm:rounded-full text-[11px] sm:text-[13px] leading-tight text-center font-semibold transition-all duration-150 cursor-pointer min-w-0 whitespace-normal sm:whitespace-nowrap active:scale-[0.98] ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
                   isStepActive
                     ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing} shadow-xs`
                     : `${CHIP_RING_UNSELECTED} text-ink-secondary hover:text-ink hover:bg-pod/60`
                 }`}
               >
-                <StepIcon className="w-4 h-4 shrink-0 text-current" />
-                <span>{step.label}</span>
+                <StepIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 text-current" />
+                <span className="truncate sm:overflow-visible">{step.label}</span>
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* ── Section Header Bar (Left: Step Heading + Editable Trip Title | Right: Save Actions) ── */}
+      {/* ── Section Header Bar (Left: Back + Editable Trip Title | Right: Live Auto-Save & Done) ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 animate-apple-in stagger-2">
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <button
             type="button"
             onClick={onCancel}
-            title={t('backToFlightDeck')}
-            className="inline-flex items-center justify-center w-8 h-8 rounded-full text-ink-secondary hover:text-ink bg-card hover:bg-pod transition-all duration-150 active:scale-[0.98] cursor-pointer shrink-0 border border-ink/5 dark:border-white/5"
+            title={isFr ? 'Retour à la sortie' : 'Back to ride plan'}
+            aria-label={isFr ? 'Retour à la sortie' : 'Back to ride plan'}
+            className="inline-flex items-center justify-center w-11 h-11 sm:w-9 sm:h-9 rounded-full text-ink-secondary hover:text-ink bg-card hover:bg-pod transition-all duration-150 active:scale-[0.98] cursor-pointer shrink-0"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
@@ -844,38 +1268,44 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
               type="text"
               value={trip.name}
               onChange={(e) => commitTrip((prev) => ({ ...prev, name: e.target.value }))}
-              placeholder={isNew ? t('createNewProfileHeading') : t('tripNamePlaceholder')}
-              className="w-full sm:w-auto sm:min-w-[200px] text-base sm:text-lg font-semibold text-ink-secondary focus:text-ink tracking-tight bg-transparent border-b border-dashed border-ink/15 hover:border-ink/35 focus:border-solid focus:border-ink/60 focus:outline-none transition-colors"
-              title="Click to rename trip"
+              placeholder={(() => {
+                const arch = getArchetypeFromTag(trip.tag, trip.name);
+                if (arch === 'ESCAPADE') return t('tripNamePlaceholderEscapade');
+                if (arch === 'BIKEPACKING') return t('tripNamePlaceholderBikepacking');
+                if (arch === 'SPORT') return t('tripNamePlaceholderSport');
+                return t('tripNamePlaceholderCommute');
+              })()}
+              className="w-full sm:w-auto sm:min-w-[300px] lg:min-w-[360px] max-w-full min-h-[44px] text-base sm:text-lg font-semibold text-ink-secondary focus:text-ink tracking-tight bg-transparent border-b border-dashed border-ink/15 hover:border-ink/35 focus:border-solid focus:border-ink/60 focus:outline-none transition-colors"
+              title={isFr ? 'Renommer la sortie' : 'Click to rename ride'}
             />
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 shrink-0 self-end sm:self-auto">
-          <button
-            type="button"
-            onClick={handleSave}
-            className="inline-flex items-center justify-center gap-2 h-9 sm:h-10 px-4 text-xs sm:text-[13px] font-medium text-ink bg-card hover:bg-pod border border-ink/5 dark:border-white/5 shadow-xs rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer whitespace-nowrap"
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 self-end sm:self-auto flex-wrap">
+          <span
+            className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-full text-xs font-medium bg-card text-ink-secondary ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
           >
-            {hasSaved ? (
-              <div className={`flex items-center gap-1.5 animate-apple-check-pop ${CHIP_TOKENS.emerald.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}>
-                <CheckCircle className="w-4 h-4 text-current" />
-                <span>{t('savedBtn')}</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1.5">
-                <FloppyDisk className={`w-4 h-4 ${GREYSCALE_TOKENS.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
-                <span>{t('saveProfileBtn')}</span>
-              </div>
-            )}
-          </button>
+            <CheckCircle className={`w-3.5 h-3.5 shrink-0 ${CHIP_TOKENS.emerald.primary}`} />
+            <span>{isFr ? 'Enregistré auto' : 'Auto-saved'}</span>
+          </span>
+
+          {hasModified && (
+            <button
+              type="button"
+              onClick={handleRevertChanges}
+              className="inline-flex items-center justify-center gap-1.5 min-h-[44px] h-9 sm:h-10 px-3.5 text-xs sm:text-[13px] font-medium text-ink-secondary hover:text-ink bg-card hover:bg-pod rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer whitespace-nowrap"
+            >
+              <ArrowsClockwise className="w-3.5 h-3.5 shrink-0" />
+              <span>{isFr ? 'Rétablir' : 'Revert'}</span>
+            </button>
+          )}
 
           <button
             type="button"
             onClick={handleLaunchDirect}
-            className="inline-flex items-center justify-center gap-1.5 h-9 sm:h-10 px-4 sm:px-5 text-xs sm:text-[13px] font-medium bg-[#111111] hover:bg-[#262626] text-white dark:bg-[#F5F5F7] dark:hover:bg-white dark:text-[#111111] rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer whitespace-nowrap shadow-xs"
+            className="inline-flex items-center justify-center gap-1.5 min-h-[44px] h-10 px-4 sm:px-5 text-xs sm:text-[13px] font-medium bg-[#111111] hover:bg-[#262626] text-white dark:bg-[#F5F5F7] dark:hover:bg-white dark:text-[#111111] rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer whitespace-nowrap shadow-xs"
           >
-            <span>{t('saveAndOpenBtn')}</span>
+            <span>{isFr ? 'Terminé · Voir la sortie' : 'Done · Back to ride plan'}</span>
             <ArrowUpRight className="w-4 h-4 shrink-0" />
           </button>
         </div>
@@ -972,14 +1402,47 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
             </div>
           </div>
 
+          {/* Trip Format Switcher: Single Day vs Multi-Day Expedition (Evident & Upfront) */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-2 rounded-pod bg-pod border border-ink/5 dark:border-white/10 mb-4 transition-colors">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-xs font-semibold text-ink-muted mr-1 font-body">
+                {t('tripFormatHeading')} :
+              </span>
+              <button
+                type="button"
+                onClick={() => handleSetTripFormat('single')}
+                className={`px-3 py-1.5 rounded-full text-xs font-rounded font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  !isMultiDayTrip
+                    ? 'bg-card text-ink shadow-xs ring-1 ring-black/5 dark:ring-white/10'
+                    : 'text-ink-muted hover:text-ink hover:bg-card/40'
+                }`}
+              >
+                <Bicycle className="w-4 h-4 shrink-0 text-current" />
+                <span>{t('tripFormatSingleDay')}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSetTripFormat('multi')}
+                className={`px-3 py-1.5 rounded-full text-xs font-rounded font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  isMultiDayTrip
+                    ? 'bg-volt text-[#111111] shadow-xs ring-1 ring-black/10'
+                    : 'text-ink-muted hover:text-ink hover:bg-card/40'
+                }`}
+              >
+                <Mountain className="w-4 h-4 shrink-0 text-current" />
+                <span>{t('tripFormatMultiDay')}</span>
+              </button>
+            </div>
+          </div>
+
           {/* Multi-Day Stage Sequencer Bar */}
           {showStageSequencer && (
-            <div className="rounded-pod bg-pod p-3 sm:p-3.5 mb-4 space-y-2.5 transition-colors border border-ink/5 dark:border-white/5">
+            <div className="rounded-pod bg-pod p-3 sm:p-3.5 mb-4 space-y-2.5 transition-colors">
               {/* Header & Expedition Summary Strip */}
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-volt ring-2 ring-volt/40 animate-pulse" />
-                  <span className="text-xs font-bold text-ink tracking-tight font-rounded uppercase">
+                  <span className="text-xs font-semibold text-ink tracking-tight font-rounded">
                     {t('stageSequencerHeading')}
                   </span>
                   <span className="text-[11px] font-medium text-ink-muted p-1.5 rounded-full bg-card/60 tnum leading-none">
@@ -1025,6 +1488,9 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                   const distKm = isActive
                     ? trip.route.distanceKm || 0
                     : stage.route.distanceKm || 0;
+                  const viaCount = isActive
+                    ? waypoints.length
+                    : stage.route.waypoints?.length || 0;
 
                   return (
                     <div
@@ -1047,9 +1513,14 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                         {t('stageDayPill', { day: dayNum })}
                       </span>
 
-                      {/* Origin -> Destination text */}
+                      {/* Origin -> Destination text with via count */}
                       <span className="text-xs font-semibold whitespace-nowrap min-w-0">
                         {originText} → {destText || '...'}
+                        {viaCount > 0 && (
+                          <span className="ml-1 text-[10px] opacity-75 font-rounded tnum">
+                            (+{viaCount} via)
+                          </span>
+                        )}
                       </span>
 
                       {/* Distance */}
@@ -1095,10 +1566,18 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                   <span>{t('addDayBtn')}</span>
                 </button>
               </div>
+
+              {/* Tours & Stages Cumulative Summary, Daily Timeline & Full Tour GPX Export */}
+              <TourOverviewCard
+                trip={trip}
+                activeStageIdx={activeStageIdx}
+                onSelectStage={handleSelectStage}
+                ftpWatts={effectiveSpecs.ftpWatts}
+              />
             </div>
           )}
 
-          {/* Route Mode Body: Corridor (OSRM) | Start + Radius | Import .GPX */}
+          {/* Route Mode Body: Multi-Stop Corridor (OSRM) | Start + Radius | Import .GPX */}
           <div className="space-y-4 mt-auto">
             <input
               ref={gpxConfigInputRef}
@@ -1115,97 +1594,287 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
             />
 
             {(isBikepacking || routeGenMode === 'corridor') && (
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-2.5 animate-apple-step-in">
-                {/* Origin Input */}
-                <div className="flex-1 relative min-w-0">
-                  <LocationAutocompleteInput
-                    id="origin-input"
-                    label={t('originCityLabel')}
-                    value={originInput}
-                    dropdownAlign="left"
-                    onChange={(val) => {
-                      setOriginInput(val);
-                      setOriginCoords(null);
-                      setRouteSuccess(false);
-                      setRouteError(null);
-                      commitTrip((prev) => ({
-                        ...prev,
-                        route: { ...prev.route, origin: val },
-                      }));
-                    }}
-                    onSelectLocation={(loc) => {
-                      setOriginInput(loc.name);
-                      setOriginCoords(loc.coordinates);
-                      setRouteSuccess(false);
-                      setRouteError(null);
-                      commitTrip((prev) => ({
-                        ...prev,
-                        route: { ...prev.route, origin: loc.name },
-                      }));
-                    }}
-                    onKeyDownEnter={handleCalculateRoute}
-                    placeholder={isFr ? 'ex. Nantes Quai, Gare...' : 'e.g. Nantes Quai, Station...'}
-                  />
+              <div className="space-y-4 animate-apple-step-in">
+                {/* Flexible Multi-Stop & Waypoint Builder */}
+                <div className="space-y-3 rounded-pod bg-pod p-3 sm:p-4 border border-ink/5 dark:border-white/10">
+                  {/* Stop A: Start / Origin */}
+                  <div className="flex items-center gap-2">
+                    <span className="w-7 h-7 rounded-full bg-emerald-500 text-white font-rounded font-extrabold text-xs flex items-center justify-center shrink-0 shadow-xs ring-2 ring-white dark:ring-black">
+                      A
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <LocationAutocompleteInput
+                        id="origin-input"
+                        label={t('stopOrigin')}
+                        value={originInput}
+                        dropdownAlign="left"
+                        onChange={(val) => {
+                          setOriginInput(val);
+                          setOriginCoords(null);
+                          setRouteSuccess(false);
+                          setRouteError(null);
+                          commitTrip((prev) => ({
+                            ...prev,
+                            route: {
+                              ...prev.route,
+                              origin: val,
+                              coordinates: undefined,
+                              elevationGainM: 0,
+                            },
+                          }));
+                        }}
+                        onSelectLocation={(loc) => {
+                          setOriginInput(loc.name);
+                          setOriginCoords(loc.coordinates);
+                          setRouteSuccess(false);
+                          setRouteError(null);
+                          commitTrip((prev) => ({
+                            ...prev,
+                            route: { ...prev.route, origin: loc.name },
+                          }));
+                          if (destInput.trim()) {
+                            handleCalculateRoute();
+                          }
+                        }}
+                        onKeyDownEnter={() => handleCalculateRoute()}
+                        placeholder={isFr ? 'Point de départ (ex. Saint-Raphaël, Nice, Nantes...)' : 'Start location (e.g. Saint-Raphaël, Nice...)'}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Intermediate Stops (Waypoints) List with Drag-to-Reorder and Up/Down Handles */}
+                  {waypoints.map((wp, idx) => (
+                    <div
+                      key={wp.id}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, idx)}
+                      onDragOver={(e) => handleDragOver(e, idx)}
+                      onDrop={(e) => handleDrop(e, idx)}
+                      className={`flex items-center gap-2 p-2 rounded-pod bg-card border border-ink/5 dark:border-white/10 shadow-xs transition-all duration-150 group ${
+                        draggedWaypointIdx === idx ? 'opacity-40 scale-[0.98]' : ''
+                      }`}
+                    >
+                      {/* Drag Grip Handle */}
+                      <div
+                        className="cursor-grab active:cursor-grabbing text-ink-muted hover:text-ink p-1 shrink-0 select-none"
+                        title={t('dragToReorderHint')}
+                      >
+                        <GripDotsIcon className="w-3.5 h-3.5 opacity-50 group-hover:opacity-100 transition-opacity" />
+                      </div>
+
+                      {/* Accessible Reorder Shift Buttons */}
+                      <div className="flex flex-col gap-0.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleMoveWaypoint(idx, -1)}
+                          disabled={idx === 0}
+                          className="p-0.5 text-ink-muted hover:text-ink disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed transition-colors"
+                          title={t('moveWaypointUp')}
+                        >
+                          <ArrowUp className="w-3 h-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleMoveWaypoint(idx, 1)}
+                          disabled={idx === waypoints.length - 1}
+                          className="p-0.5 text-ink-muted hover:text-ink disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed transition-colors"
+                          title={t('moveWaypointDown')}
+                        >
+                          <ArrowDown className="w-3 h-3" />
+                        </button>
+                      </div>
+
+                      {/* Numbered Via Badge */}
+                      <span className="w-6 h-6 rounded-full bg-[#F2F455] text-[#111111] font-rounded font-extrabold text-xs flex items-center justify-center shrink-0 shadow-xs ring-1 ring-black/10">
+                        {idx + 1}
+                      </span>
+
+                      {/* Autocomplete Input for Intermediate Stop */}
+                      <div className="flex-1 min-w-0">
+                        <LocationAutocompleteInput
+                          id={`waypoint-${wp.id}`}
+                          label={`${t('waypointViaBadge', { num: idx + 1 })}${
+                            wp.distanceFromStartKm ? ` · km ${wp.distanceFromStartKm}` : ''
+                          }`}
+                          value={wp.name}
+                          dropdownAlign="left"
+                          onChange={(val) => handleUpdateWaypointName(wp.id, val)}
+                          onSelectLocation={(loc) => handleSelectWaypointLocation(wp.id, loc)}
+                          onKeyDownEnter={() => handleCalculateRoute()}
+                          placeholder={t('intermediateStopPlaceholder')}
+                        />
+                      </div>
+
+                      {/* Delete Stop Button */}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveWaypoint(wp.id)}
+                        className="p-1.5 text-ink-muted hover:text-rose-600 rounded-full hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer shrink-0"
+                        title={t('removeWaypointTitle')}
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* Stop B: Destination / Finish */}
+                  <div className="flex items-center gap-2">
+                    <span className="w-7 h-7 rounded-full bg-[#111111] text-white dark:bg-white dark:text-[#111111] font-rounded font-extrabold text-xs flex items-center justify-center shrink-0 shadow-xs ring-2 ring-[#F2F455]">
+                      B
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <LocationAutocompleteInput
+                        id="destination-input"
+                        label={t('stopDestination')}
+                        value={destInput}
+                        dropdownAlign="right"
+                        onChange={(val) => {
+                          setDestInput(val);
+                          if (!val.match(/loop radius|rayon boucle/i)) {
+                            lastCorridorDestRef.current = val;
+                          }
+                          setDestCoords(null);
+                          setRouteSuccess(false);
+                          setRouteError(null);
+                          commitTrip((prev) => ({
+                            ...prev,
+                            route: {
+                              ...prev.route,
+                              destination: val,
+                              coordinates: undefined,
+                              elevationGainM: 0,
+                            },
+                          }));
+                        }}
+                        onSelectLocation={(loc) => {
+                          setDestInput(loc.name);
+                          lastCorridorDestRef.current = loc.name;
+                          setDestCoords(loc.coordinates);
+                          setRouteSuccess(false);
+                          setRouteError(null);
+                          commitTrip((prev) => ({
+                            ...prev,
+                            route: { ...prev.route, destination: loc.name },
+                          }));
+                          if (originInput.trim()) {
+                            handleCalculateRoute();
+                          }
+                        }}
+                        onKeyDownEnter={() => handleCalculateRoute()}
+                        placeholder={isFr ? 'Point d’arrivée (ex. Sainte-Maxime, Hyères, Saint-Nazaire...)' : 'Destination (e.g. Sainte-Maxime, Hyères...)'}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Multi-Stop Action Toolbar: + Add Stop | Reverse | Clear | Calculate */}
+                  <div className="flex items-center justify-between gap-2 pt-2.5 flex-wrap border-t border-dashed border-ink/10 dark:border-white/10">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {/* + Add Stop Button */}
+                      <button
+                        type="button"
+                        onClick={handleAddWaypoint}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-volt hover:bg-volt-lime text-[#111111] text-xs font-rounded font-bold transition-all cursor-pointer shadow-xs active:scale-95"
+                      >
+                        <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                        <span>{t('addIntermediateStopBtn')}</span>
+                      </button>
+
+                      {/* Reverse Route Button */}
+                      <button
+                        type="button"
+                        onClick={handleSwapCorridor}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card hover:bg-chip text-ink text-xs font-semibold border border-ink/10 dark:border-white/10 transition-colors cursor-pointer"
+                        title={t('reverseRouteBtn')}
+                      >
+                        <ArrowsLeftRight className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">{t('reverseRouteBtn')}</span>
+                      </button>
+
+                      {/* Clear Stops Button */}
+                      {waypoints.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setWaypoints([]);
+                            commitTrip((prev) => ({
+                              ...prev,
+                              route: { ...prev.route, waypoints: [] },
+                            }));
+                            handleCalculateRoute([]);
+                          }}
+                          className="px-2 py-1 text-xs text-ink-muted hover:text-ink cursor-pointer transition-colors"
+                        >
+                          {t('clearIntermediateStopsBtn')}
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Primary Calculate Route Button */}
+                    <button
+                      type="button"
+                      onClick={() => handleCalculateRoute()}
+                      disabled={isRouting}
+                      className="px-4 py-2 bg-[#111111] hover:bg-[#262626] text-white dark:bg-chip dark:hover:bg-chip-hover dark:text-ink disabled:opacity-50 rounded-full text-xs font-rounded font-bold tracking-wide transition-all cursor-pointer disabled:cursor-not-allowed flex items-center gap-1.5 shrink-0 shadow-xs active:scale-95"
+                    >
+                      {isRouting ? <SpinnerGap className="w-4 h-4 animate-spin" /> : <Compass className="w-4 h-4" />}
+                      <span>{t('fetchRouteBtn')}</span>
+                    </button>
+                  </div>
                 </div>
 
-                {/* Swap Button */}
-                <div className="flex items-center justify-center self-center sm:self-end pb-0.5">
-                  <button
-                    type="button"
-                    onClick={handleSwapCorridor}
-                    title={t('swapCorridorBtn')}
-                    className="h-11 w-11 flex items-center justify-center rounded-full bg-pod hover:bg-chip text-ink-secondary hover:text-ink transition-all duration-200 active:scale-95 cursor-pointer shrink-0"
-                  >
-                    <ArrowsLeftRight className="w-4 h-4 transition-transform duration-300" />
-                  </button>
-                </div>
+                {/* Integrated Interactive Route Map with Click-to-Add Waypoint */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs font-semibold text-ink px-1">
+                    <span className="flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-volt-dim" />
+                      <span>{t('interactiveMapToggle')}</span>
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-ink-muted font-normal hidden sm:inline">
+                        {t('clickMapToAddWaypointPrompt')}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setIsMapCollapsed((prev) => !prev)}
+                        className="text-[11px] font-semibold text-ink-muted hover:text-ink cursor-pointer"
+                      >
+                        {isMapCollapsed ? t('showMapBtn') : t('hideMapBtn')}
+                      </button>
+                    </div>
+                  </div>
 
-                {/* Destination Input */}
-                <div className="flex-1 relative min-w-0">
-                  <LocationAutocompleteInput
-                    id="destination-input"
-                    label={t('destinationLabel')}
-                    value={destInput}
-                    dropdownAlign="right"
-                    onChange={(val) => {
-                      setDestInput(val);
-                      if (!val.match(/loop radius|rayon boucle/i)) {
-                        lastCorridorDestRef.current = val;
-                      }
-                      setDestCoords(null);
-                      setRouteSuccess(false);
-                      setRouteError(null);
-                      commitTrip((prev) => ({
-                        ...prev,
-                        route: { ...prev.route, destination: val },
-                      }));
-                    }}
-                    onSelectLocation={(loc) => {
-                      setDestInput(loc.name);
-                      lastCorridorDestRef.current = loc.name;
-                      setDestCoords(loc.coordinates);
-                      setRouteSuccess(false);
-                      setRouteError(null);
-                      commitTrip((prev) => ({
-                        ...prev,
-                        route: { ...prev.route, destination: loc.name },
-                      }));
-                    }}
-                    onKeyDownEnter={handleCalculateRoute}
-                    placeholder={isFr ? 'ex. Gate 17 Campus, Pornic...' : 'e.g. Gate 17 Campus, Clisson...'}
-                  />
-                </div>
+                  {!isMapCollapsed && (
+                    <div className="space-y-3">
+                      <InteractiveRouteMap
+                        originName={originInput}
+                        originCoords={originCoords}
+                        destinationName={destInput}
+                        destCoords={destCoords}
+                        waypoints={waypoints}
+                        coordinates={trip.route.coordinates}
+                        distanceKm={trip.route.distanceKm}
+                        surfaceBreakdown={surfaceBreakdown}
+                        activeSurfaceSegmentId={activeSurfaceSegmentId}
+                        onSelectSurfaceSegment={(seg) =>
+                          setActiveSurfaceSegmentId(seg ? seg.id : null)
+                        }
+                        onMapClickAddWaypoint={handleMapClickAddWaypoint}
+                        onRemoveWaypoint={handleRemoveWaypoint}
+                        isRouting={isRouting}
+                      />
 
-                {/* Fetch Button in the same line */}
-                <div className="self-stretch sm:self-end pb-0.5">
-                  <button
-                    type="button"
-                    onClick={handleCalculateRoute}
-                    disabled={isRouting}
-                    className="h-11 px-5 w-full sm:w-auto flex items-center justify-center gap-2 bg-[#111111] hover:bg-[#262626] text-white dark:bg-chip dark:hover:bg-chip-hover dark:text-ink disabled:opacity-50 rounded-full text-xs font-semibold tracking-wide transition-all cursor-pointer disabled:cursor-not-allowed shrink-0"
-                  >
-                    {isRouting ? <SpinnerGap className="w-4 h-4 animate-spin" /> : <span>{t('fetchRouteBtn')}</span>}
-                  </button>
+                      <ElevationTerrainStrip
+                        route={trip.route}
+                        physicsResult={physicsResult}
+                        crr={trip.physics.crr}
+                        customChips={trip.customChips}
+                        activeSegmentId={activeSurfaceSegmentId}
+                        onSelectSurfaceSegment={(seg) =>
+                          setActiveSurfaceSegmentId(seg ? seg.id : null)
+                        }
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -1249,9 +1918,9 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                               parseFloat(e.target.value) || 30
                             )
                           }
-                          className="w-16 px-1.5 py-0.5 rounded-lg bg-card text-ink font-mono font-bold text-xs text-right tnum border border-ink/10 dark:border-white/10 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                          className="w-16 px-2 py-1 rounded-lg bg-card text-ink font-rounded font-bold text-base sm:text-xs text-right tnum ring-1 ring-inset ring-black/10 dark:ring-white/10 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                         />
-                        <span className="font-mono font-bold tnum">km</span>
+                        <span className="font-rounded font-bold tnum">km</span>
                       </div>
                     </div>
                     <input
@@ -1281,13 +1950,13 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                               kmPreset
                             )
                           }
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold tnum cursor-pointer transition-colors ${
+                          className={`relative before:content-[''] before:absolute before:-inset-1.5 px-2.5 py-1 rounded-full text-[10px] font-rounded font-semibold tnum cursor-pointer transition-colors ${
                             Math.round(trip.route.distanceKm) === kmPreset
                               ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary}`
                               : 'bg-card hover:bg-chip text-ink-muted hover:text-ink'
                           }`}
                         >
-                          {kmPreset}km
+                          {kmPreset} km
                         </button>
                       ))}
                     </div>
@@ -1301,7 +1970,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                       {originInput || trip.route.origin || 'Nantes'}
                     </span>
                   </div>
-                  <span className="font-mono text-[11px] font-bold tnum shrink-0">
+                  <span className="font-rounded text-[11px] font-bold tnum shrink-0">
                     {t('radiusLoopReachSub', {
                       loop: Math.round(((trip.route.distanceKm || 30) / 2) * 10) / 10,
                       oneWay: trip.route.distanceKm,
@@ -1349,14 +2018,28 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
               {routeSuccess ? (
                 <div className={`flex items-center gap-2 text-xs font-medium tnum animate-apple-fade-in ${CHIP_TOKENS.emerald.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}>
                   <CheckCircle className="w-4 h-4 shrink-0 text-current" />
-                  <span className="break-words leading-tight">{t('routeUpdatedMsg', { dist: trip.route.distanceKm })}</span>
+                  <span className="break-words leading-tight">
+                    {waypoints.length > 0
+                      ? t('routeCalculatedWithWaypoints', {
+                          dist: trip.route.distanceKm,
+                          stops: waypoints.length + 2,
+                          time: Math.round(physicsResult.movingTimeSeconds / 60 || (trip.route.distanceKm / 24) * 60),
+                        })
+                      : t('routeUpdatedMsg', { dist: trip.route.distanceKm })}
+                  </span>
                 </div>
               ) : routeError ? (
                 <p className={`text-xs font-medium animate-apple-fade-in ${CHIP_TOKENS.rose.primary}`}>{routeError}</p>
               ) : (
                 <p className="text-xs text-ink-muted tnum break-words leading-relaxed animate-apple-fade-in">
-                  {isFr ? 'Itinéraire actif' : 'Active route'} : {trip.route.origin || originInput} &gt; {trip.route.destination || destInput} ({trip.route.distanceKm} km
-                  {trip.route.elevationGainM ? ` · +${trip.route.elevationGainM}m` : ''}
+                  {isFr ? 'Itinéraire actif :' : 'Active route:'} {trip.route.origin || originInput}
+                  {waypoints.length > 0 && (
+                    <span className="font-semibold text-ink-secondary">
+                      {' '}via {waypoints.map((w) => w.name.split(',')[0].trim()).join(' · ')}
+                    </span>
+                  )}{' '}
+                  → {trip.route.destination || destInput} ({trip.route.distanceKm} km
+                  {trip.route.elevationGainM ? ` · +${trip.route.elevationGainM} m` : ''}
                   {trip.route.routeMode === 'gpx' && trip.route.gpxFileName
                     ? ` · ${trip.route.gpxFileName}`
                     : trip.route.routeMode === 'manual-radius'
@@ -1365,8 +2048,8 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                       : ' · Map radius circle'
                     : (trip.route.coordinates?.length || 0) > 1
                     ? isFr
-                      ? ' · Tracé GPS préchargé'
-                      : ' · Pre-fetched GPS trace'
+                      ? ' · Tracé GPS optimisé'
+                      : ' · Optimized cycling trace'
                     : ''}
                   )
                 </p>
@@ -1421,8 +2104,8 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                       : prev.office,
                   }));
                 }}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-pod hover:bg-chip text-xs font-semibold text-ink-secondary hover:text-ink transition-all duration-150 cursor-pointer active:scale-95"
-                title="Toggle between Target Arrival and Rollout Time calculation"
+                className="inline-flex items-center gap-1.5 min-h-[44px] px-3.5 py-2 rounded-full bg-pod hover:bg-chip text-xs font-semibold text-ink-secondary hover:text-ink transition-all duration-150 cursor-pointer active:scale-95"
+                title={isFr ? 'Basculer entre calcul heure d’arrivée et heure de départ' : 'Toggle between target arrival and departure time calculation'}
               >
                 <ArrowsClockwise className={`w-4 h-4 text-ink-muted transition-transform duration-300 ${isArriveAtMode ? 'rotate-0' : 'rotate-180'}`} />
                 <span>
@@ -1431,10 +2114,10 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                       ? t('stageCutoffLabel')
                       : isFr
                       ? 'Arrivée à :'
-                      : 'Arrive at :'
+                      : 'Arrive at:'
                     : isFr
                     ? 'Départ à :'
-                    : 'Depart at :'}
+                    : 'Depart at:'}
                 </span>
               </button>
             </div>
@@ -1600,7 +2283,14 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
               </p>
             </div>
             <Badge variant="zinc" size="md" className="shrink-0">
-              {t('modeBadge', { tag: trip.tag || 'VÉLOTAF' })}
+              {t('modeBadge', {
+                tag: {
+                  COMMUTE: t('archCommuteLabel'),
+                  ESCAPADE: t('archEscapadeLabel'),
+                  BIKEPACKING: t('archBikepackingLabel'),
+                  SPORT: t('archSportLabel'),
+                }[getArchetypeFromTag(trip.tag, trip.name)],
+              })}
             </Badge>
           </div>
 
@@ -1643,42 +2333,65 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
           </div>
 
           {/* 2. Preset chips for the selected archetype */}
-          <div className="pt-4 px-1 space-y-2.5 border-t border-dashed border-ink/10 dark:border-white/10">
+          <div className="pt-4 px-1 space-y-2.5">
             <div className="text-center">
-              <span className="text-[11px] font-semibold text-ink-muted uppercase tracking-wider">
-                {isFr
-                  ? `Badges de personnalisation (${activeArchetypeMode.toLowerCase()}) :`
-                  : `Preset chips for ${activeArchetypeMode.toLowerCase()} :`}
+              <span className="text-xs font-medium text-ink-muted">
+                {isFr ? 'Options suggérées' : 'Suggested ride options'}
               </span>
             </div>
 
-            <div
-              key={activeArchetypeMode}
-              className="flex flex-wrap justify-center items-center gap-2 max-w-3xl mx-auto py-1 animate-apple-step-in"
-            >
-              {ARCHETYPE_CHIP_DEFINITIONS[activeArchetypeMode].map((chip) => {
-                const isSelected = (trip.customChips || []).includes(chip.id);
-                const Icon = CHIP_ICONS[chip.iconName] || Lightning;
+            {(() => {
+              const allForArch = ARCHETYPE_CHIP_DEFINITIONS[activeArchetypeMode];
+              const selectedSet = new Set(trip.customChips || []);
+              const visibleChips = showAllChips
+                ? allForArch
+                : allForArch.filter((c, i) => i < 4 || selectedSet.has(c.id));
+              const hiddenCount = allForArch.length - visibleChips.length;
 
-                return (
-                  <Chip
-                    key={chip.id}
-                    label={isFr ? chip.labelFr : chip.labelEn}
-                    theme={chip.colorKey}
-                    icon={Icon}
-                    isSelected={isSelected}
-                    onClick={() => handleToggleChip(chip.id)}
-                    title={isFr ? chip.descriptionFr : chip.descriptionEn}
-                    className="h-8 font-bold text-xs"
-                  />
-                );
-              })}
-            </div>
+              return (
+                <div
+                  key={activeArchetypeMode}
+                  className="flex flex-wrap justify-center items-center gap-2 max-w-3xl mx-auto py-1 animate-apple-step-in"
+                >
+                  {visibleChips.map((chip) => {
+                    const isSelected = selectedSet.has(chip.id);
+                    const Icon = CHIP_ICONS[chip.iconName] || Lightning;
+
+                    return (
+                      <Chip
+                        key={chip.id}
+                        label={isFr ? chip.labelFr : chip.labelEn}
+                        theme={chip.colorKey}
+                        icon={Icon}
+                        isSelected={isSelected}
+                        onClick={() => handleToggleChip(chip.id)}
+                        title={isFr ? chip.descriptionFr : chip.descriptionEn}
+                        className="h-9 font-semibold text-xs"
+                      />
+                    );
+                  })}
+
+                  {(hiddenCount > 0 || showAllChips) && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllChips((v) => !v)}
+                      className="inline-flex items-center gap-1 h-9 px-3 rounded-full bg-pod hover:bg-chip text-xs font-medium text-ink-secondary hover:text-ink transition-colors cursor-pointer"
+                    >
+                      <span>
+                        {showAllChips
+                          ? (isFr ? 'Moins d’options' : 'Fewer options')
+                          : (isFr ? `Plus d’options (+${hiddenCount})` : `More ride options (+${hiddenCount})`)}
+                      </span>
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </div>
 
         {/* Card 2: Constraints & Rules + Dynamic Preset Rules */}
-        <div className="rounded-card bg-card text-ink p-4 sm:p-5 border border-ink/5 dark:border-white/5 shadow-xs transition-colors space-y-5 animate-apple-step-in relative z-10">
+        <div className="rounded-card bg-card text-ink p-4 sm:p-5 shadow-xs transition-colors space-y-5 animate-apple-step-in relative z-10">
           <div className="space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -1742,7 +2455,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                       type="time"
                       value={trip.office?.shiftStartTime || '09:00'}
                       onChange={(e) => updateOffice('shiftStartTime', e.target.value)}
-                      className="w-full h-11 bg-pod rounded-full px-4 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
+                      className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
                     />
                   </div>
 
@@ -1754,7 +2467,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                       type="time"
                       value={trip.office?.targetGateArrivalTime || '08:30'}
                       onChange={(e) => updateOffice('targetGateArrivalTime', e.target.value)}
-                      className="w-full h-11 bg-pod rounded-full px-4 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
+                      className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
                     />
                   </div>
 
@@ -1764,9 +2477,9 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                     </label>
                     <input
                       type="text"
-                      value={trip.office?.gateName || (isFr ? 'Porte 17' : 'Gate 17')}
+                      value={trip.office?.gateName || (isFr ? 'Entrée du site' : 'Workplace entrance')}
                       onChange={(e) => updateOffice('gateName', e.target.value)}
-                      className="w-full h-11 bg-pod rounded-full px-4 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors"
+                      className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors"
                     />
                   </div>
 
@@ -1780,7 +2493,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                       max="30"
                       value={trip.office?.lockerRefuelMinutes ?? 10}
                       onChange={(e) => updateOffice('lockerRefuelMinutes', parseInt(e.target.value, 10) || 10)}
-                      className="w-full h-11 bg-pod rounded-full px-4 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
+                      className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
                     />
                   </div>
 
@@ -1794,7 +2507,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                       max="30"
                       value={trip.office?.showerChangeMinutes ?? 10}
                       onChange={(e) => updateOffice('showerChangeMinutes', parseInt(e.target.value, 10) || 10)}
-                      className="w-full h-11 bg-pod rounded-full px-4 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
+                      className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
                     />
                   </div>
 
@@ -1808,7 +2521,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                       max="45"
                       value={trip.office?.breakRoomBreakfastMinutes ?? 15}
                       onChange={(e) => updateOffice('breakRoomBreakfastMinutes', parseInt(e.target.value, 10) || 15)}
-                      className="w-full h-11 bg-pod rounded-full px-4 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
+                      className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
                     />
                   </div>
                 </div>
@@ -1826,18 +2539,18 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                     type="time"
                     value={trip.office.targetGateArrivalTime || '18:00'}
                     onChange={(e) => updateOffice('targetGateArrivalTime', e.target.value)}
-                    className="w-full h-11 bg-pod rounded-full px-4 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
+                    className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-ink-secondary mb-1.5 px-1">
-                    {isFr ? 'Démontage camp matinal (min)' : 'Morning camp breakdown (min)'}
+                    {isFr ? 'Préparation camp & sacoches (min)' : 'Camp setup & bag prep (min)'}
                   </label>
                   <input
                     type="number"
                     value={trip.office.lockerRefuelMinutes || 25}
                     onChange={(e) => updateOffice('lockerRefuelMinutes', parseInt(e.target.value, 10) || 25)}
-                    className="w-full h-11 bg-pod rounded-full px-4 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
+                    className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
                   />
                 </div>
                 <div>
@@ -1846,9 +2559,9 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                   </label>
                   <input
                     type="text"
-                    value={trip.office.gateName || 'Bivouac Site'}
+                    value={trip.office.gateName || (isFr ? 'Zone de Bivouac / Camp' : 'Camp / Bivouac Site')}
                     onChange={(e) => updateOffice('gateName', e.target.value)}
-                    className="w-full h-11 bg-pod rounded-full px-4 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors"
+                    className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors"
                   />
                 </div>
               </div>
@@ -1865,7 +2578,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                     type="time"
                     value={trip.office.targetGateArrivalTime || '11:00'}
                     onChange={(e) => updateOffice('targetGateArrivalTime', e.target.value)}
-                    className="w-full h-11 bg-pod rounded-full px-4 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
+                    className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
                   />
                 </div>
                 <div>
@@ -1876,18 +2589,18 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                     type="number"
                     value={trip.office.lockerRefuelMinutes || 15}
                     onChange={(e) => updateOffice('lockerRefuelMinutes', parseInt(e.target.value, 10) || 15)}
-                    className="w-full h-11 bg-pod rounded-full px-4 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
+                    className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-ink-secondary mb-1.5 px-1">
-                    {isFr ? 'Ligne d’arrivée / SAS' : 'Stage finish line / Gate'}
+                    {isFr ? 'Ligne d’arrivée / Club' : 'Finish Line / Clubhouse'}
                   </label>
                   <input
                     type="text"
                     value={trip.office.gateName || 'Finish Line'}
                     onChange={(e) => updateOffice('gateName', e.target.value)}
-                    className="w-full h-11 bg-pod rounded-full px-4 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors"
+                    className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors"
                   />
                 </div>
               </div>
@@ -1898,24 +2611,24 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
               <div key="escapade-baseline" className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-apple-step-in">
                 <div>
                   <label className="block text-xs font-medium text-ink-secondary mb-1.5 px-1">
-                    {isFr ? 'Heure limite accueil hôtel' : 'Hotel check-in cutoff'}
+                    {isFr ? 'Heure limite Check-in Hôtel' : 'Hotel Check-in cutoff'}
                   </label>
                   <input
                     type="time"
                     value={trip.office.targetGateArrivalTime || '15:00'}
                     onChange={(e) => updateOffice('targetGateArrivalTime', e.target.value)}
-                    className="w-full h-11 bg-pod rounded-full px-4 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
+                    className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-ink-secondary mb-1.5 px-1">
-                    {isFr ? 'Dépôt bagages & local vélo (min)' : 'Luggage drop & room staging (min)'}
+                    {isFr ? 'Check-in hôtel, bagages & recharge (min)' : 'Hotel Check-in, luggage & charging (min)'}
                   </label>
                   <input
                     type="number"
                     value={trip.office.lockerRefuelMinutes || 15}
                     onChange={(e) => updateOffice('lockerRefuelMinutes', parseInt(e.target.value, 10) || 15)}
-                    className="w-full h-11 bg-pod rounded-full px-4 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
+                    className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
                   />
                 </div>
                 <div>
@@ -1924,9 +2637,9 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                   </label>
                   <input
                     type="text"
-                    value={trip.office.gateName || 'Hôtel de la Paix'}
+                    value={trip.office.gateName || (isFr ? 'Réception Hôtel / Étape' : 'Hotel Check-in / Stage Lodging')}
                     onChange={(e) => updateOffice('gateName', e.target.value)}
-                    className="w-full h-11 bg-pod rounded-full px-4 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors"
+                    className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors"
                   />
                 </div>
               </div>
@@ -1935,10 +2648,10 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
         </div>
 
         {/* Dynamic preset rules & constraints */}
-        <div className="space-y-4 pt-5 border-t border-dashed border-ink/10 dark:border-white/10">
+        <div className="space-y-4 pt-3">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h4 className="text-xs font-semibold text-ink uppercase tracking-wider">
+              <h4 className="text-sm font-semibold text-ink">
                 {t('presetRulesHeading')}
               </h4>
               <p className="text-xs text-ink-muted mt-0.5">
@@ -2004,10 +2717,10 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
 
 {/* Right 2 Columns: Sticky Live Results Card */}
 <div className="lg:col-span-2 min-w-0 lg:sticky lg:top-5 animate-apple-in stagger-3 relative z-10">
-  <div className="bg-card text-ink rounded-card p-4 sm:p-5 border border-ink/5 dark:border-white/5 shadow-xs transition-colors space-y-4">
+  <div className="bg-card text-ink rounded-card p-4 sm:p-5 shadow-xs transition-colors space-y-4">
     <div className="flex items-center justify-between gap-2">
       <h3 className="text-base sm:text-[17px] font-semibold tracking-tight text-ink">
-        {t('liveTelemetryHeading')}
+        {isFr ? 'Aperçu en direct' : 'Live ride summary'}
       </h3>
               <Badge
                 variant={
@@ -2019,20 +2732,20 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                 }
                 size="md"
                 dot
-                title={`${t('rideFeasibility')}: ${physicsResult.goStatus === 'GO' ? t('feasibilityOptimal') : physicsResult.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')} — ${physicsResult.goStatusReason}`}
+                title={physicsResult.goStatusReason}
               >
                 {physicsResult.goStatus === 'GO' ? t('feasibilityOptimal') : physicsResult.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')}
               </Badge>
             </div>
 
-            {/* Live Feasibility Status Banner */}
+            {/* Live Ride Conditions Banner */}
             <div
-              className={`p-2.5 rounded-pod text-xs flex items-start gap-2 border ${
+              className={`p-2.5 rounded-pod text-xs flex items-start gap-2 ${
                 physicsResult.goStatus === 'GO'
-                  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-900 dark:text-emerald-200'
+                  ? 'bg-emerald-500/10 text-emerald-900 dark:text-emerald-200'
                   : physicsResult.goStatus === 'CAUTION'
-                  ? 'bg-amber-500/10 border-amber-500/20 text-amber-900 dark:text-amber-200'
-                  : 'bg-rose-500/10 border-rose-500/20 text-rose-900 dark:text-rose-200'
+                  ? 'bg-amber-500/10 text-amber-900 dark:text-amber-200'
+                  : 'bg-rose-500/10 text-rose-900 dark:text-rose-200'
               }`}
             >
               <span
@@ -2045,7 +2758,14 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                 }`}
               />
               <div className="min-w-0 flex-1">
-                <span className="font-semibold block">{t('rideFeasibility')}: {physicsResult.goStatus === 'GO' ? t('feasibilityOptimal') : physicsResult.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')}</span>
+                <span className="font-semibold block">
+                  {isFr ? 'Conditions météo' : 'Ride conditions'}:{' '}
+                  {physicsResult.goStatus === 'GO'
+                    ? t('feasibilityOptimal')
+                    : physicsResult.goStatus === 'CAUTION'
+                    ? t('feasibilityCaution')
+                    : t('feasibilitySevere')}
+                </span>
                 <p className="mt-0.5 text-[11px] opacity-90 leading-relaxed">
                   {physicsResult.goStatusReason}
                 </p>
@@ -2062,7 +2782,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                     ? t('calculatedHardRollout')
                     : isFr
                     ? 'Départ programmé'
-                    : 'Scheduled rollout'}
+                    : 'Scheduled departure'}
                 </span>
                 <Clock className="w-4 h-4 text-current shrink-0" />
               </div>
@@ -2074,118 +2794,225 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                   {t('targetTimeLabel', { time: timelineResult.gateArrivalTime })}
                 </span>
               </div>
-              <div className="mt-2.5 pt-2 border-t border-current/15 text-[11px] space-y-0.5 tnum opacity-90">
+              <div className="mt-2.5 pt-2 lane-divider text-[11px] space-y-0.5 tnum opacity-90">
                 <div className="flex items-center justify-between">
                   <span>{t('timeSaddleExclPauses')}</span>
-                  <span className="font-mono font-bold">{physicsResult.movingTimeFormatted}</span>
+                  <span className="font-rounded font-semibold">{physicsResult.movingTimeFormatted}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span>{t('timePausesAndBuffers')}</span>
-                  <span className="font-mono font-bold">+{timelineResult.bufferMinutes}m</span>
+                  <span className="font-rounded font-semibold">+{timelineResult.bufferMinutes} min</span>
                 </div>
               </div>
             </div>
 
-            {/* Power Matrix Breakdown */}
-            <div className="bg-pod rounded-pod p-4 sm:p-5">
-              <div className="flex items-center justify-between text-xs font-medium text-ink-muted">
-                <span>{t('requiredLegOutput')}</span>
-                <Badge
-                  variant={
-                    physicsResult.powerZone === 'Z1'
-                      ? 'emerald'
-                      : physicsResult.powerZone === 'Z2'
-                      ? 'lime'
-                      : physicsResult.powerZone === 'Z3'
-                      ? 'yellow-vest'
-                      : physicsResult.powerZone === 'Z4'
-                      ? 'amber'
-                      : 'rose'
-                  }
-                  size="xs"
-                  className="tnum font-bold"
-                >
-                  {physicsResult.powerZone} &middot; {physicsResult.ftpPercent}% FTP
-                </Badge>
-              </div>
-              <div className="mt-1.5 flex items-baseline justify-between gap-2 mb-3">
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-3xl font-semibold text-ink tracking-tight tnum">
-                    {Math.round(physicsResult.legWatts)}
-                  </span>
-                  <span className="text-xs font-medium text-ink-muted">{t('wattsUnit')}</span>
+            {/* Pace & Effort Breakdown (Guided vs Power mode) */}
+            {effectiveSpecs.cockpitViewMode === 'pro' ? (
+              <div className="bg-pod rounded-pod p-4 sm:p-5">
+                <div className="flex items-center justify-between text-xs font-medium text-ink-muted">
+                  <span>{t('requiredLegOutput')}</span>
+                  <Badge
+                    variant={
+                      physicsResult.powerZone === 'Z1'
+                        ? 'emerald'
+                        : physicsResult.powerZone === 'Z2'
+                        ? 'lime'
+                        : physicsResult.powerZone === 'Z3'
+                        ? 'yellow-vest'
+                        : physicsResult.powerZone === 'Z4'
+                        ? 'amber'
+                        : 'rose'
+                    }
+                    size="xs"
+                    className="tnum font-bold"
+                  >
+                    {physicsResult.powerZone} &middot; {physicsResult.ftpPercent}% FTP
+                  </Badge>
                 </div>
-                <span className="text-xs font-semibold text-ink-secondary tnum">
-                  {physicsResult.wattsPerKg} W/kg &middot; @{physicsResult.effectiveSpeedKmH} km/h
-                </span>
-              </div>
+                <div className="mt-1.5 flex items-baseline justify-between gap-2 mb-3">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-3xl font-semibold text-ink tracking-tight tnum">
+                      {Math.round(physicsResult.legWatts)}
+                    </span>
+                    <span className="text-xs font-medium text-ink-muted">{t('wattsUnit')}</span>
+                  </div>
+                  <span className="text-xs font-semibold text-ink-secondary tnum">
+                    {physicsResult.wattsPerKg} W/kg &middot; {physicsResult.effectiveSpeedKmH} km/h
+                  </span>
+                </div>
 
-              <div className="text-xs">
-                <div className="lane-divider" aria-hidden="true" />
-                <div className="flex items-center justify-between py-2">
-                  <span className="text-ink-secondary">{t('aeroDragRow', { cda: trip.physics.cda })}</span>
-                  <span className="text-ink font-semibold tnum">{Math.round(physicsResult.aerodynamicDragWatts)} W</span>
-                </div>
-                <div className="lane-divider" aria-hidden="true" />
-                <div className="flex items-center justify-between py-2">
-                  <span className="text-ink-secondary">{t('rollingRow', { crr: trip.physics.crr })}</span>
-                  <span className="text-ink font-semibold tnum">{Math.round(physicsResult.rollingResistanceWatts)} W</span>
-                </div>
-                {Math.abs(Math.round(physicsResult.gravityWatts)) >= 2 && (
-                  <>
-                    <div className="lane-divider" aria-hidden="true" />
-                    <div className="flex items-center justify-between py-2">
-                      <span className="text-ink-secondary">
-                        {isFr
-                          ? `Pente (${trip.physics.gradientPercent}%)`
-                          : `Grade (${trip.physics.gradientPercent}%)`}
-                      </span>
-                      <span className="text-ink font-semibold tnum">
-                        {physicsResult.gravityWatts < 0 ? '−' : ''}
-                        {Math.abs(Math.round(physicsResult.gravityWatts))} W
-                      </span>
-                    </div>
-                  </>
-                )}
-                <div className="lane-divider" aria-hidden="true" />
-                <div className="flex items-center justify-between pt-2">
-                  <span className="text-ink-secondary flex items-center gap-1.5">
-                    <Settings className="w-3.5 h-3.5 text-ink-secondary shrink-0" />
-                    {t('drivetrainLossRow')}
-                  </span>
-                  <span className="text-ink font-semibold tnum">{Math.round(physicsResult.legWatts - physicsResult.wheelWatts)} W</span>
-                </div>
-                {trip.weather.isHeadwindActive && (
-                  <>
-                    <div className="lane-divider mt-2" aria-hidden="true" />
-                    {physicsResult.pacingMode === 'effort' ? (
-                      <div className={`flex items-center justify-between pt-2 font-semibold ${CHIP_TOKENS.emerald.primary}`}>
-                        <span>
-                          {lang === 'fr'
-                            ? `Le vent vous ralentit de ${physicsResult.speedDeltaKmH} km/h (+${physicsResult.windDelayMinutes} min)`
-                            : `Headwind slows you by ${physicsResult.speedDeltaKmH} km/h (adds ${physicsResult.windDelayMinutes} min)`}
-                        </span>
-                      </div>
-                    ) : (
-                      <div className={`flex items-center justify-between pt-2 font-semibold ${CHIP_TOKENS.amber.primary}`}>
-                        <span>{t('headwindSurchargeRow')}</span>
-                        <span className="tnum">+{Math.round(physicsResult.powerDeltaWatts)} W</span>
-                      </div>
-                    )}
-                  </>
-                )}
-                {!trip.weather.isHeadwindActive &&
-                  trip.weather.windDirection === 'tailwind' &&
-                  physicsResult.powerDeltaWatts < -1 && (
+                <div className="text-xs">
+                  <div className="lane-divider" aria-hidden="true" />
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-ink-secondary">{t('aeroDragRow', { cda: trip.physics.cda })}</span>
+                    <span className="text-ink font-semibold tnum">{Math.round(physicsResult.aerodynamicDragWatts)} W</span>
+                  </div>
+                  <div className="lane-divider" aria-hidden="true" />
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-ink-secondary">{t('rollingRow', { crr: trip.physics.crr })}</span>
+                    <span className="text-ink font-semibold tnum">{Math.round(physicsResult.rollingResistanceWatts)} W</span>
+                  </div>
+                  {Math.abs(Math.round(physicsResult.gravityWatts)) >= 2 && (
                     <>
-                      <div className="lane-divider mt-2" aria-hidden="true" />
-                      <div className={`flex items-center justify-between pt-2 font-semibold ${CHIP_TOKENS.emerald.primary}`}>
-                        <span>{isFr ? 'Gain vent arrière' : 'Tailwind assist'}</span>
-                        <span className="tnum">{Math.round(physicsResult.powerDeltaWatts)} W</span>
+                      <div className="lane-divider" aria-hidden="true" />
+                      <div className="flex items-center justify-between py-2">
+                        <span className="text-ink-secondary">
+                          {isFr
+                            ? `Pente (${trip.physics.gradientPercent}%)`
+                            : `Grade (${trip.physics.gradientPercent}%)`}
+                        </span>
+                        <span className="text-ink font-semibold tnum">
+                          {physicsResult.gravityWatts < 0 ? '−' : ''}
+                          {Math.abs(Math.round(physicsResult.gravityWatts))} W
+                        </span>
                       </div>
                     </>
                   )}
+                  <div className="lane-divider" aria-hidden="true" />
+                  <div className="flex items-center justify-between pt-2">
+                    <span className="text-ink-secondary flex items-center gap-1.5">
+                      <Settings className="w-3.5 h-3.5 text-ink-secondary shrink-0" />
+                      {t('drivetrainLossRow')}
+                    </span>
+                    <span className="text-ink font-semibold tnum">{Math.round(physicsResult.legWatts - physicsResult.wheelWatts)} W</span>
+                  </div>
+                  {trip.weather.isHeadwindActive && (
+                    <>
+                      <div className="lane-divider mt-2" aria-hidden="true" />
+                      {physicsResult.pacingMode === 'effort' ? (
+                        <div className={`flex items-center justify-between pt-2 font-semibold ${CHIP_TOKENS.emerald.primary}`}>
+                          <span>
+                            {lang === 'fr'
+                              ? `Le vent vous ralentit de ${physicsResult.speedDeltaKmH} km/h (+${physicsResult.windDelayMinutes} min)`
+                              : `Headwind slows you by ${physicsResult.speedDeltaKmH} km/h (adds ${physicsResult.windDelayMinutes} min)`}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className={`flex items-center justify-between pt-2 font-semibold ${CHIP_TOKENS.amber.primary}`}>
+                          <span>{t('headwindSurchargeRow')}</span>
+                          <span className="tnum">+{Math.round(physicsResult.powerDeltaWatts)} W</span>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  {!trip.weather.isHeadwindActive &&
+                    trip.weather.windDirection === 'tailwind' &&
+                    physicsResult.powerDeltaWatts < -1 && (
+                      <>
+                        <div className="lane-divider mt-2" aria-hidden="true" />
+                        <div className={`flex items-center justify-between pt-2 font-semibold ${CHIP_TOKENS.emerald.primary}`}>
+                          <span>{isFr ? 'Gain vent arrière' : 'Tailwind assist'}</span>
+                          <span className="tnum">{Math.round(physicsResult.powerDeltaWatts)} W</span>
+                        </div>
+                      </>
+                    )}
+                </div>
               </div>
+            ) : (
+              <div className="bg-pod rounded-pod p-4 sm:p-5">
+                <div className="flex items-center justify-between text-xs font-medium text-ink-muted">
+                  <span>{isFr ? 'Allure & Effort estimé' : 'Pace & Effort'}</span>
+                  <Badge variant="zinc" size="xs" className="tnum font-semibold">
+                    {physicsResult.powerZone === 'Z1' || physicsResult.powerZone === 'Z2'
+                      ? (isFr ? 'Endurance fluide' : 'Steady endurance')
+                      : (isFr ? 'Rythme soutenu' : 'Brisk effort')}
+                  </Badge>
+                </div>
+                <div className="mt-1.5 flex items-baseline justify-between gap-2">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-3xl font-semibold text-ink tracking-tight tnum">
+                      {physicsResult.effectiveSpeedKmH}
+                    </span>
+                    <span className="text-xs font-medium text-ink-muted">km/h</span>
+                  </div>
+                  <span className="text-xs font-medium text-ink-secondary tnum">
+                    {trip.weather.isHeadwindActive
+                      ? (isFr ? `Vent de face · +${physicsResult.windDelayMinutes} min` : `Headwind · +${physicsResult.windDelayMinutes} min`)
+                      : (isFr ? 'Vent modéré' : 'Moderate wind')}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Surface & 38c Gravel Suitability Summary Pod */}
+            <div className="bg-pod rounded-pod p-4 sm:p-5 text-xs space-y-2.5">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-rounded font-semibold text-ink">
+                    {isFr ? 'Surfaces & Gravel' : 'Surface & Gravel Suitability'}
+                  </span>
+                  <span
+                    className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[9.5px] font-rounded font-bold tnum ${
+                      surfaceBreakdown.isLoadingOsm
+                        ? 'bg-sky-500/15 text-sky-700 dark:text-sky-300'
+                        : surfaceBreakdown.dataSource === 'osm-overpass'
+                        ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                        : 'bg-ink/8 dark:bg-white/10 text-ink-muted'
+                    }`}
+                  >
+                    {surfaceBreakdown.isLoadingOsm
+                      ? (isFr ? 'Analyse…' : 'Syncing…')
+                      : surfaceBreakdown.dataSource === 'osm-overpass'
+                      ? `${isFr ? 'Carte' : 'Map'} · ${surfaceBreakdown.osmCoveragePct ?? 100}%`
+                      : isFr
+                      ? 'Estimé'
+                      : 'Est.'}
+                  </span>
+                </div>
+                <span
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-rounded font-bold tnum ${
+                    surfaceBreakdown.suitability.overallLevel === 'ideal'
+                      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 ring-1 ring-inset ring-emerald-500/30'
+                      : surfaceBreakdown.suitability.overallLevel === 'good-with-care'
+                      ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300 ring-1 ring-inset ring-amber-500/30'
+                      : 'bg-rose-500/15 text-rose-700 dark:text-rose-300 ring-1 ring-inset ring-rose-500/30'
+                  }`}
+                >
+                  {surfaceBreakdown.suitability.tireWidthMm}c ·{' '}
+                  {surfaceBreakdown.suitability.scorePct}%
+                </span>
+              </div>
+
+              <div className="h-2.5 w-full rounded-full overflow-hidden bg-black/10 dark:bg-white/10 p-0.5 flex items-stretch gap-0.5">
+                {surfaceBreakdown.segments.map((seg) => {
+                  const meta = SURFACE_VISUAL_META[seg.type];
+                  const w = Math.max(4, seg.endPct - seg.startPct);
+                  return (
+                    <div
+                      key={seg.id}
+                      style={{ width: `${w}%` }}
+                      title={`${isFr ? seg.nameFr : seg.nameEn} (km ${seg.startKm}–${seg.endKm})`}
+                      className={`h-full first:rounded-l-full last:rounded-r-full ${meta.barBgClass}`}
+                    />
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center justify-between text-[11px] font-rounded font-semibold text-ink-secondary tnum">
+                <span className="inline-flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-sky-500 dark:bg-sky-400" />
+                  {surfaceBreakdown.pavedPct}% {isFr ? 'Bitume' : 'Paved'}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 dark:bg-amber-400" />
+                  {surfaceBreakdown.gravelPct}% Gravel
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-rose-500 dark:bg-rose-400" />
+                  {surfaceBreakdown.singletrackPct}% {isFr ? 'Sentier' : 'Trail'}
+                </span>
+              </div>
+
+              <p className="text-[11px] text-ink-muted leading-snug">
+                {isFr
+                  ? surfaceBreakdown.suitability.headlineFr
+                  : surfaceBreakdown.suitability.headlineEn}{' '}
+                ·{' '}
+                <span className="font-rounded font-semibold text-ink tnum">
+                  {surfaceBreakdown.suitability.recommendedFrontBar}/
+                  {surfaceBreakdown.suitability.recommendedRearBar} bar
+                </span>
+              </p>
             </div>
 
             {/* Metabolic Fueling Summary */}

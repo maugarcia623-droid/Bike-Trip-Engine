@@ -16,9 +16,12 @@ import { NutritionBento } from './NutritionBento';
 import { StageAmenity } from '../../types/amenities';
 import { ShareTelemetryModal } from '../ShareTelemetryModal';
 import { FeedbackModal } from '../FeedbackModal';
-import { BadgeInfo } from '@/components/icons';
+import { ConfirmModal } from '../common/ConfirmModal';
+import { TourOverviewCard } from '../configurator/TourOverviewCard';
+import { BadgeInfo, Calendar, Download } from '@/components/icons';
 import { useTranslation, getLocalizedTripMeta } from '../../context/LanguageContext';
 import { switchActiveStage, getExpeditionTotals } from '../../utils/stageManager';
+import { downloadEntireTourGpx } from '../../utils/gpxExporter';
 import {
   CHIP_TOKENS,
   CHIP_RING_BASE,
@@ -73,12 +76,12 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
   const isDesktop = useIsDesktop();
   const [isShareModalOpen, setIsShareModalOpen] = React.useState<boolean>(false);
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = React.useState<boolean>(false);
+  const [gpxErrorMsg, setGpxErrorMsg] = React.useState<string | null>(null);
   const [loadedAmenities, setLoadedAmenities] = React.useState<StageAmenity[]>([]);
   const [selectedAmenity, setSelectedAmenity] = React.useState<StageAmenity | null>(null);
+  const [showTourOverview, setShowTourOverview] = React.useState<boolean>(false);
   const effectiveSpecs = riderSpecs || loadRiderBikeSpecs();
-  const viewMode: CockpitViewMode =
-    effectiveSpecs.cockpitViewMode ??
-    (effectiveSpecs.riderLevel === 'occasional' ? 'essential' : 'pro');
+  const viewMode: CockpitViewMode = effectiveSpecs.cockpitViewMode ?? 'essential';
 
   const handleSetViewMode = (mode: CockpitViewMode) => {
     if (onUpdateRiderSpecs) {
@@ -120,7 +123,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
         },
       });
     } catch (err) {
-      alert(
+      setGpxErrorMsg(
         lang === 'fr'
           ? `Impossible de lire ce fichier GPX : ${(err as Error).message}`
           : `Could not parse GPX file: ${(err as Error).message}`
@@ -152,6 +155,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
       departureTime: trip.departureTime,
       movingTimeSeconds: physicsResult.movingTimeSeconds,
       logistics: trip.ruleSettings,
+      pinnedAmenities: trip.pinnedAmenities,
     }
   );
   const meta = getLocalizedTripMeta(trip, lang);
@@ -181,7 +185,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
         dest: trip.route.destination || 'Camp',
         time: timelineResult.gateArrivalTime,
       })
-    : `${meta.gateName} @ ${timelineResult.gateArrivalTime}`;
+    : `${meta.gateName} · ${timelineResult.gateArrivalTime}`;
 
   const heroTargetLabel = isEscapade
     ? t('heroTargetLabelEscapade')
@@ -210,26 +214,27 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
 
   return (
     <div className="w-full max-w-[1720px] mx-auto px-3.5 sm:px-5 lg:px-7 pt-2 pb-12 sm:pb-20 no-print">
-      {/* ── EXPEDITION STAGE SEQUENCER BAR (WHEN MULTI-DAY EXPEDITION) ── */}
+      {/* ── TOUR STAGE SEQUENCER BAR (WHEN MULTI-STAGE TOUR) ── */}
       {hasMultipleStages && (
-        <div className="rounded-full bg-card text-ink p-2 sm:p-2.5 mb-5 shadow-sm border border-ink/5 dark:border-white/5 animate-flight-deck-in transition-colors">
-          <div className="flex items-center justify-between gap-3 overflow-x-auto no-scrollbar">
-            <div className="flex items-center gap-2.5 shrink-0 pl-1 sm:pl-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-volt ring-4 ring-volt/25 animate-pulse" />
-              <div className="flex items-center gap-2">
-                <span className="text-xs sm:text-[13px] font-bold text-ink tracking-tight font-rounded uppercase tnum">
-                  {isFr
-                    ? `EXPÉDITION · ${expeditionTotals.totalDays} JOURS · ${expeditionTotals.totalDistanceKm} KM TOTAL`
-                    : `EXPEDITION · ${expeditionTotals.totalDays} DAYS · ${expeditionTotals.totalDistanceKm} KM TOTAL`}
-                </span>
-                <span className="text-[11px] font-medium text-ink-muted tnum hidden sm:inline">
-                  (+{expeditionTotals.totalElevationM} m)
-                </span>
+        <div className="space-y-3 mb-5 animate-flight-deck-in">
+          <div className="rounded-pod bg-card text-ink p-3 sm:px-4 sm:py-3 shadow-sm transition-colors">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-2.5 shrink-0">
+                <span className="w-2.5 h-2.5 rounded-full bg-volt ring-4 ring-volt/25 animate-pulse" />
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs sm:text-[13px] font-bold text-ink tracking-tight font-rounded tnum">
+                    {isFr
+                      ? `Tour · ${expeditionTotals.totalDays} jours · ${expeditionTotals.totalDistanceKm} km`
+                      : `Tour · ${expeditionTotals.totalDays} days · ${expeditionTotals.totalDistanceKm} km`}
+                  </span>
+                  <span className="text-[11px] font-medium text-ink-muted tnum hidden sm:inline">
+                    (+{expeditionTotals.totalElevationM} m)
+                  </span>
+                </div>
               </div>
-            </div>
 
-            <div className="flex items-center gap-2 shrink-0 pr-1 sm:pr-1.5">
-              {trip.stages!.map((stage, idx) => {
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar max-w-full">
+                {trip.stages!.map((stage, idx) => {
                 const isActive = idx === activeStageIdx;
                 const origin = stage.route?.origin || '...';
                 const dest = stage.route?.destination || '...';
@@ -274,8 +279,43 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
                   </button>
                 );
               })}
+
+                <button
+                  type="button"
+                  onClick={() => setShowTourOverview((prev) => !prev)}
+                  className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-150 shrink-0 cursor-pointer ${
+                    showTourOverview
+                      ? 'bg-[#111111] text-volt ring-1 ring-inset ring-black/10 dark:bg-elevated dark:text-volt dark:ring-white/15'
+                      : 'bg-pod hover:bg-chip text-ink'
+                  }`}
+                >
+                  <Calendar className="w-3.5 h-3.5 shrink-0" />
+                  <span>
+                    {showTourOverview ? t('tourToggleDetailsHide') : t('tourToggleDetailsShow')}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => downloadEntireTourGpx(trip)}
+                  title={t('exportEntireTourGpxBtn')}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-volt hover:bg-volt-lime text-[#111111] text-xs font-bold transition-all duration-150 shrink-0 cursor-pointer ring-1 ring-inset ring-black/10 dark:ring-white/10 active:scale-95"
+                >
+                  <Download className="w-3.5 h-3.5 shrink-0" />
+                  <span>{t('exportEntireTourGpxBtn')}</span>
+                </button>
+              </div>
             </div>
           </div>
+
+          {showTourOverview && (
+            <TourOverviewCard
+              trip={trip}
+              activeStageIdx={activeStageIdx}
+              onSelectStage={(idx) => onUpdateTrip(switchActiveStage(trip, idx))}
+              ftpWatts={effectiveSpecs.ftpWatts}
+            />
+          )}
         </div>
       )}
 
@@ -283,10 +323,10 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
       {/* On desktop (lg+), 2 independent vertical columns (3 cols left, 2 cols right) with 20px (gap-5) gutters */}
       {/* align Hero Card and Weather Card at the top and prevent row-height blank spaces when cards collapse. */}
       {isDesktop ? (
-        <div className="grid grid-cols-5 gap-3.5 sm:gap-4 lg:gap-5 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-3.5 sm:gap-4 lg:gap-5 items-start">
           {/* Left Column (Desktop: 3 of 5 cols) - Hero Card, Reverse Timeline & Power/Resistance */}
-          <div className="col-span-3 flex flex-col gap-3.5 sm:gap-4 lg:gap-5 min-w-0">
-            <div className="animate-flight-deck-in deck-stagger-1">
+          <div className="lg:col-span-3 flex flex-col gap-3.5 sm:gap-4 lg:gap-5 min-w-0">
+            <div className="animate-flight-deck-in deck-stagger-1 min-w-0">
               <HeroRouteCard
                 trip={trip}
                 physicsResult={physicsResult}
@@ -308,14 +348,14 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
                 onAmenitiesLoaded={setLoadedAmenities}
               />
             </div>
-            <div className="animate-flight-deck-in deck-stagger-2">
+            <div className="animate-flight-deck-in deck-stagger-2 min-w-0">
               <ReverseTimelineBento
                 trip={trip}
                 timeline={timelineResult}
                 riderSpecs={effectiveSpecs}
               />
             </div>
-            <div className="animate-flight-deck-in deck-stagger-3">
+            <div className="animate-flight-deck-in deck-stagger-3 min-w-0">
               <PhysicsEngineCard
                 trip={trip}
                 physicsResult={physicsResult}
@@ -327,8 +367,8 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
           </div>
 
           {/* Right Column (Desktop: 2 of 5 cols) - Weather Card, Checklist & Nutrition */}
-          <div className="col-span-2 flex flex-col gap-3.5 sm:gap-4 lg:gap-5 min-w-0">
-            <div className="animate-flight-deck-in deck-stagger-2">
+          <div className="lg:col-span-2 flex flex-col gap-3.5 sm:gap-4 lg:gap-5 min-w-0">
+            <div className="animate-flight-deck-in deck-stagger-2 min-w-0">
               <AtmosphereCard
                 trip={trip}
                 physicsResult={physicsResult}
@@ -336,14 +376,14 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
                 hardRolloutTime={timelineResult.hardDepartureTime}
               />
             </div>
-            <div className="animate-flight-deck-in deck-stagger-4">
+            <div className="animate-flight-deck-in deck-stagger-4 min-w-0">
               <PreFlightChecklistBento
                 trip={trip}
                 onUpdateTrip={onUpdateTrip}
                 riderSpecs={effectiveSpecs}
               />
             </div>
-            <div className="animate-flight-deck-in deck-stagger-5">
+            <div className="animate-flight-deck-in deck-stagger-5 min-w-0">
               <NutritionBento
                 trip={trip}
                 hardDepartureTime={timelineResult.hardDepartureTime}
@@ -358,9 +398,9 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
         </div>
       ) : (
         /* Mobile Linear Stack (< 1024px) with 20px (gap-5) vertical spacing */
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-5 min-w-0">
           {/* 1. Hero Route Card */}
-          <div className="animate-flight-deck-in deck-stagger-1">
+          <div className="animate-flight-deck-in deck-stagger-1 min-w-0">
             <HeroRouteCard
               trip={trip}
               physicsResult={physicsResult}
@@ -441,7 +481,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
       <div className="flex items-center justify-between pt-5 mt-5 text-xs text-ink-muted border-t border-dashed border-ink/10 dark:border-white/10">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-volt-lime animate-pulse" />
-          <span className="font-mono text-[11px] tracking-wider uppercase">{t('feedbackFooterDock')}</span>
+          <span className="font-rounded font-medium text-xs">{t('feedbackFooterDock')}</span>
         </div>
         <button
           type="button"
@@ -467,6 +507,17 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
         isOpen={isFeedbackModalOpen}
         onClose={() => setIsFeedbackModalOpen(false)}
         tripName={trip.name}
+      />
+
+      {/* ── GPX Error Dialog ── */}
+      <ConfirmModal
+        isOpen={Boolean(gpxErrorMsg)}
+        title={isFr ? 'Impossible d’exporter le tracé' : 'Could not export route'}
+        description={gpxErrorMsg ?? ''}
+        confirmLabel={isFr ? 'Compris' : 'OK'}
+        isAlertOnly
+        onClose={() => setGpxErrorMsg(null)}
+        onConfirm={() => setGpxErrorMsg(null)}
       />
     </div>
   );

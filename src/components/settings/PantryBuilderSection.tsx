@@ -407,12 +407,12 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
   const renderItemMetric = (item: PantryItem) => {
     if (isQuantitative) {
       if (item.slot === 'on-bike-liquid') {
-        return `${item.carbsG}g C / bidon`;
+        return `${item.carbsG} g C / bidon`;
       }
       if (item.slot === 'post-ride-recovery') {
-        return `${item.carbsG}g C · ${item.proteinG}g P · ${item.kcal} kcal`;
+        return `${item.carbsG} g C · ${item.proteinG} g P · ${item.kcal} kcal`;
       }
-      return `${item.carbsG}g C · ${item.kcal} kcal`;
+      return `${item.carbsG} g C · ${item.kcal} kcal`;
     }
     if (isFuelFirst) {
       return formatFuelTarget(item.carbsG, 'fuel-first', lang);
@@ -448,10 +448,10 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
             <div
               className={`w-4 h-4 mt-0.5 ${
                 isMultiSelect ? 'rounded-md' : 'rounded-full'
-              } flex items-center justify-center shrink-0 border transition-colors ${
+              } flex items-center justify-center shrink-0 ring-1 ring-inset transition-colors ${
                 isSelected
-                  ? 'bg-[#DFFF00] border-[#A3B300] text-[#4D5200]'
-                  : 'border-ink/20 dark:border-white/20 bg-card/60'
+                  ? 'bg-[#DFFF00] ring-[#A3B300] text-[#4D5200]'
+                  : 'ring-ink/20 dark:ring-white/20 bg-card/60'
               }`}
             >
               {isSelected && <Check className="w-2.5 h-2.5 stroke-[3] animate-apple-check-pop" />}
@@ -477,10 +477,10 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-ink/5 dark:border-white/5 pl-6">
+          <div className="flex items-center justify-between gap-2 pt-1.5 lane-divider pl-6">
             {renderFlavorBadge(item.flavor)}
             {metricText && (
-              <span className="text-[11px] font-mono font-semibold text-ink-secondary tnum">
+              <span className="text-[11px] font-rounded font-semibold text-ink-secondary tnum">
                 {metricText}
               </span>
             )}
@@ -492,7 +492,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
             type="button"
             onClick={() => handleDeleteCustomItem(item.id)}
             aria-label={`${isFr ? 'Supprimer' : 'Delete'} ${isFr ? item.nameFr : item.nameEn}`}
-            className="text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 px-2.5 rounded-pod transition-colors cursor-pointer shrink-0 flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+            className="min-w-[44px] min-h-[44px] text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 px-2.5 rounded-pod transition-colors cursor-pointer shrink-0 flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
           >
             <Trash className="w-4 h-4" />
           </button>
@@ -506,7 +506,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
       {/* ── 1. STYLE PRESETS & DIETARY GUARDRAILS ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
         {/* Style Presets */}
-        <div className="p-3.5 rounded-pod bg-card border border-ink/5 dark:border-white/5 space-y-2.5">
+        <div className="p-3.5 rounded-pod bg-card space-y-2.5">
           <div className="flex items-center gap-2">
             <IconBadge theme="yellow-vest" icon={ForkKnife} size="sm" solidBacker />
             <div>
@@ -533,7 +533,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                   key={preset.key}
                   type="button"
                   onClick={() => handleSelectStyle(preset.key)}
-                  className={`p-2.5 rounded-pod text-left flex flex-col justify-between transition-all cursor-pointer ${
+                  className={`min-h-[44px] p-2.5 rounded-sub-pod text-left flex flex-col justify-between transition-all cursor-pointer ${
                     isActive
                       ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.emerald.selectedRing}`
                       : `bg-pod text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
@@ -561,7 +561,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
 
         {/* Dietary & Allergen Guardrails + Fuel Delivery Strategy */}
         <div className="space-y-3.5">
-          <div className="p-3.5 rounded-pod bg-card border border-ink/5 dark:border-white/5 space-y-2.5">
+          <div className="p-3.5 rounded-pod bg-card space-y-2.5">
             <div className="flex items-center gap-2">
               <IconBadge theme="lime" icon={ShieldCheck} size="sm" solidBacker />
               <div>
@@ -574,7 +574,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
               </div>
             </div>
 
-            {/* Text-Only Dietary Guardrail Chips (Zero Emojis) */}
+            {/* Text-Only Dietary Guardrail Chips */}
             <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
               {DIETARY_FILTERS_CONFIG.map((filter) => {
                 const active = activeFilters.includes(filter.id);
@@ -584,7 +584,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                     type="button"
                     aria-pressed={active}
                     onClick={() => handleToggleFilter(filter.id)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-rounded font-semibold flex items-center gap-1.5 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/40 ${
+                    className={`px-3 min-h-[44px] sm:min-h-[34px] rounded-full text-xs font-rounded font-semibold flex items-center gap-1.5 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/40 ${
                       active
                         ? `${CHIP_TOKENS.lime.surface} ${CHIP_TOKENS.lime.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.lime.selectedRing}`
                         : `bg-pod text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
@@ -598,8 +598,8 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
             </div>
           </div>
 
-          {/* Fuel Delivery & Palate Strategy (Phase 9) */}
-          <div className="p-3.5 rounded-pod bg-card border border-ink/5 dark:border-white/5 space-y-2.5">
+          {/* Fuel Delivery & Palate Strategy */}
+          <div className="p-3.5 rounded-pod bg-card space-y-2.5">
             <div className="flex items-center gap-2">
               <IconBadge theme="sky" icon={Droplets} size="sm" solidBacker />
               <div>
@@ -613,12 +613,12 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
             </div>
 
             {/* Liquid vs Pocket Solid Split Slider */}
-            <div className="space-y-1.5 p-2.5 rounded-pod bg-pod/60">
+            <div className="space-y-1.5 p-2.5 rounded-sub-pod bg-pod/60">
               <div className="flex items-center justify-between gap-2 text-xs">
                 <span className="font-rounded font-semibold text-ink">
                   {t('liquidRatioLabel')}
                 </span>
-                <span className="font-mono font-bold text-sky-600 dark:text-sky-400 tnum">
+                <span className="font-rounded font-bold text-sky-600 dark:text-sky-400 tnum">
                   {Math.round((specs.liquidCarbRatio ?? 0.35) * 100)}% {isFr ? 'Liquide' : 'Liquid'} · {Math.round((1 - (specs.liquidCarbRatio ?? 0.35)) * 100)}% {isFr ? 'Solide' : 'Solids'}
                 </span>
               </div>
@@ -640,7 +640,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                 className="w-full peloton-slider accent-sky-500 cursor-pointer"
               />
 
-              <div className="flex justify-between text-[10px] text-ink-muted font-mono tnum">
+              <div className="flex justify-between text-[10px] text-ink-muted font-rounded tnum">
                 <span>15% {isFr ? 'Liquide' : 'Liquid'}</span>
                 <span>50 / 50</span>
                 <span>85% {isFr ? 'Liquide' : 'Liquid'}</span>
@@ -649,7 +649,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {/* Auto-Modulate Liquid Toggle */}
-              <div className="flex items-start justify-between gap-2.5 p-2.5 rounded-pod bg-pod/60">
+              <div className="flex items-start justify-between gap-2.5 p-2.5 rounded-sub-pod bg-pod/60">
                 <div className="space-y-0.5 min-w-0">
                   <div className="text-xs font-rounded font-semibold text-ink leading-snug">
                     {t('autoModulateLiquidLabel')}
@@ -668,7 +668,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                       autoModulateLiquidInHeatOrEffort: !(specs.autoModulateLiquidInHeatOrEffort !== false),
                     });
                   }}
-                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-hidden focus-visible:ring-2 focus-visible:ring-sky-500 ${
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-hidden focus-visible:ring-2 focus-visible:ring-sky-500 before:content-[''] before:absolute before:-inset-2 sm:before:inset-0 ${
                     specs.autoModulateLiquidInHeatOrEffort !== false ? 'bg-sky-500' : 'bg-ink/20 dark:bg-white/20'
                   }`}
                 >
@@ -681,7 +681,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
               </div>
 
               {/* Savory Palate Resets Toggle */}
-              <div className="flex items-start justify-between gap-2.5 p-2.5 rounded-pod bg-pod/60">
+              <div className="flex items-start justify-between gap-2.5 p-2.5 rounded-sub-pod bg-pod/60">
                 <div className="space-y-0.5 min-w-0">
                   <div className="text-xs font-rounded font-semibold text-ink leading-snug">
                     {t('savoryResetLabel')}
@@ -700,7 +700,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                       enableSavoryPalateResets: !(specs.enableSavoryPalateResets !== false),
                     });
                   }}
-                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-500 before:content-[''] before:absolute before:-inset-2 sm:before:inset-0 ${
                     specs.enableSavoryPalateResets !== false ? 'bg-emerald-500' : 'bg-ink/20 dark:bg-white/20'
                   }`}
                 >
@@ -717,7 +717,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
       </div>
 
       {/* ── 3. SMART 4-SLOT SEGMENTED PANTRY SELECTOR ── */}
-      <div className="p-3.5 sm:p-4 rounded-pod bg-card border border-ink/5 dark:border-white/5 space-y-3.5">
+      <div className="p-3.5 sm:p-4 rounded-pod bg-card space-y-3.5">
         {/* 4-Slot Segmented Overview Bar */}
         <div
           role="tablist"
@@ -736,7 +736,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                 role="tab"
                 aria-selected={isActiveTab}
                 onClick={() => setActiveSlot(tab.slot)}
-                className={`p-2.5 rounded-pod text-left flex flex-col justify-between gap-1.5 transition-all cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                className={`min-h-[44px] p-2.5 rounded-sub-pod text-left flex flex-col justify-between gap-1.5 transition-all cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
                   isActiveTab
                     ? `${token.surface} ${token.primary} ${CHIP_RING_BASE} ${token.selectedRing}`
                     : `bg-pod/70 hover:bg-pod text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
@@ -749,7 +749,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                       {t(tab.titleKey)}
                     </span>
                   </div>
-                  <span className="text-[10px] font-mono font-bold opacity-80 tnum shrink-0">
+                  <span className="text-[10px] font-rounded font-bold opacity-80 tnum shrink-0">
                     {tab.badgeLabel}
                   </span>
                 </div>
@@ -763,7 +763,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
         </div>
 
         {/* Active Slot Header + Flavor Filter (for Pocket Solids) + Add Custom CTA */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-dashed border-ink/10 dark:border-white/10">
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 lane-divider">
           <div className="flex items-center gap-2 min-w-0">
             <IconBadge
               theme={currentSlotConfig.theme}
@@ -812,7 +812,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                       key={flt.id}
                       type="button"
                       onClick={() => setSolidFlavorFilter(flt.id)}
-                      className={`px-2.5 py-0.5 rounded-full text-[11px] font-rounded font-semibold transition-all cursor-pointer ${
+                      className={`px-3 min-h-[36px] sm:min-h-[28px] rounded-full text-[11px] font-rounded font-semibold transition-all cursor-pointer ${
                         isFltActive
                           ? 'bg-card text-ink shadow-xs ring-1 ring-inset ring-ink/10 dark:ring-white/10'
                           : 'text-ink-muted hover:text-ink'
@@ -832,7 +832,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                   setCustomSlot(activeSlot);
                   setShowCustomForm(true);
                 }}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-rounded font-semibold transition-all cursor-pointer ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} hover:brightness-[0.97]`}
+                className={`inline-flex items-center gap-1.5 px-3.5 min-h-[44px] sm:min-h-[34px] rounded-full text-xs font-rounded font-semibold transition-all cursor-pointer ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} hover:brightness-[0.97]`}
               >
                 <Plus className="w-3.5 h-3.5 text-current shrink-0" />
                 <span>{t('addCustomItem')}</span>
@@ -938,7 +938,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                 value={customNameFr}
                 onChange={(e) => setCustomNameFr(e.target.value)}
                 placeholder="ex. Gomme électrolyte"
-                className="w-full text-base sm:text-xs font-rounded font-semibold text-ink bg-transparent focus:outline-none placeholder:text-ink-muted/60"
+                className="w-full min-h-[36px] text-base sm:text-sm font-rounded font-semibold text-ink bg-transparent focus:outline-none placeholder:text-ink-muted/60"
               />
             </div>
 
@@ -954,7 +954,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                   setCustomPortionFr(e.target.value);
                 }}
                 placeholder="1 bar / 1 chew"
-                className="w-full text-base sm:text-xs font-rounded font-semibold text-ink bg-transparent focus:outline-none placeholder:text-ink-muted/60"
+                className="w-full min-h-[36px] text-base sm:text-sm font-rounded font-semibold text-ink bg-transparent focus:outline-none placeholder:text-ink-muted/60"
               />
             </div>
           </div>
@@ -974,9 +974,9 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                       max="120"
                       value={customCarbsG}
                       onChange={(e) => setCustomCarbsG(Number(e.target.value))}
-                      className="w-full text-base sm:text-lg font-mono font-bold text-ink bg-transparent focus:outline-none tnum"
+                      className="w-full min-h-[36px] text-base sm:text-lg font-rounded font-bold text-ink bg-transparent focus:outline-none tnum"
                     />
-                    <span className="text-[11px] text-ink-muted font-mono">g</span>
+                    <span className="text-[11px] text-ink-muted font-rounded">g</span>
                   </div>
                 </div>
 
@@ -991,9 +991,9 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                       max="60"
                       value={customProteinG}
                       onChange={(e) => setCustomProteinG(Number(e.target.value))}
-                      className="w-full text-base sm:text-lg font-mono font-bold text-ink bg-transparent focus:outline-none tnum"
+                      className="w-full min-h-[36px] text-base sm:text-lg font-rounded font-bold text-ink bg-transparent focus:outline-none tnum"
                     />
-                    <span className="text-[11px] text-ink-muted font-mono">g</span>
+                    <span className="text-[11px] text-ink-muted font-rounded">g</span>
                   </div>
                 </div>
 
@@ -1008,9 +1008,9 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                       max="800"
                       value={customKcal}
                       onChange={(e) => setCustomKcal(Number(e.target.value))}
-                      className="w-full text-base sm:text-lg font-mono font-bold text-ink bg-transparent focus:outline-none tnum"
+                      className="w-full min-h-[36px] text-base sm:text-lg font-rounded font-bold text-ink bg-transparent focus:outline-none tnum"
                     />
-                    <span className="text-[10px] text-ink-muted font-mono">kcal</span>
+                    <span className="text-[10px] text-ink-muted font-rounded">kcal</span>
                   </div>
                 </div>
               </div>
@@ -1037,7 +1037,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                           setCustomCarbsG(uOpt.carbs);
                           setCustomKcal(uOpt.carbs * 4);
                         }}
-                        className={`p-2 rounded-pod text-left transition-all cursor-pointer tnum ${
+                        className={`min-h-[44px] p-2 rounded-sub-pod text-left transition-all cursor-pointer tnum ${
                           active
                             ? `${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.amber.selectedRing}`
                             : `bg-pod text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
@@ -1072,7 +1072,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                       key={flav.id}
                       type="button"
                       onClick={() => setCustomFlavor(flav.id)}
-                      className={`py-2.5 px-3 rounded-pod text-xs font-rounded font-semibold text-center transition-all cursor-pointer ${
+                      className={`min-h-[44px] py-2.5 px-3 rounded-sub-pod text-xs font-rounded font-semibold text-center transition-all cursor-pointer ${
                         active
                           ? `${token.surface} ${token.primary} ${CHIP_RING_BASE} ${token.selectedRing}`
                           : `bg-pod text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
@@ -1105,7 +1105,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                         [f.id]: !prev[f.id],
                       }))
                     }
-                    className={`px-3 py-1.5 rounded-full text-xs font-rounded font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    className={`px-3 min-h-[44px] sm:min-h-[34px] rounded-full text-xs font-rounded font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                       checked
                         ? `${CHIP_TOKENS.lime.surface} ${CHIP_TOKENS.lime.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.lime.selectedRing}`
                         : `bg-pod text-ink-muted hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
@@ -1120,17 +1120,17 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
           </div>
 
           {/* Form Action Footer */}
-          <div className="flex items-center justify-end gap-2 pt-2.5 border-t border-dashed border-ink/10 dark:border-white/10">
+          <div className="flex items-center justify-end gap-2 pt-2.5 lane-divider">
             <button
               type="button"
               onClick={() => setShowCustomForm(false)}
-              className="px-4 py-2 rounded-full text-xs font-rounded font-semibold bg-pod hover:bg-chip text-ink-secondary hover:text-ink transition-all cursor-pointer"
+              className="min-h-[44px] sm:min-h-[36px] px-4 py-2 rounded-full text-xs font-rounded font-semibold bg-pod hover:bg-chip text-ink-secondary hover:text-ink transition-all cursor-pointer"
             >
               {t('customItemCancel')}
             </button>
             <button
               type="submit"
-              className={`px-5 py-2 rounded-full text-xs font-rounded font-bold transition-all cursor-pointer hover:brightness-[0.97] active:scale-[0.98] ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`}
+              className={`min-h-[44px] sm:min-h-[36px] px-5 py-2 rounded-full text-xs font-rounded font-bold transition-all cursor-pointer hover:brightness-[0.97] active:scale-[0.98] ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`}
             >
               {t('customItemSave')}
             </button>

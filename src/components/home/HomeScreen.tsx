@@ -187,14 +187,21 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const currentConditionTrip = nextUpcomingTrip || activeTrip || trips[0] || null;
 
   return (
-    <div className="w-full max-w-[1720px] mx-auto px-3.5 sm:px-5 lg:px-7 pt-2 pb-12 sm:pb-20 space-y-5">
+    <div className="w-full max-w-[1720px] mx-auto px-3.5 sm:px-5 lg:px-7 pt-2 pb-24 sm:pb-20 space-y-5">
       {/* ── Top Page Header (3-Column Span matching Mockup: Greeting Phrase, Number of Profiles, Action Bar Below) ── */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-3.5 sm:gap-4 lg:gap-5 animate-apple-in stagger-1">
         <div className="lg:col-span-3 space-y-3.5 min-w-0">
           <div>
             <div className="flex items-center gap-2.5 flex-wrap">
               <h1 className="text-2xl sm:text-[28px] font-semibold text-ink tracking-tight leading-tight">
-                {username ? t('homeGreetingUser', { name: username, username }) : t('homeTitle')}
+                {(() => {
+                  const trimmed = (username || '').trim();
+                  const isGenericName = !trimmed || trimmed === 'Rider' || trimmed === 'Cycliste';
+                  if (!isGenericName) {
+                    return t('homeGreetingUser', { name: trimmed, username: trimmed });
+                  }
+                  return lang === 'fr' ? 'Où va-t-on ?' : 'Where to?';
+                })()}
               </h1>
               <Badge variant="yellow-vest" size="md" className="py-1 px-3 tnum">
                 {trips.length === 1 ? (lang === 'fr' ? '1 trajet' : '1 trip') : t('homeProfilesCount', { count: trips.length })}
@@ -289,7 +296,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
               {/* Archetype Quick-Filter Bar directly beneath Saved Trips subtitle */}
               {trips.length > 0 && (
-                <div className="flex items-center gap-2.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+                <div className="flex items-center gap-2 flex-wrap">
                   {filterTabs.map((tab) => {
                     const isSelected = selectedArchetype === tab.id;
                     const IconComponent = tab.icon;
@@ -442,17 +449,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   </button>
                 )}
                 {onOpenOnboarding && (
-                  <Badge
-                    variant="yellow-vest"
-                    size="md"
-                    icon={BookOpen2}
-                    interactive
+                  <button
+                    type="button"
                     onClick={onOpenOnboarding}
-                    className="py-1.5 px-3 max-w-full"
-                    title={lang === 'fr' ? 'Ouvrir l’assistant de calibrage interactif' : 'Test Drive: Interactive Calibration Wizard'}
+                    className="inline-flex items-center gap-1.5 min-h-[44px] px-3 py-1.5 rounded-full text-xs font-medium text-ink-secondary hover:text-ink hover:bg-pod transition-colors cursor-pointer"
                   >
-                    {lang === 'fr' ? 'Essai : Assistant de calibrage interactif' : 'Test Drive: Interactive Calibration Wizard'}
-                  </Badge>
+                    <BookOpen2 className="w-3.5 h-3.5 text-current shrink-0" />
+                    <span>{lang === 'fr' ? 'Ouvrir l’assistant de démarrage' : 'Run guided setup'}</span>
+                  </button>
                 )}
               </div>
               <span className="px-3 py-1 rounded-full bg-pod text-ink-muted tnum shrink-0 whitespace-nowrap">

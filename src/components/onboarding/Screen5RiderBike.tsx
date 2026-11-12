@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ArrowLeft, ArrowRight, Check, SlidersHorizontal } from '@/components/icons';
+import React, { useState, useRef, useEffect } from 'react';
+import { Check, ChevronRight, SlidersHorizontal, Lightning } from '@/components/icons';
 import { useTranslation } from '../../context/LanguageContext';
 import { BIKE_OPTIONS } from './constants';
 
@@ -20,11 +20,12 @@ interface Screen5RiderBikeProps {
   onChangeCrr: (crr: number) => void;
   drivetrainEfficiency: number;
   onChangeDrivetrainEfficiency: (eff: number) => void;
+  usePowerWatts: boolean;
+  onChangeUsePowerWatts: (enabled: boolean) => void;
+  ftpWatts: number;
+  onChangeFtpWatts: (watts: number) => void;
   estimatedMinutes: number;
   selectedSpeedKmH: number;
-  onBack: () => void;
-  onSkip: () => void;
-  onContinue: () => void;
 }
 
 export const Screen5RiderBike: React.FC<Screen5RiderBikeProps> = ({
@@ -44,15 +45,38 @@ export const Screen5RiderBike: React.FC<Screen5RiderBikeProps> = ({
   onChangeCrr,
   drivetrainEfficiency,
   onChangeDrivetrainEfficiency,
+  usePowerWatts,
+  onChangeUsePowerWatts,
+  ftpWatts,
+  onChangeFtpWatts,
   estimatedMinutes,
   selectedSpeedKmH,
-  onBack,
-  onSkip,
-  onContinue,
 }) => {
   const { lang } = useTranslation();
   const isFr = lang === 'fr';
   const [isTechOpen, setIsTechOpen] = useState(false);
+  const [isBikeMenuOpen, setIsBikeMenuOpen] = useState(false);
+  const bikeMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isBikeMenuOpen) return;
+    const handleOutside = (e: MouseEvent | TouchEvent) => {
+      if (bikeMenuRef.current && !bikeMenuRef.current.contains(e.target as Node)) {
+        setIsBikeMenuOpen(false);
+      }
+    };
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsBikeMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('touchstart', handleOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('touchstart', handleOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isBikeMenuOpen]);
 
   const currentBike = BIKE_OPTIONS.find((b) => b.id === selectedBikeId) || BIKE_OPTIONS[0];
 
@@ -74,9 +98,9 @@ export const Screen5RiderBike: React.FC<Screen5RiderBikeProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start flex-1">
         {/* Left Column: Setup Form */}
         <div className="lg:col-span-7 flex flex-col">
-          <div className="inline-flex items-center gap-2 text-xs font-mono font-bold tracking-wider text-ink-muted uppercase mb-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-volt" />
-            <span>{isFr ? 'VÉLO & CYCLISTE · OPTIONNEL' : 'RIDER & BIKE · OPTIONAL'}</span>
+          <div className="inline-flex items-center gap-2 text-xs font-rounded font-semibold text-ink-muted mb-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#4D7C0F] dark:bg-volt" />
+            <span>{isFr ? 'Vélo & cycliste · optionnel' : 'Rider & bike · optional'}</span>
           </div>
 
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold font-rounded tracking-tight text-ink leading-tight mb-3">
@@ -146,31 +170,146 @@ export const Screen5RiderBike: React.FC<Screen5RiderBikeProps> = ({
           </div>
 
           {/* Bike Selection Dropdown */}
-          <div className="mb-5">
+          <div className="mb-5" ref={bikeMenuRef}>
             <label className="block text-xs font-medium text-ink-secondary mb-1.5 font-body">
               {isFr ? 'Type de vélo' : 'Bike'}
             </label>
             <div className="relative">
-              <select
-                value={selectedBikeId}
-                onChange={(e) => handleBikeChange(e.target.value)}
-                className="w-full min-h-[46px] px-3.5 pr-10 rounded-pod bg-card border border-black/15 dark:border-white/20 text-ink text-base sm:text-sm font-body appearance-none focus:outline-none focus:ring-2 focus:ring-ink dark:focus:ring-white transition-all shadow-xs cursor-pointer"
+              <button
+                type="button"
+                aria-haspopup="listbox"
+                aria-expanded={isBikeMenuOpen}
+                onClick={() => setIsBikeMenuOpen((prev) => !prev)}
+                className="w-full min-h-[46px] px-3.5 rounded-pod bg-card border border-black/15 dark:border-white/20 text-ink text-base sm:text-sm font-body flex items-center justify-between gap-2 focus:outline-none focus:ring-2 focus:ring-ink dark:focus:ring-white transition-all shadow-xs cursor-pointer text-left"
               >
-                {BIKE_OPTIONS.map((bike) => (
-                  <option key={bike.id} value={bike.id}>
-                    {isFr ? bike.nameFr : bike.name}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-ink-muted">
-                ▾
-              </div>
+                <span className="truncate font-medium">
+                  {isFr ? currentBike.nameFr : currentBike.name}
+                </span>
+                <ChevronRight
+                  className={`w-4 h-4 text-ink-muted shrink-0 transition-transform duration-150 ${
+                    isBikeMenuOpen ? '-rotate-90' : 'rotate-90'
+                  }`}
+                />
+              </button>
+
+              {isBikeMenuOpen && (
+                <div
+                  role="listbox"
+                  aria-label={isFr ? 'Type de vélo' : 'Bike'}
+                  className="absolute left-0 right-0 top-full mt-2 z-30 bg-card rounded-[20px] shadow-2xl ring-1 ring-ink/5 dark:ring-white/10 p-1.5 space-y-1 max-h-64 overflow-y-auto animate-apple-popover"
+                >
+                  {BIKE_OPTIONS.map((bike) => {
+                    const isSelected = bike.id === selectedBikeId;
+                    return (
+                      <button
+                        key={bike.id}
+                        type="button"
+                        role="option"
+                        aria-selected={isSelected}
+                        onClick={() => {
+                          handleBikeChange(bike.id);
+                          setIsBikeMenuOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-[14px] text-left text-sm transition-colors cursor-pointer ${
+                          isSelected
+                            ? 'bg-pod text-ink font-semibold'
+                            : 'text-ink-secondary hover:bg-pod/60 hover:text-ink'
+                        }`}
+                      >
+                        <div className="min-w-0">
+                          <div className="truncate font-body">
+                            {isFr ? bike.nameFr : bike.name}
+                          </div>
+                          <div className="text-[11px] text-ink-muted tnum">
+                            {bike.weightKg} kg ·{' '}
+                            {bike.isTubeless
+                              ? 'Tubeless'
+                              : isFr
+                              ? 'Chambre à air'
+                              : 'Inner tube'}
+                          </div>
+                        </div>
+                        {isSelected && (
+                          <Check className="w-4 h-4 text-ink shrink-0 stroke-[2.5]" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
             <span className="block text-[11px] text-ink-muted font-body mt-1">
               {isFr
                 ? 'Par défaut · choisissez un autre vélo si nécessaire'
                 : 'Default · choose a different bike if needed'}
             </span>
+          </div>
+
+          {/* Ride Guidance vs Power / Watts (FTP) Opt-In */}
+          <div className="mb-5 p-4 rounded-pod bg-pod border border-black/5 dark:border-white/10">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3 min-w-0">
+                <div className="w-8 h-8 rounded-full bg-card flex items-center justify-center shrink-0 text-ink shadow-2xs">
+                  <Lightning size={15} />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-rounded font-bold text-ink leading-snug">
+                    {isFr ? 'Suivi par puissance & Watts (FTP)' : 'Include power & Watts (FTP)'}
+                  </div>
+                  <p className="text-xs text-ink-secondary font-body mt-0.5 leading-relaxed">
+                    {isFr
+                      ? 'Par défaut, Cadence reste en mode guidé calme (allure, hydratation, pauses). Activez cette option si vous roulez au capteur de puissance.'
+                      : 'By default Cadence starts in calm Guided mode. Turn this on if you ride with a power meter or want wattage targets.'}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                role="switch"
+                aria-checked={usePowerWatts}
+                onClick={() => onChangeUsePowerWatts(!usePowerWatts)}
+                className={`relative before:content-[''] before:absolute before:-inset-1.5 shrink-0 w-12 h-7 rounded-full p-1 transition-colors cursor-pointer flex items-center ${
+                  usePowerWatts
+                    ? 'bg-[#4D7C0F] dark:bg-volt justify-end'
+                    : 'bg-black/15 dark:bg-white/20 justify-start'
+                }`}
+                aria-label={isFr ? 'Activer le suivi en Watts' : 'Enable power and Watts'}
+              >
+                <span className="w-5 h-5 rounded-full bg-white dark:bg-[#111111] shadow-xs transition-transform" />
+              </button>
+            </div>
+
+            {usePowerWatts && (
+              <div className="mt-3.5 pt-3.5 border-t border-black/5 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-apple-step-in">
+                <div className="min-w-0">
+                  <label
+                    htmlFor="onboarding-ftp-watts"
+                    className="block text-xs font-rounded font-semibold text-ink"
+                  >
+                    {isFr ? 'Puissance au seuil (FTP)' : 'Threshold power (FTP)'}
+                  </label>
+                  <span className="text-[11px] text-ink-muted font-body">
+                    {isFr ? 'Utilisé pour vos zones et cibles d’effort' : 'Used for effort zones and pacing targets'}
+                  </span>
+                </div>
+                <div className="relative flex items-center w-full sm:w-36 shrink-0">
+                  <input
+                    id="onboarding-ftp-watts"
+                    type="number"
+                    min={80}
+                    max={500}
+                    step={5}
+                    value={ftpWatts}
+                    onChange={(e) => onChangeFtpWatts(Math.max(80, Math.min(500, Number(e.target.value) || 210)))}
+                    className="w-full min-h-[44px] px-3.5 pr-9 rounded-pod bg-card border border-black/15 dark:border-white/20 text-ink text-base sm:text-sm font-rounded font-bold tnum focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#4D7C0F] dark:focus:ring-volt"
+                  />
+                  <span className="absolute right-3 text-xs font-medium text-ink-muted font-body pointer-events-none">
+                    W
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Collapsible Technical Bike Details / Fine-Tuning */}
@@ -186,7 +325,11 @@ export const Screen5RiderBike: React.FC<Screen5RiderBikeProps> = ({
                   ? 'Affiner les données techniques du vélo · optionnel'
                   : 'Fine-tune technical bike details · optional'}
               </span>
-              <span>{isTechOpen ? '▾' : '▸'}</span>
+              <ChevronRight
+                className={`w-3.5 h-3.5 transition-transform duration-150 ${
+                  isTechOpen ? 'rotate-90' : ''
+                }`}
+              />
             </button>
 
             {isTechOpen && (
@@ -204,7 +347,7 @@ export const Screen5RiderBike: React.FC<Screen5RiderBikeProps> = ({
                       max="35"
                       value={bikeWeightKg}
                       onChange={(e) => onChangeBikeWeight(Number(e.target.value))}
-                      className="w-full min-h-[38px] px-3 pr-10 rounded-sub-pod bg-card border border-black/15 dark:border-white/20 text-ink text-xs font-rounded font-bold tnum focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-white shadow-2xs"
+                      className="w-full min-h-[44px] px-3 pr-10 rounded-sub-pod bg-card border border-black/15 dark:border-white/20 text-ink text-base sm:text-xs font-rounded font-bold tnum focus:outline-none focus:ring-2 focus:ring-inset focus:ring-ink dark:focus:ring-white shadow-2xs"
                     />
                     <span className="absolute right-3 text-[11px] font-medium text-ink-muted font-body pointer-events-none">
                       kg
@@ -337,45 +480,6 @@ export const Screen5RiderBike: React.FC<Screen5RiderBikeProps> = ({
               ? 'L’option « Passer pour l’instant » conserve ces réglages par défaut et ouvre immédiatement l’aperçu. Vous pourrez y revenir à tout moment.'
               : 'Skip for now keeps these defaults and opens your ride preview. You can revisit this setup from the preview whenever you need it.'}
           </p>
-        </div>
-      </div>
-
-      {/* Footer Navigation Bar - Sticky Mobile Bar */}
-      <div className="sticky bottom-0 z-20 bg-card/95 backdrop-blur-md pt-3 sm:pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-4 border-t border-black/10 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 shrink-0 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_16px_rgba(0,0,0,0.3)] -mx-4 sm:-mx-8 md:-mx-10 px-4 sm:px-8 md:px-10 mt-auto">
-        <button
-          type="button"
-          onClick={onBack}
-          className="min-h-[44px] px-4 py-2 rounded-full border border-black/15 dark:border-white/20 bg-card hover:bg-pod text-ink text-xs font-rounded font-bold transition-all active:scale-[0.98] cursor-pointer flex items-center gap-1.5 w-full sm:w-auto justify-center"
-        >
-          <ArrowLeft size={14} />
-          <span>{isFr ? 'Retour' : 'Back'}</span>
-        </button>
-
-        <span className="text-xs text-ink-muted font-body text-center">
-          {isFr
-            ? 'Optionnel · les deux actions ouvrent votre aperçu'
-            : 'Optional · both actions open your preview'}
-        </span>
-
-        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-          {/* Secondary Skip for now button */}
-          <button
-            type="button"
-            onClick={onSkip}
-            className="flex-1 sm:flex-none min-h-[44px] px-4 py-2 rounded-full border border-black/15 dark:border-white/20 bg-pod hover:bg-chip text-ink text-xs font-rounded font-bold transition-all active:scale-[0.98] cursor-pointer"
-          >
-            {isFr ? 'Passer pour l’instant' : 'Skip for now'}
-          </button>
-
-          {/* Primary View Ride Button */}
-          <button
-            type="button"
-            onClick={onContinue}
-            className="flex-1 sm:flex-none min-h-[44px] px-5 py-2 rounded-full bg-volt text-[#4d5200] ring-2 ring-inset ring-[#a3b300] text-xs font-rounded font-bold hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
-          >
-            <span>{isFr ? 'Appliquer et voir la sortie' : 'Apply setup & view ride'}</span>
-            <ArrowRight size={14} className="stroke-[2.5]" />
-          </button>
         </div>
       </div>
     </div>

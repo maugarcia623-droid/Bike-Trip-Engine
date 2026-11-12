@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, ArrowRight, Check } from '@/components/icons';
+import { Check } from '@/components/icons';
 import { useTranslation } from '../../context/LanguageContext';
 import { CHIP_TOKENS, CHIP_RING_BASE } from '../../tokens/chipTokens';
 import { PURPOSES } from './constants';
@@ -8,15 +8,11 @@ import { RidePurposeId } from './types';
 interface Screen2PurposeProps {
   selectedPurpose: RidePurposeId;
   onSelectPurpose: (purpose: RidePurposeId) => void;
-  onBack: () => void;
-  onContinue: () => void;
 }
 
 export const Screen2Purpose: React.FC<Screen2PurposeProps> = ({
   selectedPurpose,
   onSelectPurpose,
-  onBack,
-  onContinue,
 }) => {
   const { lang } = useTranslation();
   const isFr = lang === 'fr';
@@ -29,9 +25,9 @@ export const Screen2Purpose: React.FC<Screen2PurposeProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start flex-1">
         {/* Left Column: Purpose Selection Form */}
         <div className="lg:col-span-7 flex flex-col">
-          <div className="inline-flex items-center gap-2 text-xs font-mono font-bold tracking-wider text-ink-muted uppercase mb-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-volt" />
-            <span>{isFr ? 'PROFIL DE SORTIE' : 'RIDE PURPOSE'}</span>
+          <div className="inline-flex items-center gap-2 text-xs font-rounded font-semibold text-ink-muted mb-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#4D7C0F] dark:bg-volt" />
+            <span>{isFr ? 'Profil de sortie' : 'Ride purpose'}</span>
           </div>
 
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold font-rounded tracking-tight text-ink leading-tight mb-3">
@@ -68,7 +64,7 @@ export const Screen2Purpose: React.FC<Screen2PurposeProps> = ({
                   }}
                   className={`relative flex items-center justify-between p-4 rounded-pod transition-all cursor-pointer select-none active:scale-[0.99] min-h-[58px] ${
                     isSelected
-                      ? 'bg-card text-ink ring-2 ring-inset ring-volt shadow-xs'
+                      ? 'bg-card text-ink ring-2 ring-inset ring-[#4D7C0F] dark:ring-volt shadow-xs'
                       : 'bg-card hover:bg-pod/60 text-ink ring-1 ring-inset ring-black/10 dark:ring-white/10'
                   }`}
                 >
@@ -77,12 +73,12 @@ export const Screen2Purpose: React.FC<Screen2PurposeProps> = ({
                     <div
                       className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-colors ${
                         isSelected
-                          ? 'border-2 border-volt dark:border-volt'
+                          ? 'border-2 border-[#4D7C0F] dark:border-volt'
                           : 'border border-ink/40 dark:border-white/40'
                       }`}
                     >
                       {isSelected && (
-                        <div className="w-2.5 h-2.5 rounded-full bg-volt" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-[#4D7C0F] dark:bg-volt" />
                       )}
                     </div>
 
@@ -136,34 +132,6 @@ export const Screen2Purpose: React.FC<Screen2PurposeProps> = ({
               : 'No fitness profile or technical knowledge needed. Your purpose sets up helpful choices, not a fixed riding speed.'}
           </p>
         </div>
-      </div>
-
-      {/* Footer Navigation Bar - Sticky Mobile Bar */}
-      <div className="sticky bottom-0 z-20 bg-card/95 backdrop-blur-md pt-3 sm:pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-4 border-t border-black/10 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 shrink-0 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_16px_rgba(0,0,0,0.3)] -mx-4 sm:-mx-8 md:-mx-10 px-4 sm:px-8 md:px-10 mt-auto">
-        {/* Back Button */}
-        <button
-          type="button"
-          onClick={onBack}
-          className="min-h-[44px] px-4 py-2 rounded-full border border-black/15 dark:border-white/20 bg-card hover:bg-pod text-ink text-xs font-rounded font-bold transition-all active:scale-[0.98] cursor-pointer flex items-center gap-1.5 w-full sm:w-auto justify-center"
-        >
-          <ArrowLeft size={14} />
-          <span>{isFr ? 'Retour' : 'Welcome'}</span>
-        </button>
-
-        {/* Reassurance Caption */}
-        <span className="text-xs text-ink-muted font-body text-center">
-          {isFr ? 'Vous pourrez modifier cela plus tard.' : 'You can change this later.'}
-        </span>
-
-        {/* Primary Continue Button */}
-        <button
-          type="button"
-          onClick={onContinue}
-          className="min-h-[44px] px-5 py-2 rounded-full bg-volt text-[#4d5200] ring-2 ring-inset ring-[#a3b300] text-xs font-rounded font-bold hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer flex items-center gap-1.5 shadow-sm w-full sm:w-auto justify-center"
-        >
-          <span>{isFr ? 'Continuer vers le parcours' : 'Continue to route'}</span>
-          <ArrowRight size={14} className="stroke-[2.5]" />
-        </button>
       </div>
     </div>
   );

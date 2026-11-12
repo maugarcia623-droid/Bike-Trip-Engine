@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { TripProfile } from '../types/trip';
+import { ArrowLeft, ArrowRight } from '@/components/icons';
+import { TripProfile, RouteWaypoint } from '../types/trip';
 import { generateTripChecklist } from '../types/trip';
 import { useTranslation } from '../context/LanguageContext';
 import { OnboardingHeader } from './onboarding/OnboardingHeader';
@@ -87,6 +88,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   const [destination, setDestination] = useState<string>('Nantes gare, Nantes');
   const [distanceKm, setDistanceKm] = useState<number>(6.0);
   const [coordinates, setCoordinates] = useState<[number, number][]>(DEFAULT_NANTES_ROUTE_COORDS);
+  const [waypoints, setWaypoints] = useState<RouteWaypoint[]>([]);
   const [gpxFileName, setGpxFileName] = useState<string | undefined>();
   const [isRouteReady, setIsRouteReady] = useState<boolean>(true);
 
@@ -125,6 +127,8 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   const [cda, setCda] = useState<number>(0.42);
   const [crr, setCrr] = useState<number>(0.0065);
   const [drivetrainEfficiency, setDrivetrainEfficiency] = useState<number>(0.95);
+  const [usePowerWatts, setUsePowerWatts] = useState<boolean>(false);
+  const [ftpWatts, setFtpWatts] = useState<number>(210);
 
   // Focus trap / escape key listener & scroll refs
   const outerDialogRef = useRef<HTMLDivElement>(null);
@@ -161,10 +165,16 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
         setOrigin(def.defaultOrigin);
         setDestination(def.defaultDestination);
         setDistanceKm(def.defaultDistanceKm);
+        setCoordinates([]);
+        setWaypoints([]);
+        setIsRouteReady(false);
       } else {
         setOrigin('Trentemoult, Rezé');
         setDestination('Nantes gare, Nantes');
         setDistanceKm(6.0);
+        setCoordinates(DEFAULT_NANTES_ROUTE_COORDS);
+        setWaypoints([]);
+        setIsRouteReady(true);
       }
     }
   };
@@ -211,16 +221,24 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     const tripName = `${originShort} → ${destShort}`;
     const tripTag = purposeDef.tag;
 
-    // Persist to specs storage
+    const resolvedFtp = usePowerWatts
+      ? Math.max(80, Math.min(600, Math.round(Number(ftpWatts) || 210)))
+      : 210;
+
+    // Persist profile preferences
     try {
       const existingSpecs = loadRiderBikeSpecs();
       saveRiderBikeSpecs({
         ...existingSpecs,
         riderWeightKg: Number(riderWeightKg) || 75,
+        cockpitViewMode: usePowerWatts ? 'pro' : 'essential',
+        telemetryMode: usePowerWatts ? 'quantitative' : 'fuel-first',
+        pacingInputMode: usePowerWatts ? 'power' : 'feel',
+        ftpWatts: usePowerWatts ? resolvedFtp : existingSpecs.ftpWatts,
       });
 
       saveUserProfile({
-        name: isFr ? 'Pilote' : 'Rider',
+        name: isFr ? 'Cycliste' : 'Rider',
         weightKg: Number(riderWeightKg) || 75,
         bikeType: selectedBikeId,
         bikeName: chosenBike.name,
@@ -262,6 +280,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
         urbanTrafficDelayMinutes: 0,
         gateSecurityDelayMinutes: 0,
         coordinates: coordinates.length > 0 ? coordinates : DEFAULT_NANTES_ROUTE_COORDS,
+        waypoints: waypoints.length > 0 ? waypoints : undefined,
         routeMode: routeMode === 'from-to' ? 'corridor' : routeMode === 'distance' ? 'manual-radius' : 'gpx',
       },
       office: {
@@ -292,7 +311,10 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     (trip as any).__onboardingSpecs = {
       isTubeless,
       riderLevel: purpose === 'sport' ? 'regular' : 'occasional',
-      ftpWatts: 200,
+      ftpWatts: resolvedFtp,
+      cockpitViewMode: usePowerWatts ? 'pro' : 'essential',
+      telemetryMode: usePowerWatts ? 'quantitative' : 'fuel-first',
+      pacingInputMode: usePowerWatts ? 'power' : 'feel',
       carbTargetGPerHr: 60,
       nutritionPreference: selectedChips.includes('real-food') ? 'real-food' : 'mixed',
     };
@@ -300,12 +322,13 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     return trip;
   };
 
-  // Remark 1: "Try an example" instantly launches an example ride with pre-fetched data directly into the cockpit!
+  // Launch a ready-to-explore local sample ride in calm Guided view
   const handleTryExampleInstant = () => {
+    const exampleTag = isFr ? 'Vélotaf' : 'Commute';
     const exampleTrip: TripProfile = {
       id: `trip-example-${Date.now()}`,
       name: 'Trentemoult → Nantes gare',
-      tag: 'VÉLOTAF',
+      tag: exampleTag,
       description: isFr
         ? 'Trajet vélotaf exemplaire de 6.0 km à Nantes avec données pré-chargées et météo en direct.'
         : 'Exemplary 6.0 km commute in Nantes with pre-fetched route telemetry and live weather.',
@@ -356,7 +379,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
         estuaryGustKmH: 18,
         visibilityKm: 16,
       },
-      checklist: generateTripChecklist('VÉLOTAF', 6.0, undefined, {
+      checklist: generateTripChecklist(exampleTag, 6.0, undefined, {
         lang: isFr ? 'fr' : 'en',
         includeExtraRavito: false,
         customChips: ['coffee-stop'],
@@ -371,7 +394,10 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     (exampleTrip as any).__onboardingSpecs = {
       isTubeless: false,
       riderLevel: 'regular',
-      ftpWatts: 200,
+      ftpWatts: 210,
+      cockpitViewMode: 'essential',
+      telemetryMode: 'fuel-first',
+      pacingInputMode: 'feel',
       carbTargetGPerHr: 60,
       nutritionPreference: 'mixed',
     };
@@ -415,19 +441,12 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
           <div key={currentStep} className="flex-1 min-h-0 flex flex-col animate-apple-step-in">
-            {currentStep === 0 && (
-              <Screen1Welcome
-                onStartPlanning={() => setCurrentStep(1)}
-                onTryExample={handleTryExampleInstant}
-              />
-            )}
+            {currentStep === 0 && <Screen1Welcome />}
 
             {currentStep === 1 && (
               <Screen2Purpose
                 selectedPurpose={purpose}
                 onSelectPurpose={handleSelectPurpose}
-                onBack={() => setCurrentStep(0)}
-                onContinue={() => setCurrentStep(2)}
               />
             )}
 
@@ -439,21 +458,22 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 destination={destination}
                 distanceKm={distanceKm}
                 coordinates={coordinates}
+                waypoints={waypoints}
                 isRouteReady={isRouteReady}
                 gpxFileName={gpxFileName}
                 onUpdateOrigin={setOrigin}
                 onUpdateDestination={setDestination}
                 onUpdateDistance={setDistanceKm}
                 onUpdateCoordinates={setCoordinates}
+                onUpdateWaypoints={setWaypoints}
                 onGpxLoaded={(parsed) => {
                   setOrigin(parsed.name);
                   setDistanceKm(parsed.distanceKm);
                   setCoordinates(parsed.coordinates);
+                  setWaypoints([]);
                   setGpxFileName(`${parsed.name}.gpx`);
                   setIsRouteReady(true);
                 }}
-                onBack={() => setCurrentStep(1)}
-                onContinue={() => setCurrentStep(3)}
               />
             )}
 
@@ -487,8 +507,6 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                     baseWindSpeedKmH: weatherData.windKmH,
                   }));
                 }}
-                onBack={() => setCurrentStep(2)}
-                onContinue={() => setCurrentStep(4)}
               />
             )}
 
@@ -510,11 +528,12 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 onChangeCrr={setCrr}
                 drivetrainEfficiency={drivetrainEfficiency}
                 onChangeDrivetrainEfficiency={setDrivetrainEfficiency}
+                usePowerWatts={usePowerWatts}
+                onChangeUsePowerWatts={setUsePowerWatts}
+                ftpWatts={ftpWatts}
+                onChangeFtpWatts={setFtpWatts}
                 estimatedMinutes={ridingMinutes}
                 selectedSpeedKmH={speedKmH}
-                onBack={() => setCurrentStep(3)}
-                onSkip={() => setCurrentStep(5)}
-                onContinue={() => setCurrentStep(5)}
               />
             )}
 
@@ -524,6 +543,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 destination={destination}
                 distanceKm={distanceKm}
                 coordinates={coordinates}
+                waypoints={waypoints}
                 ridingMinutes={ridingMinutes}
                 speedKmH={speedKmH}
                 rideDateFormatted={formatRideDate(rideDate, isFr, false)}
@@ -539,8 +559,6 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 onEditRoute={() => setCurrentStep(2)}
                 onEditTiming={() => setCurrentStep(3)}
                 onEditSetup={() => setCurrentStep(4)}
-                onContinueToCockpit={handleLaunchDirect}
-                onGoToSaveSync={() => setCurrentStep(6)}
               />
             )}
 
@@ -550,13 +568,207 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 destination={destination}
                 distanceKm={distanceKm}
                 ridingMinutes={ridingMinutes}
-                onBackToPreview={() => setCurrentStep(5)}
-                onContinueOnDevice={handleLaunchDirect}
                 onAuthenticatedAndLaunch={handleLaunchDirect}
               />
             )}
           </div>
         </main>
+
+        {/* Unified Sticky Shell Footer (outside animated step wrapper) */}
+        <footer className="shrink-0 bg-card/95 backdrop-blur-md px-4 sm:px-8 py-3 sm:py-3.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-black/10 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-2.5 sm:gap-4 shadow-[0_-4px_16px_rgba(0,0,0,0.05)] dark:shadow-[0_-4px_16px_rgba(0,0,0,0.28)]">
+          {currentStep === 0 && (
+            <>
+              <span className="text-xs text-ink-muted font-body order-2 sm:order-1 text-center sm:text-left">
+                {isFr ? 'Sans profil. Sans inscription. Juste votre sortie.' : 'No profile. No signup. Just a ride.'}
+              </span>
+              <div className="flex items-center gap-3 w-full sm:w-auto justify-end order-1 sm:order-2">
+                <button
+                  type="button"
+                  onClick={handleTryExampleInstant}
+                  className="flex-1 sm:flex-none min-h-[44px] px-4 py-2 rounded-full border border-black/15 dark:border-white/20 bg-pod hover:bg-surface-active text-ink text-xs font-rounded font-bold transition-all active:scale-[0.98] cursor-pointer"
+                >
+                  {isFr ? 'Explorer l’exemple' : 'Try an example'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(1)}
+                  className="flex-1 sm:flex-none min-h-[44px] px-5 py-2 rounded-full bg-volt text-[#4d5200] ring-2 ring-inset ring-[#a3b300] text-xs font-rounded font-bold hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
+                >
+                  <span>{isFr ? 'Commencer' : 'Start planning'}</span>
+                  <ArrowRight size={14} className="stroke-[2.5]" />
+                </button>
+              </div>
+            </>
+          )}
+
+          {currentStep === 1 && (
+            <>
+              <button
+                type="button"
+                onClick={() => setCurrentStep(0)}
+                className="min-h-[44px] px-4 py-2 rounded-full border border-black/15 dark:border-white/20 bg-card hover:bg-pod text-ink text-xs font-rounded font-bold transition-all active:scale-[0.98] cursor-pointer flex items-center gap-1.5 w-full sm:w-auto justify-center"
+              >
+                <ArrowLeft size={14} />
+                <span>{isFr ? 'Accueil' : 'Welcome'}</span>
+              </button>
+              <span className="hidden sm:inline text-xs text-ink-muted font-body text-center">
+                {isFr ? 'Vous pourrez modifier cela plus tard.' : 'You can change this later.'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setCurrentStep(2)}
+                className="min-h-[44px] px-5 py-2 rounded-full bg-volt text-[#4d5200] ring-2 ring-inset ring-[#a3b300] text-xs font-rounded font-bold hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer flex items-center gap-1.5 shadow-sm w-full sm:w-auto justify-center"
+              >
+                <span>{isFr ? 'Continuer vers le parcours' : 'Continue to route'}</span>
+                <ArrowRight size={14} className="stroke-[2.5]" />
+              </button>
+            </>
+          )}
+
+          {currentStep === 2 && (
+            <>
+              <button
+                type="button"
+                onClick={() => setCurrentStep(1)}
+                className="min-h-[44px] px-4 py-2 rounded-full border border-black/15 dark:border-white/20 bg-card hover:bg-pod text-ink text-xs font-rounded font-bold transition-all active:scale-[0.98] cursor-pointer flex items-center gap-1.5 w-full sm:w-auto justify-center"
+              >
+                <ArrowLeft size={14} />
+                <span>{isFr ? 'Retour' : 'Back'}</span>
+              </button>
+              <span className="hidden sm:inline text-xs text-ink-muted font-body font-medium text-center tnum">
+                {isFr ? `Parcours · ${distanceKm.toFixed(1)} km` : `Route · ${distanceKm.toFixed(1)} km`}
+              </span>
+              <button
+                type="button"
+                onClick={() => setCurrentStep(3)}
+                className="min-h-[44px] px-5 py-2 rounded-full bg-volt text-[#4d5200] ring-2 ring-inset ring-[#a3b300] text-xs font-rounded font-bold hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer flex items-center gap-1.5 shadow-sm w-full sm:w-auto justify-center"
+              >
+                <span>{isFr ? 'Utiliser cet itinéraire' : 'Use this route'}</span>
+                <ArrowRight size={14} className="stroke-[2.5]" />
+              </button>
+            </>
+          )}
+
+          {currentStep === 3 && (
+            <>
+              <button
+                type="button"
+                onClick={() => setCurrentStep(2)}
+                className="min-h-[44px] px-4 py-2 rounded-full border border-black/15 dark:border-white/20 bg-card hover:bg-pod text-ink text-xs font-rounded font-bold transition-all active:scale-[0.98] cursor-pointer flex items-center gap-1.5 w-full sm:w-auto justify-center"
+              >
+                <ArrowLeft size={14} />
+                <span>{isFr ? 'Retour' : 'Back'}</span>
+              </button>
+              <span className="hidden sm:inline text-xs text-ink-muted font-body tnum">
+                {targetMode === 'arrive'
+                  ? isFr
+                    ? `Départ calculé : ${leaveTimeFormatted}`
+                    : `Calculated departure: ${leaveTimeFormatted}`
+                  : isFr
+                  ? `Arrivée calculée : ${arriveTimeFormatted}`
+                  : `Calculated arrival: ${arriveTimeFormatted}`}
+              </span>
+              <button
+                type="button"
+                onClick={() => setCurrentStep(4)}
+                className="min-h-[44px] px-5 py-2 rounded-full bg-volt text-[#4d5200] ring-2 ring-inset ring-[#a3b300] text-xs font-rounded font-bold hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer flex items-center gap-1.5 shadow-sm w-full sm:w-auto justify-center"
+              >
+                <span>{isFr ? 'Continuer vers le vélo' : 'Continue to rider & bike'}</span>
+                <ArrowRight size={14} className="stroke-[2.5]" />
+              </button>
+            </>
+          )}
+
+          {currentStep === 4 && (
+            <>
+              <button
+                type="button"
+                onClick={() => setCurrentStep(3)}
+                className="min-h-[44px] px-4 py-2 rounded-full border border-black/15 dark:border-white/20 bg-card hover:bg-pod text-ink text-xs font-rounded font-bold transition-all active:scale-[0.98] cursor-pointer flex items-center gap-1.5 w-full sm:w-auto justify-center"
+              >
+                <ArrowLeft size={14} />
+                <span>{isFr ? 'Retour' : 'Back'}</span>
+              </button>
+              <span className="hidden sm:inline text-xs text-ink-muted font-body text-center">
+                {isFr ? 'Optionnel · modifiable à tout moment' : 'Optional · editable any time'}
+              </span>
+              <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(5)}
+                  className="flex-1 sm:flex-none min-h-[44px] px-4 py-2 rounded-full border border-black/15 dark:border-white/20 bg-pod hover:bg-surface-active text-ink text-xs font-rounded font-bold transition-all active:scale-[0.98] cursor-pointer"
+                >
+                  {isFr ? 'Passer' : 'Skip'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(5)}
+                  className="flex-1 sm:flex-none min-h-[44px] px-5 py-2 rounded-full bg-volt text-[#4d5200] ring-2 ring-inset ring-[#a3b300] text-xs font-rounded font-bold hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
+                >
+                  <span>{isFr ? 'Voir l’aperçu' : 'View preview'}</span>
+                  <ArrowRight size={14} className="stroke-[2.5]" />
+                </button>
+              </div>
+            </>
+          )}
+
+          {currentStep === 5 && (
+            <>
+              <button
+                type="button"
+                onClick={() => setCurrentStep(4)}
+                className="min-h-[44px] px-4 py-2 rounded-full border border-black/15 dark:border-white/20 bg-card hover:bg-pod text-ink text-xs font-rounded font-bold transition-all active:scale-[0.98] cursor-pointer flex items-center gap-1.5 w-full sm:w-auto justify-center"
+              >
+                <ArrowLeft size={14} />
+                <span>{isFr ? 'Modifier la config' : 'Edit setup'}</span>
+              </button>
+              <span className="hidden sm:inline text-xs text-ink-muted font-body text-center">
+                {isFr ? 'Votre sortie est prête · aucune inscription requise' : 'Your ride is ready · no signup required'}
+              </span>
+              <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  onClick={handleLaunchDirect}
+                  className="flex-1 sm:flex-none min-h-[44px] px-4 py-2 rounded-full border border-black/15 dark:border-white/20 bg-pod hover:bg-surface-active text-ink text-xs font-rounded font-bold transition-all active:scale-[0.98] cursor-pointer"
+                >
+                  {isFr ? 'Ouvrir le plan' : 'View ride plan'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(6)}
+                  className="flex-1 sm:flex-none min-h-[44px] px-5 py-2 rounded-full bg-volt text-[#4d5200] ring-2 ring-inset ring-[#a3b300] text-xs font-rounded font-bold hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
+                >
+                  <span>{isFr ? 'Enregistrer & synchroniser' : 'Save & sync'}</span>
+                  <ArrowRight size={14} className="stroke-[2.5]" />
+                </button>
+              </div>
+            </>
+          )}
+
+          {currentStep === 6 && (
+            <>
+              <button
+                type="button"
+                onClick={() => setCurrentStep(5)}
+                className="min-h-[44px] px-4 py-2 rounded-full border border-black/15 dark:border-white/20 bg-card hover:bg-pod text-ink text-xs font-rounded font-bold transition-all active:scale-[0.98] cursor-pointer flex items-center gap-1.5 w-full sm:w-auto justify-center"
+              >
+                <ArrowLeft size={14} />
+                <span>{isFr ? 'Retour à l’aperçu' : 'Back to ride preview'}</span>
+              </button>
+              <span className="hidden sm:inline text-xs text-ink-muted font-body text-center">
+                {isFr ? 'Aucun compte requis pour utiliser votre plan de route' : 'No account required to use your ride plan'}
+              </span>
+              <button
+                type="button"
+                onClick={handleLaunchDirect}
+                className="min-h-[44px] px-5 py-2 rounded-full bg-volt text-[#4d5200] ring-2 ring-inset ring-[#a3b300] text-xs font-rounded font-bold hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer flex items-center gap-1.5 shadow-sm w-full sm:w-auto justify-center"
+              >
+                <span>{isFr ? 'Continuer sans compte' : 'Continue without account'}</span>
+                <ArrowRight size={14} className="stroke-[2.5]" />
+              </button>
+            </>
+          )}
+        </footer>
       </div>
     </div>
   );

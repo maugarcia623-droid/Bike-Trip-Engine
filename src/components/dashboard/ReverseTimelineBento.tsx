@@ -22,6 +22,12 @@ import {
   Camera,
   Moon,
   ChevronDown,
+  MapPin,
+  Droplets,
+  Cemetery,
+  Baguette,
+  Wrench,
+  Flag,
 } from '@/components/icons';
 import type { TripProfile, TimelineStep } from '../../types/trip';
 import type { RiderBikeSpecs } from '../../types/specs';
@@ -36,7 +42,7 @@ import {
   ChipTheme,
 } from '../../tokens/chipTokens';
 import { ReverseTimelineCalculation } from '../../utils/timeline';
-import { TimelineContextualBanner, getTripArchetype } from './TimelineContextualBanner';
+import { getTripArchetype } from './TimelineContextualBanner';
 import { useTranslation } from '../../context/LanguageContext';
 
 interface ReverseTimelineBentoProps {
@@ -133,6 +139,18 @@ function getTimelineStepTokenSpec(
         return { icon: Camera, theme: 'purple' };
       case 'Moon':
         return { icon: Moon, theme: 'purple' };
+      case 'Droplets':
+        return { icon: Droplets, theme: 'sky' };
+      case 'Cemetery':
+        return { icon: Cemetery, theme: 'teal' };
+      case 'Baguette':
+        return { icon: Baguette, theme: 'amber' };
+      case 'Wrench':
+        return { icon: Wrench, theme: 'orange' };
+      case 'MapPin':
+        return { icon: MapPin, theme: 'emerald' };
+      case 'Flag':
+        return { icon: Flag, theme: 'emerald' };
       default:
         return { icon: Clock, theme: 'amber' };
     }
@@ -252,15 +270,12 @@ export const ReverseTimelineBento: React.FC<ReverseTimelineBentoProps> = ({
       }
       className="w-full"
     >
-      {/* Contextual Directive Capsule / Expandable Mandate Pod */}
-      <TimelineContextualBanner trip={trip} timeline={timeline} riderSpecs={riderSpecs} />
-
       {/*
         Compact Itinerary Rail
         Columns: [time · 3rem] [spine node · 2rem] [title + location] [phase badge + chevron]
         Rows sit directly on the card surface (rounded-pod at 16px inset → concentric with rounded-card).
       */}
-      <div className="max-h-[380px] overflow-y-auto pr-1 scrollbar-thin mt-3">
+      <div className="mt-2">
         <ol className="relative py-0.5 space-y-0.5" aria-label={cardTitle}>
           {/* Continuous vertical dashed road center-line, centred on the node column */}
           {visibleSteps.length > 1 && (
@@ -305,7 +320,7 @@ export const ReverseTimelineBento: React.FC<ReverseTimelineBentoProps> = ({
                       </span>
                       <div className="flex items-center gap-2 min-w-0">
                         <span
-                          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-rounded font-bold uppercase tracking-wider shrink-0 ${phaseTokens.surface} ${phaseTokens.primary}`}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-rounded font-semibold shrink-0 ${phaseTokens.surface} ${phaseTokens.primary}`}
                         >
                           <span className={`w-1.5 h-1.5 rounded-full ${phaseTokens.dot}`} />
                           {getPhaseLabel(phase)}
@@ -481,7 +496,7 @@ export const ReverseTimelineBento: React.FC<ReverseTimelineBentoProps> = ({
           <span aria-hidden="true" />
           <span
             aria-hidden="true"
-            className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-rounded font-bold tnum text-ink-muted border border-dashed border-ink/20 dark:border-white/20 group-hover:text-ink transition-colors"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-rounded font-bold tnum text-ink-muted bg-pod group-hover:text-ink transition-colors"
           >
             +{hiddenCount}
           </span>

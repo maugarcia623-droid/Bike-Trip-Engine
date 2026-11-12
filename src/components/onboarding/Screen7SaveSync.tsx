@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, ArrowRight, Check, Eye, EyeOff, SpinnerGap, Lock, Mail } from '@/components/icons';
+import { Check, Eye, EyeOff, SpinnerGap, Mail } from '@/components/icons';
 import { useTranslation } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 
@@ -8,8 +8,6 @@ interface Screen7SaveSyncProps {
   destination: string;
   distanceKm: number;
   ridingMinutes: number;
-  onBackToPreview: () => void;
-  onContinueOnDevice: () => void;
   onAuthenticatedAndLaunch: () => void;
 }
 
@@ -18,8 +16,6 @@ export const Screen7SaveSync: React.FC<Screen7SaveSyncProps> = ({
   destination,
   distanceKm,
   ridingMinutes,
-  onBackToPreview,
-  onContinueOnDevice,
   onAuthenticatedAndLaunch,
 }) => {
   const { lang } = useTranslation();
@@ -103,9 +99,9 @@ export const Screen7SaveSync: React.FC<Screen7SaveSyncProps> = ({
     <div className="flex-1 min-h-0 flex flex-col justify-between p-4 sm:p-8 md:p-10 pb-6 sm:pb-8 max-w-6xl mx-auto w-full">
       {/* Top Narrative Banner */}
       <div className="mb-6">
-        <div className="inline-flex items-center gap-2 text-xs font-mono font-bold tracking-wider text-ink-muted uppercase mb-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-volt" />
-          <span>{isFr ? 'ÉTAPE OPTIONNELLE' : 'OPTIONAL NEXT STEP'}</span>
+        <div className="inline-flex items-center gap-2 text-xs font-rounded font-semibold text-ink-muted mb-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#4D7C0F] dark:bg-volt" />
+          <span>{isFr ? 'Étape optionnelle' : 'Optional step'}</span>
         </div>
 
         <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold font-rounded tracking-tight text-ink leading-tight mb-2">
@@ -186,7 +182,7 @@ export const Screen7SaveSync: React.FC<Screen7SaveSyncProps> = ({
                     : 'text-ink-muted hover:text-ink hover:bg-card/40 font-medium'
                 }`}
               >
-                {isFr ? 'Lien magique' : 'Magic Link'}
+                {isFr ? 'Lien e-mail' : 'Email link'}
               </button>
             </div>
 
@@ -203,7 +199,7 @@ export const Screen7SaveSync: React.FC<Screen7SaveSyncProps> = ({
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="cycliste@cadence.app"
-                    className="w-full min-h-[42px] px-3.5 pr-10 rounded-pod bg-pod border border-black/10 dark:border-white/15 text-ink text-base sm:text-xs font-body focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-white shadow-xs"
+                    className="w-full min-h-[44px] px-3.5 pr-10 rounded-pod bg-pod border border-black/10 dark:border-white/15 text-ink text-base sm:text-sm font-body focus:outline-none focus:ring-2 focus:ring-inset focus:ring-ink dark:focus:ring-white shadow-xs"
                   />
                   <Mail size={14} className="absolute right-3 text-ink-muted pointer-events-none" />
                 </div>
@@ -221,12 +217,12 @@ export const Screen7SaveSync: React.FC<Screen7SaveSyncProps> = ({
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full min-h-[42px] px-3.5 pr-10 rounded-pod bg-pod border border-black/10 dark:border-white/15 text-ink text-base sm:text-xs font-body focus:outline-none focus:ring-1 focus:ring-ink dark:focus:ring-white shadow-xs"
+                      className="w-full min-h-[44px] px-3.5 pr-10 rounded-pod bg-pod border border-black/10 dark:border-white/15 text-ink text-base sm:text-sm font-body focus:outline-none focus:ring-2 focus:ring-inset focus:ring-ink dark:focus:ring-white shadow-xs"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 text-ink-muted hover:text-ink cursor-pointer"
+                      className="relative before:content-[''] before:absolute before:-inset-2 absolute right-3 text-ink-muted hover:text-ink cursor-pointer"
                     >
                       {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                     </button>
@@ -258,24 +254,24 @@ export const Screen7SaveSync: React.FC<Screen7SaveSyncProps> = ({
                     ? isFr ? 'Créer mon compte & lancer' : 'Create account & launch'
                     : authMode === 'login'
                     ? isFr ? 'Se connecter & lancer' : 'Sign in & launch'
-                    : isFr ? 'Envoyer le lien magique' : 'Send magic link'}
+                    : isFr ? 'Envoyer le lien par e-mail' : 'Send sign-in link'}
                 </span>
               </button>
             </form>
           </div>
 
-          <div className="pt-3 border-t border-black/5 dark:border-white/10 mt-3 text-[11px] text-ink-muted font-body">
+          <div className="pt-3 border-t border-black/5 dark:border-white/10 mt-3 text-xs text-ink-muted font-body">
             {isFr
-              ? 'Vos sorties sont synchronisées en direct sur Supabase Cloud.'
-              : 'Your trips are saved securely to Supabase Cloud.'}
+              ? 'Vos sorties sont synchronisées et sauvegardées de façon sécurisée.'
+              : 'Your rides sync securely across your signed-in devices.'}
           </div>
         </div>
 
-        {/* Card 2: Continue on This Device */}
+        {/* Card 2: Continue on This Device (informational — primary launch CTA sits in footer) */}
         <div className="bento-card bg-pod/60 dark:bg-card text-ink rounded-card p-5 sm:p-6 border border-black/5 dark:border-white/10 shadow-xs flex flex-col justify-between">
           <div>
             <h3 className="text-base sm:text-lg font-rounded font-bold text-ink mb-2">
-              {isFr ? 'Continuer sur cet appareil' : 'Continue on this device'}
+              {isFr ? 'Continuer sur cet appareil' : 'Stay on this device'}
             </h3>
 
             <p className="text-xs sm:text-sm text-ink-secondary leading-relaxed mb-4 font-body">
@@ -290,57 +286,22 @@ export const Screen7SaveSync: React.FC<Screen7SaveSyncProps> = ({
                 : 'Clearing browser data or using private browsing may remove local rides. Another browser or device won’t have this local copy.'}
             </p>
 
-            <div className="text-xs font-rounded font-bold text-ink mb-6">
-              {isFr ? 'Vous pourrez créer un compte plus tard.' : 'You can choose an account later.'}
+            <div className="flex items-center gap-2 text-xs font-rounded font-semibold text-ink">
+              <Check size={14} className="stroke-[3] text-emerald-700 dark:text-emerald-400" />
+              <span>{isFr ? 'Vous pourrez créer un compte plus tard depuis le menu.' : 'You can sign in any time later from Settings.'}</span>
             </div>
-          </div>
-
-          <div className="pt-4 border-t border-black/5 dark:border-white/10">
-            <button
-              type="button"
-              onClick={onContinueOnDevice}
-              className="w-full min-h-[44px] px-5 py-2 rounded-full border border-black/15 dark:border-white/20 bg-card hover:bg-pod text-ink text-xs font-rounded font-bold transition-all active:scale-[0.98] cursor-pointer shadow-xs flex items-center justify-center gap-2"
-            >
-              <span>{isFr ? 'Lancer en mode invité local' : 'Launch in local guest mode'}</span>
-              <ArrowRight size={14} className="stroke-[2.5]" />
-            </button>
           </div>
         </div>
       </div>
 
       {/* Summary Row Strip */}
-      <div className="p-3.5 rounded-pod bg-card border border-black/5 dark:border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-6">
+      <div className="p-3.5 rounded-pod bg-card border border-black/5 dark:border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
         <span className="text-xs font-medium text-ink-muted">
           {isFr ? 'Cette sortie' : 'This ride'}
         </span>
         <span className="text-xs sm:text-sm font-rounded font-bold text-ink tnum">
           {originShort} → {destShort} · {distanceKm.toFixed(1)} km · {isFr ? `estimé à ${ridingMinutes} min` : `estimated ${ridingMinutes} min riding`}
         </span>
-      </div>
-
-      {/* Footer Navigation Bar - Sticky Mobile Bar */}
-      <div className="sticky bottom-0 z-20 bg-card/95 backdrop-blur-md pt-3 sm:pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-4 border-t border-black/10 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 shrink-0 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_16px_rgba(0,0,0,0.3)] -mx-4 sm:-mx-8 md:-mx-10 px-4 sm:px-8 md:px-10 mt-auto">
-        <button
-          type="button"
-          onClick={onBackToPreview}
-          className="min-h-[44px] px-4 py-2 rounded-full border border-black/15 dark:border-white/20 bg-card hover:bg-pod text-ink text-xs font-rounded font-bold transition-all active:scale-[0.98] cursor-pointer flex items-center gap-1.5 w-full sm:w-auto justify-center"
-        >
-          <ArrowLeft size={14} />
-          <span>{isFr ? 'Retour à l’aperçu' : 'Back to ride preview'}</span>
-        </button>
-
-        <span className="text-xs text-ink-muted font-body text-center">
-          {isFr ? 'Aucun compte requis pour utiliser votre plan de route' : 'No account required to use your ride plan'}
-        </span>
-
-        <button
-          type="button"
-          onClick={onContinueOnDevice}
-          className="min-h-[44px] px-5 py-2 rounded-full bg-volt text-[#4d5200] ring-2 ring-inset ring-[#a3b300] text-xs font-rounded font-bold hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer flex items-center gap-1.5 shadow-sm w-full sm:w-auto justify-center"
-        >
-          <span>{isFr ? 'Continuer sur cet appareil' : 'Continue on this device'}</span>
-          <ArrowRight size={14} className="stroke-[2.5]" />
-        </button>
       </div>
     </div>
   );

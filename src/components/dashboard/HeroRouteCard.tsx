@@ -24,14 +24,20 @@ import {
   BadgeInfo,
   Radar,
   Download,
+  ShieldCheck,
+  TriangleAlert,
+  RefreshCw,
+  LoaderCircle,
 } from '@/components/icons';
 import { downloadTripGpx } from '../../utils/gpxExporter';
-import { TripProfile, PhysicsCalculationResult } from '../../types/trip';
+import { TripProfile, PhysicsCalculationResult, SurfaceSegment, SurfaceType } from '../../types/trip';
 import { StageAmenity } from '../../types/amenities';
 import { ResupplyRadarOverlay } from './ResupplyRadarOverlay';
 import { RiderBikeSpecs } from '../../types/specs';
 import { getActiveBike, loadRiderBikeSpecs } from '../../utils/specsStorage';
 import { synthesizeRouteElevationProfile } from '../../utils/gpxParser';
+import { computeSurfaceBreakdown, SURFACE_VISUAL_META } from '../../utils/surfaceProfile';
+import { useOsmSurface } from '../../services/osmSurfaceService';
 import { ReverseTimelineCalculation } from '../../utils/timeline';
 import { useTranslation } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -197,6 +203,9 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
 
   const [isElevationHovered, setIsElevationHovered] = useState<boolean>(false);
   const [hoveredElevCol, setHoveredElevCol] = useState<number | null>(null);
+  const [activeSurfaceSegmentId, setActiveSurfaceSegmentId] = useState<string | null>(null);
+  const [showAllPopoverSectors, setShowAllPopoverSectors] = useState(false);
+  const surfaceHighlightLayerRef = useRef<L.Polyline | null>(null);
 
   const effectiveSpecs = riderSpecs || loadRiderBikeSpecs();
   const activeBike = getActiveBike(effectiveSpecs);
@@ -390,8 +399,10 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
   }, [sanitizedCoords]);
 
   const routeFingerprint = useMemo(() => {
+    const wpCount = trip.route.waypoints?.length || 0;
+    const distKey = trip.route.distanceKm || 0;
     if (isRadiusMode) {
-      return `radius:${radiusCenter[0].toFixed(5)},${radiusCenter[1].toFixed(5)}:${loopRadiusMeters}`;
+      return `radius:${radiusCenter[0].toFixed(5)},${radiusCenter[1].toFixed(5)}:${loopRadiusMeters}:${distKey}:${wpCount}`;
     }
     const len = activeCoordinates.length;
     const start =
@@ -400,8 +411,15 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
       len > 1
         ? `${activeCoordinates[len - 1][0].toFixed(5)},${activeCoordinates[len - 1][1].toFixed(5)}`
         : '';
-    return `corridor:${len}:${start}:${end}`;
-  }, [isRadiusMode, radiusCenter, loopRadiusMeters, activeCoordinates]);
+    return `corridor:${len}:${start}:${end}:${distKey}:${wpCount}`;
+  }, [
+    isRadiusMode,
+    radiusCenter,
+    loopRadiusMeters,
+    activeCoordinates,
+    trip.route.distanceKm,
+    trip.route.waypoints?.length,
+  ]);
 
   const handleSetDistanceKm = (nextDistanceRaw: number) => {
     if (!onUpdateTrip || Number.isNaN(nextDistanceRaw)) return;
@@ -411,7 +429,10 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
     const scaledElev = Math.max(0, Math.round(oldElev * (clampedKm / oldKm)));
     const nextLoopKm = Math.round((clampedKm / 2) * 10) / 10;
     const originShort = (trip.route.origin || 'Start').split(',')[0].trim();
-    const updatedName = isRadiusMode
+    const isAutoLoopTitle =
+      !trip.name?.trim() ||
+      /^.+ · (\d+(\.\d+)? km Loop|Boucle de \d+(\.\d+)? km)$/i.test(trip.name.trim());
+    const updatedName = isRadiusMode && isAutoLoopTitle
       ? (isFr ? `${originShort} · Boucle de ${clampedKm} km` : `${originShort} · ${clampedKm} km Loop`)
       : trip.name;
     const updatedDesc = trip.description
@@ -480,23 +501,82 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
   const elevationData = useMemo(() => synthesizeRouteElevationProfile(trip.route), [trip.route]);
   const terrainSummary = elevationData.terrainSummary;
 
+  const canQueryOsmSurface =
+    trip.route.routeMode !== 'manual-radius' && activeCoordinates.length >= 2;
+  const {
+    osmData,
+    status: osmStatus,
+    error: osmError,
+    refresh: refreshOsmSurface,
+  } = useOsmSurface(activeCoordinates, trip.route.distanceKm, canQueryOsmSurface);
+
+  const surfaceBreakdown = useMemo(
+    () =>
+      computeSurfaceBreakdown(
+        {
+          ...trip.route,
+          coordinates: activeCoordinates,
+          elevationProfile: elevationData.elevationProfile,
+        },
+        {
+          crr: trip.physics.crr ?? activeBike?.crr ?? 0.0055,
+          tireWidthMm: activeBike?.tireWidthMm,
+          isTubeless: activeBike?.isTubeless ?? true,
+          riderWeightKg: trip.physics.riderWeightKg,
+          bikeWeightKg: trip.physics.bikeWeightKg,
+          luggageWeightKg: trip.physics.luggageWeightKg ?? trip.physics.gearWeightKg,
+          customChips: trip.customChips ?? [],
+          osmData,
+          isLoadingOsm: canQueryOsmSurface && osmStatus === 'loading',
+          osmError,
+        }
+      ),
+    [
+      trip.route,
+      activeCoordinates,
+      elevationData.elevationProfile,
+      trip.physics.crr,
+      trip.physics.riderWeightKg,
+      trip.physics.bikeWeightKg,
+      trip.physics.luggageWeightKg,
+      trip.physics.gearWeightKg,
+      activeBike?.crr,
+      activeBike?.tireWidthMm,
+      activeBike?.isTubeless,
+      trip.customChips,
+      osmData,
+      canQueryOsmSurface,
+      osmStatus,
+      osmError,
+    ]
+  );
+
   const elevationColumns = useMemo(() => {
     const pts = elevationData.elevationProfile;
     if (!pts || pts.length === 0) {
-      return Array.from({ length: ELEV_MATRIX_COLS }, (_, idx) => ({
-        distKm: Number((((idx / (ELEV_MATRIX_COLS - 1)) * (trip.route.distanceKm || 30))).toFixed(1)),
-        eleM: 20,
-        gradePct: 0,
-        filledRows: 4,
-      }));
+      return Array.from({ length: ELEV_MATRIX_COLS }, (_, idx) => {
+        const pct = (idx / Math.max(1, ELEV_MATRIX_COLS - 1)) * 100;
+        const seg = surfaceBreakdown.segments.find(
+          (s) => pct >= s.startPct && pct <= s.endPct
+        );
+        return {
+          distKm: Number((((idx / (ELEV_MATRIX_COLS - 1)) * (trip.route.distanceKm || 30))).toFixed(1)),
+          eleM: 20,
+          gradePct: 0,
+          filledRows: 4,
+          surfaceType: (seg?.type ?? 'paved') as SurfaceType,
+          segmentId: seg?.id ?? null,
+        };
+      });
     }
 
     const totalDist = Math.max(0.5, pts[pts.length - 1].distKm || trip.route.distanceKm || 30);
-    const sampled: { distKm: number; eleM: number; gradePct: number }[] = [];
+    const sampled: { distKm: number; eleM: number; gradePct: number; pct: number }[] = [];
     let cursor = 0;
 
     for (let c = 0; c < ELEV_MATRIX_COLS; c++) {
-      const targetDist = (c / (ELEV_MATRIX_COLS - 1)) * totalDist;
+      const pct = (c / Math.max(1, ELEV_MATRIX_COLS - 1)) * 100;
+      const targetDist = (pct / 100) * totalDist;
       while (cursor < pts.length - 2 && pts[cursor + 1].distKm < targetDist) {
         cursor++;
       }
@@ -508,6 +588,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
         distKm: targetDist,
         eleM: p0.eleM + (p1.eleM - p0.eleM) * ratio,
         gradePct: p0.gradePct + (p1.gradePct - p0.gradePct) * ratio,
+        pct,
       });
     }
 
@@ -530,12 +611,17 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                 Math.round(2 + ((s.eleM - minEle) / eleSpan) * (ELEV_MATRIX_ROWS - 4))
               )
             );
+      const seg = surfaceBreakdown.segments.find(
+        (segItem) => s.pct >= segItem.startPct && s.pct <= segItem.endPct
+      );
       return {
         ...s,
         filledRows,
+        surfaceType: (seg?.type ?? 'paved') as SurfaceType,
+        segmentId: seg?.id ?? null,
       };
     });
-  }, [elevationData.elevationProfile, trip.route.distanceKm]);
+  }, [elevationData.elevationProfile, trip.route.distanceKm, surfaceBreakdown.segments]);
 
   const elevationGainM =
     trip.route.elevationGainM ?? (trip.route.distanceKm ? Math.round(trip.route.distanceKm * 6.6) : 145);
@@ -687,9 +773,9 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
     const startIcon = L.divIcon({
       className: 'custom-hero-start-marker',
       html: `
-        <div style="position: relative; width: 14px; height: 14px; display: flex; items-center; justify-content: center;">
-          <div style="position: absolute; inset: -4px; border-radius: 9999px; background: rgba(0, 122, 255, 0.35); animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
-          <div style="background-color: #007AFF; width: 14px; height: 14px; border-radius: 9999px; border: 2.5px solid #ffffff; box-shadow: 0 0 10px rgba(0, 122, 255, 0.8);"></div>
+        <div style="position: relative; width: 14px; height: 14px; display: flex; align-items: center; justify-content: center;">
+          <div style="position: absolute; inset: -4px; border-radius: 9999px; background: rgba(16, 185, 129, 0.35); animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+          <div style="background-color: #10B981; width: 14px; height: 14px; border-radius: 9999px; border: 2.5px solid #ffffff; box-shadow: 0 0 10px rgba(16, 185, 129, 0.75);"></div>
         </div>
       `,
       iconSize: [14, 14],
@@ -735,18 +821,17 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
       };
     } else {
       const casingLine = L.polyline(coords, {
-        color: currentDark ? '#007AFF' : '#111111',
-        weight: currentDark ? 7 : 5,
-        opacity: currentDark ? 0.35 : 0.85,
+        color: currentDark ? '#0B132B' : '#111111',
+        weight: currentDark ? 7.5 : 6,
+        opacity: currentDark ? 0.65 : 0.85,
         lineCap: 'round',
         lineJoin: 'round',
       });
 
       const routeLine = L.polyline(coords, {
-        color: currentDark ? '#38BDF8' : '#F2F455',
-        weight: 3.2,
-        opacity: 1,
-        dashArray: currentDark ? undefined : '7, 5',
+        color: currentDark ? '#38BDF8' : '#0284C7',
+        weight: 3.5,
+        opacity: 0.01, // Invisible bounds anchor; color-coded surface segments render on top
         lineCap: 'round',
         lineJoin: 'round',
       });
@@ -754,12 +839,81 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
       group.addLayer(casingLine);
       group.addLayer(routeLine);
 
+      // Render color-coded surface segments along the route trace
+      for (const seg of surfaceBreakdown.segments) {
+        if (!seg.coordinates || seg.coordinates.length < 2) continue;
+        const meta = SURFACE_VISUAL_META[seg.type];
+        const segColor = currentDark ? meta.colorDark : meta.colorLight;
+        const segLine = L.polyline(seg.coordinates, {
+          color: segColor,
+          weight: seg.type === 'paved' ? 3.8 : 4.4,
+          opacity: 0.96,
+          dashArray: meta.dashArray,
+          lineCap: 'round',
+          lineJoin: 'round',
+        });
+
+        const suitabilityLabel =
+          seg.suitability38c === 'ideal'
+            ? isFr
+              ? `✅ Idéal en ${surfaceBreakdown.suitability.tireWidthMm}c`
+              : `✅ Ideal on ${surfaceBreakdown.suitability.tireWidthMm}c`
+            : seg.suitability38c === 'capable'
+            ? isFr
+              ? `👍 Adapté en ${surfaceBreakdown.suitability.tireWidthMm}c`
+              : `👍 Capable on ${surfaceBreakdown.suitability.tireWidthMm}c`
+            : isFr
+            ? `⚠️ Technique en ${surfaceBreakdown.suitability.tireWidthMm}c`
+            : `⚠️ Technical on ${surfaceBreakdown.suitability.tireWidthMm}c`;
+
+        segLine.bindTooltip(
+          `<div style="font-family:ui-rounded,Nunito,sans-serif;padding:2px 4px;">
+            <div style="font-weight:800;font-size:11px;">${isFr ? seg.nameFr : seg.nameEn}</div>
+            <div style="font-size:10px;opacity:0.85;">km ${seg.startKm}–${seg.endKm} (${seg.distanceKm} km) · ${
+              isFr ? meta.labelFr : meta.labelEn
+            }</div>
+            <div style="font-size:10px;font-weight:700;margin-top:2px;">${suitabilityLabel}</div>
+          </div>`,
+          { sticky: true, direction: 'top', offset: [0, -8] }
+        );
+
+        segLine.on('mouseover', () => {
+          setActiveSurfaceSegmentId(seg.id);
+        });
+        segLine.on('mouseout', () => {
+          setActiveSurfaceSegmentId((prev) => (prev === seg.id ? null : prev));
+        });
+
+        group.addLayer(segLine);
+      }
+
       let startMarker: L.Marker | undefined;
       let endMarker: L.Marker | undefined;
 
       if (coords.length > 0) {
         startMarker = L.marker(coords[0], { icon: startIcon });
         group.addLayer(startMarker);
+
+        // Render intermediate waypoints on hero map
+        if (trip.route.waypoints && trip.route.waypoints.length > 0) {
+          trip.route.waypoints.forEach((wp, idx) => {
+            if (wp.coordinates) {
+              const wpIcon = L.divIcon({
+                className: 'custom-map-marker',
+                html: `<div style="background-color: #F2F455; color: #111111; width: 18px; height: 18px; border-radius: 9999px; border: 2px solid #111111; display:flex; align-items:center; justify-content:center; font-size:9.5px; font-weight:800; font-family:ui-rounded,Nunito,sans-serif; box-shadow:0 2px 6px rgba(0,0,0,0.3);">${idx + 1}</div>`,
+                iconSize: [18, 18],
+                iconAnchor: [9, 9],
+              });
+              const wpMarker = L.marker(wp.coordinates, { icon: wpIcon });
+              wpMarker.bindTooltip(
+                `<div style="font-weight:700;font-size:11px;">${wp.name}</div>${wp.distanceFromStartKm ? `<div style="font-size:10px;color:#666;">km ${wp.distanceFromStartKm}</div>` : ''}`,
+                { direction: 'top', offset: [0, -9] }
+              );
+              group.addLayer(wpMarker);
+            }
+          });
+        }
+
         if (coords.length > 1) {
           endMarker = L.marker(coords[coords.length - 1], { icon: endIcon });
           group.addLayer(endMarker);
@@ -855,7 +1009,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
     };
   }, []);
 
-  // 2. Update vector route layers ONLY when route geometry/mode changes
+  // 2. Update vector route layers when route geometry/mode or surface breakdown changes
   const hasMountedRef = useRef(false);
   useEffect(() => {
     if (!hasMountedRef.current) {
@@ -870,7 +1024,52 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
       activeCoordinates,
       loopRadiusMeters
     );
-  }, [routeFingerprint]);
+  }, [routeFingerprint, surfaceBreakdown, isDarkMode]);
+
+  // 2b. Highlight active/hovered surface segment on map
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    if (surfaceHighlightLayerRef.current) {
+      surfaceHighlightLayerRef.current.remove();
+      surfaceHighlightLayerRef.current = null;
+    }
+
+    const colSegId =
+      hoveredElevCol !== null && elevationColumns[hoveredElevCol]
+        ? elevationColumns[hoveredElevCol].segmentId
+        : null;
+    const targetSegId = activeSurfaceSegmentId ?? colSegId;
+    if (!targetSegId || isRadiusMode) return;
+
+    const seg = surfaceBreakdown.segments.find((s) => s.id === targetSegId);
+    if (!seg || !seg.coordinates || seg.coordinates.length < 2) return;
+
+    const meta = SURFACE_VISUAL_META[seg.type];
+    const highlightPoly = L.polyline(seg.coordinates, {
+      color: isDarkMode ? '#FFFFFF' : '#111111',
+      weight: 9,
+      opacity: 0.85,
+      lineCap: 'round',
+      lineJoin: 'round',
+    }).addTo(map);
+
+    const innerHighlight = L.polyline(seg.coordinates, {
+      color: isDarkMode ? meta.colorDark : meta.colorLight,
+      weight: 5.5,
+      opacity: 1,
+      lineCap: 'round',
+      lineJoin: 'round',
+    }).addTo(map);
+
+    const fg = L.featureGroup([highlightPoly, innerHighlight]).addTo(map);
+    surfaceHighlightLayerRef.current = fg as unknown as L.Polyline;
+
+    return () => {
+      fg.remove();
+    };
+  }, [activeSurfaceSegmentId, hoveredElevCol, elevationColumns, surfaceBreakdown.segments, isDarkMode, isRadiusMode]);
 
   // 3. Update map tiles & layer styles when theme changes (no map recreation)
   useEffect(() => {
@@ -881,9 +1080,9 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
     const current = vectorLayersRef.current;
     if (current.casingLine && current.routeLine) {
       current.casingLine.setStyle({
-        color: isDarkMode ? '#007AFF' : '#111111',
+        color: isDarkMode ? '#18181B' : '#111111',
         weight: isDarkMode ? 7 : 5,
-        opacity: isDarkMode ? 0.35 : 0.85,
+        opacity: isDarkMode ? 0.55 : 0.85,
       });
       current.routeLine.setStyle({
         color: isDarkMode ? '#38BDF8' : '#F2F455',
@@ -982,18 +1181,18 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
       const popupHtml = `
         <div style="padding: 4px; font-family: ui-sans-serif, system-ui, sans-serif; min-width: 160px; line-height: 1.3;">
           <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 2px;">
-            <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: ${catBg}; letter-spacing: 0.5px;">
+            <span style="font-size: 10px; font-weight: 700; color: ${catBg}; letter-spacing: 0.2px;">
               ${catLabel}
             </span>
             <span style="font-size: 10px; font-weight: 700; background: #eee; color: #111; padding: 1px 6px; border-radius: 9999px; font-variant-numeric: tabular-nums;">
-              KM ${amenity.routeKm}
+              ${amenity.routeKm} km
             </span>
           </div>
           <div style="font-weight: 700; font-size: 12px; color: #111; margin-bottom: 3px;">
             ${amenity.name}
           </div>
           <div style="font-size: 10px; color: #666; display: flex; align-items: center; justify-content: space-between;">
-            <span>${amenity.detourMeters < 75 ? (isFr ? 'Sur la trace' : 'On route') : `+${amenity.detourMeters}m detour`}</span>
+            <span>${amenity.detourMeters < 75 ? (isFr ? 'Sur la trace' : 'On route') : `+${amenity.detourMeters} m ${isFr ? 'détour' : 'detour'}`}</span>
             ${isPinned ? `<span style="font-weight: 800; color: #4d5200; background: #f2f455; padding: 1px 4px; border-radius: 4px;">${isFr ? 'Épinglé' : 'Pinned'}</span>` : ''}
           </div>
         </div>
@@ -1044,7 +1243,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
   return (
     <div
       ref={heroRootRef}
-      className="relative rounded-card bg-card text-ink border border-ink/5 dark:border-white/5 transition-colors shadow-sm overflow-hidden min-h-[460px] sm:min-h-[490px] lg:min-h-[520px]"
+      className="relative max-w-full min-w-0 rounded-card bg-card text-ink transition-colors shadow-sm min-h-[460px] sm:min-h-[490px] lg:min-h-[520px]"
     >
       <div className="absolute inset-0 z-0 rounded-card overflow-hidden isolate [transform:translateZ(0)]">
         <div className="absolute inset-0 z-0 overflow-hidden">
@@ -1065,9 +1264,9 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
       </div>
 
       <div className="relative z-20 p-4 flex flex-col justify-between min-h-[460px] sm:min-h-[490px] lg:min-h-[520px] pointer-events-none">
-        <div className="relative z-30 flex items-center justify-start gap-2 mb-32 sm:mb-20 lg:mb-20 pointer-events-none">
+        <div className="relative z-30 flex flex-wrap items-center justify-start gap-2 mb-24 sm:mb-20 pointer-events-none max-w-full">
           {/* ── MINI DYNAMIC ISLAND PILL (1:1 ICON BUTTONS: ROUTE, RESUPPLY RADAR, BIKE SPECS) ── */}
-          <div className="relative inline-flex items-center gap-1 sm:gap-1.5 p-1 sm:p-1.5 rounded-full bg-card dark:bg-[#161618] text-ink dark:text-white border border-ink/10 dark:border-white/15 shadow-sm sm:shadow-md pointer-events-auto select-none transition-colors">
+          <div className="relative inline-flex items-center gap-1 sm:gap-1.5 p-1 sm:p-1.5 rounded-full bg-card/95 dark:bg-[#161618]/95 backdrop-blur-md text-ink dark:text-white shadow-sm sm:shadow-md pointer-events-auto select-none transition-colors">
             {/* 1. Route Direction / Flip Button (1:1 format, icon only) */}
             <button
               type="button"
@@ -1092,7 +1291,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     })
                   : `${trip.route.origin || 'Nord-sur-Erdre'} ⇄ ${trip.route.destination || meta.gateName || 'Redon'} (${t('heroFlipReturnBtn')})`
               }
-              className={`relative w-8 h-8 sm:w-8.5 sm:h-8.5 aspect-square rounded-full flex items-center justify-center transition-all duration-150 select-none active:scale-95 shrink-0 ${
+              className={`relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 w-9 h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 select-none active:scale-95 shrink-0 ${
                 isRadiusMode && activePopover === 'route'
                   ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.emerald.selectedRing}`
                   : `hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
@@ -1116,7 +1315,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   ? ` (${trip.pinnedAmenities.length} ${t('pinnedStop')})`
                   : ''
               }`}
-              className={`relative w-8 h-8 sm:w-8.5 sm:h-8.5 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 ${
+              className={`relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 w-9 h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 ${
                 isRadarOpen || (trip.pinnedAmenities && trip.pinnedAmenities.length > 0)
                   ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
                   : `hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
@@ -1144,10 +1343,10 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
               aria-label={t('heroBikeSwitchAria')}
               title={
                 activeBike
-                  ? `${activeBike.name} · ${activeBike.weightKg}kg · ${activeBike.isTubeless ? 'TL' : 'Tube'} (${t('heroBikeSwitchAria')})`
+                  ? `${activeBike.name} · ${activeBike.weightKg} kg · ${activeBike.isTubeless ? 'TL' : 'Tube'} (${t('heroBikeSwitchAria')})`
                   : t('heroBikeSwitchAria')
               }
-              className={`relative w-8 h-8 sm:w-8.5 sm:h-8.5 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 ${
+              className={`relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 w-9 h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 ${
                 activePopover === 'bike'
                   ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
                   : `hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
@@ -1165,16 +1364,16 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   onClick={() => setActivePopover(null)}
                   aria-hidden="true"
                 />
-                <div className="absolute left-0 top-full mt-2 w-72 sm:w-80 z-50 rounded-pod p-3 bg-card dark:bg-[#161618] border border-ink/15 dark:border-white/20 shadow-2xl animate-apple-popover">
+                <div className="absolute left-0 top-full mt-2 w-72 sm:w-80 z-50 rounded-pod p-3.5 bg-card dark:bg-[#161618] ring-1 ring-inset ring-ink/10 dark:ring-white/15 shadow-2xl animate-apple-popover">
                   <div className="flex items-center justify-between gap-2 mb-2 px-0.5">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">
+                    <span className="text-xs font-bold text-ink-muted">
                       {t('bikeGarageHeading', { count: effectiveSpecs.bikes.length })}
                     </span>
                     <button
                       type="button"
                       onClick={() => setActivePopover(null)}
                       aria-label={t('closeModalAria')}
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-pod cursor-pointer"
+                      className="relative before:content-[''] before:absolute before:-inset-1.5 w-8 h-8 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-pod cursor-pointer"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -1191,7 +1390,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                             onSelectBike?.(bike.id);
                             setActivePopover(null);
                           }}
-                          className={`w-full rounded-full px-4 py-2 text-left flex items-center justify-between gap-2 transition-all cursor-pointer ${
+                          className={`w-full min-h-[44px] rounded-full px-4 py-2 text-left flex items-center justify-between gap-2 transition-all cursor-pointer ${
                             selected
                               ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
                               : `bg-pod hover:bg-chip text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
@@ -1199,8 +1398,8 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                         >
                           <div className="min-w-0">
                             <div className="text-xs font-semibold break-words leading-tight">{bike.name}</div>
-                            <div className="text-[10px] font-mono tnum opacity-80 mt-0.5">
-                              {bike.weightKg}kg · {bike.isTubeless ? 'Tubeless' : 'Tube'} · CdA {bike.cda}
+                            <div className="text-[11px] tnum opacity-80 mt-0.5">
+                              {bike.weightKg} kg · {bike.isTubeless ? 'Tubeless' : 'Tube'} · {bike.tireWidthMm}c
                             </div>
                           </div>
                           {selected && <Check className="w-3.5 h-3.5 shrink-0 text-current" />}
@@ -1216,7 +1415,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                         setActivePopover(null);
                         onOpenSpecs();
                       }}
-                      className={`mt-2.5 w-full h-8 px-3 rounded-full bg-pod hover:bg-chip flex items-center justify-center gap-1.5 text-xs font-semibold text-ink-secondary hover:text-ink transition-colors cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                      className={`mt-2.5 w-full min-h-[44px] sm:min-h-[36px] px-3 rounded-full bg-pod hover:bg-chip flex items-center justify-center gap-1.5 text-xs font-semibold text-ink-secondary hover:text-ink transition-colors cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
                     >
                       <SlidersHorizontal className="w-3.5 h-3.5 text-current" />
                       <span>{t('heroManageGarageBtn')}</span>
@@ -1226,6 +1425,102 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
               </>
             )}
           </div>
+
+          {/* ── Top-Right Map Surface Legend & 38c Gravel Suitability Pill ── */}
+          <button
+            type="button"
+            onClick={() =>
+              setActivePopover((prev) => (prev === 'elevation' ? null : 'elevation'))
+            }
+            title={
+              isFr
+                ? 'Cliquez pour inspecter le profil des surfaces & la compatibilité gravel 38c'
+                : 'Click to inspect Surface Breakdown & 38c Gravel Suitability'
+            }
+            className="pointer-events-auto inline-flex flex-wrap items-center gap-x-2 gap-y-1 max-w-full px-3 py-1.5 rounded-2xl sm:rounded-full bg-card/92 dark:bg-[#161618]/92 backdrop-blur-xl ring-1 ring-inset ring-ink/10 dark:ring-white/15 shadow-lg hover:ring-ink/25 dark:hover:ring-white/30 transition-all cursor-pointer select-none"
+          >
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-rounded font-bold text-ink tnum">
+              <span className="inline-flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-sky-500 dark:bg-sky-400" />
+                <span>{surfaceBreakdown.pavedPct}%</span>
+                <span className="hidden sm:inline text-ink-secondary font-medium">
+                  {isFr ? 'Bitume' : 'Paved'}
+                </span>
+              </span>
+              <span className="opacity-35">·</span>
+              <span className="inline-flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-amber-500 dark:bg-amber-400" />
+                <span>{surfaceBreakdown.gravelPct}%</span>
+                <span className="hidden sm:inline text-ink-secondary font-medium">
+                  Gravel
+                </span>
+              </span>
+              {surfaceBreakdown.singletrackPct > 0 && (
+                <>
+                  <span className="opacity-35">·</span>
+                  <span className="inline-flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-rose-500 dark:bg-rose-400" />
+                    <span>{surfaceBreakdown.singletrackPct}%</span>
+                    <span className="hidden sm:inline text-ink-secondary font-medium">
+                      {isFr ? 'Sentier' : 'Trail'}
+                    </span>
+                  </span>
+                </>
+              )}
+            </span>
+
+            <span
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-rounded font-extrabold tnum ${
+                surfaceBreakdown.suitability.overallLevel === 'ideal'
+                  ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 ring-1 ring-inset ring-emerald-500/30'
+                  : surfaceBreakdown.suitability.overallLevel === 'good-with-care'
+                  ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300 ring-1 ring-inset ring-amber-500/30'
+                  : 'bg-rose-500/15 text-rose-700 dark:text-rose-300 ring-1 ring-inset ring-rose-500/30'
+              }`}
+            >
+              {surfaceBreakdown.suitability.overallLevel === 'ideal' ? (
+                <ShieldCheck className="w-3 h-3 shrink-0" />
+              ) : (
+                <TriangleAlert className="w-3 h-3 shrink-0" />
+              )}
+              <span>
+                {surfaceBreakdown.suitability.tireWidthMm}c{' '}
+                {surfaceBreakdown.suitability.overallLevel === 'ideal'
+                  ? isFr
+                    ? 'Idéal'
+                    : 'Ideal'
+                  : surfaceBreakdown.suitability.overallLevel === 'good-with-care'
+                  ? (() => {
+                      const count = Math.max(
+                        1,
+                        surfaceBreakdown.suitability.technicalCount ||
+                          surfaceBreakdown.suitability.unpavedCount
+                      );
+                      return isFr
+                        ? `${count} secteur${count > 1 ? 's' : ''}`
+                        : `Watch ${count}`;
+                    })()
+                  : isFr
+                  ? 'Technique'
+                  : 'Technical'}
+              </span>
+            </span>
+
+            {surfaceBreakdown.isLoadingOsm ? (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-rounded font-bold bg-sky-500/15 text-sky-700 dark:text-sky-300 ring-1 ring-inset ring-sky-500/25">
+                <LoaderCircle className="w-2.5 h-2.5 animate-spin" />
+                <span>{isFr ? 'Analyse' : 'Sync'}</span>
+              </span>
+            ) : surfaceBreakdown.dataSource === 'osm-overpass' ? (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-rounded font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 ring-1 ring-inset ring-emerald-500/25">
+                {isFr ? 'Vérifié' : 'Verified'}
+              </span>
+            ) : (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-rounded font-bold bg-ink/8 dark:bg-white/10 text-ink-muted">
+                Est.
+              </span>
+            )}
+          </button>
         </div>
 
         <div ref={lowerContentRef} className="mt-auto flex flex-col gap-3.5 sm:gap-4 pointer-events-auto">
@@ -1272,7 +1567,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
             {/* 1. Trip Start Time (Hard rollout) */}
             <div className="relative col-span-2 sm:col-span-1">
               {activePopover === 'target' && isInteractive && (
-                <div className="absolute left-0 bottom-full mb-2.5 w-[min(19.5rem,calc(100vw-3rem))] z-40 rounded-pod p-3.5 bg-card dark:bg-[#161618] border border-ink/10 dark:border-white/15 shadow-2xl animate-apple-popover">
+                <div className="absolute left-0 bottom-full mb-2.5 w-[min(19.5rem,calc(100vw-3rem))] z-40 rounded-pod p-3.5 bg-card dark:bg-[#161618] ring-1 ring-inset ring-ink/10 dark:ring-white/15 shadow-2xl animate-apple-popover">
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <span className="text-xs font-bold text-ink">
                       {isDepartAtMode ? t('rolloutTimeLabel') : t('heroQuickTargetTitle')}
@@ -1281,7 +1576,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                       <button
                         type="button"
                         onClick={handleToggleChronometryMode}
-                        className="px-2 py-0.5 rounded-full bg-pod hover:bg-chip text-[10px] font-semibold text-ink-secondary hover:text-ink transition-colors cursor-pointer"
+                        className="px-2.5 py-1 rounded-full bg-pod hover:bg-chip text-[11px] font-semibold text-ink-secondary hover:text-ink transition-colors cursor-pointer"
                       >
                         {isDepartAtMode
                           ? isFr
@@ -1295,7 +1590,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                         type="button"
                         onClick={() => setActivePopover(null)}
                         aria-label={t('closeModalAria')}
-                        className="w-6 h-6 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-pod cursor-pointer"
+                        className="relative before:content-[''] before:absolute before:-inset-1.5 w-8 h-8 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-pod cursor-pointer"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
@@ -1307,7 +1602,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                       type="time"
                       value={currentTargetGateTime}
                       onChange={(e) => handleSetDirectTargetTime(e.target.value)}
-                      className="flex-1 h-9 px-3.5 rounded-full bg-pod text-ink font-mono font-bold text-sm tnum border border-ink/10 dark:border-white/10 focus:outline-none"
+                      className="flex-1 min-h-[44px] sm:min-h-[38px] px-3.5 rounded-full bg-pod text-ink font-bold text-base sm:text-sm tnum focus:outline-none focus:ring-2 focus:ring-ink dark:focus:ring-white"
                     />
                   </div>
 
@@ -1317,7 +1612,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                         key={delta}
                         type="button"
                         onClick={() => handleNudgeTargetTime(delta)}
-                        className="h-8 rounded-full bg-pod hover:bg-chip text-xs font-mono font-semibold text-ink tnum transition-colors cursor-pointer"
+                        className="min-h-[44px] sm:min-h-[34px] rounded-full bg-pod hover:bg-chip text-xs font-semibold text-ink tnum transition-colors cursor-pointer"
                       >
                         {delta > 0 ? `+${delta} min` : `${delta} min`}
                       </button>
@@ -1387,7 +1682,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
             {/* 2. Trip Length */}
             <div className="relative">
               {activePopover === 'route' && isInteractive && (
-                <div className="absolute left-0 bottom-full mb-2.5 w-[min(19.5rem,calc(100vw-3rem))] z-40 rounded-pod p-3.5 bg-card dark:bg-[#161618] border border-ink/10 dark:border-white/15 shadow-2xl animate-apple-popover">
+                <div className="absolute left-0 bottom-full mb-2.5 w-[min(19.5rem,calc(100vw-3rem))] z-40 rounded-pod p-3.5 bg-card dark:bg-[#161618] ring-1 ring-inset ring-ink/10 dark:ring-white/15 shadow-2xl animate-apple-popover">
                   <div className="flex items-center justify-between gap-2 mb-2.5">
                     <span className="text-xs font-bold text-ink flex items-center gap-1.5">
                       <MapIcon className={`w-3.5 h-3.5 shrink-0 text-beacon-red dark:text-rose-400 dual-tone-rose ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
@@ -1397,18 +1692,18 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                       type="button"
                       onClick={() => setActivePopover(null)}
                       aria-label={t('closeModalAria')}
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-pod cursor-pointer"
+                      className="relative before:content-[''] before:absolute before:-inset-1.5 w-8 h-8 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-pod cursor-pointer"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
 
                   {isRadiusMode ? (
-                    <div className="rounded-2xl px-3.5 py-2.5 mb-2.5 bg-pod/90 border border-ink/5 dark:border-white/5 text-[11px] text-ink-secondary leading-snug">
+                    <div className="rounded-2xl px-3.5 py-2.5 mb-2.5 bg-pod text-[11px] text-ink-secondary leading-snug">
                       <div className="font-bold text-ink mb-0.5">
                         {trip.route.origin || 'Nantes'}
                       </div>
-                      <div className="font-mono text-[10px] tnum">
+                      <div className="text-[11px] tnum">
                         {t('radiusLoopReachSub', {
                           loop: Math.round((loopRadiusMeters / 1000) * 10) / 10,
                           oneWay: trip.route.distanceKm,
@@ -1419,12 +1714,12 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     <button
                       type="button"
                       onClick={handleFlipRouteDirection}
-                      className={`w-full rounded-full px-4 py-2.5 mb-2.5 text-left flex items-center gap-2.5 transition-all cursor-pointer ${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.emerald.selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                      className={`w-full min-h-[44px] rounded-full px-4 py-2.5 mb-2.5 text-left flex items-center gap-2.5 transition-all cursor-pointer ${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.emerald.selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
                     >
                       <ArrowsLeftRight className="w-4 h-4 shrink-0 text-current" />
                       <div className="min-w-0">
                         <div className="text-xs font-bold leading-tight">{t('heroFlipReturnBtn')}</div>
-                        <div className="text-[10px] opacity-80 leading-snug mt-0.5">{t('heroFlipReturnSub')}</div>
+                        <div className="text-[11px] opacity-80 leading-snug mt-0.5">{t('heroFlipReturnSub')}</div>
                       </div>
                     </button>
                   )}
@@ -1435,12 +1730,12 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                         key={d}
                         type="button"
                         onClick={() => handleSetDistanceKm((trip.route.distanceKm || 10) + d)}
-                        className="h-8 px-3 rounded-full bg-pod hover:bg-chip text-xs font-mono font-semibold text-ink tnum cursor-pointer"
+                        className="min-h-[44px] sm:min-h-[36px] px-3 rounded-full bg-pod hover:bg-chip text-xs font-semibold text-ink tnum cursor-pointer"
                       >
                         {d}
                       </button>
                     ))}
-                    <div className="flex-1 flex items-center justify-center gap-1 h-8 px-3 rounded-full bg-pod border border-ink/10 dark:border-white/10">
+                    <div className="flex-1 flex items-center justify-center gap-1 min-h-[44px] sm:min-h-[36px] px-3 rounded-full bg-pod focus-within:ring-2 focus-within:ring-ink dark:focus-within:ring-white">
                       <input
                         type="number"
                         min={2}
@@ -1448,16 +1743,16 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                         step={0.5}
                         value={trip.route.distanceKm}
                         onChange={(e) => handleSetDistanceKm(parseFloat(e.target.value))}
-                        className="w-12 text-center bg-transparent text-xs font-mono font-bold text-ink tnum focus:outline-none"
+                        className="w-12 text-center bg-transparent text-base sm:text-xs font-bold text-ink tnum focus:outline-none"
                       />
-                      <span className="text-[10px] text-ink-muted">km</span>
+                      <span className="text-[11px] text-ink-muted">km</span>
                     </div>
                     {[1, 5].map((d) => (
                       <button
                         key={d}
                         type="button"
                         onClick={() => handleSetDistanceKm((trip.route.distanceKm || 10) + d)}
-                        className="h-8 px-3 rounded-full bg-pod hover:bg-chip text-xs font-mono font-semibold text-ink tnum cursor-pointer"
+                        className="min-h-[44px] sm:min-h-[36px] px-3 rounded-full bg-pod hover:bg-chip text-xs font-semibold text-ink tnum cursor-pointer"
                       >
                         +{d}
                       </button>
@@ -1531,10 +1826,10 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                       }
                     : undefined
                 }
-                className={`h-full rounded-pod p-3 sm:p-3.5 bg-pod dark:bg-[#161618] text-ink border flex flex-col justify-between min-h-[100px] sm:min-h-[112px] transition-all ${
+                className={`h-full rounded-pod p-3 sm:p-3.5 bg-pod dark:bg-[#161618] text-ink flex flex-col justify-between min-h-[100px] sm:min-h-[112px] transition-all ${
                   activePopover === 'route'
-                    ? 'border-ink/30 dark:border-white/30'
-                    : 'border-ink/5 dark:border-white/5 hover:border-ink/15 dark:hover:border-white/15'
+                    ? 'ring-2 ring-inset ring-ink/35 dark:ring-white/35'
+                    : 'hover:bg-chip/60'
                 } ${isInteractive ? 'cursor-pointer select-none group' : ''}`}
               >
                 <div className="flex items-center justify-between gap-1.5 text-xs font-medium text-ink-muted shrink-0">
@@ -1570,32 +1865,33 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
             {/* 3. Moving Time — Clarifies Saddle Time (Excl. Pauses) vs Total Time (Incl. Buffer) */}
             <div className="relative">
               {activePopover === 'pace' && isInteractive && (
-                <div className="absolute right-0 lg:left-0 lg:right-auto bottom-full mb-2.5 w-[min(21.5rem,calc(100vw-3rem))] z-40 rounded-pod p-3.5 bg-card dark:bg-[#161618] border border-ink/10 dark:border-white/15 shadow-2xl animate-apple-popover">
+                <div className="absolute right-0 lg:left-0 lg:right-auto bottom-full mb-2.5 w-[min(21.5rem,calc(100vw-3rem))] z-40 rounded-pod p-3.5 bg-card dark:bg-[#161618] ring-1 ring-inset ring-ink/10 dark:ring-white/15 shadow-2xl animate-apple-popover">
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <span className="text-xs font-bold text-ink">{t('heroQuickPaceTitle')}</span>
                     <button
                       type="button"
                       onClick={() => setActivePopover(null)}
                       aria-label={t('closeModalAria')}
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-pod cursor-pointer"
+                      className="relative before:content-[''] before:absolute before:-inset-1.5 w-8 h-8 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-pod cursor-pointer"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
 
                   {/* Explicit Moving vs Buffer Time Breakdown Box */}
-                  <div className="p-3 rounded-2xl bg-pod/90 mb-2.5 text-[11px] space-y-1 border border-ink/5 dark:border-white/5">
+                  <div className="p-3 rounded-2xl bg-pod mb-2.5 text-[11px] space-y-1">
                     <div className="flex items-center justify-between text-ink-secondary">
                       <span>{isFr ? 'Temps en selle (hors pauses) :' : 'Saddle time (excl. pauses):'}</span>
-                      <span className="font-mono font-bold text-ink tnum">{formatTimeHHMM(movingMinutes)}</span>
+                      <span className="font-bold text-ink tnum">{formatTimeHHMM(movingMinutes)}</span>
                     </div>
                     <div className="flex items-center justify-between text-ink-secondary">
                       <span>{isFr ? 'Marge pauses & imprévus :' : 'Pause & buffer allowance:'}</span>
-                      <span className={`font-mono font-bold tnum ${CHIP_TOKENS.emerald.primary}`}>+{bufferMinutes} min</span>
+                      <span className={`font-bold tnum ${CHIP_TOKENS.emerald.primary}`}>+{bufferMinutes} min</span>
                     </div>
-                    <div className="pt-1 border-t border-dashed border-ink/10 dark:border-white/10 flex items-center justify-between font-semibold text-ink">
+                    <div className="lane-divider my-1" aria-hidden="true" />
+                    <div className="pt-0.5 flex items-center justify-between font-semibold text-ink">
                       <span>{isFr ? 'Durée totale estimée :' : 'Total elapsed time:'}</span>
-                      <span className="font-mono font-extrabold tnum">{formatTimeHHMM(totalElapsedMinutes)}</span>
+                      <span className="font-bold tnum">{formatTimeHHMM(totalElapsedMinutes)}</span>
                     </div>
                   </div>
 
@@ -1604,7 +1900,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     <button
                       type="button"
                       onClick={() => handleUpdatePacing({ pacingMode: 'speed' })}
-                      className={`py-1.5 px-3 rounded-full text-[11px] font-semibold transition-all cursor-pointer ${
+                      className={`min-h-[44px] sm:min-h-[34px] py-1.5 px-3 rounded-full text-[11px] font-semibold transition-all cursor-pointer ${
                         trip.route.pacingMode !== 'effort'
                           ? 'bg-card text-ink shadow-xs'
                           : 'text-ink-muted hover:text-ink'
@@ -1621,7 +1917,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                             trip.route.targetEffortWatts || Math.round(physicsResult.legWatts || 160),
                         })
                       }
-                      className={`py-1.5 px-3 rounded-full text-[11px] font-semibold transition-all cursor-pointer ${
+                      className={`min-h-[44px] sm:min-h-[34px] py-1.5 px-3 rounded-full text-[11px] font-semibold transition-all cursor-pointer ${
                         trip.route.pacingMode === 'effort'
                           ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary}`
                           : 'text-ink-muted hover:text-ink'
@@ -1634,10 +1930,10 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   {trip.route.pacingMode === 'effort' ? (
                     <div className="space-y-2">
                       <div className="flex items-baseline justify-between gap-2">
-                        <span className="text-lg font-extrabold font-mono tnum text-ink">
+                        <span className="text-lg font-bold tnum text-ink">
                           {trip.route.targetEffortWatts || 160} W
                         </span>
-                        <span className="text-[11px] font-mono tnum text-ink-secondary">
+                        <span className="text-[11px] tnum text-ink-secondary">
                           → {physicsResult.effectiveSpeedKmH} km/h · {physicsResult.powerZone}
                         </span>
                       </div>
@@ -1665,9 +1961,9 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                                 ),
                               })
                             }
-                            className="flex-1 h-8 rounded-full bg-pod hover:bg-chip text-[11px] font-mono font-semibold text-ink tnum cursor-pointer"
+                            className="flex-1 min-h-[44px] sm:min-h-[34px] rounded-full bg-pod hover:bg-chip text-[11px] font-semibold text-ink tnum cursor-pointer"
                           >
-                            {dw > 0 ? `+${dw}W` : `${dw}W`}
+                            {dw > 0 ? `+${dw} W` : `${dw} W`}
                           </button>
                         ))}
                       </div>
@@ -1675,10 +1971,10 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   ) : (
                     <div className="space-y-2">
                       <div className="flex items-baseline justify-between gap-2">
-                        <span className="text-lg font-extrabold font-mono tnum text-ink">
+                        <span className="text-lg font-bold tnum text-ink">
                           {trip.route.targetSpeedKmH} km/h
                         </span>
-                        <span className="text-[11px] font-mono tnum text-ink-secondary">
+                        <span className="text-[11px] tnum text-ink-secondary">
                           → {Math.round(physicsResult.legWatts)} W · {physicsResult.powerZone}
                         </span>
                       </div>
@@ -1706,7 +2002,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                                 ),
                               })
                             }
-                            className="flex-1 h-8 rounded-full bg-pod hover:bg-chip text-[11px] font-mono font-semibold text-ink tnum cursor-pointer"
+                            className="flex-1 min-h-[44px] sm:min-h-[34px] rounded-full bg-pod hover:bg-chip text-[11px] font-semibold text-ink tnum cursor-pointer"
                           >
                             {dv > 0 ? `+${dv}` : `${dv}`} km/h
                           </button>
@@ -1715,9 +2011,10 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     </div>
                   )}
 
-                  {/* Didactic Watts Explanation */}
-                  <p className="mt-2.5 text-[11px] text-ink-muted leading-snug">
-                    💡 {wattsDidacticNote}
+                  {/* Didactic Effort Explanation */}
+                  <p className="mt-2.5 flex items-start gap-1.5 text-[11px] text-ink-muted leading-snug">
+                    <BadgeInfo className="w-3.5 h-3.5 shrink-0 mt-0.5 text-ink-secondary" />
+                    <span>{wattsDidacticNote}</span>
                   </p>
 
                   {onOpenConfigurator && (
@@ -1727,7 +2024,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                         setActivePopover(null);
                         onOpenConfigurator();
                       }}
-                      className={`mt-2.5 w-full h-8 px-3 rounded-full bg-pod hover:bg-chip flex items-center justify-center gap-1.5 text-xs font-semibold text-ink-secondary hover:text-ink transition-colors cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                      className={`mt-2.5 w-full min-h-[44px] sm:min-h-[36px] px-3 rounded-full bg-pod hover:bg-chip flex items-center justify-center gap-1.5 text-xs font-semibold text-ink-secondary hover:text-ink transition-colors cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
                     >
                       <SlidersHorizontal className="w-3.5 h-3.5 text-current" />
                       <span>{t('heroOpenFullConfigBtn')}</span>
@@ -1742,8 +2039,8 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                 aria-expanded={isInteractive ? activePopover === 'pace' : undefined}
                 title={
                   isFr
-                    ? `En selle : ${formatTimeHHMM(movingMinutes)} (hors pauses) + ${bufferMinutes}m pauses = ${formatTimeHHMM(totalElapsedMinutes)} total`
-                    : `Saddle time: ${formatTimeHHMM(movingMinutes)} (excl. pauses) + ${bufferMinutes}m buffer = ${formatTimeHHMM(totalElapsedMinutes)} total`
+                    ? `En selle : ${formatTimeHHMM(movingMinutes)} (hors pauses) + ${bufferMinutes} min pauses = ${formatTimeHHMM(totalElapsedMinutes)} total`
+                    : `Saddle time: ${formatTimeHHMM(movingMinutes)} (excl. pauses) + ${bufferMinutes} min buffer = ${formatTimeHHMM(totalElapsedMinutes)} total`
                 }
                 onClick={
                   isInteractive
@@ -1760,15 +2057,15 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                       }
                     : undefined
                 }
-                className={`h-full rounded-pod p-3 sm:p-3.5 bg-pod dark:bg-[#161618] text-ink border flex flex-col justify-between min-h-[100px] sm:min-h-[112px] transition-all ${
+                className={`h-full rounded-pod p-3 sm:p-3.5 bg-pod dark:bg-[#161618] text-ink flex flex-col justify-between min-h-[100px] sm:min-h-[112px] transition-all ${
                   activePopover === 'pace'
-                    ? 'border-ink/30 dark:border-white/30'
-                    : 'border-ink/5 dark:border-white/5 hover:border-ink/15 dark:hover:border-white/15'
+                    ? 'ring-2 ring-inset ring-ink/35 dark:ring-white/35'
+                    : 'hover:bg-chip/60'
                 } ${isInteractive ? 'cursor-pointer select-none group' : ''}`}
               >
                 <div className="flex items-center justify-between gap-1.5 text-xs font-medium text-ink-muted shrink-0">
                   <span className="break-words">
-                    {isFr ? 'En selle (hors pauses)' : 'Saddle (excl. pauses)'}
+                    {isFr ? 'Temps de selle' : 'Saddle time'}
                   </span>
                   <span className="flex items-center gap-1.5 shrink-0">
                     {isInteractive && (
@@ -1788,14 +2085,14 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   <span
                     className={`text-[11px] font-medium tnum break-words w-full text-left min-w-0 leading-tight ${CHIP_TOKENS.emerald.primary}`}
                   >
-                    +{bufferMinutes}m → {formatTimeHHMM(totalElapsedMinutes)} tot.
+                    +{bufferMinutes} min → {formatTimeHHMM(totalElapsedMinutes)} {isFr ? 'tot.' : 'total'}
                   </span>
                 </div>
               </div>
             </div>
 
             {/* 4. Energy Burned / Fuel Units */}
-            <div className="rounded-pod p-3 sm:p-3.5 bg-pod dark:bg-[#161618] text-ink border border-ink/5 dark:border-white/5 flex flex-col justify-between min-h-[100px] sm:min-h-[112px] transition-all hover:border-ink/15 dark:hover:border-white/15">
+            <div className="rounded-pod p-3 sm:p-3.5 bg-pod dark:bg-[#161618] text-ink flex flex-col justify-between min-h-[100px] sm:min-h-[112px] transition-all">
               <div className="flex items-center justify-between gap-1.5 text-xs font-medium text-ink-muted shrink-0">
                 <span className="break-words">
                   {effectiveSpecs.telemetryMode === 'quantitative'
@@ -1832,8 +2129,8 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   title={
                     effectiveSpecs.telemetryMode === 'quantitative'
                       ? isFr
-                        ? `Cible ravito : ${dynamicCarb.effectiveHourlyRateG}g/h`
-                        : `Fueling target: ${dynamicCarb.effectiveHourlyRateG}g/h`
+                        ? `Cible ravito : ${dynamicCarb.effectiveHourlyRateG} g/h`
+                        : `Fueling target: ${dynamicCarb.effectiveHourlyRateG} g/h`
                       : effectiveSpecs.telemetryMode === 'fuel-first'
                       ? `${Math.max(1, Math.round(dynamicCarb.effectiveHourlyRateG / 20))} ${isFr ? 'unités / h' : 'fuel units / hr'}`
                       : isFr
@@ -1842,12 +2139,12 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   }
                 >
                   {effectiveSpecs.telemetryMode === 'quantitative'
-                    ? `${dynamicCarb.effectiveHourlyRateG}g/h ${isFr ? 'ravito' : 'carbs'}`
+                    ? `${dynamicCarb.effectiveHourlyRateG} g/h ${isFr ? 'ravito' : 'carbs'}`
                     : effectiveSpecs.telemetryMode === 'fuel-first'
                     ? `${Math.max(1, Math.round(dynamicCarb.effectiveHourlyRateG / 20))} ${isFr ? 'unités/h' : 'units/h'}`
                     : isFr
                     ? '1 gorgée / 20 min'
-                    : 'Sip every 20m'}
+                    : 'Sip every 20 min'}
                 </span>
               </div>
             </div>
@@ -1873,25 +2170,29 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
               }}
             >
               {showElevationOverlay && (
-                <div className="absolute right-0 bottom-full mb-2.5 w-[min(22.5rem,calc(100vw-3rem))] z-40 rounded-pod p-4 sm:p-4.5 bg-[#faffcb] text-[#4d5200] dark:bg-[#191C06] dark:text-[#dfff00] border border-[#8ea000]/30 dark:border-[#dfff00]/25 shadow-2xl animate-apple-popover">
-                  {/* Top Header Row modeled after reference card (Title left | Primary + Secondary % right) */}
-                  <div className="flex items-start justify-between gap-3 mb-3.5">
+                <div className="absolute right-0 bottom-full mb-2 w-[min(27.5rem,calc(100vw-2rem))] max-h-[min(23rem,calc(100vh-8rem))] overflow-y-auto z-40 rounded-pod p-3.5 bg-[#faffcb] text-[#4d5200] dark:bg-[#191C06] dark:text-[#dfff00] ring-1 ring-inset ring-[#8ea000]/30 dark:ring-[#dfff00]/25 shadow-2xl animate-apple-popover">
+                  {/* Top Header Row modeled after reference card */}
+                  <div className="flex items-start justify-between gap-3 mb-2">
                     <div className="min-w-0">
-                      <div className="text-lg sm:text-[21px] font-bold tracking-tight uppercase leading-none">
-                        {isFr ? 'DÉNIVELÉ' : 'ELEVATION'}
+                      <div className="text-base sm:text-lg font-bold tracking-tight leading-none">
+                        {isFr ? 'Dénivelé & surfaces' : 'Elevation & surface'}
                       </div>
-                      <div className="text-[11px] font-medium opacity-75 mt-1.5 break-words tnum">
+                      <div className="text-[11px] font-medium opacity-80 mt-1.5 break-words tnum">
                         {hoveredElevPoint
-                          ? `km ${hoveredElevPoint.distKm.toFixed(1)} · Alt ${Math.round(hoveredElevPoint.eleM)} m`
-                          : `${surfaceLabel} · ${difficultyLabel} · ${trip.route.distanceKm} km`}
+                          ? `km ${hoveredElevPoint.distKm.toFixed(1)} · Alt ${Math.round(hoveredElevPoint.eleM)} m · ${
+                              isFr
+                                ? SURFACE_VISUAL_META[hoveredElevPoint.surfaceType].labelFr
+                                : SURFACE_VISUAL_META[hoveredElevPoint.surfaceType].labelEn
+                            }`
+                          : `${surfaceBreakdown.pavedPct}% ${isFr ? 'Bitume' : 'Paved'} · ${surfaceBreakdown.gravelPct}% Gravel · ${surfaceBreakdown.singletrackPct}% ${isFr ? 'Sentier' : 'Singletrack'}`}
                       </div>
                     </div>
 
                     <div className="text-right shrink-0">
-                      <div className="text-lg sm:text-[21px] font-bold font-mono tracking-tight tnum leading-none">
-                        {hoveredElevPoint ? `${Math.round(hoveredElevPoint.eleM)}m` : `+${elevationGainM}m`}
+                      <div className="text-lg sm:text-[21px] font-bold tracking-tight tnum leading-none">
+                        {hoveredElevPoint ? `${Math.round(hoveredElevPoint.eleM)} m` : `+${elevationGainM} m`}
                       </div>
-                      <div className="text-xs font-mono font-semibold tnum opacity-80 mt-1">
+                      <div className="text-xs font-semibold tnum opacity-80 mt-1">
                         {hoveredElevPoint
                           ? `${hoveredElevPoint.gradePct >= 0 ? '↑' : '↓'}${Math.abs(hoveredElevPoint.gradePct).toFixed(1)}%`
                           : `↑${maxGradientPercent}%`}
@@ -1899,10 +2200,10 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     </div>
                   </div>
 
-                  {/* Dot-Matrix Elevation Silhouette (38 cols × 13 rows) */}
+                  {/* Dot-Matrix Elevation Silhouette (38 cols × 13 rows, bottom row color-coded by surface) */}
                   <svg
                     viewBox={`0 0 ${ELEV_MATRIX_COLS * 8} ${ELEV_MATRIX_ROWS * 8}`}
-                    className="w-full h-auto block select-none cursor-crosshair"
+                    className="w-full h-auto max-h-[74px] block select-none cursor-crosshair"
                     role="img"
                     aria-label={isFr ? 'Aperçu du dénivelé et du terrain' : 'Elevation and terrain overview'}
                     onMouseMove={(e) => {
@@ -1914,15 +2215,26 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                         Math.max(0, Math.round(relX * (ELEV_MATRIX_COLS - 1)))
                       );
                       setHoveredElevCol(col);
+                      const segId = elevationColumns[col]?.segmentId ?? null;
+                      setActiveSurfaceSegmentId(segId);
                     }}
-                    onMouseLeave={() => setHoveredElevCol(null)}
+                    onMouseLeave={() => {
+                      setHoveredElevCol(null);
+                      setActiveSurfaceSegmentId(null);
+                    }}
                   >
                     {elevationColumns.map((colData, colIdx) => {
                       const isColHovered = hoveredElevCol === colIdx;
+                      const surfMeta = SURFACE_VISUAL_META[colData.surfaceType];
                       return Array.from({ length: ELEV_MATRIX_ROWS }, (_, rowFromTop) => {
                         const rowFromBottom = ELEV_MATRIX_ROWS - 1 - rowFromTop;
                         const isFilled = rowFromBottom < colData.filledRows;
-                        const fill = isFilled
+                        const isSurfaceBaseline = rowFromBottom === 0;
+                        const fill = isSurfaceBaseline
+                          ? isDarkMode
+                            ? surfMeta.colorDark
+                            : surfMeta.colorLight
+                          : isFilled
                           ? isColHovered
                             ? isDarkMode
                               ? '#FFFFFF'
@@ -1947,15 +2259,211 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     })}
                   </svg>
 
-                  {/* Compact Monochrome Terrain Split Footer (no Upload .GPX button) */}
-                  <div className="mt-3 pt-2.5 border-t border-[#4d5200]/15 dark:border-[#dfff00]/15 flex items-center justify-between gap-2 text-[10px] font-mono font-semibold opacity-80 tnum">
+                  {/* Interactive Surface & Road Type Profile Bar alongside Elevation */}
+                  <div className="mt-3 pt-2.5 lane-divider space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-rounded font-bold tnum opacity-85">
+                      <span>
+                        {surfaceBreakdown.isLoadingOsm
+                          ? isFr
+                            ? 'Analyse des surfaces en cours…'
+                            : 'Scanning route surfaces…'
+                          : surfaceBreakdown.dataSource === 'osm-overpass'
+                          ? isFr
+                            ? `Données carte · ${surfaceBreakdown.osmWayCount ?? 0} segments · ${surfaceBreakdown.osmCoveragePct ?? 100}% couverts`
+                            : `Map data · ${surfaceBreakdown.osmWayCount ?? 0} segments · ${surfaceBreakdown.osmCoveragePct ?? 100}% mapped`
+                          : isFr
+                          ? 'Estimation de surface'
+                          : 'Estimated surface mix'}
+                      </span>
+                      {canQueryOsmSurface && (
+                        <button
+                          type="button"
+                          onClick={refreshOsmSurface}
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-black/8 dark:bg-white/10 hover:bg-black/15 dark:hover:bg-white/20 transition-colors cursor-pointer"
+                        >
+                          <RefreshCw
+                            className={`w-2.5 h-2.5 ${
+                              surfaceBreakdown.isLoadingOsm ? 'animate-spin' : ''
+                            }`}
+                          />
+                          <span>{isFr ? 'Actualiser' : 'Refresh'}</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 text-[11px] font-rounded font-bold tnum">
+                      <span className="inline-flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-sky-500 dark:bg-sky-400" />
+                        <span>
+                          {surfaceBreakdown.pavedPct}% {isFr ? 'Bitume' : 'Paved'}
+                        </span>
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-amber-500 dark:bg-amber-400" />
+                        <span>
+                          {surfaceBreakdown.gravelPct}% {isFr ? 'Gravel' : 'Gravel'}
+                        </span>
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-rose-500 dark:bg-rose-400" />
+                        <span>
+                          {surfaceBreakdown.singletrackPct}%{' '}
+                          {isFr ? 'Sentier' : 'Singletrack'}
+                        </span>
+                      </span>
+                    </div>
+
+                    {/* Interactive Route-Ordered Surface Timeline Bar */}
+                    <div className="h-3 w-full rounded-full overflow-hidden bg-black/15 dark:bg-white/10 p-0.5 flex items-stretch gap-0.5">
+                      {surfaceBreakdown.segments.map((seg) => {
+                        const meta = SURFACE_VISUAL_META[seg.type];
+                        const widthPct = Math.max(4, seg.endPct - seg.startPct);
+                        const isActive = activeSurfaceSegmentId === seg.id;
+                        return (
+                          <button
+                            key={seg.id}
+                            type="button"
+                            style={{ width: `${widthPct}%` }}
+                            onMouseEnter={() => setActiveSurfaceSegmentId(seg.id)}
+                            onClick={() =>
+                              setActiveSurfaceSegmentId((prev) =>
+                                prev === seg.id ? null : seg.id
+                              )
+                            }
+                            title={`${isFr ? seg.nameFr : seg.nameEn} · km ${seg.startKm}–${seg.endKm}`}
+                            className={`h-full first:rounded-l-full last:rounded-r-full transition-all cursor-pointer ${
+                              meta.barBgClass
+                            } ${
+                              isActive
+                                ? 'ring-2 ring-inset ring-white opacity-100'
+                                : 'opacity-85 hover:opacity-100'
+                            }`}
+                          />
+                        );
+                      })}
+                    </div>
+
+                    {/* Unpaved Sector Quick-Pills (prioritize top 5 notable sectors unless expanded) */}
+                    {(() => {
+                      const allUnpaved = surfaceBreakdown.segments.filter(
+                        (s) => s.type !== 'paved'
+                      );
+                      const MAX_COMPACT = 5;
+                      let visiblePills = allUnpaved;
+                      if (!showAllPopoverSectors && allUnpaved.length > MAX_COMPACT) {
+                        const prioritized = [...allUnpaved]
+                          .sort((a, b) => {
+                            if (a.id === activeSurfaceSegmentId) return -1;
+                            if (b.id === activeSurfaceSegmentId) return 1;
+                            const aRank = a.type === 'singletrack' ? 2 : 1;
+                            const bRank = b.type === 'singletrack' ? 2 : 1;
+                            if (aRank !== bRank) return bRank - aRank;
+                            return b.distanceKm - a.distanceKm;
+                          })
+                          .slice(0, MAX_COMPACT);
+                        const chosenIds = new Set(prioritized.map((s) => s.id));
+                        visiblePills = allUnpaved.filter((s) => chosenIds.has(s.id));
+                      }
+                      const hiddenCount = allUnpaved.length - visiblePills.length;
+
+                      return (
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {visiblePills.map((seg) => {
+                            const isActive = activeSurfaceSegmentId === seg.id;
+                            return (
+                              <button
+                                key={seg.id}
+                                type="button"
+                                onMouseEnter={() => setActiveSurfaceSegmentId(seg.id)}
+                                onClick={() => setActiveSurfaceSegmentId(seg.id)}
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-rounded font-bold tnum cursor-pointer transition-all ${
+                                  seg.type === 'singletrack'
+                                    ? 'bg-rose-500/20 text-rose-900 dark:text-rose-200 ring-1 ring-inset ring-rose-500/40'
+                                    : 'bg-amber-500/20 text-amber-900 dark:text-amber-200 ring-1 ring-inset ring-amber-500/40'
+                                } ${isActive ? 'ring-2 ring-current' : ''}`}
+                              >
+                                <span>
+                                  km {seg.startKm}–{seg.endKm}{' '}
+                                  {seg.type === 'singletrack'
+                                    ? isFr
+                                      ? 'Sentier'
+                                      : 'Trail'
+                                    : 'Gravel'}
+                                </span>
+                              </button>
+                            );
+                          })}
+                          {hiddenCount > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setShowAllPopoverSectors(true)}
+                              className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-rounded font-bold tnum bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 cursor-pointer transition-colors"
+                            >
+                              +{hiddenCount}
+                            </button>
+                          )}
+                          {showAllPopoverSectors && allUnpaved.length > MAX_COMPACT && (
+                            <button
+                              type="button"
+                              onClick={() => setShowAllPopoverSectors(false)}
+                              className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-rounded font-bold bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 cursor-pointer transition-colors"
+                            >
+                              {isFr ? 'Réduire' : 'Less'}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Elodie 38c Gravel Suitability & Pressure Box */}
+                    {(() => {
+                      const activeSeg =
+                        surfaceBreakdown.segments.find(
+                          (s) => s.id === activeSurfaceSegmentId
+                        ) ??
+                        surfaceBreakdown.segments.find(
+                          (s) => s.suitability38c === 'caution'
+                        ) ??
+                        surfaceBreakdown.segments.find((s) => s.type !== 'paved');
+
+                      return (
+                        <div className="rounded-sub-pod bg-black/8 dark:bg-white/8 p-2.5 text-[11px] leading-snug space-y-1">
+                          <div className="flex items-center justify-between gap-2 font-rounded font-bold">
+                            <span>
+                              {activeSeg
+                                ? `${isFr ? activeSeg.nameFr : activeSeg.nameEn} (km ${activeSeg.startKm}–${activeSeg.endKm})`
+                                : isFr
+                                ? surfaceBreakdown.suitability.headlineFr
+                                : surfaceBreakdown.suitability.headlineEn}
+                            </span>
+                            <span className="tnum shrink-0">
+                              {surfaceBreakdown.suitability.recommendedFrontBar}/
+                              {surfaceBreakdown.suitability.recommendedRearBar} bar
+                            </span>
+                          </div>
+                          <p className="opacity-85 text-[10.5px]">
+                            {activeSeg
+                              ? isFr
+                                ? `${activeSeg.surfaceDetailFr} — ${activeSeg.riderNoteFr}`
+                                : `${activeSeg.surfaceDetailEn} — ${activeSeg.riderNoteEn}`
+                              : isFr
+                              ? surfaceBreakdown.suitability.summaryFr
+                              : surfaceBreakdown.suitability.summaryEn}
+                          </p>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Compact Monochrome Terrain Split Footer */}
+                  <div className="mt-2.5 pt-2 flex items-center justify-between gap-2 text-[11px] font-semibold opacity-80 tnum">
                     <span className="break-words leading-tight">
                       {isFr ? 'Plat' : 'Flat'} {terrainSummary.flatPct}% ·{' '}
                       {isFr ? 'Vallonné' : 'Rolling'} {terrainSummary.rollingPct}% ·{' '}
                       {isFr ? 'Bosses' : 'Climb'} {terrainSummary.climbPct}%
                     </span>
                     <span className="shrink-0">
-                      {Math.round(terrainSummary.minEleM)}–{Math.round(terrainSummary.maxEleM)}m
+                      {Math.round(terrainSummary.minEleM)}–{Math.round(terrainSummary.maxEleM)} m
                     </span>
                   </div>
                 </div>
@@ -1986,10 +2494,10 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     }
                   }
                 }}
-                className={`h-full rounded-pod p-3 sm:p-3.5 bg-pod dark:bg-[#161618] text-ink border flex flex-col justify-between min-h-[100px] sm:min-h-[112px] transition-all cursor-pointer select-none group ${
+                className={`h-full rounded-pod p-3 sm:p-3.5 bg-pod dark:bg-[#161618] text-ink flex flex-col justify-between min-h-[100px] sm:min-h-[112px] transition-all cursor-pointer select-none group ${
                   showElevationOverlay
-                    ? 'border-[#8ea000]/50 dark:border-[#dfff00]/45'
-                    : 'border-ink/5 dark:border-white/5 hover:border-ink/15 dark:hover:border-white/15'
+                    ? 'ring-2 ring-inset ring-[#8ea000]/50 dark:ring-[#dfff00]/45'
+                    : 'hover:bg-chip/60'
                 }`}
               >
                 <div className="flex items-center justify-between gap-1.5 text-xs font-medium text-ink-muted shrink-0">
@@ -2003,16 +2511,34 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     <Mountains className={`w-4 h-4 shrink-0 ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
                   </span>
                 </div>
-                <div className="mt-auto pt-2 flex flex-col items-start justify-between gap-1 min-w-0">
+                <div className="mt-auto pt-2 flex flex-col items-start justify-between gap-1.5 min-w-0">
                   <div className="flex items-baseline gap-1 shrink-0">
                     <span className="text-xl sm:text-2xl xl:text-[26px] font-bold tracking-tight tnum leading-none text-ink">
                       +{elevationGainM}
                     </span>
                     <span className="text-xs font-medium text-ink-muted">m</span>
                   </div>
-                  <span className="text-[11px] font-medium text-ink-muted tnum break-words w-full text-left min-w-0 leading-tight">
-                    Max {maxGradientPercent}%
-                  </span>
+                  <div className="w-full space-y-1">
+                    <div className="h-1.5 w-full rounded-full overflow-hidden flex bg-black/10 dark:bg-white/10">
+                      <div
+                        style={{ width: `${surfaceBreakdown.pavedPct}%` }}
+                        className="h-full bg-sky-500 dark:bg-sky-400"
+                      />
+                      <div
+                        style={{ width: `${surfaceBreakdown.gravelPct}%` }}
+                        className="h-full bg-amber-500 dark:bg-amber-400"
+                      />
+                      <div
+                        style={{ width: `${surfaceBreakdown.singletrackPct}%` }}
+                        className="h-full bg-rose-500 dark:bg-rose-400"
+                      />
+                    </div>
+                    <span className="text-[10.5px] font-medium text-ink-muted tnum break-words w-full text-left min-w-0 leading-tight block">
+                      {surfaceBreakdown.pavedPct}% {isFr ? 'bitume' : 'paved'} ·{' '}
+                      {surfaceBreakdown.gravelPct + surfaceBreakdown.singletrackPct}%{' '}
+                      {isFr ? 'gravel/sentier' : 'unpaved'}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>

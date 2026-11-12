@@ -60,7 +60,7 @@ export const TimelineContextualBanner: React.FC<TimelineContextualBannerProps> =
   const { lang, t } = useTranslation();
   const effectiveSpecs = riderSpecsProp || loadRiderBikeSpecs();
   const carbTarget = effectiveSpecs.carbTargetGPerHr || 60;
-  const telemetryMode = effectiveSpecs.telemetryMode ?? 'quantitative';
+  const telemetryMode = effectiveSpecs.telemetryMode ?? 'fuel-first';
   const isQuantitative = telemetryMode === 'quantitative';
   const isFuelFirst = telemetryMode === 'fuel-first';
   const fuelUnitsPerHr = Math.max(1, Math.round(carbTarget / 20));
@@ -76,7 +76,7 @@ export const TimelineContextualBanner: React.FC<TimelineContextualBannerProps> =
   const weather = trip?.weather;
   const route = trip?.route;
   const office = trip?.office;
-  const localizedGate = trip ? getLocalizedTripMeta(trip, lang).gateName : lang === 'fr' ? 'Porte 17' : 'Gate 17';
+  const localizedGate = trip ? getLocalizedTripMeta(trip, lang).gateName : lang === 'fr' ? 'Point d’arrivée' : 'Arrival point';
 
   const isHeadwind = Boolean(weather?.isHeadwindActive);
   const headwindKmH = weather?.baseWindSpeedKmH || 0;
@@ -105,7 +105,7 @@ export const TimelineContextualBanner: React.FC<TimelineContextualBannerProps> =
         const targetSpeed = route?.targetSpeedKmH || 30;
         const dest = route?.destination || (lang === 'fr' ? 'Arrivée' : 'Finish Sector');
         const rateLabel = isQuantitative
-          ? `${carbTarget}g/h`
+          ? `${carbTarget} g/h`
           : isFuelFirst
           ? `~${fuelUnitsPerHr} ${isFr ? 'unités/h' : 'units/h'}`
           : isFr
@@ -296,7 +296,7 @@ export const TimelineContextualBanner: React.FC<TimelineContextualBannerProps> =
       <Collapsible
         open={isExpanded}
         id={panelId}
-        innerClassName="px-3.5 sm:px-4 pb-3.5 sm:pb-4 pt-3 border-t border-dashed border-ink/10 dark:border-white/10 space-y-3.5"
+        innerClassName="px-3.5 sm:px-4 pb-3.5 sm:pb-4 pt-3 space-y-3.5"
       >
           <div className="space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
@@ -356,13 +356,13 @@ export const TimelineContextualBanner: React.FC<TimelineContextualBannerProps> =
           </div>
 
           {activeChipDefs.length > 0 && (
-            <div className="pt-3 border-t border-dashed border-ink/10 dark:border-white/10 space-y-2">
-              <div className="flex items-center gap-1.5 flex-wrap text-xs font-semibold text-ink-muted uppercase tracking-wider">
+            <div className="pt-3 space-y-2">
+              <div className="flex items-center gap-1.5 flex-wrap text-xs font-semibold text-ink-muted">
                 <Sparkle
                   className={`w-4 h-4 ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
                 />
-                <span>{isFr ? 'Règles & Presets Actifs' : 'Active Presets & Protocols'}</span>
-                <Badge variant="yellow-vest" size="xs" className="font-mono font-bold">
+                <span>{isFr ? 'Options actives' : 'Active ride options'}</span>
+                <Badge variant="yellow-vest" size="xs" className="font-rounded font-semibold">
                   {activeChipDefs.length}
                 </Badge>
               </div>

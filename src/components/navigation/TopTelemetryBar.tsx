@@ -49,18 +49,6 @@ interface TopTelemetryBarProps {
   onMenuOpenChange?: (open: boolean) => void;
 }
 
-function formatLocalUtcOffset(date: Date): string {
-  const offsetMinutes = -date.getTimezoneOffset();
-  if (offsetMinutes === 0) return 'UTC';
-  const sign = offsetMinutes >= 0 ? '+' : '-';
-  const absMinutes = Math.abs(offsetMinutes);
-  const hours = Math.floor(absMinutes / 60);
-  const mins = absMinutes % 60;
-  return mins > 0
-    ? `UTC${sign}${hours}:${String(mins).padStart(2, '0')}`
-    : `UTC${sign}${hours}`;
-}
-
 export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
   activeTrip,
   currentView,
@@ -78,7 +66,6 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
   const { user, openAuthModal, signOut, syncStatus, forceSyncNow } = useAuth();
   const { username } = useUserProfile();
   const [currentTime, setCurrentTime] = useState<string>('');
-  const [utcLabel, setUtcLabel] = useState<string>(() => formatLocalUtcOffset(new Date()));
   const [internalMenuOpen, setInternalMenuOpen] = useState(false);
   const isMenuOpen = propIsMenuOpen !== undefined ? propIsMenuOpen : internalMenuOpen;
   const setIsMenuOpen = (open: boolean | ((prev: boolean) => boolean)) => {
@@ -179,7 +166,6 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
-      setUtcLabel(formatLocalUtcOffset(now));
       setCurrentTime(
         now.toLocaleTimeString(lang === 'fr' ? 'fr-FR' : 'en-US', {
           hour: '2-digit',
@@ -214,7 +200,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
   const breadcrumbTargetView = currentView === 'dashboard' ? 'configurator' : 'dashboard';
 
   // Avatar user display name / initial
-  const userDisplayName = username || (user?.email ? user.email.split('@')[0] : 'Rider');
+  const userDisplayName = username || (user?.email ? user.email.split('@')[0] : lang === 'fr' ? 'Cycliste' : 'Rider');
   const userInitial = (userDisplayName[0] || 'R').toUpperCase();
 
   // Beacon status dot for cloud storage
@@ -249,7 +235,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
     const dividerInset = m ? 'ml-[68px]' : 'ml-[60px]';
 
     const SectionLabel = ({ children }: { children: React.ReactNode }) => (
-      <div className="px-2 pt-4 pb-2 text-[11px] font-bold uppercase tracking-[0.09em] text-ink-muted">
+      <div className="px-2 pt-4 pb-2 text-xs font-rounded font-semibold text-ink-muted">
         {children}
       </div>
     );
@@ -441,7 +427,10 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
               </div>
               <button
                 type="button"
-                onClick={() => openAuthModal('login')}
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  openAuthModal('login');
+                }}
                 className={`mt-3.5 w-full inline-flex items-center justify-center gap-2 rounded-full font-semibold cursor-pointer transition-all hover:brightness-[0.97] active:scale-[0.99] shadow-xs ${YELLOW_VEST_SOLID_CTA_CLASSES} ${
                   m ? 'h-12 text-[15px]' : 'h-10 text-sm'
                 }`}
@@ -502,12 +491,17 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
               label={t('specsModalTitle')}
               sub={
                 riderSpecs && activeBike
-                  ? `${activeBike.name} · ${riderSpecs.ftpWatts} W · ${
-                      activeBike.isTubeless ? 'Tubeless' : isFr ? 'Chambre' : 'Tube'
-                    }`
+                  ? riderSpecs.cockpitViewMode === 'pro'
+                    ? `${activeBike.name} · ${riderSpecs.ftpWatts} W · ${
+                        activeBike.isTubeless ? 'Tubeless' : isFr ? 'Chambre' : 'Tube'
+                      }`
+                    : activeBike.name
                   : undefined
               }
-              onClick={onOpenSpecs}
+              onClick={() => {
+                setIsMenuOpen(false);
+                onOpenSpecs();
+              }}
             />
           )}
           {onOpenSpecs && (onShareReceipt || onPrint) && <Divider />}
@@ -517,7 +511,10 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
               icon={Receipt}
               label={t('shareReceiptBtn')}
               sub={isFr ? 'Carte story PNG 1080×1920' : '1080×1920 PNG story card'}
-              onClick={onShareReceipt}
+              onClick={() => {
+                setIsMenuOpen(false);
+                onShareReceipt();
+              }}
             />
           )}
           {onShareReceipt && onPrint && <Divider />}
@@ -527,7 +524,10 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
               icon={Printer}
               label={t('printButtonTitle')}
               sub={isFr ? 'Feuille de route A4 imprimable' : 'Printable A4 route summary'}
-              onClick={onPrint}
+              onClick={() => {
+                setIsMenuOpen(false);
+                requestAnimationFrame(() => onPrint());
+              }}
             />
           )}
           {activeTrip && (
@@ -569,7 +569,10 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
                   icon={Send}
                   label={t('sendFeedbackBtn')}
                   sub={isFr ? 'Signaler un bug ou proposer une idée' : 'Report a bug or suggest an idea'}
-                  onClick={onOpenFeedback}
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    onOpenFeedback();
+                  }}
                 />
               )}
               {onOpenFeedback && user && <Divider />}
@@ -591,7 +594,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
         )}
 
         {/* ── Footer ── */}
-        <div className="flex items-center justify-center gap-1.5 pt-4 pb-1 text-[11px] text-ink-muted font-mono tnum">
+        <div className="flex items-center justify-center gap-1.5 pt-4 pb-1 text-[11px] text-ink-muted font-rounded tnum">
           <span>{t('appName')}</span>
           <span aria-hidden="true">·</span>
           <span>v2.6</span>
@@ -645,14 +648,14 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
             <button
               type="button"
               onClick={() => onNavigate(breadcrumbTargetView)}
-              title={`${t('rideFeasibility')}: ${physics?.goStatus === 'GO' ? t('feasibilityOptimal') : physics?.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')} — ${physics?.goStatusReason || ''} (${currentView === 'dashboard' ? t('editParamsTitle') : t('openFlightDeckBtn')})`}
-              className="flex items-center gap-2.5 px-4 py-2 bg-card dark:bg-pod hover:bg-pod dark:hover:bg-chip rounded-full text-[13px] sm:text-sm font-mono shadow-xs min-w-0 max-w-xl transition-colors cursor-pointer focus:outline-none"
+              title={`${isFr ? 'Conditions de sortie' : 'Ride outlook'}: ${physics?.goStatus === 'GO' ? t('feasibilityOptimal') : physics?.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')} — ${physics?.goStatusReason || ''} (${currentView === 'dashboard' ? t('editParamsTitle') : t('openFlightDeckBtn')})`}
+              className="flex items-center gap-2.5 px-4 py-2 bg-card dark:bg-pod hover:bg-pod dark:hover:bg-chip rounded-full font-rounded text-[13px] sm:text-sm shadow-xs min-w-0 max-w-xl transition-colors cursor-pointer focus:outline-none"
             >
               <span
                 className={`w-2.5 h-2.5 rounded-full shrink-0 ${statusDotClass}`}
                 title={`${physics?.goStatus === 'GO' ? t('feasibilityOptimal') : physics?.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')}: ${physics?.goStatusReason}`}
               />
-              <span className="text-ink-muted uppercase tracking-wider text-xs font-bold shrink-0">
+              <span className="text-ink-muted font-rounded text-xs font-semibold shrink-0">
                 {activeTrip.tag === 'VÉLOTAF' ? (lang === 'fr' ? 'Vélotaf' : 'Commute') : activeTrip.tag}
               </span>
               <span className="text-ink-muted shrink-0">/</span>
@@ -679,7 +682,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
         {/* Right: Sync Clock & Streamlined Profile Overlay Trigger */}
         <div className="lg:col-span-1 lg:justify-self-end flex items-center gap-2 sm:gap-3 shrink-0 relative" ref={menuContainerRef}>
           {/* Real-time Clock */}
-          <div className="hidden sm:flex items-center px-3.5 py-2 bg-card dark:bg-pod rounded-full text-xs sm:text-[13px] font-mono text-ink shadow-xs">
+          <div className="hidden sm:flex items-center px-3.5 py-2 bg-card dark:bg-pod rounded-full text-xs sm:text-[13px] font-rounded text-ink shadow-xs">
             <span className="font-bold text-ink tnum">{currentTime}</span>
           </div>
 

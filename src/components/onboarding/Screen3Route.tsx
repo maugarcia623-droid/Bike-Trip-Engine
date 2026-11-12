@@ -1,7 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import {
-  ArrowLeft,
-  ArrowRight,
   Check,
   Upload,
   Compass,
@@ -10,8 +8,10 @@ import {
   X,
   TrainSimple,
   Buildings,
+  Plus,
 } from '@/components/icons';
 import { useTranslation } from '../../context/LanguageContext';
+import { RouteWaypoint } from '../../types/trip';
 import { SchematicRouteMap } from './SchematicRouteMap';
 import { parseGpxFileContent } from '../../utils/gpxParser';
 import { calculateAutoBikeRoute } from '../../utils/routing';
@@ -57,8 +57,8 @@ const EXTENDED_CYCLING_HUBS: LocationSuggestion[] = [
   },
   {
     id: 'hub-st-nazaire',
-    name: 'Saint-Nazaire Gate 17',
-    secondaryText: '44600 Saint-Nazaire (Chantiers & Estuaire)',
+    name: 'Saint-Nazaire Front de Mer',
+    secondaryText: '44600 Saint-Nazaire (Estuaire & Front de Mer)',
     fullDisplayName: 'Saint-Nazaire, 44600 Loire-Atlantique, France',
     coordinates: [47.2734, -2.2139],
     type: 'city',
@@ -266,7 +266,7 @@ const RouteLocationInput: React.FC<RouteLocationInputProps> = ({
       {/* Floating Auto-Fill Suggestions Dropdown */}
       {showDropdown && (
         <div className="absolute left-0 right-0 top-full mt-1.5 z-40 bg-card rounded-pod border border-black/10 dark:border-white/15 shadow-xl overflow-hidden max-h-64 overflow-y-auto animate-apple-popover">
-          <div className="px-3 py-1.5 bg-pod/60 border-b border-black/5 dark:border-white/10 text-[10.5px] font-mono text-ink-muted uppercase tracking-wider flex items-center justify-between">
+          <div className="px-3 py-1.5 bg-pod/60 border-b border-black/5 dark:border-white/10 text-[11px] font-rounded font-semibold text-ink-muted flex items-center justify-between">
             <span>
               {value.trim().length >= 2
                 ? isFr ? 'Suggestions d’adresses' : 'Matching locations'
@@ -321,15 +321,15 @@ interface Screen3RouteProps {
   destination: string;
   distanceKm: number;
   coordinates: [number, number][];
+  waypoints?: RouteWaypoint[];
   isRouteReady: boolean;
   gpxFileName?: string;
   onUpdateOrigin: (val: string) => void;
   onUpdateDestination: (val: string) => void;
   onUpdateDistance: (km: number) => void;
   onUpdateCoordinates: (coords: [number, number][]) => void;
+  onUpdateWaypoints?: (waypoints: RouteWaypoint[]) => void;
   onGpxLoaded?: (parsed: { name: string; distanceKm: number; coordinates: [number, number][] }) => void;
-  onBack: () => void;
-  onContinue: () => void;
 }
 
 const QUICK_HUBS = [
@@ -344,7 +344,7 @@ const QUICK_HUBS = [
   },
   {
     origin: 'Nantes Quai de la Fosse',
-    destination: 'Saint-Nazaire Gate 17',
+    destination: 'Saint-Nazaire Front de Mer',
     label: 'Nantes → Saint-Nazaire',
     coords: [
       [47.2115, -1.5583] as [number, number],
@@ -378,28 +378,69 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
   destination,
   distanceKm,
   coordinates,
+  waypoints,
   isRouteReady,
   gpxFileName,
   onUpdateOrigin,
   onUpdateDestination,
   onUpdateDistance,
   onUpdateCoordinates,
+  onUpdateWaypoints,
   onGpxLoaded,
-  onBack,
-  onContinue,
 }) => {
   const { lang } = useTranslation();
   const isFr = lang === 'fr';
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [originCoords, setOriginCoords] = useState<[number, number] | null>([47.1944, -1.5833]);
-  const [destCoords, setDestCoords] = useState<[number, number] | null>([47.2173, -1.5422]);
+  const [originCoords, setOriginCoords] = useState<[number, number] | null>(() =>
+    origin.includes('Trentemoult') ? [47.1944, -1.5833] : null
+  );
+  const [destCoords, setDestCoords] = useState<[number, number] | null>(() =>
+    destination.includes('Nantes gare') ? [47.2173, -1.5422] : null
+  );
+  const [intermediateStops, setIntermediateStops] = useState<
+    Array<{ id: string; name: string; coords: [number, number] | null }>
+  >(() => {
+    if (waypoints && waypoints.length > 0) {
+      return waypoints.map((w) => ({
+        id: w.id,
+        name: w.name,
+        coords: w.coordinates || null,
+      }));
+    }
+    return [];
+  });
+
+  const syncWaypointsToParent = useCallback(
+    (stops: Array<{ id: string; name: string; coords: [number, number] | null }>) => {
+      if (onUpdateWaypoints) {
+        onUpdateWaypoints(
+          stops
+            .filter((s) => s.name.trim().length > 0)
+            .map((s) => ({
+              id: s.id,
+              name: s.name.trim(),
+              coordinates: s.coords || undefined,
+            }))
+        );
+      }
+    },
+    [onUpdateWaypoints]
+  );
+
+  useEffect(() => {
+    syncWaypointsToParent(intermediateStops);
+  }, [intermediateStops, syncWaypointsToParent]);
 
   const [isFetchingDistance, setIsFetchingDistance] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [fetchSuccessMessage, setFetchSuccessMessage] = useState<string | null>(null);
 
-  const handleFetchDistance = async (originText = origin, destText = destination) => {
+  const handleFetchDistance = async (
+    originText = origin,
+    destText = destination,
+    stops = intermediateStops
+  ) => {
     if (!originText.trim() || !destText.trim()) {
       setFetchError(
         isFr ? 'Veuillez renseigner le départ et l’arrivée.' : 'Please enter both origin and destination.'
@@ -416,7 +457,8 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
         originText.trim(),
         destText.trim(),
         originCoords,
-        destCoords
+        destCoords,
+        stops.map((s) => ({ id: s.id, name: s.name, coordinates: s.coords }))
       );
       if (result) {
         onUpdateDistance(Number(result.distanceKm.toFixed(1)));
@@ -466,9 +508,9 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start flex-1">
         {/* Left Column: Route Form */}
         <div className="lg:col-span-7 flex flex-col">
-          <div className="inline-flex items-center gap-2 text-xs font-mono font-bold tracking-wider text-ink-muted uppercase mb-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-volt" />
-            <span>{isFr ? 'PARCOURS' : 'ROUTE'}</span>
+          <div className="inline-flex items-center gap-2 text-xs font-rounded font-semibold text-ink-muted mb-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#4D7C0F] dark:bg-volt" />
+            <span>{isFr ? 'Parcours' : 'Route'}</span>
           </div>
 
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold font-rounded tracking-tight text-ink leading-tight mb-3">
@@ -542,6 +584,64 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
                   if (s.coordinates) setOriginCoords(s.coordinates);
                 }}
               />
+
+              {/* Intermediate Stops */}
+              {intermediateStops.map((stop, idx) => (
+                <div key={stop.id} className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <RouteLocationInput
+                      label={isFr ? `Étape intermédiaire ${idx + 1}` : `Via Stop ${idx + 1}`}
+                      value={stop.name}
+                      badgeLetter={String(idx + 1) as any}
+                      placeholder={isFr ? 'Ex: Rougiers, Mazaugues...' : 'e.g. Rougiers, Mazaugues...'}
+                      onChange={(val) => {
+                        setIntermediateStops((prev) =>
+                          prev.map((s) => (s.id === stop.id ? { ...s, name: val, coords: null } : s))
+                        );
+                      }}
+                      onSelectSuggestion={(s) => {
+                        const next = intermediateStops.map((st) =>
+                          st.id === stop.id
+                            ? { ...st, name: s.name, coords: s.coordinates || null }
+                            : st
+                        );
+                        setIntermediateStops(next);
+                        if (origin.trim() && destination.trim()) {
+                          handleFetchDistance(origin, destination, next);
+                        }
+                      }}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = intermediateStops.filter((s) => s.id !== stop.id);
+                      setIntermediateStops(next);
+                      if (origin.trim() && destination.trim()) {
+                        handleFetchDistance(origin, destination, next);
+                      }
+                    }}
+                    className="mt-6 p-2 text-ink-muted hover:text-rose-500 cursor-pointer"
+                    title={isFr ? 'Supprimer cet arrêt' : 'Remove stop'}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newId = `stop-${Date.now()}`;
+                    setIntermediateStops((prev) => [...prev, { id: newId, name: '', coords: null }]);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-volt text-[#111111] text-xs font-rounded font-bold cursor-pointer transition-all hover:bg-volt-lime active:scale-95 shadow-xs"
+                >
+                  <Plus size={13} className="stroke-[2.5]" />
+                  <span>{isFr ? 'Ajouter un arrêt intermédiaire' : 'Add intermediate stop'}</span>
+                </button>
+              </div>
 
               {/* Destination Auto-Fill Input */}
               <RouteLocationInput
@@ -645,7 +745,7 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
                           onUpdateDistance(Math.max(2, Math.min(300, val)));
                         }
                       }}
-                      className="w-16 px-2 py-0.5 rounded-lg bg-card text-ink font-rounded font-bold text-sm text-right tnum border border-black/15 dark:border-white/20 focus:outline-none focus:ring-2 focus:ring-volt"
+                      className="w-16 min-h-[40px] px-2 py-0.5 rounded-lg bg-card text-ink font-rounded font-bold text-base sm:text-sm text-right tnum border border-black/15 dark:border-white/20 focus:outline-none focus:ring-2 focus:ring-volt"
                     />
                     <span className="font-rounded font-bold text-ink tnum text-sm">km</span>
                   </div>
@@ -659,7 +759,7 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
                   onChange={(e) => onUpdateDistance(Number(e.target.value))}
                   className="peloton-slider w-full cursor-pointer"
                 />
-                <div className="flex justify-between text-[10px] text-ink-muted mt-1 font-mono">
+                <div className="flex justify-between text-[11px] font-rounded text-ink-muted mt-1 tnum">
                   <span>2 km</span>
                   <span>50 km</span>
                   <span>100 km</span>
@@ -752,6 +852,11 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
               destinationLabel={destination.split(',')[0] || 'Nantes gare'}
               distanceKm={distanceKm}
               coordinates={coordinates}
+              waypoints={intermediateStops.map((s) => ({
+                id: s.id,
+                name: s.name,
+                coordinates: s.coords || undefined,
+              }))}
               className="mb-4"
             />
 
@@ -772,33 +877,6 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Footer Navigation Bar - Sticky Mobile Bar */}
-      <div className="sticky bottom-0 z-20 bg-card/95 backdrop-blur-md pt-3 sm:pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-4 border-t border-black/10 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 shrink-0 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_16px_rgba(0,0,0,0.3)] -mx-4 sm:-mx-8 md:-mx-10 px-4 sm:px-8 md:px-10 mt-auto">
-        <button
-          type="button"
-          onClick={onBack}
-          className="min-h-[44px] px-4 py-2 rounded-full border border-black/15 dark:border-white/20 bg-card hover:bg-pod text-ink text-xs font-rounded font-bold transition-all active:scale-[0.98] cursor-pointer flex items-center gap-1.5 w-full sm:w-auto justify-center"
-        >
-          <ArrowLeft size={14} />
-          <span>{isFr ? 'Retour' : 'Back'}</span>
-        </button>
-
-        <span className="text-xs text-ink-muted font-body font-medium text-center">
-          {isFr
-            ? `Parcours prêt · ${distanceKm.toFixed(1)} km`
-            : `Route ready · ${distanceKm.toFixed(1)} km`}
-        </span>
-
-        <button
-          type="button"
-          onClick={onContinue}
-          className="min-h-[44px] px-5 py-2 rounded-full bg-volt text-[#4d5200] ring-2 ring-inset ring-[#a3b300] text-xs font-rounded font-bold hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer flex items-center gap-1.5 shadow-sm w-full sm:w-auto justify-center"
-        >
-          <span>{isFr ? 'Utiliser cet itinéraire' : 'Use this route'}</span>
-          <ArrowRight size={14} className="stroke-[2.5]" />
-        </button>
       </div>
     </div>
   );

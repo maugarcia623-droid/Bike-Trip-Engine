@@ -239,7 +239,7 @@ export function calculatePhysics(
   const hours = Math.floor(movingTimeSeconds / 3600);
   const minutes = Math.floor((movingTimeSeconds % 3600) / 60);
   const seconds = Math.floor(movingTimeSeconds % 60);
-  const movingTimeFormatted = `${hours > 0 ? `${hours}h ` : ''}${minutes}m ${seconds.toString().padStart(2, '0')}s`;
+  const movingTimeFormatted = `${hours > 0 ? `${hours} h ` : ''}${minutes} min ${seconds.toString().padStart(2, '0')} s`;
 
   // 6. Total Mechanical Work (kJ) & Caloric Burn (kcal)
   const totalWorkKj = (legWatts * movingTimeSeconds) / 1000;

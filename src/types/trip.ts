@@ -39,10 +39,87 @@ export interface PhysicsParams {
   gradientPercent: number;
 }
 
+export type SurfaceType = 'paved' | 'gravel' | 'singletrack';
+export type SectorTechnicality = 'smooth' | 'moderate' | 'technical';
+export type GravelSuitabilityLevel = 'ideal' | 'good-with-care' | 'technical-caution';
+
+export interface SurfaceSegment {
+  id: string;
+  type: SurfaceType;
+  startKm: number;
+  endKm: number;
+  distanceKm: number;
+  startPct: number;
+  endPct: number;
+  startCoordIdx: number;
+  endCoordIdx: number;
+  coordinates: [number, number][];
+  nameEn: string;
+  nameFr: string;
+  surfaceDetailEn: string;
+  surfaceDetailFr: string;
+  avgGradePct: number;
+  maxGradePct: number;
+  effectiveCrr: number;
+  technicality: SectorTechnicality;
+  suitability38c: 'ideal' | 'capable' | 'caution';
+  riderNoteEn: string;
+  riderNoteFr: string;
+  osmWayIds?: number[];
+  osmHighway?: string;
+  osmSurfaceTag?: string;
+  osmTrackType?: string;
+  osmSmoothness?: string;
+  osmMtbScale?: string;
+  osmSacScale?: string;
+  osmName?: string;
+  osmRef?: string;
+  isInferredFromHighway?: boolean;
+}
+
+export interface GravelSuitabilityAssessment {
+  overallLevel: GravelSuitabilityLevel;
+  scorePct: number;
+  tireWidthMm: number;
+  isTubeless: boolean;
+  recommendedFrontBar: number;
+  recommendedRearBar: number;
+  headlineEn: string;
+  headlineFr: string;
+  summaryEn: string;
+  summaryFr: string;
+  unpavedCount: number;
+  technicalCount: number;
+  maxUnpavedStretchKm: number;
+}
+
+export type SurfaceDataSource = 'osm-overpass' | 'heuristic-fallback';
+
+export interface SurfaceBreakdown {
+  pavedPct: number;
+  gravelPct: number;
+  singletrackPct: number;
+  pavedKm: number;
+  gravelKm: number;
+  singletrackKm: number;
+  weightedCrr: number;
+  segments: SurfaceSegment[];
+  pointSurfaces: SurfaceType[];
+  suitability: GravelSuitabilityAssessment;
+  dataSource?: SurfaceDataSource;
+  isLoadingOsm?: boolean;
+  osmCoveragePct?: number;
+  explicitTagPct?: number;
+  osmWayCount?: number;
+  osmError?: string;
+  osmFetchedAt?: string;
+}
+
 export interface ElevationProfilePoint {
   distKm: number;
   eleM: number;
   gradePct: number;
+  surfaceType?: SurfaceType;
 }
 
 export interface TerrainSummary {
@@ -55,6 +132,41 @@ export interface TerrainSummary {
   maxEleM: number;
   surfaceLabel?: 'road' | 'mixed' | 'gravel';
   difficultyLevel?: 'easy' | 'moderate' | 'challenging' | 'alpine';
+  pavedPct?: number;
+  gravelPct?: number;
+  singletrackPct?: number;
+  surfaceBreakdown?: SurfaceBreakdown;
+}
+
+export interface RouteWaypoint {
+  id: string;
+  name: string;
+  coordinates?: [number, number] | null;
+  distanceFromStartKm?: number;
+  sourceAmenityId?: string;
+}
+
+export type RouteCueDirection =
+  | 'depart'
+  | 'arrive'
+  | 'left'
+  | 'right'
+  | 'slight-left'
+  | 'slight-right'
+  | 'sharp-left'
+  | 'sharp-right'
+  | 'straight'
+  | 'roundabout'
+  | 'waypoint'
+  | 'resupply';
+
+export interface RouteCueStep {
+  lat: number;
+  lng: number;
+  distKm: number;
+  instruction: string;
+  direction: RouteCueDirection;
+  streetName?: string;
 }
 
 export interface RouteParams {
@@ -75,6 +187,9 @@ export interface RouteParams {
   gpxFileName?: string;
   elevationProfile?: ElevationProfilePoint[];
   terrainSummary?: TerrainSummary;
+  surfaceBreakdown?: SurfaceBreakdown;
+  waypoints?: RouteWaypoint[];
+  cueSheet?: RouteCueStep[];
 }
 
 export interface OfficeConstraints {
@@ -336,14 +451,14 @@ export function generateTripChecklist(
     hydrationPlan.plannedRefillBidons === 0
       ? isQuant
         ? isFr
-          ? `${hydrationPlan.carriedOnFrameBidons}x bidon(s) de ${bidonSizeMl} ml sur le vélo (${hydrationPlan.totalFluidNeedMl} ml cible)`
-          : `${hydrationPlan.carriedOnFrameBidons}x ${bidonSizeMl}ml bidon(s) on bike (${hydrationPlan.totalFluidNeedMl}ml target)`
+          ? `${hydrationPlan.carriedOnFrameBidons}× bidon(s) de ${bidonSizeMl} ml sur le vélo (${hydrationPlan.totalFluidNeedMl} ml cible)`
+          : `${hydrationPlan.carriedOnFrameBidons}× ${bidonSizeMl} ml bottle(s) on bike (${hydrationPlan.totalFluidNeedMl} ml target)`
         : isFr
-        ? `${hydrationPlan.carriedOnFrameBidons}x bidon(s) de ${bidonSizeMl} ml sur le vélo`
-        : `${hydrationPlan.carriedOnFrameBidons}x ${bidonSizeMl}ml bidon(s) on bike`
+        ? `${hydrationPlan.carriedOnFrameBidons}× bidon(s) de ${bidonSizeMl} ml sur le vélo`
+        : `${hydrationPlan.carriedOnFrameBidons}× ${bidonSizeMl} ml bottle(s) on bike`
       : isFr
-      ? `${hydrationPlan.carriedOnFrameBidons}x bidon(s) de ${bidonSizeMl} ml sur cadre + ${hydrationPlan.plannedRefillBidons} recharge(s) prévue(s) en route`
-      : `${hydrationPlan.carriedOnFrameBidons}x ${bidonSizeMl}ml bidon(s) on frame + ${hydrationPlan.plannedRefillBidons} planned refill(s) en route`;
+      ? `${hydrationPlan.carriedOnFrameBidons}× bidon(s) de ${bidonSizeMl} ml sur cadre + ${hydrationPlan.plannedRefillBidons} recharge(s) prévue(s) en route`
+      : `${hydrationPlan.carriedOnFrameBidons}× ${bidonSizeMl} ml bottle(s) on frame + ${hydrationPlan.plannedRefillBidons} planned refill(s) on route`;
   const t = (tag || "")
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -386,7 +501,7 @@ export function generateTripChecklist(
           ? "Multi-outil, 2 démonte-pneus, chambre à air & mini-pompe (kit anti-crève)"
           : "Multi-outil & kit anti-crève (chambre à air)"
         : distanceKm > 50
-        ? "Multi-tool, 2x tire levers, spare tube & mini pump"
+        ? "Multi-tool, 2× tire levers, spare tube & mini pump"
         : "Multi-tool & spare tube",
       checked: false,
       category: "mechanics",
@@ -420,12 +535,13 @@ export function generateTripChecklist(
 
   if (isEscapade) {
     items.push(
-      { id: "esc-id", label: isFr ? "Confirmation de réservation d'hôtel & pièce d'identité" : "Hotel reservation booking & national ID", checked: false, category: "logistics", critical: true },
+      { id: "esc-id", label: isFr ? "Check-in Hôtel : confirmation de réservation, pièce d’identité & CB" : "Hotel Check-in: booking confirmation, ID & payment card", checked: false, category: "logistics", critical: true },
+      { id: "esc-pannier", label: isFr ? "Répartition du poids sacoches / sac de selle & sac étanche" : "Pannier / Saddlebag weight distribution & dry-bag waterproofing", checked: false, category: "gear", critical: true },
+      { id: "esc-charge", label: isFr ? "Recharge du soir & récupération (GPS, phares, batterie & étirements)" : "Evening charging & recovery (GPS, lights, power bank & recovery kit)", checked: false, category: "gear", critical: true },
       { id: "esc-clothes", label: isFr ? "Tenue civile pour le soir & chaussures de marche légères" : "Casual off-bike evening clothes & walking shoes", checked: false, category: "gear", critical: true },
-      { id: "esc-charge", label: isFr ? "Chargeur téléphone & batterie externe" : "Phone charger & portable power bank", checked: false, category: "gear", critical: true },
-      { id: "esc-lock", label: isFr ? "Antivol compact pour le local vélo de l’hôtel" : "Compact bike lock for hotel storage", checked: false, category: "mechanics", critical: true },
+      { id: "esc-lock", label: isFr ? "Antivol compact pour le local vélo de l’hôtel" : "Compact bike lock for overnight hotel storage", checked: false, category: "mechanics", critical: true },
       { id: "esc-fuel", label: hydrationChecklistLabel, checked: false, category: "nutrition", critical: true },
-      { id: "esc-lights", label: isFr ? "Éclairage avant & feu arrière flash de sécurité" : "Front headlight & rear safety flasher", checked: false, category: "mechanics", critical: true }
+      { id: "esc-lights", label: isFr ? "Éclairage avant & feu arrière flash de sécurité" : "Front touring headlight & rear safety flasher", checked: false, category: "mechanics", critical: true }
     );
   } else if (isSport) {
     items.push(
@@ -435,19 +551,19 @@ export function generateTripChecklist(
           nutritionPref === 'real-food'
             ? isQuant
               ? isFr
-                ? `Ravito aliments vrais (~${carbTarget}g/h : dattes, pâtes de fruits) & bidons électrolytes`
-                : `Whole-food ride fuel (~${carbTarget}g/hr: dates, fruit chews) & electrolyte bidons`
+                ? `Ravito aliments vrais (~${carbTarget} g/h : dattes, pâtes de fruits) & bidons électrolytes`
+                : `Whole-food ride fuel (~${carbTarget} g/h: dates, fruit chews) & electrolyte bottles`
               : isFuelFirst
               ? isFr
                 ? `Ravito aliments vrais (~${fuelUnitsPerHr} unités/h : dattes, pâtes de fruits) & bidons électrolytes`
-                : `Whole-food ride fuel (~${fuelUnitsPerHr} fuel units/hr: dates, fruit chews) & electrolyte bidons`
+                : `Whole-food ride fuel (~${fuelUnitsPerHr} fuel units/hr: dates, fruit chews) & electrolyte bottles`
               : isFr
               ? `Ravito aliments vrais (dattes, pâtes de fruits) & bidons électrolytes`
-              : `Whole-food ride fuel (dates, fruit chews) & electrolyte bidons`
+              : `Whole-food ride fuel (dates, fruit chews) & electrolyte bottles`
             : isQuant
             ? isFr
-              ? `Boisson glucidique en bidons (~${carbTarget}g/h) & gels ravito`
-              : `Carb mix in bottles (~${carbTarget}g/hr) & energy gels`
+              ? `Boisson glucidique en bidons (~${carbTarget} g/h) & gels ravito`
+              : `Carb mix in bottles (~${carbTarget} g/h) & energy gels`
             : isFuelFirst
             ? isFr
               ? `Boisson glucidique en bidons (~${fuelUnitsPerHr} unités/h) & collations rapides`
@@ -467,8 +583,9 @@ export function generateTripChecklist(
     }
   } else if (isBikepacking) {
     items.push(
+      { id: "bp-pannier", label: isFr ? "Répartition du poids sacoches / sac de selle (équilibre du vélo)" : "Pannier / Saddlebag weight distribution (balanced load)", checked: false, category: "gear", critical: true },
       { id: "bp-sleep", label: isFr ? "Sac de bivouac / tente compacte & matelas isolant" : "Bivouac bag / compact tent & sleeping pad", checked: false, category: "gear", critical: true },
-      { id: "bp-power", label: isFr ? "Batterie externe haute capacité 20 000 mAh & câbles" : "High-capacity 20,000mAh power bank & cables", checked: false, category: "gear", critical: true },
+      { id: "bp-power", label: isFr ? "Recharge du soir & récupération (batterie 20 000 mAh, câbles & repos)" : "Evening charging & recovery (20,000mAh power bank, cables & rest kit)", checked: false, category: "gear", critical: true },
       { id: "bp-water", label: isFr ? "Flasque filtrante + capacité hydrique de 2 L" : "Water filtration flask + 2L hydration capacity", checked: false, category: "nutrition", critical: true },
       { id: "bp-chain", label: isFr ? "Dérive-chaîne, maillons rapides & patte de dérailleur" : "Chain tool, quick-links & spare hanger", checked: false, category: "mechanics", critical: true }
     );
@@ -487,8 +604,8 @@ export function generateTripChecklist(
         {
           id: "bp-charging-autonomy",
           label: isFr
-            ? `Autonomie électrique (${totalDays} jours) : chargeur secteur multi-ports USB-C pour GPS, radar & phares 800-1000lm`
-            : `Charging autonomy for ${totalDays} days: wall plug adapter + multi-port USB-C splitter for GPS, radar & 800-1000lm lights`,
+            ? `Recharge du soir multi-étapes (${totalDays} jours) : chargeur multi-ports USB-C (GPS, radar, phares)`
+            : `Evening charging & autonomy (${totalDays} days): multi-port USB-C splitter for GPS, radar & 800-1000lm lights`,
           checked: false,
           category: "gear",
           critical: true,
@@ -496,8 +613,8 @@ export function generateTripChecklist(
         {
           id: "bp-multiday-logistics",
           label: isFr
-            ? `Réservations hébergements & billet train vélo téléchargés hors-ligne (${totalDays} étapes)`
-            : `Accommodation & transit confirmations saved offline (${totalDays} stages + TER train bike reservation)`,
+            ? `Check-in Hôtel / bivouacs & billets train vélo sauvegardés hors-ligne (${totalDays} étapes)`
+            : `Hotel Check-in / bivouac stops & rail bike passes saved offline (${totalDays} stages)`,
           checked: false,
           category: "logistics",
           critical: true,
@@ -664,8 +781,8 @@ export function generateTripChecklist(
     items.push({
       id: 'chip-hydration-fuel',
       label: isFr
-        ? `Mélange glucidique calibré (~${carbTarget}g/h) & capsules de sodium`
-        : `Calibrated carb drink mix (~${carbTarget}g/hr) & sodium salt tabs`,
+        ? `Mélange glucidique calibré (~${carbTarget} g/h) & capsules de sodium`
+        : `Calibrated carb drink mix (~${carbTarget} g/h) & sodium salt tabs`,
       checked: false,
       category: 'nutrition',
       critical: true,

@@ -66,9 +66,7 @@ export function normalizeRiderBikeSpecs(parsed: Partial<RiderBikeSpecs> | Record
   const resolvedViewMode =
     parsed.cockpitViewMode === 'essential' || parsed.cockpitViewMode === 'pro'
       ? parsed.cockpitViewMode
-      : resolvedLevel === 'occasional'
-      ? 'essential'
-      : 'pro';
+      : DEFAULT_RIDER_BIKE_SPECS.cockpitViewMode ?? 'essential';
   const resolvedWeight =
     typeof parsed.riderWeightKg === 'number' && Number.isFinite(parsed.riderWeightKg) && parsed.riderWeightKg > 25
       ? parsed.riderWeightKg
@@ -103,7 +101,7 @@ export function normalizeRiderBikeSpecs(parsed: Partial<RiderBikeSpecs> | Record
     parsed.telemetryMode === 'fuel-first' ||
     parsed.telemetryMode === 'intuitive'
       ? parsed.telemetryMode
-      : DEFAULT_RIDER_BIKE_SPECS.telemetryMode ?? 'quantitative';
+      : DEFAULT_RIDER_BIKE_SPECS.telemetryMode ?? 'fuel-first';
   const resolvedPacingMode: PacingInputMode =
     parsed.pacingInputMode === 'feel' || parsed.pacingInputMode === 'power'
       ? parsed.pacingInputMode

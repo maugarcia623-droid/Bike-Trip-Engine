@@ -59,7 +59,14 @@ export const InfoTooltip: React.FC<InfoTooltipProps> = ({
       // auto
       const spaceAbove = triggerRect.top;
       const spaceBelow = viewportHeight - triggerRect.bottom;
-      actualPlacement = spaceAbove >= tooltipHeight + 12 || spaceAbove > spaceBelow ? 'top' : 'bottom';
+      actualPlacement =
+        spaceAbove >= tooltipHeight + 12
+          ? 'top'
+          : spaceBelow >= tooltipHeight + 12
+          ? 'bottom'
+          : spaceAbove > spaceBelow
+          ? 'top'
+          : 'bottom';
     }
 
     // Horizontal centering relative to trigger
@@ -74,11 +81,12 @@ export const InfoTooltip: React.FC<InfoTooltipProps> = ({
     // Arrow position relative to tooltip box
     const arrowLeft = Math.max(14, Math.min(tooltipWidth - 14, triggerCenterX - left));
 
-    // Vertical position
-    const top =
+    // Vertical position clamped to viewport bounds
+    const rawTop =
       actualPlacement === 'top'
         ? triggerRect.top - tooltipHeight - 8
         : triggerRect.bottom + 8;
+    const top = Math.max(8, Math.min(rawTop, viewportHeight - tooltipHeight - 8));
 
     setCoords({
       top,
@@ -170,9 +178,9 @@ export const InfoTooltip: React.FC<InfoTooltipProps> = ({
         onMouseLeave={handleMouseLeave}
         onFocus={handleMouseEnter}
         onBlur={handleMouseLeave}
-        aria-label={title ? `${title} info` : 'Information'}
+        aria-label={title ? `${title} · Information` : 'Information'}
         aria-expanded={isOpen}
-        className={`inline-flex items-center justify-center p-0.5 rounded-full text-zinc-400 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-200 [--icon-secondary:currentColor] [--icon-secondary-opacity:0.3] focus:outline-none focus-visible:ring-1 focus-visible:ring-zinc-400 transition-colors cursor-help shrink-0 align-middle ${className}`}
+        className={`relative before:content-[''] before:absolute before:-inset-3 inline-flex items-center justify-center p-0.5 rounded-full text-zinc-400 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-200 [--icon-secondary:currentColor] [--icon-secondary-opacity:0.3] focus:outline-none focus-visible:ring-2 focus-visible:ring-ink/40 dark:focus-visible:ring-white/40 transition-colors cursor-help shrink-0 align-middle ${className}`}
       >
         <Info className={`${iconSizeClass} text-current ${iconClassName}`} />
       </button>

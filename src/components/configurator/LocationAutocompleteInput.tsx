@@ -68,9 +68,13 @@ export const LocationAutocompleteInput: React.FC<LocationAutocompleteInputProps>
     };
   }, []);
 
+  const biasLat = biasCoords?.[0];
+  const biasLon = biasCoords?.[1];
+
   // Fetch suggestions when value changes
   useEffect(() => {
     const trimmed = value.trim();
+    let cancelled = false;
 
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
@@ -92,24 +96,27 @@ export const LocationAutocompleteInput: React.FC<LocationAutocompleteInputProps>
       abortControllerRef.current = controller;
 
       try {
+        const stableBias: [number, number] | undefined =
+          biasLat !== undefined && biasLon !== undefined ? [biasLat, biasLon] : undefined;
         const results = await searchLocationSuggestions(trimmed, {
           lang,
-          biasCoords,
+          biasCoords: stableBias,
           signal: controller.signal,
           limit: 7,
         });
+        if (cancelled || controller.signal.aborted) return;
         setSuggestions(results);
         setHighlightedIndex(-1);
+        setIsLoading(false);
       } catch (err: any) {
-        if (err?.name !== 'AbortError') {
-          setSuggestions([]);
-        }
-      } finally {
+        if (cancelled || controller.signal.aborted || err?.name === 'AbortError') return;
+        setSuggestions([]);
         setIsLoading(false);
       }
     }, 250);
 
     return () => {
+      cancelled = true;
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
@@ -117,7 +124,7 @@ export const LocationAutocompleteInput: React.FC<LocationAutocompleteInputProps>
         abortControllerRef.current.abort();
       }
     };
-  }, [value, lang, biasCoords]);
+  }, [value, lang, biasLat, biasLon]);
 
   const handleSelect = useCallback(
     (suggestion: LocationSuggestion) => {
@@ -228,18 +235,19 @@ export const LocationAutocompleteInput: React.FC<LocationAutocompleteInputProps>
           onKeyDown={handleKeyDown}
           placeholder={placeholder || t('locationSearchPlaceholder')}
           autoComplete="off"
-          className="w-full h-11 sm:h-12 bg-pod rounded-full pl-10 pr-9 text-sm font-medium text-ink placeholder:text-ink-muted/70 focus:outline-none focus:ring-2 focus:ring-ink/20 transition-all"
+          className="w-full h-11 sm:h-12 bg-pod rounded-full pl-10 pr-9 text-base sm:text-sm font-medium text-ink placeholder:text-ink-muted/70 focus:outline-none focus:ring-2 focus:ring-ink/20 transition-all"
         />
 
-        <div className="absolute right-3 flex items-center gap-1.5">
+        <div className="absolute right-2 flex items-center gap-1.5">
           {isLoading ? (
-            <SpinnerGap className="w-4 h-4 animate-spin text-ink-muted" />
+            <SpinnerGap className="w-4 h-4 animate-spin text-ink-muted mr-1" />
           ) : value.length > 0 ? (
             <button
               type="button"
               onClick={handleClear}
               title={t('autocompleteClear')}
-              className="p-1 rounded-full text-ink-muted hover:text-ink hover:bg-card/70 transition-colors cursor-pointer"
+              aria-label={t('autocompleteClear')}
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-ink-muted hover:text-ink hover:bg-card/70 transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -250,12 +258,12 @@ export const LocationAutocompleteInput: React.FC<LocationAutocompleteInputProps>
       {/* Floating Suggestions Dropdown with Generous Width */}
       {showDropdown && (
         <div
-          className={`absolute top-full mt-2 z-50 bg-card rounded-[20px] border border-ink/10 dark:border-white/10 shadow-2xl p-2 max-h-72 overflow-y-auto animate-apple-popover w-full md:min-w-[420px] max-w-[calc(100vw-2.5rem)] ${
+          className={`absolute top-full mt-2 z-50 bg-card rounded-[20px] shadow-2xl ring-1 ring-ink/5 dark:ring-white/10 p-2 max-h-72 overflow-y-auto animate-apple-popover w-full md:min-w-[360px] max-w-[calc(100vw-2rem)] ${
             dropdownAlign === 'right' ? 'left-0 md:left-auto md:right-0' : 'left-0'
           }`}
         >
           {value.trim().length < 2 && (
-            <div className="px-3 py-1.5 text-[11px] font-semibold tracking-wider uppercase text-ink-muted border-b border-ink/5 dark:border-white/5 mb-1">
+            <div className="px-3 py-1.5 text-xs font-medium text-ink-muted mb-1">
               {t('autocompletePopularHubs')}
             </div>
           )}

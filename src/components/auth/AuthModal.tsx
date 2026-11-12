@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useId } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../context/LanguageContext';
+import { ModalPortal } from '../common/ModalPortal';
 import {
   Eye,
   EyeOff,
@@ -30,7 +31,9 @@ export const AuthModal: React.FC = () => {
     signInWithMagicLink,
     resetPassword,
   } = useAuth();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
+  const isFr = lang === 'fr';
+  const titleId = useId();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -41,27 +44,12 @@ export const AuthModal: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
 
-  // Reset errors and notice when modal opens or mode changes
   useEffect(() => {
     if (isAuthModalOpen) {
       setErrorMessage(null);
       setSuccessNotice(null);
     }
   }, [isAuthModalOpen, authModalMode]);
-
-  // Handle ESC key to dismiss
-  useEffect(() => {
-    if (!isAuthModalOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        closeAuthModal();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isAuthModalOpen, closeAuthModal]);
-
-  if (!isAuthModalOpen) return null;
 
   const handleMagicLink = async () => {
     setErrorMessage(null);
@@ -156,42 +144,39 @@ export const AuthModal: React.FC = () => {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[1000] bg-black/70 flex items-center justify-center p-4 pt-[max(1rem,calc(env(safe-area-inset-top,0px)+1rem))] pb-[max(1rem,calc(env(safe-area-inset-bottom,0px)+1rem))] overflow-y-auto animate-apple-fade-in"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) closeAuthModal();
-      }}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="auth-modal-title"
+    <ModalPortal
+      isOpen={isAuthModalOpen}
+      onClose={closeAuthModal}
+      labelledBy={titleId}
+      zIndexClass="z-[1000]"
+      panelClassName="bg-card text-ink border border-black/10 dark:border-white/10 rounded-card p-6 sm:p-8 max-w-md w-full shadow-2xl relative my-auto overflow-y-auto animate-apple-modal"
     >
-      <div className="bg-card text-ink border border-ink/10 dark:border-white/10 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative my-auto animate-apple-modal">
-        {/* Dismiss Button */}
-        <button
-          type="button"
-          onClick={closeAuthModal}
-          className="absolute top-5 right-5 w-9 h-9 rounded-full bg-pod dark:bg-canvas hover:bg-chip flex items-center justify-center text-ink-muted hover:text-ink transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer focus:outline-none"
-          aria-label="Close modal"
-        >
-          <X className="w-4.5 h-4.5" />
-        </button>
+      {/* Dismiss Button */}
+      <button
+        type="button"
+        onClick={closeAuthModal}
+        className="relative before:content-[''] before:absolute before:-inset-1.5 w-9 h-9 rounded-full bg-pod dark:bg-canvas hover:bg-surface-active flex items-center justify-center text-ink-muted hover:text-ink transition-all duration-150 active:scale-95 cursor-pointer focus:outline-none ml-auto float-right"
+        aria-label={isFr ? 'Fermer' : 'Close'}
+      >
+        <X className="w-4.5 h-4.5" />
+      </button>
 
-        {/* Brand Icon Header */}
-        <div className="flex items-center gap-3 mb-5 animate-apple-in stagger-1">
-          <div
-            className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-xs ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
-          >
-            <Cloud className="w-5 h-5" />
-          </div>
-          <div>
-            <h2 id="auth-modal-title" className="text-lg sm:text-xl font-bold tracking-tight text-ink">
-              {t('authModalTitle')}
-            </h2>
-            <p className="text-xs text-ink-muted">
-              Supabase Cloud Sync
-            </p>
-          </div>
+      {/* Brand Icon Header */}
+      <div className="flex items-center gap-3 mb-5 animate-apple-in stagger-1">
+        <div
+          className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-xs ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+        >
+          <Cloud className="w-5 h-5" />
         </div>
+        <div>
+          <h2 id={titleId} className="text-lg sm:text-xl font-bold font-rounded tracking-tight text-ink">
+            {t('authModalTitle')}
+          </h2>
+          <p className="text-xs text-ink-muted font-body">
+            {isFr ? 'Sauvegarde & synchronisation' : 'Encrypted ride sync'}
+          </p>
+        </div>
+      </div>
 
         <p className="text-xs sm:text-[13px] text-ink-secondary mb-6 leading-relaxed">
           {t('authModalSubtitle')}
@@ -247,7 +232,7 @@ export const AuthModal: React.FC = () => {
         {/* Auth Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wider">
+            <label className="block text-xs font-rounded font-semibold text-ink-secondary mb-1.5">
               {t('emailLabel')}
             </label>
             <div className="relative">
@@ -260,7 +245,7 @@ export const AuthModal: React.FC = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder={t('emailPlaceholder')}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-pod dark:bg-canvas border border-ink/10 dark:border-white/10 focus:border-volt focus:ring-1 focus:ring-volt outline-none text-sm text-ink placeholder:text-ink-muted transition-colors font-sans"
+                className="w-full min-h-[44px] pl-10 pr-4 py-2.5 rounded-pod bg-pod dark:bg-canvas border border-black/10 dark:border-white/10 focus:border-transparent focus:ring-2 focus:ring-inset focus:ring-volt outline-none text-base sm:text-sm text-ink placeholder:text-ink-muted transition-colors font-body"
               />
             </div>
           </div>
@@ -272,7 +257,7 @@ export const AuthModal: React.FC = () => {
                 type="button"
                 onClick={handleMagicLink}
                 disabled={isMagicLinkLoading || isLoading || isResetLoading}
-                className="w-full py-2.5 px-4 rounded-xl font-semibold text-xs sm:text-[13px] bg-pod dark:bg-canvas hover:bg-chip text-ink border border-ink/10 dark:border-white/10 hover:border-volt/60 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs group"
+                className="w-full min-h-[44px] py-2.5 px-4 rounded-pod font-rounded font-semibold text-xs sm:text-[13px] bg-pod dark:bg-canvas hover:bg-surface-active text-ink border border-black/10 dark:border-white/10 hover:border-volt/60 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs group"
               >
                 {isMagicLinkLoading ? (
                   <>
@@ -293,7 +278,7 @@ export const AuthModal: React.FC = () => {
           {authModalMode === 'login' && (
             <div className="relative my-3 flex items-center justify-center">
               <div className="border-t border-ink/10 dark:border-white/10 w-full" />
-              <span className="bg-card px-2.5 text-[10px] font-mono uppercase tracking-wider text-ink-muted absolute">
+              <span className="bg-card px-2.5 text-[10px] font-rounded font-semibold uppercase tracking-wider text-ink-muted absolute">
                 {t('orDivider')}
               </span>
             </div>
@@ -301,7 +286,7 @@ export const AuthModal: React.FC = () => {
 
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-semibold text-ink-muted uppercase tracking-wider">
+              <label className="block text-xs font-rounded font-semibold text-ink-secondary">
                 {t('passwordLabel')}
               </label>
               {authModalMode === 'login' && (
@@ -309,7 +294,7 @@ export const AuthModal: React.FC = () => {
                   type="button"
                   onClick={handleForgotPassword}
                   disabled={isResetLoading || isMagicLinkLoading || isLoading}
-                  className="text-[11px] text-ink-muted hover:text-ink hover:underline decoration-ink/30 cursor-pointer focus:outline-none transition-colors"
+                  className="text-xs text-ink-muted hover:text-ink hover:underline decoration-ink/30 cursor-pointer focus:outline-none transition-colors"
                 >
                   {isResetLoading ? t('sendingResetLink') : t('forgotPasswordBtn')}
                 </button>
@@ -325,13 +310,13 @@ export const AuthModal: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder={t('passwordPlaceholder')}
-                className="w-full pl-10 pr-11 py-2.5 rounded-xl bg-pod dark:bg-canvas border border-ink/10 dark:border-white/10 focus:border-volt focus:ring-1 focus:ring-volt outline-none text-sm text-ink placeholder:text-ink-muted transition-colors font-sans"
+                className="w-full min-h-[44px] pl-10 pr-11 py-2.5 rounded-pod bg-pod dark:bg-canvas border border-black/10 dark:border-white/10 focus:border-transparent focus:ring-2 focus:ring-inset focus:ring-volt outline-none text-base sm:text-sm text-ink placeholder:text-ink-muted transition-colors font-body"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink focus:outline-none cursor-pointer"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                className="relative before:content-[''] before:absolute before:-inset-2 absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink focus:outline-none cursor-pointer"
+                aria-label={showPassword ? (isFr ? 'Masquer' : 'Hide password') : (isFr ? 'Afficher' : 'Show password')}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -341,7 +326,7 @@ export const AuthModal: React.FC = () => {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full mt-2 py-3 px-4 rounded-xl font-bold text-sm bg-volt text-[#111111] hover:brightness-105 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer flex items-center justify-center gap-2 shadow-sm font-sans"
+            className="w-full min-h-[46px] mt-2 py-3 px-4 rounded-pod font-rounded font-bold text-sm bg-volt text-[#111111] hover:brightness-105 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer flex items-center justify-center gap-2 shadow-sm"
           >
             {isLoading ? (
               <>
@@ -374,7 +359,6 @@ export const AuthModal: React.FC = () => {
             {t('cloudSyncHelp')}
           </p>
         </div>
-      </div>
-    </div>
+    </ModalPortal>
   );
 };

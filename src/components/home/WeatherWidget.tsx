@@ -5,6 +5,7 @@ import { useTranslation } from '../../context/LanguageContext';
 import { calculatePhysics } from '../../utils/physics';
 import { degreesToCompassCardinal } from '../../services/weatherService';
 import { Badge } from '../common/Badge';
+import { loadRiderBikeSpecs } from '../../utils/specsStorage';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
   CHIP_RING_BASE,
@@ -28,6 +29,7 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
   const { lang, t } = useTranslation();
 
   const rhoNum = weather.airDensityRho ?? trip?.physics.rho ?? 1.225;
+  const isProView = loadRiderBikeSpecs().cockpitViewMode === 'pro';
   const effectivePhysics = {
     riderWeightKg: trip?.physics.riderWeightKg ?? 74,
     bikeWeightKg: trip?.physics.bikeWeightKg ?? 9.4,
@@ -137,15 +139,19 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
             <span className="text-2xl sm:text-3xl font-semibold tracking-tight text-ink tnum">
               {weather.temperatureC}°C
             </span>
-            <span className="text-xs font-medium text-ink-muted tnum">{rhoNum.toFixed(3)} kg/m³</span>
+            {isProView && (
+              <span className="text-xs font-medium text-ink-muted tnum">{rhoNum.toFixed(3)} kg/m³</span>
+            )}
           </div>
-          <p className="text-xs text-ink-secondary mt-1">
-            {rhoNum >= 1.245
-              ? t('coldDenseAirSub')
-              : rhoNum <= 1.195
-              ? t('warmLightAirSub')
-              : t('standardMorningDensitySub')}
-          </p>
+          {isProView && (
+            <p className="text-xs text-ink-secondary mt-1">
+              {rhoNum >= 1.245
+                ? t('coldDenseAirSub')
+                : rhoNum <= 1.195
+                ? t('warmLightAirSub')
+                : t('standardMorningDensitySub')}
+            </p>
+          )}
         </div>
 
         <div className="bg-pod rounded-pod p-3.5 sm:p-4 min-w-0">
@@ -186,9 +192,13 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
             <span className="text-xs font-medium text-ink-muted">{t('riskUnit')}</span>
           </div>
           <p className="text-xs text-ink-secondary mt-1 tnum">
-            {weather.precipitationRiskPercent >= 40
-              ? t('wetSurfaceCrrSub', { crr: effectivePhysics.crr })
-              : t('nominalCrrSub', { crr: effectivePhysics.crr })}
+            {isProView
+              ? weather.precipitationRiskPercent >= 40
+                ? t('wetSurfaceCrrSub', { crr: effectivePhysics.crr })
+                : t('nominalCrrSub', { crr: effectivePhysics.crr })
+              : weather.precipitationRiskPercent >= 40
+              ? (lang === 'fr' ? 'Chaussée possiblement humide · prudence dans les virages' : 'Possible wet roads · take extra braking margin')
+              : (lang === 'fr' ? 'Chaussée sèche attendue' : 'Dry road conditions expected')}
           </p>
         </div>
       </div>
@@ -207,7 +217,9 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
         <div className="flex items-center justify-between sm:justify-start gap-2 flex-wrap">
           {weather.isHeadwindActive && effectiveWindSpeed > 0 ? (
             <Badge variant="amber" size="md" className="tnum">
-              {t('aeroDragFactoredPill', { watts: aeroDeltaWatts })}
+              {isProView
+                ? t('aeroDragFactoredPill', { watts: aeroDeltaWatts })
+                : (lang === 'fr' ? `Vent de face ${effectiveWindSpeed} km/h` : `${effectiveWindSpeed} km/h headwind`)}
             </Badge>
           ) : (
             <Badge variant="emerald" size="md">

@@ -1,5 +1,16 @@
-import { TripProfile, RouteParams, ElevationProfilePoint } from '../types/trip';
+import { TripProfile, RouteParams } from '../types/trip';
+import { StageAmenity } from '../types/amenities';
 import { synthesizeRouteElevationProfile } from './gpxParser';
+import { resolveLiveStages, getExpeditionTotals } from './stageManager';
+import { getCurrentLanguage } from '../context/LanguageContext';
+import { haversineDistanceMeters } from '../services/overpassCorridor';
+import {
+  buildStageCueSheet,
+  CueSheetEntry,
+  formatAmenityCategoryLabel,
+  formatAmenityCueNote,
+  getAmenityGpxSymbol,
+} from './cueSheet';
 
 /**
  * Generate a smooth closed loop of GPS coordinates centered around an origin point.
@@ -12,10 +23,7 @@ function generateRadiusLoopCoordinates(
 ): [number, number][] {
   const [lat0, lng0] = center;
   const targetDist = Math.max(2, distanceKm);
-  // Total circumference of circle C = 2 * PI * R => R = C / (2 * PI)
-  // We use an elliptical / clover shape that starts and ends at [lat0, lng0]
   const radiusKm = targetDist / (2 * Math.PI);
-  // 1 deg lat ~ 111.0 km, 1 deg lng ~ 111.0 * cos(lat) km
   const latKmPerDeg = 111.0;
   const lngKmPerDeg = 111.0 * Math.cos((lat0 * Math.PI) / 180);
 
@@ -23,8 +31,6 @@ function generateRadiusLoopCoordinates(
 
   for (let i = 0; i <= sampleCount; i++) {
     const t = (i / sampleCount) * 2 * Math.PI;
-    // Circular loop offset with slight natural variation so it begins and ends at [lat0, lng0]
-    // Shape: offset circle touching origin at t = 0 and t = 2*PI
     const dLatKm = radiusKm * Math.sin(t);
     const dLngKm = radiusKm * (1 - Math.cos(t));
 
@@ -46,40 +52,22 @@ function resolveExportCoordinates(route: RouteParams): [number, number][] {
 
   // Radius loop mode
   if (route.routeMode === 'manual-radius' || (route.radiusMeters && route.radiusMeters > 0)) {
-    const center: [number, number] = route.originCoords ||
+    const center: [number, number] =
+      route.originCoords ||
       (route.coordinates && route.coordinates.length > 0 ? route.coordinates[0] : [47.2186, -1.5541]);
     return generateRadiusLoopCoordinates(center, route.distanceKm || 30);
   }
 
   // Fallback default corridor (Nantes to Saint-Nazaire corridor)
-  const defaultBase: [number, number][] = [
+  return [
     [47.2184, -1.5536],
-    [47.2050, -1.6000],
-    [47.2350, -1.7200],
-    [47.2500, -1.8600],
-    [47.2800, -2.0500],
-    [47.2730, -2.1800],
-    [47.2840, -2.2080],
+    [47.205, -1.6],
+    [47.235, -1.72],
+    [47.25, -1.86],
+    [47.28, -2.05],
+    [47.273, -2.18],
+    [47.284, -2.208],
   ];
-
-  return defaultBase;
-}
-
-/**
- * Compute haversine distance in meters between two lat/lng points.
- */
-function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371000;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
 }
 
 interface TrackPointData {
@@ -91,46 +79,46 @@ interface TrackPointData {
 }
 
 /**
- * Prepare uniform track points with elevations and pacing timestamps.
+ * Prepare uniform track points with elevations and pacing timestamps for any RouteParams + date/time.
  */
-function prepareTrackPoints(trip: TripProfile): TrackPointData[] {
-  const coords = resolveExportCoordinates(trip.route);
-  const speedKmH = Math.max(10, trip.route.targetSpeedKmH || 24);
+function prepareStageTrackPoints(
+  route: RouteParams,
+  departureDate?: string,
+  departureTime?: string
+): TrackPointData[] {
+  const coords = resolveExportCoordinates(route);
+  const speedKmH = Math.max(10, route.targetSpeedKmH || 24);
   const speedMetersPerSec = (speedKmH * 1000) / 3600;
 
-  // Resolve elevation profile
-  let profile = trip.route.elevationProfile;
+  let profile = route.elevationProfile;
   if (!profile || profile.length < 2) {
-    profile = synthesizeRouteElevationProfile(trip.route).elevationProfile;
+    profile = synthesizeRouteElevationProfile(route).elevationProfile;
   }
 
-  // Parse start time
   let startDate = new Date();
-  if (trip.departureDate) {
-    const parsedDate = new Date(trip.departureDate);
+  if (departureDate) {
+    const parsedDate = new Date(departureDate);
     if (!isNaN(parsedDate.getTime())) {
       startDate = parsedDate;
     }
   }
-  if (trip.departureTime) {
-    const [h, m] = trip.departureTime.split(':').map((n) => parseInt(n, 10));
+  if (departureTime) {
+    const [h, m] = departureTime.split(':').map((n) => parseInt(n, 10));
     if (!isNaN(h) && !isNaN(m)) {
       startDate.setHours(h, m, 0, 0);
     }
   }
   const startEpoch = startDate.getTime();
 
-  // Compute cumulative distances
   const cumDists: number[] = [0];
   let totalMeters = 0;
   for (let i = 1; i < coords.length; i++) {
-    const d = haversineMeters(coords[i - 1][0], coords[i - 1][1], coords[i][0], coords[i][1]);
+    const d = haversineDistanceMeters(coords[i - 1][0], coords[i - 1][1], coords[i][0], coords[i][1]);
     totalMeters += d;
     cumDists.push(totalMeters);
   }
 
-  // If coords total distance differs from trip.route.distanceKm, scale distances
-  const targetTotalMeters = (trip.route.distanceKm || 30) * 1000;
+  const targetTotalMeters = (route.distanceKm || 30) * 1000;
   const scale = totalMeters > 10 ? targetTotalMeters / totalMeters : 1;
 
   const getElevationAtDistKm = (distKm: number): number => {
@@ -166,6 +154,63 @@ function prepareTrackPoints(trip: TripProfile): TrackPointData[] {
   });
 }
 
+function prepareTrackPoints(trip: TripProfile): TrackPointData[] {
+  return prepareStageTrackPoints(trip.route, trip.departureDate, trip.departureTime);
+}
+
+function resolveActivePinnedAmenities(trip: TripProfile): StageAmenity[] {
+  if (trip.pinnedAmenities && trip.pinnedAmenities.length > 0) {
+    return trip.pinnedAmenities;
+  }
+  if (trip.stages && trip.stages.length > 0) {
+    const activeIdx = Math.max(
+      0,
+      Math.min(trip.activeStageIndex ?? 0, trip.stages.length - 1)
+    );
+    return trip.stages[activeIdx]?.pinnedAmenities || [];
+  }
+  return [];
+}
+
+function findNearestTrackPoint(points: TrackPointData[], targetDistKm: number, lat?: number, lng?: number): TrackPointData | undefined {
+  if (points.length === 0) return undefined;
+  const targetMeters = targetDistKm * 1000;
+  let best = points[0];
+  let bestDiff = Infinity;
+
+  for (const pt of points) {
+    const distDiff = Math.abs(pt.distanceMeters - targetMeters);
+    if (distDiff < bestDiff) {
+      bestDiff = distDiff;
+      best = pt;
+    }
+  }
+
+  if (lat !== undefined && lng !== undefined && bestDiff > 2000) {
+    let bestGeo = Infinity;
+    for (const pt of points) {
+      const geo = haversineDistanceMeters(lat, lng, pt.lat, pt.lng);
+      if (geo < bestGeo) {
+        bestGeo = geo;
+        best = pt;
+      }
+    }
+  }
+
+  return best;
+}
+
+function buildTrackPointsXml(points: TrackPointData[]): string {
+  let xml = '';
+  for (const p of points) {
+    xml += `      <trkpt lat="${p.lat.toFixed(6)}" lon="${p.lng.toFixed(6)}">\n`;
+    xml += `        <ele>${p.eleM.toFixed(1)}</ele>\n`;
+    xml += `        <time>${p.timestamp}</time>\n`;
+    xml += `      </trkpt>\n`;
+  }
+  return xml;
+}
+
 function escapeXml(unsafe: string): string {
   return unsafe
     .replace(/&/g, '&amp;')
@@ -175,25 +220,239 @@ function escapeXml(unsafe: string): string {
     .replace(/'/g, '&apos;');
 }
 
+function formatGpxPointElement(
+  tag: 'wpt' | 'rtept',
+  indent: string,
+  opts: {
+    lat: number;
+    lon: number;
+    ele?: number;
+    time?: string;
+    name: string;
+    cmt?: string;
+    desc?: string;
+    sym?: string;
+    type?: string;
+  }
+): string {
+  let xml = `${indent}<${tag} lat="${opts.lat.toFixed(6)}" lon="${opts.lon.toFixed(6)}">\n`;
+  if (opts.ele !== undefined && Number.isFinite(opts.ele)) {
+    xml += `${indent}  <ele>${opts.ele.toFixed(1)}</ele>\n`;
+  }
+  if (opts.time) {
+    xml += `${indent}  <time>${escapeXml(opts.time)}</time>\n`;
+  }
+  xml += `${indent}  <name>${escapeXml(opts.name)}</name>\n`;
+  if (opts.cmt) {
+    xml += `${indent}  <cmt>${escapeXml(opts.cmt)}</cmt>\n`;
+  }
+  if (opts.desc) {
+    xml += `${indent}  <desc>${escapeXml(opts.desc)}</desc>\n`;
+  }
+  if (opts.sym) {
+    xml += `${indent}  <sym>${escapeXml(opts.sym)}</sym>\n`;
+  }
+  if (opts.type) {
+    xml += `${indent}  <type>${escapeXml(opts.type)}</type>\n`;
+  }
+  xml += `${indent}</${tag}>\n`;
+  return xml;
+}
+
+function buildStageWaypointsXml(params: {
+  route: RouteParams;
+  points: TrackPointData[];
+  pinnedAmenities: StageAmenity[];
+  departureTime?: string;
+  dayNumber?: number;
+  lang: 'en' | 'fr';
+}): string {
+  const { route, points, pinnedAmenities, departureTime = '08:00', dayNumber, lang } = params;
+  const dayTag = dayNumber !== undefined ? `Day ${dayNumber} ` : '';
+  const speedKmH = Math.max(10, route.targetSpeedKmH || 24);
+  let wptXml = '';
+
+  // 1. Start checkpoint
+  if (points.length > 0) {
+    const startPt = points[0];
+    wptXml += formatGpxPointElement('wpt', '  ', {
+      lat: startPt.lat,
+      lon: startPt.lng,
+      ele: startPt.eleM,
+      time: startPt.timestamp,
+      name: `${dayTag}Start: ${route.origin || 'Start'}`,
+      cmt: `km 0.0 · Start ${departureTime}`,
+      desc: `${dayTag}Departure from ${route.origin || 'Start'}`,
+      sym: 'Flag, Green',
+      type: 'Start',
+    });
+  }
+
+  // 2. Intermediate via-points (skip any already covered by a pinned amenity at the same spot)
+  if (route.waypoints && route.waypoints.length > 0) {
+    route.waypoints.forEach((wp, wpIdx) => {
+      if (!wp.coordinates) return;
+      const matchesPinned = pinnedAmenities.some(
+        (p) =>
+          wp.sourceAmenityId === p.id ||
+          wp.id === `wp-poi-${p.id}` ||
+          haversineDistanceMeters(p.lat, p.lon, wp.coordinates![0], wp.coordinates![1]) < 60
+      );
+      if (matchesPinned) return;
+
+      const distKm = wp.distanceFromStartKm ?? 0;
+      const nearPt = findNearestTrackPoint(points, distKm, wp.coordinates[0], wp.coordinates[1]);
+      wptXml += formatGpxPointElement('wpt', '  ', {
+        lat: wp.coordinates[0],
+        lon: wp.coordinates[1],
+        ele: nearPt?.eleM,
+        time: nearPt?.timestamp,
+        name: `${dayTag}Via ${wpIdx + 1}: ${wp.name}`,
+        cmt: `KM ${distKm.toFixed(1)}`,
+        desc: `${dayTag}Intermediate stop: ${wp.name} (KM ${distKm.toFixed(1)})`,
+        sym: 'Flag, Blue',
+        type: 'Waypoint',
+      });
+    });
+  }
+
+  // 3. Pinned Resupply Radar POIs (bakeries, water fountains, cemeteries, bike shops)
+  for (const amenity of pinnedAmenities) {
+    const nearPt = findNearestTrackPoint(points, amenity.routeKm, amenity.lat, amenity.lon);
+    const eta = nearPt
+      ? new Date(nearPt.timestamp).toISOString().slice(11, 16)
+      : undefined;
+    const etaDisplay = eta || departureTime;
+    const { cmt, desc } = formatAmenityCueNote(amenity, etaDisplay, lang);
+    const catLabel = formatAmenityCategoryLabel(amenity.category, lang);
+
+    // Compute accurate local HH:MM ETA from routeKm & speed for display
+    const [depH, depM] = departureTime.split(':').map((n) => parseInt(n, 10));
+    const depMins = (Number.isFinite(depH) ? depH : 8) * 60 + (Number.isFinite(depM) ? depM : 0);
+    const totalMins = (depMins + Math.round((amenity.routeKm / speedKmH) * 60)) % 1440;
+    const localEta = `${String(Math.floor(totalMins / 60)).padStart(2, '0')}:${String(totalMins % 60).padStart(2, '0')}`;
+    const localNote = formatAmenityCueNote(amenity, localEta, lang);
+
+    wptXml += formatGpxPointElement('wpt', '  ', {
+      lat: amenity.lat,
+      lon: amenity.lon,
+      ele: amenity.elevationMeters ?? nearPt?.eleM,
+      time: nearPt?.timestamp,
+      name: dayNumber !== undefined ? `D${dayNumber} · ${amenity.name}` : amenity.name,
+      cmt: dayNumber !== undefined ? `Day ${dayNumber} · ${localNote.cmt}` : localNote.cmt || cmt,
+      desc: dayNumber !== undefined ? `Day ${dayNumber} · ${localNote.desc}` : localNote.desc || desc,
+      sym: getAmenityGpxSymbol(amenity.category),
+      type: catLabel,
+    });
+  }
+
+  // 4. Finish checkpoint
+  if (points.length > 1) {
+    const endPt = points[points.length - 1];
+    wptXml += formatGpxPointElement('wpt', '  ', {
+      lat: endPt.lat,
+      lon: endPt.lng,
+      ele: endPt.eleM,
+      time: endPt.timestamp,
+      name: `${dayTag}Finish: ${route.destination || 'Finish'}`,
+      cmt: `KM ${(endPt.distanceMeters / 1000).toFixed(1)}`,
+      desc: `${dayTag}Arrival at ${route.destination || 'Finish'}`,
+      sym: 'Flag, Red',
+      type: 'Finish',
+    });
+  }
+
+  return wptXml;
+}
+
+function buildStageCueRouteXml(params: {
+  route: RouteParams;
+  points: TrackPointData[];
+  pinnedAmenities: StageAmenity[];
+  departureTime?: string;
+  routeName: string;
+  routeNumber?: number;
+  dayPrefix?: string;
+  lang: 'en' | 'fr';
+}): string {
+  const {
+    route,
+    points,
+    pinnedAmenities,
+    departureTime,
+    routeName,
+    routeNumber,
+    dayPrefix,
+    lang,
+  } = params;
+  const coords: [number, number][] = points.map((p) => [p.lat, p.lng]);
+  const cueEntries: CueSheetEntry[] = buildStageCueSheet({
+    route,
+    coords,
+    pinnedAmenities,
+    departureTime,
+    speedKmH: route.targetSpeedKmH || 24,
+    dayPrefix,
+    lang,
+  });
+
+  if (cueEntries.length === 0) return '';
+
+  let rteptsXml = '';
+  for (const cue of cueEntries) {
+    const nearPt = findNearestTrackPoint(points, cue.distKm, cue.lat, cue.lng);
+    rteptsXml += formatGpxPointElement('rtept', '    ', {
+      lat: cue.lat,
+      lon: cue.lng,
+      ele: cue.amenity?.elevationMeters ?? nearPt?.eleM,
+      time: nearPt?.timestamp,
+      name: cue.shortName,
+      cmt: cue.cmt,
+      desc: cue.desc,
+      sym: cue.sym,
+      type: cue.typeLabel,
+    });
+  }
+
+  const numberXml = routeNumber !== undefined ? `    <number>${routeNumber}</number>\n` : '';
+  return `  <rte>\n    <name>${escapeXml(routeName)}</name>\n    <desc>${escapeXml(
+    `Turn-by-turn navigation & resupply cue sheet (${cueEntries.length} cues)`
+  )}</desc>\n${numberXml}${rteptsXml}  </rte>\n`;
+}
+
 /**
  * Generate standard GPX 1.1 XML string ready for Garmin, Wahoo, Hammerhead.
+ * Includes all pinned Resupply Radar POIs as <wpt> waypoints and a <rte> turn-by-turn cue sheet.
  */
 export function exportTripToGpx(trip: TripProfile): string {
+  const lang = getCurrentLanguage();
   const points = prepareTrackPoints(trip);
-  const trackName = escapeXml(trip.name || `${trip.route.origin || 'Start'} → ${trip.route.destination || 'Finish'}`);
-  const description = escapeXml(
+  const pinnedAmenities = resolveActivePinnedAmenities(trip);
+  const trackName =
+    trip.name || `${trip.route.origin || 'Start'} → ${trip.route.destination || 'Finish'}`;
+  const description =
     trip.description ||
-      `${trip.route.distanceKm} km ride · Planned with Cadence Cockpit (bike-trip-engine)`
-  );
+    `${trip.route.distanceKm} km ride · Planned with Cadence Cockpit (bike-trip-engine)`;
   const time = points.length > 0 ? points[0].timestamp : new Date().toISOString();
 
-  let trkptsXml = '';
-  for (const p of points) {
-    trkptsXml += `      <trkpt lat="${p.lat.toFixed(6)}" lon="${p.lng.toFixed(6)}">\n`;
-    trkptsXml += `        <ele>${p.eleM.toFixed(1)}</ele>\n`;
-    trkptsXml += `        <time>${p.timestamp}</time>\n`;
-    trkptsXml += `      </trkpt>\n`;
-  }
+  const wptXml = buildStageWaypointsXml({
+    route: trip.route,
+    points,
+    pinnedAmenities,
+    departureTime: trip.departureTime,
+    lang,
+  });
+
+  const rteXml = buildStageCueRouteXml({
+    route: trip.route,
+    points,
+    pinnedAmenities,
+    departureTime: trip.departureTime,
+    routeName: `${trackName} — Cue Sheet`,
+    lang,
+  });
+
+  const trkptsXml = buildTrackPointsXml(points);
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="Cadence Cockpit - bike-trip-engine"
@@ -201,13 +460,13 @@ export function exportTripToGpx(trip: TripProfile): string {
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
   <metadata>
-    <name>${trackName}</name>
-    <desc>${description}</desc>
+    <name>${escapeXml(trackName)}</name>
+    <desc>${escapeXml(description)}</desc>
     <time>${time}</time>
   </metadata>
-  <trk>
-    <name>${trackName}</name>
-    <desc>${description}</desc>
+${wptXml}${rteXml}  <trk>
+    <name>${escapeXml(trackName)}</name>
+    <desc>${escapeXml(description)}</desc>
     <trkseg>
 ${trkptsXml}    </trkseg>
   </trk>
@@ -215,10 +474,89 @@ ${trkptsXml}    </trkseg>
 }
 
 /**
- * Generate Garmin TCX Course XML string with course laps and track points.
+ * Generate a unified multi-track GPX 1.1 file containing every sequential stage of a Tour,
+ * all pinned Resupply Radar <wpt> markers across every stage, and per-stage <rte> turn-by-turn cue sheets.
+ */
+export function exportEntireTourToGpx(trip: TripProfile): string {
+  const stages = resolveLiveStages(trip);
+  if (stages.length <= 1) {
+    return exportTripToGpx(trip);
+  }
+
+  const lang = getCurrentLanguage();
+  const totals = getExpeditionTotals(trip);
+  const tourName = escapeXml(
+    trip.name || `${totals.originCity || 'Tour'} → ${totals.finalDestinationCity || 'Finish'} (${totals.totalDays}d)`
+  );
+  const tourDesc = escapeXml(
+    `${totals.totalDays}-stage Tour · ${totals.totalDistanceKm} km total · +${totals.totalElevationM} m elevation · Exported from Cadence`
+  );
+
+  let wptXml = '';
+  let rteXml = '';
+  let trksXml = '';
+  let metadataTime = new Date().toISOString();
+
+  stages.forEach((stage, idx) => {
+    const pts = prepareStageTrackPoints(stage.route, stage.departureDate, stage.departureTime);
+    if (idx === 0 && pts.length > 0) {
+      metadataTime = pts[0].timestamp;
+    }
+
+    const stagePinned = stage.pinnedAmenities || [];
+
+    wptXml += buildStageWaypointsXml({
+      route: stage.route,
+      points: pts,
+      pinnedAmenities: stagePinned,
+      departureTime: stage.departureTime,
+      dayNumber: stage.dayNumber,
+      lang,
+    });
+
+    rteXml += buildStageCueRouteXml({
+      route: stage.route,
+      points: pts,
+      pinnedAmenities: stagePinned,
+      departureTime: stage.departureTime,
+      routeName: `Day ${stage.dayNumber} Cue Sheet: ${stage.route.origin || 'Start'} → ${stage.route.destination || 'Finish'}`,
+      routeNumber: stage.dayNumber,
+      dayPrefix: `D${stage.dayNumber}`,
+      lang,
+    });
+
+    const stageName = escapeXml(
+      `Day ${stage.dayNumber}: ${stage.route.origin || 'Start'} → ${stage.route.destination || 'Finish'} (${stage.route.distanceKm} km)`
+    );
+    const stageDesc = escapeXml(
+      `Stage ${stage.dayNumber}/${stages.length} · ${stage.departureDate} ${stage.departureTime} · +${Math.round(stage.route.elevationGainM || 0)} m`
+    );
+    const trkptsXml = buildTrackPointsXml(pts);
+
+    trksXml += `  <trk>\n    <name>${stageName}</name>\n    <desc>${stageDesc}</desc>\n    <number>${stage.dayNumber}</number>\n    <trkseg>\n${trkptsXml}    </trkseg>\n  </trk>\n`;
+  });
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Cadence Cockpit - Tour Engine"
+  xmlns="http://www.topografix.com/GPX/1/1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+  <metadata>
+    <name>${tourName}</name>
+    <desc>${tourDesc}</desc>
+    <time>${metadataTime}</time>
+  </metadata>
+${wptXml}${rteXml}${trksXml}</gpx>`;
+}
+
+/**
+ * Generate Garmin TCX Course XML string with course laps, track points,
+ * and <CoursePoint> turn-by-turn + pinned resupply cue sheet entries.
  */
 export function exportTripToTcx(trip: TripProfile): string {
+  const lang = getCurrentLanguage();
   const points = prepareTrackPoints(trip);
+  const pinnedAmenities = resolveActivePinnedAmenities(trip);
   const courseName = escapeXml(
     (trip.name || `${trip.route.origin || 'Start'} - ${trip.route.destination || 'Finish'}`).slice(0, 30)
   );
@@ -240,6 +578,39 @@ export function exportTripToTcx(trip: TripProfile): string {
     trackpointsXml += `            <AltitudeMeters>${p.eleM.toFixed(1)}</AltitudeMeters>\n`;
     trackpointsXml += `            <DistanceMeters>${p.distanceMeters.toFixed(1)}</DistanceMeters>\n`;
     trackpointsXml += `          </Trackpoint>\n`;
+  }
+
+  const coords: [number, number][] = points.map((p) => [p.lat, p.lng]);
+  const cueEntries = buildStageCueSheet({
+    route: trip.route,
+    coords,
+    pinnedAmenities,
+    departureTime: trip.departureTime,
+    speedKmH,
+    lang,
+  });
+
+  let coursePointsXml = '';
+  for (const cue of cueEntries) {
+    const nearPt = findNearestTrackPoint(points, cue.distKm, cue.lat, cue.lng);
+    const cpTime = nearPt?.timestamp || (points[0]?.timestamp ?? new Date().toISOString());
+    const cpEle = cue.amenity?.elevationMeters ?? nearPt?.eleM;
+    const cpName = escapeXml(cue.shortName.slice(0, 30));
+    const cpNotes = escapeXml(cue.desc);
+
+    coursePointsXml += `      <CoursePoint>\n`;
+    coursePointsXml += `        <Name>${cpName}</Name>\n`;
+    coursePointsXml += `        <Time>${cpTime}</Time>\n`;
+    coursePointsXml += `        <Position>\n`;
+    coursePointsXml += `          <LatitudeDegrees>${cue.lat.toFixed(6)}</LatitudeDegrees>\n`;
+    coursePointsXml += `          <LongitudeDegrees>${cue.lng.toFixed(6)}</LongitudeDegrees>\n`;
+    coursePointsXml += `        </Position>\n`;
+    if (cpEle !== undefined && Number.isFinite(cpEle)) {
+      coursePointsXml += `        <AltitudeMeters>${cpEle.toFixed(1)}</AltitudeMeters>\n`;
+    }
+    coursePointsXml += `        <PointType>${cue.tcxPointType}</PointType>\n`;
+    coursePointsXml += `        <Notes>${cpNotes}</Notes>\n`;
+    coursePointsXml += `      </CoursePoint>\n`;
   }
 
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -265,16 +636,18 @@ export function exportTripToTcx(trip: TripProfile): string {
       </Lap>
       <Track>
 ${trackpointsXml}      </Track>
-    </Course>
+${coursePointsXml}    </Course>
   </Courses>
 </TrainingCenterDatabase>`;
 }
 
 function sanitizeFilename(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]+/gi, '-')
-    .replace(/^-+|-+$/g, '') || 'cadence-route';
+  return (
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]+/gi, '-')
+      .replace(/^-+|-+$/g, '') || 'cadence-route'
+  );
 }
 
 /**
@@ -284,6 +657,17 @@ export function downloadTripGpx(trip: TripProfile): void {
   const xml = exportTripToGpx(trip);
   const baseName = sanitizeFilename(trip.name || 'cadence-route');
   const filename = `${baseName}-${Math.round(trip.route.distanceKm || 0)}km.gpx`;
+  downloadTextFile(xml, filename, 'application/gpx+xml');
+}
+
+/**
+ * Trigger browser file download for a unified multi-stage Tour GPX track file.
+ */
+export function downloadEntireTourGpx(trip: TripProfile): void {
+  const xml = exportEntireTourToGpx(trip);
+  const totals = getExpeditionTotals(trip);
+  const baseName = sanitizeFilename(trip.name || 'cadence-tour');
+  const filename = `${baseName}-tour-${totals.totalDays}d-${Math.round(totals.totalDistanceKm)}km.gpx`;
   downloadTextFile(xml, filename, 'application/gpx+xml');
 }
 

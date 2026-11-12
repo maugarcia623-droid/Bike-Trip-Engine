@@ -5,6 +5,7 @@ import { ChecklistItem, TripProfile } from '../types/trip';
 import { PRESET_TRIP_TRANSLATIONS } from '../utils/presetTrips';
 import { loadRiderBikeSpecs, getActiveBike } from '../utils/specsStorage';
 import { calculateHydrationPlan } from '../utils/nutrition';
+import { getArchetypeFromTag } from '../utils/archetypeChips';
 
 export type Language = 'en' | 'fr';
 
@@ -126,16 +127,16 @@ const BUILTIN_TRIP_TRANSLATIONS: Record<
   ...PRESET_TRIP_TRANSLATIONS,
   'estuary-gate17-morning': {
     en: {
-      name: 'Morning Estuary Commute (Gate 17)',
+      name: 'Morning Estuary Commute',
       description:
-        '22 km daily gravel commute crossing the Saint-Nazaire estuary bridge to secure Gate 17. Planned office timing: Locker refuel at 08:30, Break room breakfast at 08:50, Shift start 09:00.',
-      gateName: 'Gate 17',
+        '22 km daily gravel commute crossing the Saint-Nazaire estuary bridge to Saint-Nazaire Harbour. Arrival snack at 08:30, breakfast break at 08:50, shift start 09:00.',
+      gateName: 'Harbour Office',
     },
     fr: {
-      name: 'Vélotaf Matinal Estuaire (Porte 17)',
+      name: 'Vélotaf Matinal Estuaire',
       description:
-        'Trajet vélotaf gravel quotidien de 22 km par le pont de Saint-Nazaire vers la Porte 17. Organisation bureau : ravito vestiaire à 08:30, petit-déjeuner salle de pause à 08:50, prise de poste à 09:00.',
-      gateName: 'Porte 17',
+        'Trajet vélotaf gravel quotidien de 22 km par le pont de Saint-Nazaire vers le port. Collation à 08:30, petit-déjeuner à 08:50, prise de poste à 09:00.',
+      gateName: 'Port Saint-Nazaire',
     },
   },
   'gravel-sport-granfondo': {
@@ -156,7 +157,7 @@ const BUILTIN_TRIP_TRANSLATIONS: Record<
     en: {
       name: 'Loire Estuary 2-Day Bikepacking',
       description:
-        'Self-supported multi-day adventure with full rig loading (~12kg gear). Stage 1 rolls towards the coastal pine forest bivouac before dusk.',
+        'Self-supported multi-day adventure with full rig loading (~12 kg gear). Stage 1 rolls towards the coastal pine forest bivouac before dusk.',
       gateName: 'Bivouac Staging Site',
     },
     fr: {
@@ -186,15 +187,33 @@ export function getLocalizedTripMeta(
   trip: TripProfile,
   lang: Language
 ): { name: string; description: string; gateName: string } {
+  const arch = getArchetypeFromTag(trip.tag, trip.name);
   const builtin = BUILTIN_TRIP_TRANSLATIONS[trip.id];
+  const fallbackGateByArch: Record<string, string> = {
+    COMMUTE: lang === 'fr' ? 'Porte' : 'Gate',
+    ESCAPADE: lang === 'fr' ? 'Réception Hôtel / Étape' : 'Hotel Check-in / Stage Lodging',
+    BIKEPACKING: lang === 'fr' ? 'Zone de Bivouac / Camp' : 'Camp / Bivouac Site',
+    SPORT: lang === 'fr' ? 'Ligne d’arrivée / Club' : 'Finish Line / Clubhouse',
+  };
+  const isStaleCommuterGate = (g?: string) =>
+    !g?.trim() || /gate\s*(b|17)|porte\s*(b|17)|atlantis|campus|office|bureau|workplace|entreprise/i.test(g);
+
   if (!builtin) {
-    let gateName = trip.office?.gateName || 'Gate';
-    if (lang === 'fr') {
+    let gateName = trip.office?.gateName || fallbackGateByArch[arch];
+    if (arch !== 'COMMUTE' && isStaleCommuterGate(trip.office?.gateName)) {
+      gateName = fallbackGateByArch[arch];
+    } else if (lang === 'fr') {
       gateName = gateName.replace(/^Gate\b/i, 'Porte');
       if (gateName === 'Hotel Reception') gateName = 'Réception Hôtel';
+      if (gateName === 'Hotel Check-in / Stage Lodging') gateName = 'Réception Hôtel / Étape';
+      if (gateName === 'Camp / Bivouac Site') gateName = 'Zone de Bivouac / Camp';
+      if (gateName === 'Finish Line / Clubhouse') gateName = 'Ligne d’arrivée / Club';
     } else {
       gateName = gateName.replace(/^Porte\b/i, 'Gate');
       if (gateName === 'Réception Hôtel') gateName = 'Hotel Reception';
+      if (gateName === 'Réception Hôtel / Étape') gateName = 'Hotel Check-in / Stage Lodging';
+      if (gateName === 'Zone de Bivouac / Camp') gateName = 'Camp / Bivouac Site';
+      if (gateName === 'Ligne d’arrivée / Club') gateName = 'Finish Line / Clubhouse';
     }
     return {
       name: trip.name,
@@ -212,10 +231,17 @@ export function getLocalizedTripMeta(
     trip.office?.gateName === builtin.en.gateName ||
     trip.office?.gateName === builtin.fr.gateName;
 
+  const resolvedGate =
+    arch !== 'COMMUTE' && !isDefaultGate && isStaleCommuterGate(trip.office?.gateName)
+      ? fallbackGateByArch[arch]
+      : isDefaultGate
+      ? builtin[lang].gateName
+      : trip.office?.gateName || builtin[lang].gateName;
+
   return {
     name: isDefaultName ? builtin[lang].name : trip.name,
     description: isDefaultDesc ? builtin[lang].description : trip.description,
-    gateName: isDefaultGate ? builtin[lang].gateName : (trip.office?.gateName || builtin[lang].gateName),
+    gateName: resolvedGate,
   };
 }
 
@@ -252,12 +278,12 @@ export function getChecklistItemLabel(
   });
   const hydrationEn =
     hydrationPlan.plannedRefillBidons === 0
-      ? `${hydrationPlan.carriedOnFrameBidons}x ${bidonSizeMl}ml bidon(s) on bike (${hydrationPlan.totalFluidNeedMl}ml target)`
-      : `${hydrationPlan.carriedOnFrameBidons}x ${bidonSizeMl}ml bidon(s) on frame + ${hydrationPlan.plannedRefillBidons} planned refill(s) en route`;
+      ? `${hydrationPlan.carriedOnFrameBidons}× ${bidonSizeMl} ml bottle(s) on bike (${hydrationPlan.totalFluidNeedMl} ml target)`
+      : `${hydrationPlan.carriedOnFrameBidons}× ${bidonSizeMl} ml bottle(s) on frame + ${hydrationPlan.plannedRefillBidons} planned refill(s) en route`;
   const hydrationFr =
     hydrationPlan.plannedRefillBidons === 0
-      ? `${hydrationPlan.carriedOnFrameBidons}x bidon(s) de ${bidonSizeMl} ml sur le vélo (${hydrationPlan.totalFluidNeedMl} ml cible)`
-      : `${hydrationPlan.carriedOnFrameBidons}x bidon(s) de ${bidonSizeMl} ml sur cadre + ${hydrationPlan.plannedRefillBidons} recharge(s) prévue(s) en route`;
+      ? `${hydrationPlan.carriedOnFrameBidons}× bidon(s) de ${bidonSizeMl} ml sur le vélo (${hydrationPlan.totalFluidNeedMl} ml cible)`
+      : `${hydrationPlan.carriedOnFrameBidons}× bidon(s) de ${bidonSizeMl} ml sur cadre + ${hydrationPlan.plannedRefillBidons} recharge(s) prévue(s) en route`;
   const bar = isTubeless
     ? distanceKm > 60
       ? '2.4'
@@ -317,20 +343,20 @@ export function getChecklistItemLabel(
       fr: 'Ravito poche : 2 pâtes de fruits artisanales',
     },
     'chk-skyr': {
-      en: 'Commute Pack: 200g Skyr 0% in insulated cooler pouch for Locker Bay',
-      fr: 'Sac vélotaf : 200 g de Skyr 0 % en pochette isotherme pour le vestiaire',
+      en: 'Commute Pack: 200 g plain yogurt in insulated cooler pouch',
+      fr: 'Sac vélotaf : 200 g de yaourt nature en pochette isotherme',
     },
     'chk-oats': {
       en: 'Commute Pack: Jar of oat milk overnight oats + apple + walnuts',
       fr: "Sac vélotaf : Bocal d'overnight oats au lait d'avoine + pomme + noix",
     },
     'chk-badge': {
-      en: 'Gate 17 RFID Security Badge & Subterranean Shelter Token',
-      fr: 'Badge RFID Porte 17 & jeton du local vélo sécurisé',
+      en: 'Office RFID Security Badge & Bike Shelter Token',
+      fr: 'Badge RFID bureau & jeton du local vélo sécurisé',
     },
     'chk-padlock': {
-      en: 'Locker Bay Heavy-Duty Master Padlock + Cable',
-      fr: 'Cadenas renforcé vestiaire + câble antivol',
+      en: 'Bike Shelter Heavy-Duty Padlock + Cable',
+      fr: 'Cadenas renforcé local vélo + câble antivol',
     },
     'chk-shirt': {
       en: 'Ironed Oxford shirt & lightweight office trousers in dry pack',
@@ -356,7 +382,7 @@ export function getChecklistItemLabel(
           ? 'Multi-tool, tubeless plug darts, CO2 inflator & backup micro-tube'
           : 'Multi-tool, tubeless plug kit & CO2 / mini pump'
         : distanceKm > 50
-        ? 'Multi-tool, 2x tire levers, spare tube & mini pump'
+        ? 'Multi-tool, 2× tire levers, spare tube & mini pump'
         : 'Multi-tool & spare tube',
       fr: isTubeless
         ? distanceKm > 50
@@ -375,16 +401,20 @@ export function getChecklistItemLabel(
       fr: 'Gants thermiques coupe-vent & tour de cou',
     },
     'esc-id': {
-      en: 'Hotel reservation booking & national ID',
-      fr: "Confirmation de réservation d'hôtel & pièce d'identité",
+      en: 'Hotel Check-in: booking confirmation, ID & payment card',
+      fr: 'Check-in Hôtel : confirmation de réservation, pièce d’identité & CB',
+    },
+    'esc-pannier': {
+      en: 'Pannier / Saddlebag weight distribution & dry-bag waterproofing',
+      fr: 'Répartition du poids sacoches / sac de selle & sac étanche',
     },
     'esc-clothes': {
-      en: 'Casual off-bike evening clothes & walking shoes',
+      en: 'Casual off-bike evening clothes & lightweight walking shoes',
       fr: 'Tenue civile pour le soir & chaussures de marche légères',
     },
     'esc-charge': {
-      en: 'Phone charger & portable power bank',
-      fr: 'Chargeur téléphone & batterie externe',
+      en: 'Evening charging & recovery (GPS, lights, power bank & recovery kit)',
+      fr: 'Recharge du soir & récupération (GPS, phares, batterie & étirements)',
     },
     'esc-lock': {
       en: 'Compact bike lock for hotel storage',
@@ -401,12 +431,12 @@ export function getChecklistItemLabel(
     'sport-fuel': {
       en:
         nutritionPref === 'real-food'
-          ? `Whole-food ride fuel (~${carbTarget}g/hr: dates, fruit chews) & electrolyte bidons`
-          : `Carb mix in bottles (~${carbTarget}g/hr) & energy gels`,
+          ? `Whole-food ride fuel (~${carbTarget} g/h: dates, fruit chews) & electrolyte bottles`
+          : `Carb mix in bottles (~${carbTarget} g/h) & energy gels`,
       fr:
         nutritionPref === 'real-food'
-          ? `Ravito aliments vrais (~${carbTarget}g/h : dattes, pâtes de fruits) & bidons isotoniques`
-          : `Boisson glucidique en bidons (~${carbTarget}g/h) & gels ravito`,
+          ? `Ravito aliments vrais (~${carbTarget} g/h : dattes, pâtes de fruits) & bidons isotoniques`
+          : `Boisson glucidique en bidons (~${carbTarget} g/h) & gels ravito`,
     },
     'sport-computer': {
       en: 'GPS computer synced with sensors',
@@ -420,13 +450,25 @@ export function getChecklistItemLabel(
       en: 'Tubeless plug kit & CO2 inflator',
       fr: 'Kit mèches tubeless anti-crève & gonfleur CO2',
     },
+    'bp-pannier': {
+      en: 'Pannier / Saddlebag weight distribution (balanced load)',
+      fr: 'Répartition du poids sacoches / sac de selle (équilibre du vélo)',
+    },
     'bp-sleep': {
       en: 'Bivouac bag / compact tent & sleeping pad',
       fr: 'Sac de bivouac / tente compacte & matelas isolant',
     },
     'bp-power': {
-      en: 'High-capacity 20,000mAh power bank & cables',
-      fr: 'Batterie externe haute capacité 20 000 mAh & câbles',
+      en: 'Evening charging & recovery (20,000mAh power bank, cables & rest kit)',
+      fr: 'Recharge du soir & récupération (batterie 20 000 mAh, câbles & kit repos)',
+    },
+    'bp-charging-autonomy': {
+      en: 'Evening charging & autonomy: multi-port USB-C splitter for GPS, radar & 800-1000lm lights',
+      fr: 'Recharge du soir multi-étapes : chargeur multi-ports USB-C (GPS, radar, phares)',
+    },
+    'bp-multiday-logistics': {
+      en: 'Hotel Check-in / bivouac stops & rail bike passes saved offline',
+      fr: 'Check-in Hôtel / bivouacs & billets train vélo sauvegardés hors-ligne',
     },
     'bp-water': {
       en: 'Water filtration flask + 2L hydration capacity',
@@ -458,7 +500,7 @@ export function getChecklistItemLabel(
     },
     'com-recovery': {
       en: 'Post-arrival recovery nutrition packed',
-      fr: 'Ravito de récupération vestiaire prêt dans le sac',
+      fr: 'Collation de récupération prête dans le sac',
     },
     'ravito-extra': {
       en: 'Extra whole-food fueling rations & electrolytes packed',
@@ -509,8 +551,8 @@ export function getChecklistItemLabel(
       fr: 'Abri bivouac ultraléger, matelas gonflable isolant & flasque filtrante',
     },
     'chip-hydration-fuel': {
-      en: `Calibrated carb drink mix (~${carbTarget}g/hr) & sodium salt tabs`,
-      fr: `Mélange glucidique calibré (~${carbTarget}g/h) & capsules de sodium`,
+      en: `Calibrated carb drink mix (~${carbTarget} g/h) & sodium salt tabs`,
+      fr: `Mélange glucidique calibré (~${carbTarget} g/h) & capsules de sodium`,
     },
     'chip-cargo-laptop': {
       en: '15" Work laptop inside IPX6 waterproof dry sleeve & USB-C charger',

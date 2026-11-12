@@ -6,13 +6,13 @@ import {
   Mountains,
   Eye,
   Gauge,
-  Flame,
   Wind,
   HandClosed,
   CircleArrowUpRight,
   Settings,
 } from '@/components/icons';
 import { TripProfile, PhysicsCalculationResult } from '../../types/trip';
+import { getArchetypeFromTag } from '../../utils/archetypeChips';
 import {
   calculateSectionalEnergyBreakdown,
   getWattsDidacticExplanation,
@@ -23,8 +23,11 @@ import { Badge } from '../common/Badge';
 import { IconBadge } from '../common/IconBadge';
 import { InfoTooltip } from '../common/InfoTooltip';
 import { Collapsible, DisclosureChevron } from '../common/Collapsible';
+import { SurfaceProfileBar } from '../common/SurfaceProfileBar';
+import { computeSurfaceBreakdown } from '../../utils/surfaceProfile';
+import { useOsmSurface } from '../../services/osmSurfaceService';
 import { useTranslation } from '../../context/LanguageContext';
-import { CockpitViewMode, RiderBikeSpecs, TelemetryMode } from '../../types/specs';
+import { CockpitViewMode, RiderBikeSpecs } from '../../types/specs';
 import { loadRiderBikeSpecs } from '../../utils/specsStorage';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
@@ -76,7 +79,7 @@ function getZoneBarColor(zone: PowerZoneCode): string {
 export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
   trip,
   physicsResult,
-  viewMode = 'pro',
+  viewMode = 'essential',
   onToggleViewMode,
   riderSpecs: riderSpecsProp,
 }) => {
@@ -84,8 +87,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
   const isFr = lang === 'fr';
   const isEssential = viewMode === 'essential';
   const specs = riderSpecsProp || loadRiderBikeSpecs();
-  const telemetryMode: TelemetryMode = specs.telemetryMode ?? 'quantitative';
-  const isQuantitative = telemetryMode === 'quantitative';
+  const showWattsInGuided = specs.pacingInputMode === 'power';
   const didacticPanelId = useId();
   const sectionalPanelId = useId();
   const telemetryDrawerId = useId();
@@ -123,12 +125,6 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
   const lossPercent = Math.max(1, 100 - aeroPercent - rollingPercent);
 
   const totalWorkKj = Math.round(physicsResult.totalWorkKj);
-  const totalBurnKcal = Math.round(physicsResult.totalKcalBurn);
-  const totalCarbs =
-    physicsResult.totalCarbsBurnedGrams ||
-    Math.round(
-      physicsResult.carbOxidationGramPerHour * ((physicsResult.movingTimeSeconds || 2880) / 3600)
-    );
 
   const wattsPerKg =
     physicsResult.wattsPerKg ?? Number((legWatts / Math.max(40, riderMass)).toFixed(2));
@@ -166,6 +162,51 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
     [trip.physics, trip.route, trip.weather, physicsResult, lang]
   );
 
+  const activeBike =
+    specs.bikes.find((b) => b.id === specs.activeBikeId) ?? specs.bikes[0];
+
+  const canQueryOsmSurface =
+    trip.route.routeMode !== 'manual-radius' &&
+    Boolean(trip.route.coordinates && trip.route.coordinates.length >= 2);
+  const {
+    osmData,
+    status: osmStatus,
+    error: osmError,
+    refresh: refreshOsmSurface,
+  } = useOsmSurface(trip.route.coordinates, trip.route.distanceKm, canQueryOsmSurface);
+
+  const surfaceBreakdown = useMemo(
+    () =>
+      computeSurfaceBreakdown(trip.route, {
+        crr: trip.physics.crr ?? activeBike?.crr,
+        tireWidthMm: activeBike?.tireWidthMm,
+        isTubeless: activeBike?.isTubeless ?? true,
+        riderWeightKg: trip.physics.riderWeightKg,
+        bikeWeightKg: trip.physics.bikeWeightKg,
+        luggageWeightKg: trip.physics.luggageWeightKg ?? trip.physics.gearWeightKg,
+        customChips: trip.customChips ?? [],
+        osmData,
+        isLoadingOsm: canQueryOsmSurface && osmStatus === 'loading',
+        osmError,
+      }),
+    [
+      trip.route,
+      trip.physics.crr,
+      trip.physics.riderWeightKg,
+      trip.physics.bikeWeightKg,
+      trip.physics.luggageWeightKg,
+      trip.physics.gearWeightKg,
+      activeBike?.crr,
+      activeBike?.tireWidthMm,
+      activeBike?.isTubeless,
+      trip.customChips,
+      osmData,
+      canQueryOsmSurface,
+      osmStatus,
+      osmError,
+    ]
+  );
+
   return (
     <Card
       title={t('physicsCardTitle')}
@@ -180,7 +221,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
             onClick={() => setShowDidactics((v) => !v)}
             aria-expanded={showDidactics}
             aria-controls={didacticPanelId}
-            className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-rounded font-semibold transition-colors cursor-pointer ${
+            className={`inline-flex items-center gap-1 min-h-[44px] sm:min-h-[34px] px-3.5 py-1.5 rounded-full text-xs font-rounded font-semibold transition-colors cursor-pointer ${
               showDidactics
                 ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary}`
                 : `${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} hover:text-ink`
@@ -206,7 +247,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
               onToggleViewMode('essential');
             }}
             title={t('cockpitViewEssentialHint')}
-            className={`px-3 sm:px-3.5 py-2 sm:py-1.5 rounded-full text-xs font-rounded font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+            className={`min-h-[44px] sm:min-h-[34px] px-3 sm:px-3.5 py-2 sm:py-1.5 rounded-full text-xs font-rounded font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
               viewMode === 'essential'
                 ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_TOKENS.emerald.selectedRing}`
                 : `${CHIP_RING_UNSELECTED} text-ink-muted hover:text-ink`
@@ -225,7 +266,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
               onToggleViewMode('pro');
             }}
             title={t('cockpitViewProHint')}
-            className={`px-3 sm:px-3.5 py-2 sm:py-1.5 rounded-full text-xs font-rounded font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+            className={`min-h-[44px] sm:min-h-[34px] px-3 sm:px-3.5 py-2 sm:py-1.5 rounded-full text-xs font-rounded font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
               viewMode === 'pro'
                 ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
                 : `${CHIP_RING_UNSELECTED} text-ink-muted hover:text-ink`
@@ -237,162 +278,181 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
         </div>
       )}
 
-      {/* ── PRIMARY HEADLINE KPI PODS (4-UP GRID, ALWAYS VISIBLE) ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 mb-3.5">
-        {/* KPI 1: Target Leg Power (W) */}
-        <div className="rounded-pod bg-pod p-3 sm:p-3.5 flex flex-col justify-between gap-1.5 border border-ink/5 dark:border-white/5">
-          <div className="flex items-center justify-between gap-1">
-            <span className="text-[11px] font-rounded font-semibold uppercase tracking-wide text-ink-muted break-words leading-tight">
-              {t('physicsKpiLegPower')}
+      {/* ── PRIMARY HEADLINE KPI PODS (GUIDED CALM VIEW vs PRO TELEMETRY) ── */}
+      {isEssential ? (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 mb-3.5">
+          {/* Guided KPI 1: Pace */}
+          <div className="rounded-pod bg-pod p-3.5 flex flex-col justify-between gap-1.5">
+            <span className="text-xs font-rounded font-semibold text-ink-muted break-words leading-tight">
+              {isFr ? 'Allure estimée' : 'Target pace'}
             </span>
-            <InfoTooltip
-              title={t('targetLegPowerTooltipTitle')}
-              content={
-                isQuantitative
-                  ? t('targetLegPowerTooltipContent', {
-                      wkg: wattsPerKg,
-                      ftpPct: ftpPercent,
-                      ftp: ftpWatts,
-                      zone: zoneLabel,
-                    })
-                  : isFr
-                  ? `Puissance mécanique cible : ${legWatts}W dans la zone ${powerZone} (${zoneLabel}). Calculée pour surmonter le vent et la pente.`
-                  : `Target mechanical effort: ${legWatts}W in ${powerZone} (${zoneLabel}). Calibrated to match road terrain and wind conditions.`
-              }
-              size="sm"
-            />
-          </div>
-          <div className="flex items-baseline gap-1 tnum">
-            <span className="text-2xl sm:text-[26px] font-bold font-mono tracking-tight text-ink">
-              {legWatts}
+            <div className="flex items-baseline gap-1 tnum">
+              <span className="text-2xl sm:text-[26px] font-bold tracking-tight text-ink">
+                {effectiveSpeed}
+              </span>
+              <span className="text-xs font-semibold text-ink-muted">km/h</span>
+            </div>
+            <span className="text-[11px] text-ink-secondary tnum break-words leading-tight">
+              {isFr ? 'Ajustée au vent et au relief' : 'Wind & terrain adjusted'}
             </span>
-            <span className="text-xs font-semibold text-ink-muted">W</span>
           </div>
-          <span className="text-[11px] text-ink-secondary font-mono tnum break-words leading-tight">
-            {isQuantitative
-              ? `${wattsPerKg} W/kg · ${ftpPercent}% FTP`
-              : `${powerZone} · ${zoneLabel}`}
-          </span>
-        </div>
 
-        {/* KPI 2: Total Work (kJ) */}
-        <div className="rounded-pod bg-pod p-3 sm:p-3.5 flex flex-col justify-between gap-1.5 border border-ink/5 dark:border-white/5">
-          <div className="flex items-center justify-between gap-1">
-            <span className="text-[11px] font-rounded font-semibold uppercase tracking-wide text-ink-muted break-words leading-tight">
-              {t('physicsKpiWork')}
+          {/* Guided KPI 2: Effort Feel (or Watts if opted in Step 4) */}
+          <div className="rounded-pod bg-pod p-3.5 flex flex-col justify-between gap-1.5">
+            <span className="text-xs font-rounded font-semibold text-ink-muted break-words leading-tight">
+              {showWattsInGuided ? t('physicsKpiLegPower') : isFr ? 'Niveau d’effort' : 'Effort feel'}
             </span>
-            <InfoTooltip
-              title={t('mechanicalWorkTooltipTitle')}
-              content={t('mechanicalWorkTooltipContent', { work: totalWorkKj })}
-              size="sm"
-            />
-          </div>
-          <div className="flex items-baseline gap-1 tnum">
-            <span className="text-2xl sm:text-[26px] font-bold font-mono tracking-tight text-ink">
-              {totalWorkKj}
+            <div className="flex items-baseline gap-1 tnum">
+              <span className="text-2xl sm:text-[26px] font-bold tracking-tight text-ink">
+                {showWattsInGuided ? legWatts : powerZone}
+              </span>
+              {showWattsInGuided && (
+                <span className="text-xs font-semibold text-ink-muted">W</span>
+              )}
+            </div>
+            <span className="text-[11px] text-ink-secondary tnum break-words leading-tight">
+              {showWattsInGuided ? `${powerZone} · ${zoneLabel}` : zoneLabel}
             </span>
-            <span className="text-xs font-semibold text-ink-muted">kJ</span>
           </div>
-          <span className="text-[11px] text-ink-secondary font-mono tnum break-words leading-tight">
-            {t('physicsKpiWorkSub', { pct: gmePercent })} &middot; @{effectiveSpeed} km/h
-          </span>
-        </div>
 
-        {/* KPI 3: Est. Burn / Fuel Rhythm */}
-        <div className="rounded-pod bg-pod p-3 sm:p-3.5 flex flex-col justify-between gap-1.5 border border-ink/5 dark:border-white/5">
-          <div className="flex items-center justify-between gap-1">
-            <span className="text-[11px] font-rounded font-semibold uppercase tracking-wide text-ink-muted break-words leading-tight">
-              {isQuantitative
-                ? t('physicsKpiBurn')
-                : isFr
-                ? 'Rythme Ravito'
-                : 'Fuel Pacing'}
+          {/* Guided KPI 3: Hills & Surface */}
+          <div className="rounded-pod bg-pod p-3.5 flex flex-col justify-between gap-1.5">
+            <span className="text-xs font-rounded font-semibold text-ink-muted break-words leading-tight">
+              {isFr ? 'Relief & route' : 'Hills & surface'}
             </span>
-            <InfoTooltip
-              title={
-                isQuantitative
-                  ? t('metabolicBurnTooltipTitle')
-                  : isFr
-                  ? 'Rythme Énergétique'
-                  : 'Fueling Guidance'
-              }
-              content={
-                isQuantitative
-                  ? t('metabolicBurnTooltipContent')
-                  : isFr
-                  ? 'Besoins énergétiques réguliers convertis en portions courantes et unités de ravitaillement, sans comptage calorique.'
-                  : 'Steady energy requirements translated into household portions and fuel units, completely free from calorie ledgers.'
-              }
-              size="sm"
-            />
-          </div>
-          <div className="flex items-baseline gap-1 tnum">
-            <span className="text-2xl sm:text-[26px] font-bold font-mono tracking-tight text-ink">
-              {isQuantitative
-                ? totalBurnKcal
-                : Math.max(1, Math.round(physicsResult.carbOxidationGramPerHour / 20))}
-            </span>
-            <span className="text-xs font-semibold text-ink-muted">
-              {isQuantitative ? 'kcal' : isFr ? 'unités/h' : 'units/h'}
+            <div className="flex items-baseline gap-1 tnum">
+              <span className="text-2xl sm:text-[26px] font-bold tracking-tight text-ink">
+                +{Math.round(trip.route.elevationGainM || 0)}
+              </span>
+              <span className="text-xs font-semibold text-ink-muted">m</span>
+            </div>
+            <span className="text-[11px] text-ink-secondary tnum break-words leading-tight">
+              {surfaceBreakdown.pavedPct}% {isFr ? 'Bitume' : 'Paved'} · {surfaceBreakdown.gravelPct}% Gravel
             </span>
           </div>
-          <span className="text-[11px] text-ink-secondary font-mono tnum inline-flex items-center gap-1 flex-wrap break-words leading-tight">
-            <Flame className={`w-3.5 h-3.5 shrink-0 ${CHIP_TOKENS.amber.primary}`} />
-            <span className="break-words">
-              {isQuantitative
-                ? `${t('physicsKpiBurnSub')} · ${t('ftpRefLabel', { ftp: ftpWatts })}`
-                : `${isFr ? 'Cadence conseillée' : 'Recommended cadence'} · ~${Math.max(1, Math.round((physicsResult.carbOxidationGramPerHour * ((physicsResult.movingTimeSeconds || 2880) / 3600)) / 20))} ${isFr ? 'unités' : 'units'}`}
-            </span>
-          </span>
-        </div>
 
-        {/* KPI 4: Carb Burn (g/h or Fuel Units/h) */}
-        <div className="rounded-pod bg-pod p-3 sm:p-3.5 flex flex-col justify-between gap-1.5 border border-ink/5 dark:border-white/5">
-          <div className="flex items-center justify-between gap-1">
-            <span className="text-[11px] font-rounded font-semibold uppercase tracking-wide text-ink-muted break-words leading-tight">
-              {isQuantitative
-                ? t('physicsKpiCarb')
-                : isFr
-                ? 'Apport Horaire'
-                : 'Hourly Intake'}
+          {/* Guided KPI 4: Air vs Rolling Balance */}
+          <div className="rounded-pod bg-pod p-3.5 flex flex-col justify-between gap-1.5">
+            <span className="text-xs font-rounded font-semibold text-ink-muted break-words leading-tight">
+              {isFr ? 'Vent vs route' : 'Wind vs road'}
             </span>
-            <InfoTooltip
-              title={t('glycogenDemandTooltipTitle')}
-              content={
-                isQuantitative
-                  ? t('glycogenDemandTooltipContent')
-                  : isFr
-                  ? 'Allure de consommation glucidique convertie en portions d’aliments faciles à assimiler.'
-                  : 'Carbohydrate consumption rate converted into easily digestible food portion units.'
-              }
-              size="sm"
-            />
-          </div>
-          <div className="flex items-baseline gap-1 tnum">
-            <span
-              className={`text-2xl sm:text-[26px] font-bold font-mono tracking-tight ${CHIP_TOKENS.lime.primary}`}
-            >
-              {isQuantitative
-                ? physicsResult.carbOxidationGramPerHour
-                : Math.max(1, Math.round(physicsResult.carbOxidationGramPerHour / 20))}
-            </span>
-            <span className="text-xs font-semibold text-ink-muted">
-              {isQuantitative ? 'g/h' : isFr ? 'unités/h' : 'units/h'}
+            <div className="flex items-baseline gap-1 tnum">
+              <span className={`text-2xl sm:text-[26px] font-bold tracking-tight ${CHIP_TOKENS.lime.primary}`}>
+                {aeroPercent}%
+              </span>
+              <span className="text-xs font-semibold text-ink-muted">
+                {isFr ? 'air' : 'air'}
+              </span>
+            </div>
+            <span className="text-[11px] text-ink-secondary tnum break-words leading-tight">
+              {rollingPercent}% {isFr ? 'pneus & pente' : 'rolling & hills'}
             </span>
           </div>
-          <span className="text-[11px] text-ink-secondary font-mono tnum break-words leading-tight">
-            {isQuantitative
-              ? t('physicsKpiCarbSub', { total: totalCarbs })
-              : isFr
-              ? 'Ravitaillement régulier en selle'
-              : 'Steady on-bike fueling rhythm'}
-          </span>
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 mb-3.5">
+          {/* Pro KPI 1: Target Leg Power (W) */}
+          <div className="rounded-pod bg-pod p-3.5 flex flex-col justify-between gap-1.5">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-xs font-rounded font-semibold text-ink-muted break-words leading-tight">
+                {t('physicsKpiLegPower')}
+              </span>
+              <InfoTooltip
+                title={t('targetLegPowerTooltipTitle')}
+                content={t('targetLegPowerTooltipContent', {
+                  wkg: wattsPerKg,
+                  ftpPct: ftpPercent,
+                  ftp: ftpWatts,
+                  zone: zoneLabel,
+                })}
+                size="sm"
+              />
+            </div>
+            <div className="flex items-baseline gap-1 tnum">
+              <span className="text-2xl sm:text-[26px] font-bold tracking-tight text-ink">
+                {legWatts}
+              </span>
+              <span className="text-xs font-semibold text-ink-muted">W</span>
+            </div>
+            <span className="text-[11px] text-ink-secondary tnum break-words leading-tight">
+              {wattsPerKg} W/kg · {ftpPercent}% FTP
+            </span>
+          </div>
+
+          {/* Pro KPI 2: Total Mechanical Work (kJ) */}
+          <div className="rounded-pod bg-pod p-3.5 flex flex-col justify-between gap-1.5">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-xs font-rounded font-semibold text-ink-muted break-words leading-tight">
+                {t('physicsKpiWork')}
+              </span>
+              <InfoTooltip
+                title={t('mechanicalWorkTooltipTitle')}
+                content={t('mechanicalWorkTooltipContent', { work: totalWorkKj })}
+                size="sm"
+              />
+            </div>
+            <div className="flex items-baseline gap-1 tnum">
+              <span className="text-2xl sm:text-[26px] font-bold tracking-tight text-ink">
+                {totalWorkKj}
+              </span>
+              <span className="text-xs font-semibold text-ink-muted">kJ</span>
+            </div>
+            <span className="text-[11px] text-ink-secondary tnum break-words leading-tight">
+              {t('physicsKpiWorkSub', { pct: gmePercent })} &middot; {effectiveSpeed} km/h
+            </span>
+          </div>
+
+          {/* Pro KPI 3: Aerodynamic Drag (W) */}
+          <div className="rounded-pod bg-pod p-3.5 flex flex-col justify-between gap-1.5">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-xs font-rounded font-semibold text-ink-muted break-words leading-tight">
+                {t('aeroDragPill')}
+              </span>
+              <InfoTooltip
+                title={t('aeroDragTooltipTitle')}
+                content={t('aeroDragTooltipContent')}
+                size="sm"
+              />
+            </div>
+            <div className="flex items-baseline gap-1 tnum">
+              <span className="text-2xl sm:text-[26px] font-bold tracking-tight text-ink">
+                {aeroWatts}
+              </span>
+              <span className="text-xs font-semibold text-ink-muted">W</span>
+            </div>
+            <span className="text-[11px] text-ink-secondary tnum break-words leading-tight">
+              {aeroPercent}% &middot; {effectiveSpeed} km/h
+            </span>
+          </div>
+
+          {/* Pro KPI 4: Rolling & Gravity (W) */}
+          <div className="rounded-pod bg-pod p-3.5 flex flex-col justify-between gap-1.5">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-xs font-rounded font-semibold text-ink-muted break-words leading-tight">
+                {t('tireRollingPill')}
+              </span>
+              <InfoTooltip
+                title={t('rollingTooltipTitle')}
+                content={t('rollingTooltipContent')}
+                size="sm"
+              />
+            </div>
+            <div className="flex items-baseline gap-1 tnum">
+              <span className={`text-2xl sm:text-[26px] font-bold tracking-tight ${CHIP_TOKENS.lime.primary}`}>
+                {surfaceAndGradeWatts}
+              </span>
+              <span className="text-xs font-semibold text-ink-muted">W</span>
+            </div>
+            <span className="text-[11px] text-ink-secondary tnum break-words leading-tight">
+              {rollingOnlyWatts} W + {gravityWatts} W ({rollingPercent}%)
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* ── DIDACTIC WATTS & POWER ZONES EXPLAINER (COLLAPSIBLE) ── */}
       <Collapsible open={showDidactics} id={didacticPanelId} innerClassName="pb-3.5">
-        <div className="rounded-pod bg-pod p-3.5 sm:p-4 border border-emerald-500/20 space-y-3">
+        <div className="rounded-pod bg-pod p-3.5 sm:p-4 space-y-3">
           <div className="flex items-start gap-2.5">
             <IconBadge
               theme="emerald"
@@ -434,7 +494,8 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
           </div>
 
           {/* Personal 5-Zone Watt Scale */}
-          <div className="pt-2 border-t border-dashed border-ink/10 dark:border-white/10">
+          <div className="pt-2">
+            <div className="lane-divider mb-2" aria-hidden="true" />
             <div className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted mb-1.5 tnum">
               {isFr
                 ? `Vos 5 zones personnelles (calibrées sur FTP ${ftpWatts} W)`
@@ -454,7 +515,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
                     }`}
                   >
                     <div className="font-semibold">{zs.zone}</div>
-                    <div className="text-[10px] opacity-85 font-mono">{zs.wattsRange}</div>
+                    <div className="text-[10px] opacity-85 tnum">{zs.wattsRange}</div>
                   </div>
                 );
               })}
@@ -464,13 +525,13 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
       </Collapsible>
 
       {/* ── VARIABLE SECTIONAL ENERGY & MULTI-ZONE PROFILE (COLLAPSIBLE POD) ── */}
-      <div className="bg-pod rounded-pod mb-3 border border-ink/5 dark:border-white/5 overflow-hidden">
+      <div className="bg-pod rounded-pod mb-3 overflow-hidden">
         <button
           type="button"
           onClick={() => setShowSectional((v) => !v)}
           aria-expanded={showSectional}
           aria-controls={sectionalPanelId}
-          className="w-full p-3 sm:p-3.5 flex items-center justify-between gap-2.5 hover:bg-chip/60 transition-colors cursor-pointer text-left select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
+          className="w-full min-h-[44px] p-3 sm:p-3.5 flex items-center justify-between gap-2.5 hover:bg-chip/60 transition-colors cursor-pointer text-left select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
         >
           <div className="flex items-center gap-2.5 min-w-0">
             <IconBadge theme="amber" icon={Mountains} size="sm" solidBacker />
@@ -479,10 +540,27 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
                 <h4 className="text-xs sm:text-[13px] font-bold font-rounded text-ink">
                   {t('sectionalEnergyHeading')}
                 </h4>
-                <Badge variant={getZoneChipTheme(sectional.peakZone)} size="xs" className="tnum">
-                  {isFr
-                    ? `Pic bosses : ~${sectional.peakClimbWatts}W (${sectional.peakZone})`
-                    : `Climb peak: ~${sectional.peakClimbWatts}W (${sectional.peakZone})`}
+                {!isEssential && (
+                  <Badge variant={getZoneChipTheme(sectional.peakZone)} size="xs" className="tnum">
+                    {isFr
+                      ? `Pic bosses : ~${sectional.peakClimbWatts} W (${sectional.peakZone})`
+                      : `Climb peak: ~${sectional.peakClimbWatts}W (${sectional.peakZone})`}
+                  </Badge>
+                )}
+                <Badge
+                  variant={
+                    surfaceBreakdown.suitability.overallLevel === 'ideal'
+                      ? 'emerald'
+                      : surfaceBreakdown.suitability.overallLevel === 'good-with-care'
+                      ? 'amber'
+                      : 'rose'
+                  }
+                  size="xs"
+                  className="tnum"
+                >
+                  {surfaceBreakdown.pavedPct}% {isFr ? 'Bitume' : 'Paved'} ·{' '}
+                  {surfaceBreakdown.gravelPct}% Gravel · {surfaceBreakdown.singletrackPct}%{' '}
+                  {isFr ? 'Sentier' : 'Trail'}
                 </Badge>
               </div>
               <p className="text-[11px] text-ink-muted break-words leading-relaxed">
@@ -497,15 +575,16 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
         <Collapsible
           open={showSectional}
           id={sectionalPanelId}
-          innerClassName="px-3.5 sm:px-4 pb-3.5 sm:pb-4 pt-3 border-t border-dashed border-ink/10 dark:border-white/10 space-y-3"
+          innerClassName="px-3.5 sm:px-4 pb-3.5 sm:pb-4 pt-1 space-y-3"
         >
+          <div className="lane-divider mb-2" aria-hidden="true" />
           {/* Stacked Multi-Zone Ride Time Distribution Bar */}
           <div>
             <div className="flex items-center justify-between text-[11px] text-ink-secondary mb-1.5 gap-2 flex-wrap">
               <span className="font-medium">
                 {isFr ? 'Répartition réelle dans les zones :' : 'Time across effort zones:'}
               </span>
-              <div className="flex items-center gap-2 flex-wrap tnum font-mono text-[10px]">
+              <div className="flex items-center gap-2 flex-wrap tnum text-[10px]">
                 {sectional.zoneShares
                   .filter((z) => z.pctTime > 0)
                   .map((z) => (
@@ -544,7 +623,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
               return (
                 <div
                   key={band.id}
-                  className="p-3 rounded-sub-pod bg-card border border-ink/5 dark:border-white/5 flex flex-col justify-between gap-1.5"
+                  className="p-3 rounded-sub-pod bg-card flex flex-col justify-between gap-1.5"
                 >
                   <div>
                     <div className="flex items-center justify-between gap-1.5">
@@ -558,29 +637,36 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
                     <p className="text-[10px] text-ink-muted mt-0.5">{band.subtitle}</p>
                   </div>
 
-                  <div className="pt-1.5 border-t border-dashed border-ink/10 dark:border-white/10 flex items-baseline justify-between gap-1 tnum">
-                    <span className="text-sm font-extrabold text-ink font-mono">
-                      ~{band.avgWatts}W
+                  <div className="pt-1.5 flex items-baseline justify-between gap-1 tnum">
+                    <span className="text-sm font-bold text-ink">
+                      {!isEssential ? `~${band.avgWatts} W` : band.zone}
                     </span>
-                    <span className="text-[10px] text-ink-secondary font-mono">
-                      {band.pctDistance}% ({band.distanceKm} km){isQuantitative ? ` · ${band.kcalShare} kcal` : ''}
+                    <span className="text-[10px] text-ink-secondary tnum">
+                      {band.pctDistance}% ({band.distanceKm} km)
                     </span>
                   </div>
                 </div>
               );
             })}
           </div>
+
+          {/* Interactive Surface & Road Type Profile + 38c Gravel Suitability */}
+          <SurfaceProfileBar
+            breakdown={surfaceBreakdown}
+            onRefreshOsm={canQueryOsmSurface ? refreshOsmSurface : undefined}
+          />
         </Collapsible>
       </div>
 
-      {/* ── COLLAPSIBLE DEEP TELEMETRY DRAWER: P_aero, P_rolling, P_gravity, CdA, Crr, Mass & Loss ── */}
-      <div className="rounded-pod bg-pod border border-ink/5 dark:border-white/5 overflow-hidden">
+      {/* ── COLLAPSIBLE DEEP TELEMETRY DRAWER (PRO VIEW ONLY): P_aero, P_rolling, P_gravity, CdA, Crr, Mass & Efficiency ── */}
+      {!isEssential && (
+      <div className="rounded-pod bg-pod overflow-hidden">
         <button
           type="button"
           onClick={() => setShowTelemetryDrawer((v) => !v)}
           aria-expanded={showTelemetryDrawer}
           aria-controls={telemetryDrawerId}
-          className="w-full p-3 sm:p-3.5 flex items-center justify-between gap-2.5 hover:bg-chip/60 transition-colors cursor-pointer text-left select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
+          className="w-full min-h-[44px] p-3 sm:p-3.5 flex items-center justify-between gap-2.5 hover:bg-chip/60 transition-colors cursor-pointer text-left select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
         >
           <div className="flex items-center gap-2.5 min-w-0">
             <IconBadge theme="yellow-vest" icon={Wind} size="sm" solidBacker />
@@ -588,20 +674,20 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
               <h4 className="text-xs sm:text-[13px] font-bold font-rounded text-ink leading-snug break-words">
                 {t('physicsTelemetryDrawer')}
               </h4>
-              <p className="text-[11px] text-ink-muted break-words font-mono tnum leading-tight">
+              <p className="text-[11px] text-ink-muted break-words tnum leading-tight">
                 {t('physicsTelemetryDrawerSub')}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
-            <Badge variant="zinc" size="xs" className="hidden md:inline-flex font-mono tnum">
+            <Badge variant="zinc" size="xs" className="hidden md:inline-flex tnum">
               CdA {cda}
             </Badge>
-            <Badge variant="zinc" size="xs" className="hidden md:inline-flex font-mono tnum">
+            <Badge variant="zinc" size="xs" className="hidden md:inline-flex tnum">
               Crr {formattedCrr}
             </Badge>
-            <Badge variant="zinc" size="xs" className="hidden sm:inline-flex font-mono tnum">
+            <Badge variant="zinc" size="xs" className="hidden sm:inline-flex tnum">
               {totalSystemMass} kg
             </Badge>
             <DisclosureChevron open={showTelemetryDrawer} />
@@ -611,12 +697,13 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
         <Collapsible
           open={showTelemetryDrawer}
           id={telemetryDrawerId}
-          innerClassName="px-3.5 sm:px-4 pb-3.5 sm:pb-4 pt-3 border-t border-dashed border-ink/10 dark:border-white/10 space-y-3.5"
+          innerClassName="px-3.5 sm:px-4 pb-3.5 sm:pb-4 pt-1 space-y-3.5"
         >
+          <div className="lane-divider mb-2" aria-hidden="true" />
           {/* Aerodynamic & Rolling Coefficient Pills */}
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium font-mono bg-card text-ink tnum">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-card text-ink tnum">
                 <span>CdA {cda}</span>
                 <InfoTooltip
                   title={t('cdaTooltipTitle')}
@@ -624,7 +711,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
                   size="sm"
                 />
               </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium font-mono bg-card text-ink tnum">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-card text-ink tnum">
                 <span>Crr {formattedCrr}</span>
                 <InfoTooltip
                   title={t('crrTooltipTitle')}
@@ -632,12 +719,12 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
                   size="sm"
                 />
               </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium font-mono bg-card text-ink-secondary tnum">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-card text-ink-secondary tnum">
                 &rho; {rho} kg/m&sup3;
               </span>
             </div>
 
-            <span className="text-[11px] font-mono text-ink-muted tnum">
+            <span className="text-[11px] text-ink-muted tnum">
               P_gravity: {gravityWatts >= 0 ? `+${gravityWatts}` : gravityWatts} W (
               {trip.physics.gradientPercent ?? 0}%)
             </span>
@@ -646,7 +733,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
           {/* 1. RESISTIVE POWER PIPELINE SUB-PODS (P_aero, P_rolling + P_gravity, Drivetrain Loss) */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
             {/* Stage 1: Aerodynamic Drag (P_aero) */}
-            <div className="rounded-sub-pod bg-card p-3.5 flex flex-col border border-ink/5 dark:border-white/5">
+            <div className="rounded-sub-pod bg-card p-3.5 flex flex-col">
               <div className="flex items-center justify-between gap-2 mb-2.5">
                 <span
                   className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary}`}
@@ -677,7 +764,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
                   </span>
                   <span className="text-xs font-medium text-ink-muted">{t('wattsUnit')}</span>
                 </div>
-                <div className="flex items-center justify-between gap-1 text-[11px] font-mono text-ink-muted mt-1 tnum">
+                <div className="flex items-center justify-between gap-1 text-[11px] text-ink-muted mt-1 tnum">
                   <p className="break-words leading-tight" title={`0.5 × ρ(${rho}) × CdA(${cda}) × v³`}>
                     0.5 &middot; &rho;({rho}) &middot; CdA({cda}) &middot; v&sup3;
                   </p>
@@ -691,7 +778,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
             </div>
 
             {/* Stage 2: Rolling Resistance + Gravity (P_rolling + P_gravity) */}
-            <div className="rounded-sub-pod bg-card p-3.5 flex flex-col border border-ink/5 dark:border-white/5">
+            <div className="rounded-sub-pod bg-card p-3.5 flex flex-col">
               <div className="flex items-center justify-between gap-2 mb-2.5">
                 <span
                   className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary}`}
@@ -721,13 +808,13 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
                     {surfaceAndGradeWatts}
                   </span>
                   <span className="text-xs font-medium text-ink-muted">{t('wattsUnit')}</span>
-                  <span className="text-[11px] font-mono text-ink-secondary tnum">
-                    ({rollingOnlyWatts}W + {gravityWatts}W)
+                  <span className="text-[11px] text-ink-secondary tnum">
+                    ({rollingOnlyWatts} W + {gravityWatts} W)
                   </span>
                 </div>
-                <div className="flex items-center justify-between gap-1 text-[11px] font-mono text-ink-muted mt-1 tnum">
+                <div className="flex items-center justify-between gap-1 text-[11px] text-ink-muted mt-1 tnum">
                   <p className="break-words leading-tight" title={`Crr(${formattedCrr}) × ${totalSystemMass}kg × g × v`}>
-                    Crr({formattedCrr}) &middot; {totalSystemMass}kg &middot; g &middot; v
+                    Crr({formattedCrr}) &middot; {totalSystemMass} kg &middot; g &middot; v
                   </p>
                   <InfoTooltip
                     title={t('rollingFormulaTooltipTitle')}
@@ -739,7 +826,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
             </div>
 
             {/* Stage 3: Drivetrain Loss */}
-            <div className="rounded-sub-pod bg-card p-3.5 flex flex-col border border-ink/5 dark:border-white/5">
+            <div className="rounded-sub-pod bg-card p-3.5 flex flex-col">
               <div className="flex items-center justify-between gap-2 mb-2.5">
                 <span
                   className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary}`}
@@ -774,7 +861,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
                   </span>
                   <span className="text-xs font-medium text-ink-muted">{t('wattsLossUnit')}</span>
                 </div>
-                <div className="flex items-center justify-between gap-1 text-[11px] font-mono text-ink-muted mt-1 tnum">
+                <div className="flex items-center justify-between gap-1 text-[11px] text-ink-muted mt-1 tnum">
                   <p className="break-words leading-tight">{t('chainFrictionLoss', { pct: lossPercent })}</p>
                   <InfoTooltip
                     title={t('drivetrainLossTooltipTitle')}
@@ -786,10 +873,10 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
             </div>
           </div>
 
-          {/* 2. SYSTEM MASS & SUBSTRATE BREAKDOWN SUB-PODS */}
+          {/* 2. SYSTEM MASS & MECHANICAL EFFICIENCY SUB-PODS */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* System Mass */}
-            <div className="p-3.5 rounded-sub-pod bg-card border border-ink/5 dark:border-white/5">
+            <div className="p-3.5 rounded-sub-pod bg-card">
               <div className="flex items-center justify-between flex-wrap gap-2 mb-2.5">
                 <span className="text-sm font-semibold font-rounded text-ink flex items-center gap-1.5">
                   <span>{t('systemMassHeading')}</span>
@@ -834,7 +921,14 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
                     <span>{t('gearPayloadRow')}</span>
                     <InfoTooltip
                       title={t('gearPayloadTooltipTitle')}
-                      content={t('gearPayloadTooltipContent')}
+                      content={t(
+                        ({
+                          COMMUTE: 'gearPayloadTooltipContentCommute',
+                          ESCAPADE: 'gearPayloadTooltipContentEscapade',
+                          BIKEPACKING: 'gearPayloadTooltipContentBikepacking',
+                          SPORT: 'gearPayloadTooltipContentSport',
+                        } as const)[getArchetypeFromTag(trip.tag, trip.name)]
+                      )}
                       size="sm"
                     />
                   </span>
@@ -843,11 +937,11 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
               </div>
             </div>
 
-            {/* Energy Substrate */}
-            <div className="p-3.5 rounded-sub-pod bg-card border border-ink/5 dark:border-white/5">
+            {/* Mechanical Efficiency & Output */}
+            <div className="p-3.5 rounded-sub-pod bg-card">
               <div className="flex items-center justify-between flex-wrap gap-2 mb-2.5">
                 <span className="text-sm font-semibold font-rounded text-ink flex items-center gap-1.5">
-                  <span>{t('energySubstrateHeading')}</span>
+                  <span>{isFr ? 'Rendement mécanique' : 'Mechanical output'}</span>
                   <InfoTooltip
                     title={t('energySubstrateTooltipTitle')}
                     content={t('energySubstrateTooltipContent')}
@@ -873,34 +967,20 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
                 </div>
                 <div className="lane-divider" aria-hidden="true" />
                 <div className="flex items-center justify-between py-1.5">
-                  <span className="text-ink-secondary flex items-center gap-1.5">
-                    <span>{t('metabolicBurnRow')}</span>
-                    <InfoTooltip
-                      title={t('metabolicBurnTooltipTitle')}
-                      content={t('metabolicBurnTooltipContent')}
-                      size="sm"
-                    />
+                  <span className="text-ink-secondary">
+                    {isFr ? 'Puissance à la roue' : 'Wheel power'}
                   </span>
                   <span className="font-semibold text-ink tnum">
-                    {isQuantitative
-                      ? `${totalBurnKcal} kcal`
-                      : `${Math.max(1, Math.round(physicsResult.carbOxidationGramPerHour / 20))} ${isFr ? 'unités/h' : 'units/h'}`}
+                    {Math.round(physicsResult.wheelWatts || legWatts * 0.95)} W
                   </span>
                 </div>
                 <div className="lane-divider" aria-hidden="true" />
                 <div className="flex items-center justify-between pt-1.5">
-                  <span className="text-ink-secondary flex items-center gap-1.5">
-                    <span>{t('glycogenDemandRow')}</span>
-                    <InfoTooltip
-                      title={t('glycogenDemandTooltipTitle')}
-                      content={t('glycogenDemandTooltipContent')}
-                      size="sm"
-                    />
+                  <span className="text-ink-secondary">
+                    {isFr ? 'Répartition aéro / route' : 'Aero / surface split'}
                   </span>
                   <span className={`font-semibold tnum ${CHIP_TOKENS.lime.primary}`}>
-                    {isQuantitative
-                      ? `${physicsResult.carbOxidationGramPerHour} g/h (~${totalCarbs}g)`
-                      : `${Math.max(1, Math.round(physicsResult.carbOxidationGramPerHour / 20))} ${isFr ? 'unités de ravito / h' : 'fuel units / hr'}`}
+                    {aeroPercent}% / {rollingPercent}%
                   </span>
                 </div>
               </div>
@@ -908,6 +988,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
           </div>
         </Collapsible>
       </div>
+      )}
     </Card>
   );
 };

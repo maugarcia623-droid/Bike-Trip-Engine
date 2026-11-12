@@ -1,11 +1,14 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { Mountains, Upload, Route } from '@/components/icons';
-import { RouteParams, PhysicsCalculationResult } from '../../types/trip';
+import { RouteParams, PhysicsCalculationResult, SurfaceSegment } from '../../types/trip';
 import { synthesizeRouteElevationProfile } from '../../utils/gpxParser';
+import { computeSurfaceBreakdown, SURFACE_VISUAL_META } from '../../utils/surfaceProfile';
+import { useOsmSurface } from '../../services/osmSurfaceService';
 import { getPowerZone } from '../../utils/physics';
 import { useTranslation } from '../../context/LanguageContext';
 import { Badge } from './Badge';
 import { IconBadge } from './IconBadge';
+import { SurfaceProfileBar } from './SurfaceProfileBar';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
   CHIP_TOKENS,
@@ -15,6 +18,10 @@ import {
 interface ElevationTerrainStripProps {
   route: RouteParams;
   physicsResult?: PhysicsCalculationResult;
+  crr?: number;
+  customChips?: string[];
+  activeSegmentId?: string | null;
+  onSelectSurfaceSegment?: (segment: SurfaceSegment | null) => void;
   compact?: boolean;
   onUploadGpxFile?: (file: File) => void;
 }
@@ -22,6 +29,10 @@ interface ElevationTerrainStripProps {
 export const ElevationTerrainStrip: React.FC<ElevationTerrainStripProps> = ({
   route,
   physicsResult,
+  crr,
+  customChips,
+  activeSegmentId,
+  onSelectSurfaceSegment,
   compact = false,
   onUploadGpxFile,
 }) => {
@@ -34,6 +45,34 @@ export const ElevationTerrainStrip: React.FC<ElevationTerrainStripProps> = ({
   const { elevationProfile, terrainSummary } = useMemo(
     () => synthesizeRouteElevationProfile(route),
     [route]
+  );
+
+  const canQueryOsm =
+    route.routeMode !== 'manual-radius' &&
+    Boolean(route.coordinates && route.coordinates.length >= 2);
+  const {
+    osmData,
+    status: osmStatus,
+    error: osmError,
+    refresh: refreshOsm,
+  } = useOsmSurface(route.coordinates, route.distanceKm, canQueryOsm);
+
+  const surfaceBreakdown = useMemo(
+    () =>
+      computeSurfaceBreakdown(
+        {
+          ...route,
+          elevationProfile,
+        },
+        {
+          crr,
+          customChips,
+          osmData,
+          isLoadingOsm: canQueryOsm && osmStatus === 'loading',
+          osmError,
+        }
+      ),
+    [route, elevationProfile, crr, customChips, osmData, canQueryOsm, osmStatus, osmError]
   );
 
   const elevGain =
@@ -55,14 +94,10 @@ export const ElevationTerrainStrip: React.FC<ElevationTerrainStripProps> = ({
   })();
 
   const surfaceInfo = (() => {
-    switch (terrainSummary.surfaceLabel) {
-      case 'gravel':
-        return isFr ? 'Chemins & Gravel' : 'Gravel & Trail';
-      case 'mixed':
-        return isFr ? 'Voie verte & Bitume' : 'Cycleway & Mixed';
-      default:
-        return isFr ? 'Asphalte / Route' : 'Paved Road';
-    }
+    const unpavedPct = surfaceBreakdown.gravelPct + surfaceBreakdown.singletrackPct;
+    if (unpavedPct >= 50) return isFr ? 'Chemins & Gravel' : 'Gravel & Trail';
+    if (unpavedPct >= 10) return isFr ? 'Mixte Bitume & Gravel' : 'Mixed Paved & Gravel';
+    return isFr ? 'Asphalte / Route' : 'Paved Road';
   })();
 
   // Build SVG path in normalized 600 x 90 viewBox
@@ -123,10 +158,22 @@ export const ElevationTerrainStrip: React.FC<ElevationTerrainStripProps> = ({
     const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / Math.max(1, rect.width)));
     const idx = Math.round(frac * (elevationProfile.length - 1));
     setHoverIdx(idx);
+    const pct = frac * 100;
+    const seg =
+      surfaceBreakdown.segments.find((s) => pct >= s.startPct && pct <= s.endPct) ?? null;
+    if (seg) {
+      onSelectSurfaceSegment?.(seg);
+    }
   };
 
+  const hoveredSurfaceMeta = useMemo(() => {
+    if (hoverIdx === null) return null;
+    const st = surfaceBreakdown.pointSurfaces[hoverIdx] ?? 'paved';
+    return SURFACE_VISUAL_META[st];
+  }, [hoverIdx, surfaceBreakdown]);
+
   return (
-    <div className="rounded-card bg-card text-ink p-3.5 sm:p-4 border border-ink/5 dark:border-white/5 transition-colors">
+    <div className="rounded-card bg-card text-ink p-3.5 sm:p-4 transition-colors">
       {/* Header Row */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -143,7 +190,7 @@ export const ElevationTerrainStrip: React.FC<ElevationTerrainStripProps> = ({
                 {surfaceInfo}
               </Badge>
               {isGpx && (
-                <Badge variant="emerald" size="xs" className="font-mono">
+                <Badge variant="emerald" size="xs" className="tnum">
                   {route.gpxFileName ? `GPX · ${route.gpxFileName}` : t('gpxLoadedBadge')}
                 </Badge>
               )}
@@ -153,10 +200,10 @@ export const ElevationTerrainStrip: React.FC<ElevationTerrainStripProps> = ({
                 {isGpx
                   ? isFr
                     ? `Profil réel extrait de votre trace GPX (+${elevGain} m D+ · pente max ${terrainSummary.maxGradePct}%)`
-                    : `True elevation extracted from your GPX trace (+${elevGain}m D+ · max ${terrainSummary.maxGradePct}% grade)`
+                    : `True elevation extracted from your GPX trace (+${elevGain} m D+ · max ${terrainSummary.maxGradePct}% grade)`
                   : isFr
                   ? `Aperçu topographique (+${elevGain} m D+) — importez un fichier .GPX pour le relief exact mètre par mètre`
-                  : `Topographic preview (+${elevGain}m D+) — upload a .GPX file for exact meter-by-meter slope`}
+                  : `Topographic preview (+${elevGain} m D+) — upload a .GPX file for exact meter-by-meter slope`}
               </p>
             )}
           </div>
@@ -180,7 +227,7 @@ export const ElevationTerrainStrip: React.FC<ElevationTerrainStripProps> = ({
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} hover:brightness-[0.97] dark:hover:brightness-110 ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+              className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[34px] px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} hover:brightness-[0.97] dark:hover:brightness-110 ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
               <Upload className="w-3.5 h-3.5 text-current" />
               <span>{t('gpxUploadBtn')}</span>
@@ -191,12 +238,16 @@ export const ElevationTerrainStrip: React.FC<ElevationTerrainStripProps> = ({
 
       {/* Interactive Elevation Area Chart */}
       <div className="relative rounded-pod bg-pod px-3 pt-2.5 pb-2 mb-2.5 overflow-hidden select-none">
-        <div className="flex items-center justify-between text-[11px] font-mono text-ink-muted mb-1 tnum">
+        <div className="flex items-center justify-between text-[11px] text-ink-muted mb-1 tnum">
           <span>
             {hoveredPoint
               ? `${hoveredPoint.distKm} km · ${Math.round(hoveredPoint.eleM)} m · ${
                   hoveredPoint.gradePct > 0 ? '+' : ''
-                }${hoveredPoint.gradePct}%`
+                }${hoveredPoint.gradePct}%${
+                  hoveredSurfaceMeta
+                    ? ` · ${isFr ? hoveredSurfaceMeta.labelFr : hoveredSurfaceMeta.labelEn}`
+                    : ''
+                }`
               : `0 km · ${t('terrainAltitudeSpan', {
                   min: terrainSummary.minEleM,
                   max: terrainSummary.maxEleM,
@@ -223,6 +274,24 @@ export const ElevationTerrainStrip: React.FC<ElevationTerrainStripProps> = ({
             </linearGradient>
           </defs>
           {areaPath && <path d={areaPath} fill="url(#elevFillGrad)" />}
+          {/* Color-coded surface baseline strip synchronized with elevation x-axis */}
+          {surfaceBreakdown.segments.map((seg) => {
+            const x1 = (seg.startPct / 100) * chartW;
+            const x2 = (seg.endPct / 100) * chartW;
+            const meta = SURFACE_VISUAL_META[seg.type];
+            return (
+              <rect
+                key={seg.id}
+                x={x1}
+                y={chartH - 5}
+                width={Math.max(2, x2 - x1 - 1)}
+                height={4}
+                rx={1.5}
+                fill={meta.colorDark}
+                opacity={activeSegmentId === seg.id ? 1 : 0.85}
+              />
+            );
+          })}
           {linePath && (
             <path
               d={linePath}
@@ -249,7 +318,7 @@ export const ElevationTerrainStrip: React.FC<ElevationTerrainStripProps> = ({
                 cx={hoveredCoord.x}
                 cy={hoveredCoord.y}
                 r="4.5"
-                fill="#10B981"
+                fill={hoveredSurfaceMeta ? hoveredSurfaceMeta.colorDark : '#10B981'}
                 stroke="#FFFFFF"
                 strokeWidth="1.8"
               />
@@ -259,13 +328,13 @@ export const ElevationTerrainStrip: React.FC<ElevationTerrainStripProps> = ({
       </div>
 
       {/* 4 Compact Terrain Breakdown Pills */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs mb-3">
         <div className="px-3 py-2 rounded-sub-pod bg-pod flex items-center justify-between gap-2">
           <span className="text-ink-muted flex items-center gap-1.5">
             <span className={`w-2 h-2 rounded-full ${CHIP_TOKENS.emerald.dot}`} />
             {t('terrainFlat')}
           </span>
-          <span className="font-mono font-bold text-ink tnum">
+          <span className="font-bold text-ink tnum">
             {terrainSummary.flatPct + terrainSummary.descentPct}%
           </span>
         </div>
@@ -275,7 +344,7 @@ export const ElevationTerrainStrip: React.FC<ElevationTerrainStripProps> = ({
             <span className={`w-2 h-2 rounded-full ${CHIP_TOKENS['yellow-vest'].dot}`} />
             {t('terrainRolling')}
           </span>
-          <span className="font-mono font-bold text-ink tnum">{terrainSummary.rollingPct}%</span>
+          <span className="font-bold text-ink tnum">{terrainSummary.rollingPct}%</span>
         </div>
 
         <div className="px-3 py-2 rounded-sub-pod bg-pod flex items-center justify-between gap-2">
@@ -283,14 +352,23 @@ export const ElevationTerrainStrip: React.FC<ElevationTerrainStripProps> = ({
             <span className={`w-2 h-2 rounded-full ${CHIP_TOKENS.amber.dot}`} />
             {t('terrainClimb')}
           </span>
-          <span className="font-mono font-bold text-ink tnum">{terrainSummary.climbPct}%</span>
+          <span className="font-bold text-ink tnum">{terrainSummary.climbPct}%</span>
         </div>
 
         <div className="px-3 py-2 rounded-sub-pod bg-pod flex items-center justify-between gap-2">
           <span className="text-ink-muted">{isFr ? 'Pente max' : 'Peak slope'}</span>
-          <span className="font-mono font-bold text-ink tnum">{terrainSummary.maxGradePct}%</span>
+          <span className="font-bold text-ink tnum">{terrainSummary.maxGradePct}%</span>
         </div>
       </div>
+
+      {/* Interactive Surface & Road Type Profile Bar + 38c Gravel Suitability */}
+      <SurfaceProfileBar
+        breakdown={surfaceBreakdown}
+        activeSegmentId={activeSegmentId}
+        onSelectSegment={onSelectSurfaceSegment}
+        onRefreshOsm={canQueryOsm ? refreshOsm : undefined}
+        compact={compact}
+      />
     </div>
   );
 };

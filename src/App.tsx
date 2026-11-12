@@ -7,7 +7,7 @@ import {
   getEffectiveRiderSpecs,
   normalizeRiderBikeSpecs,
 } from "./utils/specsStorage";
-import { CockpitSetupModal } from "./components/onboarding/CockpitSetupModal";
+import { ConfirmModal } from "./components/common/ConfirmModal";
 import { RiderBikeSpecs } from "./types/specs";
 import React, { useState, useEffect } from 'react';
 import { Analytics } from '@vercel/analytics/react';
@@ -102,11 +102,11 @@ class CockpitErrorBoundary extends React.Component<
     if (this.state.error) {
       return (
         <div className="max-w-xl mx-auto px-4 py-16 text-center">
-          <div className="rounded-card bg-card text-ink p-6 border border-ink/10 dark:border-white/10 shadow-lg space-y-3">
-            <h2 className="text-lg font-bold text-ink">
-              Cockpit display interrupted
+          <div className="rounded-card bg-card text-ink p-6 ring-1 ring-inset ring-black/10 dark:ring-white/10 shadow-lg space-y-3">
+            <h2 className="text-lg font-bold font-rounded text-ink">
+              Ride plan temporarily unavailable
             </h2>
-            <p className="text-xs text-ink-muted font-mono break-words">
+            <p className="text-xs text-ink-muted tnum break-words">
               {this.state.error.message}
             </p>
             <div className="pt-2 flex items-center justify-center gap-3">
@@ -116,9 +116,9 @@ class CockpitErrorBoundary extends React.Component<
                   this.setState({ error: null });
                   this.props.onResetCockpit();
                 }}
-                className="px-4 py-2 rounded-full bg-volt text-[#111111] text-xs font-bold cursor-pointer"
+                className="min-h-[44px] px-4 py-2 rounded-full bg-volt text-[#111111] text-xs font-bold cursor-pointer"
               >
-                Reset &amp; Reload Cockpit
+                Reload Cadence
               </button>
             </div>
           </div>
@@ -147,10 +147,12 @@ function AppContent() {
   );
   const [riderSpecs, setRiderSpecs] = useState(loadRiderBikeSpecs);
   const [isSpecsModalOpen, setIsSpecsModalOpen] = useState(false);
-  const [isCockpitSetupOpen, setIsCockpitSetupOpen] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return !hasSavedRiderBikeSpecs();
-  });
+  const [confirmDialog, setConfirmDialog] = useState<
+    | { kind: 'minOneAlert' }
+    | { kind: 'deleteTrip'; tripId: string; tripName: string }
+    | { kind: 'resetDefaults' }
+    | null
+  >(null);
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isTopMenuOpen, setIsTopMenuOpen] = useState(false);
@@ -434,12 +436,16 @@ function AppContent() {
     const newProfile: TripProfile = {
       ...baseTemplate,
       id: newId,
-      name: t('newTripDefaultName', { num: trips.length + 1 }),
-      tag: "VÉLOTAF",
+      name: '',
+      tag: lang === 'fr' ? 'Vélotaf' : 'Commute',
       description: t('newTripDefaultDesc'),
+      office: {
+        ...baseTemplate.office,
+        notes: '',
+      },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      checklist: generateTripChecklist("VÉLOTAF", baseTemplate.route.distanceKm, baseTemplate.weather, {
+      checklist: generateTripChecklist(lang === 'fr' ? 'Vélotaf' : 'Commute', baseTemplate.route.distanceKm, baseTemplate.weather, {
         lang,
         customChips: baseTemplate.customChips,
         isTubeless: activeBike.isTubeless,
@@ -480,14 +486,15 @@ function AppContent() {
     handleSelectTrip(duplicated.id);
   };
 
-  const handleDeleteTrip = (id: string) => {
+  const handleDeleteTrip = (id: string, skipConfirm = false) => {
     if (trips.length <= 1) {
-      alert(t('minOneProfileAlert'));
+      setConfirmDialog({ kind: 'minOneAlert' });
       return;
     }
     const target = trips.find((tripItem) => tripItem.id === id);
     const label = target?.name || id;
-    if (!window.confirm(t('deleteProfileConfirm', { name: label }))) {
+    if (skipConfirm !== true) {
+      setConfirmDialog({ kind: 'deleteTrip', tripId: id, tripName: label });
       return;
     }
     const filtered = trips.filter((tripItem) => tripItem.id !== id);
@@ -628,6 +635,9 @@ function AppContent() {
           carbTargetGPerHr?: number;
           nutritionPreference?: 'real-food' | 'mixed' | 'sports-fuel';
           ftpWatts?: number;
+          cockpitViewMode?: 'essential' | 'pro';
+          telemetryMode?: 'quantitative' | 'fuel-first' | 'intuitive';
+          pacingInputMode?: 'feel' | 'power';
         }
       | undefined;
     if ((calibratedTrip as any).__onboardingSpecs) {
@@ -645,16 +655,17 @@ function AppContent() {
       const syncedSpecs: RiderBikeSpecs = {
         ...riderSpecs,
         riderWeightKg: calibratedTrip.physics.riderWeightKg || riderSpecs.riderWeightKg,
-        ftpWatts: !hadSavedSpecs
-          ? onboardingSpecsHint?.ftpWatts ?? riderSpecs.ftpWatts
-          : riderSpecs.ftpWatts,
+        ftpWatts: onboardingSpecsHint?.ftpWatts ?? riderSpecs.ftpWatts,
         riderLevel: nextLevel,
         cockpitViewMode:
-          !hadSavedSpecs && onboardingSpecsHint?.riderLevel !== undefined
-            ? nextLevel === 'occasional'
-              ? 'essential'
-              : 'pro'
-            : riderSpecs.cockpitViewMode,
+          onboardingSpecsHint?.cockpitViewMode ??
+          (!hadSavedSpecs ? 'essential' : riderSpecs.cockpitViewMode ?? 'essential'),
+        telemetryMode:
+          onboardingSpecsHint?.telemetryMode ??
+          (!hadSavedSpecs ? 'fuel-first' : riderSpecs.telemetryMode ?? 'fuel-first'),
+        pacingInputMode:
+          onboardingSpecsHint?.pacingInputMode ??
+          (!hadSavedSpecs ? 'feel' : riderSpecs.pacingInputMode ?? 'feel'),
         carbTargetGPerHr: !hadSavedSpecs
           ? onboardingSpecsHint?.carbTargetGPerHr ?? riderSpecs.carbTargetGPerHr
           : riderSpecs.carbTargetGPerHr,
@@ -698,8 +709,10 @@ function AppContent() {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   };
 
-  const handleResetDefaults = () => {
-    if (window.confirm(t('resetDefaultsConfirm'))) {
+  const handleResetDefaults = (skipConfirm = false) => {
+    if (skipConfirm !== true) {
+      setConfirmDialog({ kind: 'resetDefaults' });
+    } else {
       const freshPresets = generateRandomPresetTrips(
         3,
         trips.map((tripItem) => tripItem.id),
@@ -731,7 +744,7 @@ function AppContent() {
 
   return (
     <div
-      className={`min-h-screen ${
+      className={`min-h-screen w-full max-w-full overflow-x-clip ${
         isDark ? 'dark' : 'light'
       } bg-canvas text-ink flex flex-col font-sans selection:bg-volt selection:text-[#111111] transition-colors duration-200`}
     >
@@ -755,7 +768,7 @@ function AppContent() {
       />
 
       {/* Screen Views (with ample bottom padding for the floating navigation island & iOS safe area) */}
-      <main className="flex-1 w-full max-w-full pb-[calc(8rem+env(safe-area-inset-bottom,0px))] sm:pb-40 print:hidden no-print">
+      <main className="flex-1 min-w-0 w-full max-w-full pb-[calc(8rem+env(safe-area-inset-bottom,0px))] sm:pb-40 print:hidden no-print">
         {currentView === 'home' && (
           <HomeScreen
             trips={trips}
@@ -850,15 +863,53 @@ function AppContent() {
         onClose={() => setIsSpecsModalOpen(false)}
         specs={riderSpecs}
         onSave={handleSaveRiderSpecs}
-        onOpenCalibration={() => setIsCockpitSetupOpen(true)}
       />
 
-      {/* First-Run Onboarding Micro-Modal / Re-Calibration */}
-      <CockpitSetupModal
-        isOpen={isCockpitSetupOpen && !isOnboardingOpen}
-        onClose={() => setIsCockpitSetupOpen(false)}
-        specs={riderSpecs}
-        onSave={handleSaveRiderSpecs}
+      <ConfirmModal
+        isOpen={confirmDialog !== null}
+        onClose={() => setConfirmDialog(null)}
+        isAlertOnly={confirmDialog?.kind === 'minOneAlert'}
+        tone={confirmDialog?.kind === 'deleteTrip' || confirmDialog?.kind === 'resetDefaults' ? 'danger' : 'neutral'}
+        title={
+          confirmDialog?.kind === 'minOneAlert'
+            ? lang === 'fr'
+              ? 'Profil requis'
+              : 'Keep at least one ride'
+            : confirmDialog?.kind === 'deleteTrip'
+            ? lang === 'fr'
+              ? 'Supprimer ce trajet ?'
+              : 'Remove this ride?'
+            : lang === 'fr'
+            ? 'Réinitialiser Cadence ?'
+            : 'Reset to defaults?'
+        }
+        description={
+          confirmDialog?.kind === 'minOneAlert'
+            ? t('minOneProfileAlert')
+            : confirmDialog?.kind === 'deleteTrip'
+            ? t('deleteProfileConfirm', { name: confirmDialog.tripName })
+            : confirmDialog?.kind === 'resetDefaults'
+            ? t('resetDefaultsConfirm')
+            : ''
+        }
+        confirmLabel={
+          confirmDialog?.kind === 'deleteTrip'
+            ? lang === 'fr'
+              ? 'Supprimer'
+              : 'Remove'
+            : confirmDialog?.kind === 'resetDefaults'
+            ? lang === 'fr'
+              ? 'Réinitialiser'
+              : 'Reset'
+            : undefined
+        }
+        onConfirm={() => {
+          if (confirmDialog?.kind === 'deleteTrip') {
+            handleDeleteTrip(confirmDialog.tripId, true);
+          } else if (confirmDialog?.kind === 'resetDefaults') {
+            handleResetDefaults(true);
+          }
+        }}
       />
 
       {/* Standalone Interactive Onboarding & Calibration Wizard */}

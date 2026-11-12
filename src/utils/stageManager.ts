@@ -1,4 +1,8 @@
 import { TripProfile, TripStage } from '../types/trip';
+import { calculatePhysics } from './physics';
+import { calculateReverseTimeline, parseHHMM } from './timeline';
+import { getChipsExtraBufferMinutes } from './archetypeChips';
+import { Language } from '../context/LanguageContext';
 
 /**
  * Downsamples OSRM polyline coordinates to at most maxPoints (default 250),
@@ -77,6 +81,7 @@ export function extractCurrentStage(trip: TripProfile, dayNumber: number): TripS
     route: {
       ...trip.route,
       coordinates: downsampleCoordinates(trip.route?.coordinates),
+      waypoints: trip.route?.waypoints ? trip.route.waypoints.map((w) => ({ ...w })) : undefined,
     },
     office: { ...trip.office },
     weather: { ...trip.weather },
@@ -125,6 +130,9 @@ export function switchActiveStage(trip: TripProfile, targetIndex: number): TripP
       ...targetStage.route,
       coordinates: targetStage.route.coordinates
         ? targetStage.route.coordinates.map((c) => [c[0], c[1]] as [number, number])
+        : undefined,
+      waypoints: targetStage.route.waypoints
+        ? targetStage.route.waypoints.map((w) => ({ ...w }))
         : undefined,
     },
     office: { ...targetStage.office },
@@ -191,6 +199,7 @@ export function addNextStage(trip: TripProfile): TripProfile {
       distanceKm: 45,
       elevationGainM: 200,
       coordinates: undefined,
+      waypoints: undefined,
     },
     office: {
       ...previousStage.office,
@@ -281,6 +290,9 @@ export function removeStage(trip: TripProfile, indexToRemove: number): TripProfi
       coordinates: targetStage.route.coordinates
         ? targetStage.route.coordinates.map((c) => [c[0], c[1]] as [number, number])
         : undefined,
+      waypoints: targetStage.route.waypoints
+        ? targetStage.route.waypoints.map((w) => ({ ...w }))
+        : undefined,
     },
     office: { ...targetStage.office },
     weather: { ...targetStage.weather },
@@ -293,6 +305,33 @@ export function removeStage(trip: TripProfile, indexToRemove: number): TripProfi
       : undefined,
     updatedAt: new Date().toISOString(),
   };
+}
+
+/**
+ * Returns a consistent array of stages where the currently active stage reflects
+ * any live edits on the top-level TripProfile fields.
+ */
+export function resolveLiveStages(trip: TripProfile): TripStage[] {
+  if (!trip.stages || trip.stages.length === 0) {
+    return [extractCurrentStage(trip, 1)];
+  }
+
+  const activeIdx = Math.max(0, Math.min(trip.activeStageIndex ?? 0, trip.stages.length - 1));
+  return trip.stages.map((stage, idx) => {
+    if (idx !== activeIdx) return stage;
+    const live = extractCurrentStage(trip, stage.dayNumber || idx + 1);
+    return {
+      ...stage,
+      ...live,
+      id: stage.id || live.id,
+      // Keep full-resolution live coordinates in memory for GPX export / mapping
+      route: {
+        ...live.route,
+        coordinates: trip.route?.coordinates ?? live.route.coordinates,
+      },
+      accommodationNote: stage.accommodationNote ?? live.accommodationNote,
+    };
+  });
 }
 
 export interface ExpeditionTotals {
@@ -308,50 +347,215 @@ export interface ExpeditionTotals {
  * summed across all stages (including unsaved live edits on the currently active stage).
  */
 export function getExpeditionTotals(trip: TripProfile): ExpeditionTotals {
-  if (!trip.stages || trip.stages.length === 0) {
-    return {
-      totalDays: 1,
-      totalDistanceKm: Math.round((trip.route?.distanceKm ?? 0) * 10) / 10,
-      totalElevationM: Math.round(trip.route?.elevationGainM ?? 0),
-      originCity: trip.route?.origin || '',
-      finalDestinationCity: trip.route?.destination || '',
-    };
-  }
-
-  const activeIdx = Math.max(0, Math.min(trip.activeStageIndex ?? 0, trip.stages.length - 1));
+  const stages = resolveLiveStages(trip);
   let totalDistanceKm = 0;
   let totalElevationM = 0;
 
-  for (let i = 0; i < trip.stages.length; i++) {
-    const stage = trip.stages[i];
-    const isLive = i === activeIdx;
-    const dist = isLive
-      ? (trip.route?.distanceKm ?? stage.route.distanceKm ?? 0)
-      : (stage.route.distanceKm ?? 0);
-    const elev = isLive
-      ? (trip.route?.elevationGainM ?? stage.route.elevationGainM ?? 0)
-      : (stage.route.elevationGainM ?? 0);
-
-    totalDistanceKm += dist;
-    totalElevationM += elev;
+  for (const stage of stages) {
+    totalDistanceKm += stage.route?.distanceKm ?? 0;
+    totalElevationM += stage.route?.elevationGainM ?? 0;
   }
 
-  const firstStage = trip.stages[0];
-  const lastStage = trip.stages[trip.stages.length - 1];
-
-  const originCity = activeIdx === 0
-    ? (trip.route?.origin || firstStage.route.origin || '')
-    : (firstStage.route.origin || '');
-
-  const finalDestinationCity = activeIdx === trip.stages.length - 1
-    ? (trip.route?.destination || lastStage.route.destination || '')
-    : (lastStage.route.destination || '');
+  const firstStage = stages[0];
+  const lastStage = stages[stages.length - 1];
 
   return {
-    totalDays: trip.stages.length,
+    totalDays: stages.length,
     totalDistanceKm: Math.round(totalDistanceKm * 10) / 10,
     totalElevationM: Math.round(totalElevationM),
-    originCity,
-    finalDestinationCity,
+    originCity: firstStage?.route?.origin || '',
+    finalDestinationCity: lastStage?.route?.destination || '',
+  };
+}
+
+export type TourFatigueLevel = 'fresh' | 'moderate' | 'high';
+
+export interface TourStageSummary {
+  id: string;
+  dayNumber: number;
+  departureDate: string;
+  origin: string;
+  destination: string;
+  waypointCount: number;
+  distanceKm: number;
+  elevationGainM: number;
+  startTime: string;
+  estimatedArrivalTime: string;
+  movingTimeMinutes: number;
+  movingTimeFormatted: string;
+  bufferMinutes: number;
+  totalKcal: number;
+  totalCarbsGrams: number;
+  legWatts: number;
+  effectiveSpeedKmH: number;
+  cumulativeDistanceKm: number;
+  cumulativeElevationM: number;
+  fatigueLevel: TourFatigueLevel;
+  overnightRecoveryMinutes: number | null;
+  overnightRecoveryFormatted: string | null;
+}
+
+export interface TourAggregateSummary {
+  totalDays: number;
+  totalDistanceKm: number;
+  totalElevationM: number;
+  totalMovingTimeMinutes: number;
+  totalMovingTimeFormatted: string;
+  totalKcalBurn: number;
+  totalCarbsGrams: number;
+  batteryBudgetHours: number;
+  originCity: string;
+  finalDestinationCity: string;
+  stages: TourStageSummary[];
+}
+
+export function formatDurationHoursMins(totalMinutes: number): string {
+  const mins = Math.max(0, Math.round(totalMinutes));
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (h === 0) return `${m} min`;
+  return `${h} h ${m.toString().padStart(2, '0')} min`;
+}
+
+function calendarDaysBetween(isoA?: string, isoB?: string): number {
+  if (!isoA || !isoB || !/^\d{4}-\d{2}-\d{2}$/.test(isoA) || !/^\d{4}-\d{2}-\d{2}$/.test(isoB)) {
+    return 1;
+  }
+  const a = Date.parse(`${isoA}T00:00:00Z`);
+  const b = Date.parse(`${isoB}T00:00:00Z`);
+  if (isNaN(a) || isNaN(b)) return 1;
+  return Math.max(1, Math.round((b - a) / 86400000));
+}
+
+/**
+ * Computes full cumulative metrics and aggregated daily timeline (including overnight recovery)
+ * across all stages of a Tour.
+ */
+export function getTourAggregateSummary(
+  trip: TripProfile,
+  lang: Language = 'en',
+  ftpWatts?: number
+): TourAggregateSummary {
+  const stages = resolveLiveStages(trip);
+  let totalDistanceKm = 0;
+  let totalElevationM = 0;
+  let totalMovingTimeMinutes = 0;
+  let totalKcalBurn = 0;
+  let totalCarbsGrams = 0;
+  let cumulativeWorkKj = 0;
+  let totalElapsedMinutesWithBuffers = 0;
+
+  const stageSummaries: TourStageSummary[] = [];
+
+  for (let i = 0; i < stages.length; i++) {
+    const stage = stages[i];
+    const physics = calculatePhysics(trip.physics, stage.route, stage.weather, lang, ftpWatts);
+
+    // Extra buffer from stage-level custom chips
+    const stageTripProxy: TripProfile = {
+      ...trip,
+      customChips: stage.customChips || [],
+      office: stage.office,
+    };
+    const extraBufferMinutes = getChipsExtraBufferMinutes(stageTripProxy);
+
+    const timeline = calculateReverseTimeline(
+      stage.route,
+      stage.office,
+      stage.weather,
+      trip.tag,
+      stage.route.destination,
+      lang,
+      extraBufferMinutes,
+      stage.customChips || [],
+      {
+        effectiveSpeedKmH: physics.effectiveSpeedKmH,
+        calmSpeedKmH: physics.calmSpeedKmH,
+        arriveAtMode: stage.targetMode !== undefined ? stage.targetMode === 'arrive' : trip.arriveAtMode,
+        departureTime: stage.departureTime,
+        movingTimeSeconds: physics.movingTimeSeconds,
+        pinnedAmenities: stage.pinnedAmenities,
+      }
+    );
+
+    const distKm = Math.round((stage.route?.distanceKm ?? 0) * 10) / 10;
+    const elevM = Math.round(stage.route?.elevationGainM ?? 0);
+    const movingMins = Math.max(1, Math.round(physics.movingTimeSeconds / 60));
+
+    totalDistanceKm += distKm;
+    totalElevationM += elevM;
+    totalMovingTimeMinutes += movingMins;
+    totalKcalBurn += Math.round(physics.totalKcalBurn);
+    totalCarbsGrams += Math.round(physics.totalCarbsBurnedGrams);
+    cumulativeWorkKj += physics.totalWorkKj;
+    totalElapsedMinutesWithBuffers += movingMins + timeline.bufferMinutes;
+
+    const startTime = timeline.hardDepartureTime || stage.departureTime || '08:00';
+    const estimatedArrivalTime = timeline.gateArrivalTime || '17:00';
+
+    // Overnight recovery between Stage i-1 arrival and Stage i start
+    let overnightRecoveryMinutes: number | null = null;
+    let overnightRecoveryFormatted: string | null = null;
+    if (i > 0) {
+      const prevSummary = stageSummaries[i - 1];
+      const prevStage = stages[i - 1];
+      const daySpan = calendarDaysBetween(prevSummary.departureDate, stage.departureDate);
+      const prevArrMins = parseHHMM(prevSummary.estimatedArrivalTime);
+      const currStartMins = parseHHMM(startTime);
+      const rawRecovery = daySpan * 1440 + currStartMins - prevArrMins;
+      // Guard against same-day anomaly if user manually entered identical dates
+      const validRecovery = rawRecovery > 0 ? rawRecovery : (1440 + currStartMins - prevArrMins);
+      overnightRecoveryMinutes = Math.max(60, validRecovery);
+      overnightRecoveryFormatted = formatDurationHoursMins(overnightRecoveryMinutes);
+      void prevStage;
+    }
+
+    // Multi-day fatigue curve classification from cumulative riding hours, work, and consecutive days
+    const cumHours = totalMovingTimeMinutes / 60;
+    let fatigueLevel: TourFatigueLevel = 'fresh';
+    if (cumHours > 7.5 || cumulativeWorkKj > 4200 || (i >= 2 && cumHours > 5.5)) {
+      fatigueLevel = 'high';
+    } else if (cumHours >= 3.2 || i >= 1) {
+      fatigueLevel = 'moderate';
+    }
+
+    stageSummaries.push({
+      id: stage.id,
+      dayNumber: stage.dayNumber || i + 1,
+      departureDate: stage.departureDate,
+      origin: stage.route?.origin || '',
+      destination: stage.route?.destination || '',
+      waypointCount: stage.route?.waypoints?.length || 0,
+      distanceKm: distKm,
+      elevationGainM: elevM,
+      startTime,
+      estimatedArrivalTime,
+      movingTimeMinutes: movingMins,
+      movingTimeFormatted: formatDurationHoursMins(movingMins),
+      bufferMinutes: timeline.bufferMinutes,
+      totalKcal: Math.round(physics.totalKcalBurn),
+      totalCarbsGrams: Math.round(physics.totalCarbsBurnedGrams),
+      legWatts: Math.round(physics.legWatts),
+      effectiveSpeedKmH: physics.effectiveSpeedKmH,
+      cumulativeDistanceKm: Math.round(totalDistanceKm * 10) / 10,
+      cumulativeElevationM: Math.round(totalElevationM),
+      fatigueLevel,
+      overnightRecoveryMinutes,
+      overnightRecoveryFormatted,
+    });
+  }
+
+  return {
+    totalDays: stages.length,
+    totalDistanceKm: Math.round(totalDistanceKm * 10) / 10,
+    totalElevationM: Math.round(totalElevationM),
+    totalMovingTimeMinutes,
+    totalMovingTimeFormatted: formatDurationHoursMins(totalMovingTimeMinutes),
+    totalKcalBurn,
+    totalCarbsGrams,
+    batteryBudgetHours: Math.max(1, Math.round((totalElapsedMinutesWithBuffers / 60) * 10) / 10),
+    originCity: stageSummaries[0]?.origin || '',
+    finalDestinationCity: stageSummaries[stageSummaries.length - 1]?.destination || '',
+    stages: stageSummaries,
   };
 }

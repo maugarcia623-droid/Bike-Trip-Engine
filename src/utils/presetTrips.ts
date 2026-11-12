@@ -94,7 +94,7 @@ const PRESET_TRIP_BLUEPRINTS: PresetTripBlueprint[] = [
       breakRoomBreakfastMinutes: 15,
       strictNoFoodInOpenSpace: true,
       badgeRequiredForGate: true,
-      notes: 'Loire quay segregated cycleway into Atlantis tech campus. Locker Skyr refuel at 08:30 before 09:00 standup.',
+      notes: 'Loire quay segregated cycleway into Atlantis tech campus. Arrival snack at 08:30 before 09:00 standup.',
     },
     weather: {
       source: 'planned',
@@ -127,14 +127,14 @@ const PRESET_TRIP_BLUEPRINTS: PresetTripBlueprint[] = [
       en: {
         name: 'Loire Quay Morning Commute (Atlantis)',
         description:
-          '9.4 km segregated riverside commute from Gare de Nantes to Saint-Herblain Atlantis with espresso stop, waterproof laptop pannier, and 08:30 locker shower protocol.',
-        gateName: 'Gate B · Atlantis Campus',
+          '9.4 km segregated riverside commute from Gare de Nantes to Saint-Herblain Atlantis with espresso stop, waterproof laptop pannier, and 08:30 arrival shower break.',
+        gateName: 'Atlantis Campus',
       },
       fr: {
         name: 'Vélotaf Quais de Loire (Campus Atlantis)',
         description:
-          'Trajet vélotaf sécurisé de 9,4 km depuis la Gare de Nantes vers Saint-Herblain Atlantis avec pause expresso, sacoche ordinateur étanche et protocole douche à 08:30.',
-        gateName: 'Porte B · Campus Atlantis',
+          'Trajet vélotaf sécurisé de 9,4 km depuis la Gare de Nantes vers Saint-Herblain Atlantis avec pause expresso, sacoche ordinateur étanche et pause douche à 08:30.',
+        gateName: 'Campus Atlantis',
       },
     },
   },
@@ -351,7 +351,7 @@ const PRESET_TRIP_BLUEPRINTS: PresetTripBlueprint[] = [
       en: {
         name: 'Côte Sauvage Aero Paceline (Piriac)',
         description:
-          '23.3 km Atlantic coastal chain-gang sprint from Pornichet to Piriac-sur-Mer in tight echelon rotation at 33.5 km/h with 80g/hr isotonic carbohydrate fueling.',
+          '23.3 km Atlantic coastal chain-gang sprint from Pornichet to Piriac-sur-Mer in tight echelon rotation at 33.5 km/h with 80 g/h isotonic carbohydrate fueling.',
         gateName: 'Piriac Lighthouse Finish',
       },
       fr: {
@@ -394,7 +394,7 @@ const PRESET_TRIP_BLUEPRINTS: PresetTripBlueprint[] = [
       breakRoomBreakfastMinutes: 15,
       strictNoFoodInOpenSpace: false,
       badgeRequiredForGate: false,
-      notes: 'Lakeside progressive warmup to Menthon followed by sustained threshold climb to Col de la Forclaz (1,150m).',
+      notes: 'Lakeside progressive warmup to Menthon followed by sustained threshold climb to Col de la Forclaz (1,150 m).',
     },
     weather: {
       source: 'planned',
@@ -421,8 +421,8 @@ const PRESET_TRIP_BLUEPRINTS: PresetTripBlueprint[] = [
       en: {
         name: 'Col de la Forclaz KOM Ascent (Annecy)',
         description:
-          '17.7 km Alpine climbing benchmark (+790m D+) from Lake Annecy up to Col de la Forclaz with structured threshold intervals and 85g/hr high-carb pacing.',
-        gateName: 'Col de la Forclaz Summit (1150m)',
+          '17.7 km Alpine climbing benchmark (+790 m D+) from Lake Annecy up to Col de la Forclaz with structured threshold intervals and 85 g/h high-carb pacing.',
+        gateName: 'Col de la Forclaz Summit (1150 m)',
       },
       fr: {
         name: 'Ascension KOM Col de la Forclaz (Annecy)',
@@ -709,7 +709,7 @@ const PRESET_TRIP_BLUEPRINTS: PresetTripBlueprint[] = [
       en: {
         name: 'Drôme Valley & Vercors Foothills Haul',
         description:
-          '58.5 km mountain bikepacking stage (+1,331m D+) from Valence to Die via Crest, equipped with 12.2 kg alpine rig, wilderness trauma kit, and pre-dusk camp curfew.',
+          '58.5 km mountain bikepacking stage (+1,331 m D+) from Valence to Die via Crest, equipped with 12.2 kg alpine rig, wilderness trauma kit, and pre-dusk camp curfew.',
         gateName: 'Die Vercors Highland Bivouac',
       },
       fr: {

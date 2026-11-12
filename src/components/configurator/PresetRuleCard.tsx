@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, Check, Lightning, Pen } from '@/components/icons';
-import { CHIP_DUOTONE_ISOLATION_CLASSES } from '../../tokens/chipTokens';
+import { ArrowDown, ArrowUp, CaretDown, Check, Lightning, Pen } from '@/components/icons';
+import { CHIP_DUOTONE_ISOLATION_CLASSES, CHIP_RING_BASE, CHIP_TOKENS } from '../../tokens/chipTokens';
 import {
   ArchetypeChipDef,
   CHIP_ICONS,
@@ -27,10 +27,10 @@ const RULE_CARD_ACCENT_MAP: Record<ChipColorKey, RuleCardAccent> = {
     divider: 'border-amber-500/20 dark:border-amber-400/15',
   },
   blue: {
-    pill: 'bg-blue-200/60 dark:bg-blue-400/15',
+    pill: 'bg-sky-200/60 dark:bg-sky-400/15',
     interactive:
-      'bg-blue-200/60 hover:bg-blue-200/95 active:bg-blue-300/80 dark:bg-blue-400/15 dark:hover:bg-blue-400/25 dark:active:bg-blue-400/35',
-    divider: 'border-blue-500/20 dark:border-blue-400/15',
+      'bg-sky-200/60 hover:bg-sky-200/95 active:bg-sky-300/80 dark:bg-sky-400/15 dark:hover:bg-sky-400/25 dark:active:bg-sky-400/35',
+    divider: 'border-sky-500/20 dark:border-sky-400/15',
   },
   purple: {
     pill: 'bg-purple-200/60 dark:bg-purple-400/15',
@@ -155,7 +155,7 @@ const StepperButtons: React.FC<StepperPairProps> = ({
       onClick={onIncrement}
       disabled={disableInc}
       aria-label={incLabel}
-      className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-150 select-none chip-rule-title ${
+      className={`relative before:content-[''] before:absolute before:-inset-1 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-150 select-none ${
         disableInc
           ? `${accent.pill} opacity-35 cursor-not-allowed`
           : `${accent.interactive} cursor-pointer active:scale-90`
@@ -168,7 +168,7 @@ const StepperButtons: React.FC<StepperPairProps> = ({
       onClick={onDecrement}
       disabled={disableDec}
       aria-label={decLabel}
-      className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-150 select-none chip-rule-title ${
+      className={`relative before:content-[''] before:absolute before:-inset-1 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-150 select-none ${
         disableDec
           ? `${accent.pill} opacity-35 cursor-not-allowed`
           : `${accent.interactive} cursor-pointer active:scale-90`
@@ -206,14 +206,7 @@ const NumericRuleField: React.FC<NumericRuleFieldProps> = ({
       ? 'text-[32px] sm:text-[38px]'
       : 'text-[26px] sm:text-[30px]';
 
-  const unitLabel =
-    field.unit === 'min'
-      ? isFr
-        ? 'min'
-        : numericVal === 1
-        ? 'min'
-        : 'mins'
-      : field.unit;
+  const unitLabel = field.unit === 'min' ? 'min' : field.unit;
 
   const handleStep = (direction: 1 | -1) => {
     const cfg = getNumericStepConfig(field, numericVal);
@@ -269,12 +262,12 @@ const NumericRuleField: React.FC<NumericRuleFieldProps> = ({
                   (e.currentTarget as HTMLInputElement).blur();
                 }
               }}
-              className={`col-start-1 row-start-1 w-full min-w-[1ch] bg-transparent border-0 p-0 m-0 font-rounded font-bold ${heroTextClasses} leading-[0.9] tracking-[-0.03em] tnum chip-rule-title focus:outline-none focus:underline focus:decoration-2 focus:underline-offset-4 cursor-text`}
+              className={`col-start-1 row-start-1 w-full min-w-[1ch] bg-transparent border-0 p-0 m-0 font-rounded font-bold ${heroTextClasses} leading-[0.95] tracking-[-0.03em] tnum text-current focus:outline-none focus:underline focus:decoration-2 focus:underline-offset-4 cursor-text`}
             />
           </span>
 
           {unitLabel && (
-            <span className="font-rounded font-semibold text-xs sm:text-sm leading-none chip-rule-title opacity-90 select-none shrink-0">
+            <span className="font-rounded font-semibold text-xs sm:text-sm leading-none text-current opacity-90 select-none shrink-0">
               {unitLabel}
             </span>
           )}
@@ -321,38 +314,23 @@ const TimeRuleField: React.FC<TimeRuleFieldProps> = ({
 
   const timeTextClasses =
     sizeVariant === 'hero'
-      ? 'text-[28px] sm:text-[32px]'
-      : 'text-[24px] sm:text-[26px]';
+      ? 'text-[26px] sm:text-[32px]'
+      : 'text-[22px] sm:text-[26px]';
 
   return (
     <div>
       <div className="flex items-center justify-between gap-2.5">
-        <div className="relative inline-flex items-baseline min-w-0 group">
-          <span
-            className={`font-rounded font-bold ${timeTextClasses} leading-[0.92] tracking-[-0.03em] tnum chip-rule-title group-focus-within:underline group-focus-within:decoration-2 group-focus-within:underline-offset-4`}
-          >
-            {safeTime}
-          </span>
-          <input
-            type="time"
-            value={safeTime}
-            aria-label={label}
-            onChange={(e) => {
-              if (e.target.value) {
-                onChange(e.target.value);
-              }
-            }}
-            onClick={(e) => {
-              const el = e.currentTarget as HTMLInputElement & { showPicker?: () => void };
-              try {
-                el.showPicker?.();
-              } catch {
-                // Ignore if showPicker is unsupported or already open
-              }
-            }}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-          />
-        </div>
+        <input
+          type="time"
+          value={safeTime}
+          aria-label={label}
+          onChange={(e) => {
+            if (e.target.value) {
+              onChange(e.target.value);
+            }
+          }}
+          className={`min-h-[44px] bg-transparent border-0 p-0 font-rounded font-bold ${timeTextClasses} leading-tight tracking-[-0.02em] tnum text-current cursor-pointer focus:outline-none focus:ring-2 focus:ring-inset focus:ring-current/30 rounded-lg`}
+        />
 
         <StepperButtons
           onIncrement={() => onChange(addMinutesToTime(safeTime, 15))}
@@ -391,41 +369,30 @@ const SelectRuleField: React.FC<SelectRuleFieldProps> = ({
     0,
     options.findIndex((opt) => opt.value === value)
   );
-  const activeOption = options[currentIndex] || options[0];
-  const activeDisplay = activeOption
-    ? isFr
-      ? activeOption.labelFr
-      : activeOption.labelEn
-    : String(value);
-
-  const parenMatch = activeDisplay.match(/^(.+?)\s*\((.+)\)$/);
-  const headline = parenMatch ? parenMatch[1] : activeDisplay;
-  const qualifier = parenMatch ? parenMatch[2] : null;
 
   return (
     <div>
       <div className="flex items-center justify-between gap-2.5">
-        <div className="relative inline-flex flex-wrap items-baseline gap-1.5 min-w-0 group cursor-pointer">
-          <span className="font-rounded font-bold text-[17px] sm:text-[19px] leading-tight tracking-tight tnum chip-rule-title group-focus-within:underline group-focus-within:decoration-2 group-focus-within:underline-offset-4">
-            {headline}
-          </span>
-          {qualifier && (
-            <span className="font-rounded font-semibold text-xs leading-tight chip-rule-title opacity-85">
-              {qualifier}
-            </span>
-          )}
+        <div className="relative flex-1 min-w-0 flex items-center">
           <select
             value={value}
             aria-label={label}
             onChange={(e) => onChange(e.target.value)}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            style={{
+              WebkitAppearance: 'none',
+              MozAppearance: 'none',
+              appearance: 'none',
+              backgroundImage: 'none',
+            }}
+            className="cadence-select min-h-[44px] w-full min-w-0 appearance-none bg-none bg-transparent border-0 p-0 pr-6 font-rounded font-bold text-base sm:text-[18px] leading-snug tracking-tight tnum text-current cursor-pointer focus:outline-none focus:ring-2 focus:ring-inset focus:ring-current/30 rounded-lg"
           >
             {options.map((opt) => (
-              <option key={opt.value} value={opt.value}>
+              <option key={opt.value} value={opt.value} className="text-ink bg-card">
                 {isFr ? opt.labelFr : opt.labelEn}
               </option>
             ))}
           </select>
+          <CaretDown className="w-3.5 h-3.5 text-ink-muted pointer-events-none shrink-0 -ml-5" />
         </div>
 
         <StepperButtons
@@ -491,7 +458,7 @@ const BooleanRuleField: React.FC<BooleanRuleFieldProps> = ({
           <span
             className={`font-rounded font-bold ${
               isSoleField ? 'text-[20px] sm:text-[23px]' : 'text-[16px] sm:text-[18px]'
-            } leading-none tracking-tight chip-rule-title transition-opacity duration-150 block break-words ${
+            } leading-none tracking-tight text-current transition-opacity duration-150 block break-words ${
               value ? 'opacity-100' : 'opacity-50 group-hover:opacity-75'
             }`}
           >
@@ -505,7 +472,7 @@ const BooleanRuleField: React.FC<BooleanRuleFieldProps> = ({
           aria-checked={Boolean(value)}
           aria-label={label}
           onClick={() => onChange(!value)}
-          className={`w-11 h-6 rounded-full p-0.5 flex items-center shrink-0 transition-all duration-200 cursor-pointer active:scale-95 chip-rule-title ${accent.interactive}`}
+          className={`relative before:content-[''] before:absolute before:-inset-2.5 w-11 h-6 rounded-full p-0.5 flex items-center shrink-0 transition-all duration-200 cursor-pointer active:scale-95 text-current ${accent.interactive}`}
         >
           <span
             className={`w-5 h-5 rounded-full flex items-center justify-center shadow-xs transition-all duration-200 ${
@@ -553,7 +520,7 @@ const TextRuleField: React.FC<TextRuleFieldProps> = ({
           value={value ?? ''}
           aria-label={label}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full min-w-0 bg-transparent border-0 p-0 font-rounded font-bold text-[13px] sm:text-[14px] leading-snug tracking-tight chip-rule-title focus:outline-none focus:underline focus:decoration-2 focus:underline-offset-4"
+          className="w-full min-w-0 min-h-[44px] bg-transparent border-0 p-0 font-rounded font-bold text-base sm:text-[14px] leading-snug tracking-tight text-current focus:outline-none focus:underline focus:decoration-2 focus:underline-offset-4"
         />
         <button
           type="button"
@@ -562,7 +529,7 @@ const TextRuleField: React.FC<TextRuleFieldProps> = ({
             inputRef.current?.select();
           }}
           aria-label={isFr ? `Modifier : ${label}` : `Edit ${label}`}
-          className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-all duration-150 cursor-pointer active:scale-90 chip-rule-title ${accent.interactive}`}
+          className={`relative before:content-[''] before:absolute before:-inset-1 w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-all duration-150 cursor-pointer active:scale-90 text-current ${accent.interactive}`}
         >
           <Pen className="w-3 h-3 text-current" aria-hidden="true" />
         </button>
@@ -590,6 +557,7 @@ export const PresetRuleCard: React.FC<PresetRuleCardProps> = ({
 }) => {
   const Icon = CHIP_ICONS[def.iconName] || Lightning;
   const accent = RULE_CARD_ACCENT_MAP[def.colorKey] || RULE_CARD_ACCENT_MAP.amber;
+  const tokens = CHIP_TOKENS[def.colorKey] || CHIP_TOKENS.amber;
 
   const orderedFields = [...def.settingsFields].sort(
     (a, b) => getFieldVisualPriority(a.type) - getFieldVisualPriority(b.type)
@@ -603,25 +571,25 @@ export const PresetRuleCard: React.FC<PresetRuleCardProps> = ({
 
   return (
     <div
-      className={`chip-theme-${def.colorKey} chip-rule-card ${CHIP_DUOTONE_ISOLATION_CLASSES} rounded-pod border-[1.5px] p-3.5 sm:p-4 flex flex-col justify-between gap-3 sm:gap-3.5 transition-colors animate-fade-in`}
+      className={`${tokens.surface} ${tokens.primary} ${CHIP_RING_BASE} ${tokens.selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} rounded-pod p-3.5 sm:p-4 flex flex-col justify-between gap-3 sm:gap-3.5 transition-colors animate-fade-in`}
     >
       {/* Top Section: Twin Tonal Header Capsules + Rounded Protocol Heading & Description */}
       <div>
         <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
           <div
-            className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0 chip-rule-title ${accent.pill}`}
+            className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0 text-current ${accent.pill}`}
           >
             <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-current shrink-0" aria-hidden="true" />
           </div>
           <span
-            className={`h-7 sm:h-8 px-2.5 sm:px-3 rounded-full inline-flex items-center font-rounded font-bold text-[11px] sm:text-xs leading-none chip-rule-title ${accent.pill} break-words`}
+            className={`h-7 sm:h-8 px-2.5 sm:px-3 rounded-full inline-flex items-center font-rounded font-bold text-[11px] sm:text-xs leading-none text-current ${accent.pill} break-words`}
           >
             {isFr ? def.labelFr : def.labelEn}
           </span>
         </div>
 
         <div className="mt-3">
-          <h5 className="chip-rule-title font-rounded font-bold text-[14px] sm:text-[15px] leading-snug tracking-tight break-words">
+          <h5 className="text-current font-rounded font-bold text-[14px] sm:text-[15px] leading-snug tracking-tight break-words">
             {isFr ? def.ruleTitleFr : def.ruleTitleEn}
           </h5>
           <p className="text-[11.5px] sm:text-xs text-ink-muted mt-1 leading-normal break-words">

@@ -13,7 +13,7 @@ export const PURPOSES: PurposeDefinition[] = [
       'Plan around an arrival or departure time, choose a comfortable pace, and allow a little time to park your bike.',
     contextBodyFr:
       'Planifiez selon une heure d’arrivée ou de départ, choisissez une allure confortable et prévoyez un temps de stationnement.',
-    tag: 'VÉLOTAF',
+    tag: 'Commute',
     defaultPaceTier: 'steady',
     defaultBufferMin: 5,
     defaultOrigin: 'Trentemoult, Rezé',
@@ -32,7 +32,7 @@ export const PURPOSES: PurposeDefinition[] = [
       'Focus on sustained tempo watts, efficient fueling, and minimal transit delays.',
     contextBodyFr:
       'Privilégiez les watts soutenus, un ravitaillement régulier et des arrêts réduits au minimum.',
-    tag: 'SPORT',
+    tag: 'Sport',
     defaultPaceTier: 'brisk',
     defaultBufferMin: 0,
     defaultOrigin: 'Nantes Quai de la Fosse',
@@ -51,7 +51,7 @@ export const PURPOSES: PurposeDefinition[] = [
       'Account for loaded luggage weight, steady cruising pacing, and bivouac checkpoints.',
     contextBodyFr:
       'Prenez en compte le poids des sacoches, une allure de croisière régulière et les étapes bivouac.',
-    tag: 'BIKEPACKING',
+    tag: 'Bikepacking',
     defaultPaceTier: 'steady',
     defaultBufferMin: 15,
     defaultOrigin: 'Saint-Brevin Trailhead',
@@ -70,7 +70,7 @@ export const PURPOSES: PurposeDefinition[] = [
       'Keep things relaxed with scenic paths, generous stops, and zero time pressure.',
     contextBodyFr:
       'Gardez le rythme léger avec des voies douces, des pauses régulières et zéro pression horaire.',
-    tag: 'ESCAPADE',
+    tag: 'Leisure',
     defaultPaceTier: 'easy',
     defaultBufferMin: 10,
     defaultOrigin: 'Nantes Île de Versailles',

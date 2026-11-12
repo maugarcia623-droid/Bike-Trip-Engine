@@ -1,17 +1,9 @@
 import React from 'react';
-import { Check, ArrowRight } from '@/components/icons';
+import { Check } from '@/components/icons';
 import { useTranslation } from '../../context/LanguageContext';
 import { SchematicRouteMap } from './SchematicRouteMap';
 
-interface Screen1WelcomeProps {
-  onStartPlanning: () => void;
-  onTryExample: () => void;
-}
-
-export const Screen1Welcome: React.FC<Screen1WelcomeProps> = ({
-  onStartPlanning,
-  onTryExample,
-}) => {
+export const Screen1Welcome: React.FC = () => {
   const { lang } = useTranslation();
   const isFr = lang === 'fr';
 
@@ -21,9 +13,9 @@ export const Screen1Welcome: React.FC<Screen1WelcomeProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center flex-1">
         {/* Left Column: Narrative & Value Propositions */}
         <div className="lg:col-span-7 flex flex-col justify-center">
-          <div className="inline-flex items-center gap-2 text-xs font-mono font-bold tracking-wider text-ink-muted uppercase mb-3">
-            <span className="w-1.5 h-1.5 rounded-full bg-volt" />
-            <span>{isFr ? 'VOTRE PROCHAINE SORTIE, EN TOUTE CLARTÉ' : 'YOUR NEXT RIDE, MADE CLEAR'}</span>
+          <div className="inline-flex items-center gap-2 text-xs font-rounded font-semibold text-ink-muted mb-3">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#4D7C0F] dark:bg-volt" />
+            <span>{isFr ? 'Votre prochaine sortie, en toute clarté' : 'Your next ride, made clear'}</span>
           </div>
 
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold font-rounded tracking-tight text-ink leading-tight sm:leading-none mb-4">
@@ -91,8 +83,8 @@ export const Screen1Welcome: React.FC<Screen1WelcomeProps> = ({
         <div className="lg:col-span-5 flex flex-col">
           <div className="bento-card bg-card text-ink rounded-card p-5 sm:p-6 border border-black/5 dark:border-white/10 shadow-sm flex flex-col">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-[11px] font-mono font-bold tracking-wider text-ink-muted uppercase">
-                {isFr ? 'APERÇU EXEMPLE' : 'EXAMPLE PREVIEW'}
+              <span className="text-xs font-rounded font-semibold text-ink-muted">
+                {isFr ? 'Aperçu exemple' : 'Example preview'}
               </span>
               <span className="w-2 h-2 rounded-full bg-volt-lime"></span>
             </div>
@@ -130,34 +122,6 @@ export const Screen1Welcome: React.FC<Screen1WelcomeProps> = ({
               </div>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Footer Navigation Bar - Sticky Mobile Bar */}
-      <div className="sticky bottom-0 z-20 bg-card/95 backdrop-blur-md pt-3 sm:pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-4 border-t border-black/10 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 shrink-0 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_16px_rgba(0,0,0,0.3)] -mx-4 sm:-mx-8 md:-mx-10 px-4 sm:px-8 md:px-10 mt-auto">
-        <span className="text-xs text-ink-muted font-body order-2 sm:order-1 text-center sm:text-left">
-          {isFr ? 'Sans profil. Sans inscription. Juste votre sortie.' : 'No profile. No signup. Just a ride.'}
-        </span>
-
-        <div className="flex items-center gap-3 w-full sm:w-auto justify-end order-1 sm:order-2">
-          {/* Secondary Outline Button */}
-          <button
-            type="button"
-            onClick={onTryExample}
-            className="flex-1 sm:flex-none min-h-[44px] px-4 py-2 rounded-full border border-black/15 dark:border-white/20 bg-pod hover:bg-chip text-ink text-xs font-rounded font-bold transition-all active:scale-[0.98] cursor-pointer"
-          >
-            {isFr ? 'Explorer l’exemple' : 'Try an example'}
-          </button>
-
-          {/* Primary Solid Button */}
-          <button
-            type="button"
-            onClick={onStartPlanning}
-            className="flex-1 sm:flex-none min-h-[44px] px-5 py-2 rounded-full bg-volt text-[#4d5200] ring-2 ring-inset ring-[#a3b300] text-xs font-rounded font-bold hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
-          >
-            <span>{isFr ? 'Commencer la planification' : 'Start planning'}</span>
-            <ArrowRight size={14} className="stroke-[2.5]" />
-          </button>
         </div>
       </div>
     </div>

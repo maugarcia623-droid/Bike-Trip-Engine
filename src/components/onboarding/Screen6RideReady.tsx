@@ -1,6 +1,7 @@
 import React from 'react';
-import { ArrowLeft, ArrowRight, Check, AlertCircle } from '@/components/icons';
+import { Check, AlertCircle } from '@/components/icons';
 import { useTranslation } from '../../context/LanguageContext';
+import { RouteWaypoint } from '../../types/trip';
 import { SchematicRouteMap } from './SchematicRouteMap';
 
 interface Screen6RideReadyProps {
@@ -8,6 +9,7 @@ interface Screen6RideReadyProps {
   destination: string;
   distanceKm: number;
   coordinates?: [number, number][];
+  waypoints?: RouteWaypoint[];
   ridingMinutes: number;
   speedKmH: number;
   rideDateFormatted: string;
@@ -23,8 +25,6 @@ interface Screen6RideReadyProps {
   onEditRoute: () => void;
   onEditTiming: () => void;
   onEditSetup: () => void;
-  onContinueToCockpit: () => void;
-  onGoToSaveSync: () => void;
 }
 
 export const Screen6RideReady: React.FC<Screen6RideReadyProps> = ({
@@ -32,6 +32,7 @@ export const Screen6RideReady: React.FC<Screen6RideReadyProps> = ({
   destination,
   distanceKm,
   coordinates,
+  waypoints,
   ridingMinutes,
   speedKmH,
   rideDateFormatted,
@@ -47,8 +48,6 @@ export const Screen6RideReady: React.FC<Screen6RideReadyProps> = ({
   onEditRoute,
   onEditTiming,
   onEditSetup,
-  onContinueToCockpit,
-  onGoToSaveSync,
 }) => {
   const { lang } = useTranslation();
   const isFr = lang === 'fr';
@@ -60,9 +59,9 @@ export const Screen6RideReady: React.FC<Screen6RideReadyProps> = ({
     <div className="flex-1 min-h-0 flex flex-col justify-between p-4 sm:p-8 md:p-10 pb-6 sm:pb-8 max-w-6xl mx-auto w-full">
       {/* Top Narrative Banner */}
       <div className="mb-6">
-        <div className="inline-flex items-center gap-2 text-xs font-mono font-bold tracking-wider text-ink-muted uppercase mb-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-volt" />
-          <span>{isFr ? 'PLAN DE ROUTE GUIDÉ · APERÇU' : 'GUIDED RIDE PLAN · RIDE PREVIEW'}</span>
+        <div className="inline-flex items-center gap-2 text-xs font-rounded font-semibold text-ink-muted mb-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#4D7C0F] dark:bg-volt" />
+          <span>{isFr ? 'Étape 4 sur 4 · Aperçu de sortie' : 'Step 4 of 4 · Ride preview'}</span>
         </div>
 
         <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold font-rounded tracking-tight text-ink leading-tight mb-2">
@@ -82,9 +81,16 @@ export const Screen6RideReady: React.FC<Screen6RideReadyProps> = ({
         <div className="lg:col-span-7 flex flex-col space-y-4">
           {/* Route Header with Edit Link */}
           <div className="flex items-center justify-between">
-            <span className="text-base sm:text-lg font-rounded font-bold text-ink">
-              {originShort} → {destShort}
-            </span>
+            <div className="flex flex-col">
+              <span className="text-base sm:text-lg font-rounded font-bold text-ink">
+                {originShort} → {destShort}
+              </span>
+              {waypoints && waypoints.length > 0 && (
+                <span className="text-xs text-ink-muted font-body mt-0.5">
+                  via {waypoints.map((w) => w.name.split(',')[0]).filter(Boolean).join(', ')}
+                </span>
+              )}
+            </div>
             <button
               type="button"
               onClick={onEditRoute}
@@ -101,6 +107,7 @@ export const Screen6RideReady: React.FC<Screen6RideReadyProps> = ({
             distanceKm={distanceKm}
             estimatedMinutes={ridingMinutes}
             coordinates={coordinates}
+            waypoints={waypoints}
           />
 
           {/* 3 Metric Pods */}
@@ -250,8 +257,8 @@ export const Screen6RideReady: React.FC<Screen6RideReadyProps> = ({
                     <Check size={13} className="stroke-[3] text-emerald-600" />
                     <span>
                       {isFr
-                        ? `Météo synchronisée · ${weatherSummary || 'Open-Meteo'}`
-                        : `Weather synchronized · ${weatherSummary || 'Open-Meteo'}`}
+                        ? `Météo en direct · ${weatherSummary || 'Prévision appliquée'}`
+                        : `Live weather · ${weatherSummary || 'Forecast applied'}`}
                     </span>
                   </div>
                   <p className="text-[10.5px] text-ink-muted leading-relaxed font-body">
@@ -279,45 +286,6 @@ export const Screen6RideReady: React.FC<Screen6RideReadyProps> = ({
               )}
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Footer Navigation Bar - Sticky Mobile Bar */}
-      <div className="sticky bottom-0 z-20 bg-card/95 backdrop-blur-md pt-3 sm:pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-4 border-t border-black/10 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 shrink-0 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_16px_rgba(0,0,0,0.3)] -mx-4 sm:-mx-8 md:-mx-10 px-4 sm:px-8 md:px-10 mt-auto">
-        <button
-          type="button"
-          onClick={onEditSetup}
-          className="min-h-[44px] px-4 py-2 rounded-full border border-black/15 dark:border-white/20 bg-card hover:bg-pod text-ink text-xs font-rounded font-bold transition-all active:scale-[0.98] cursor-pointer flex items-center gap-1.5 w-full sm:w-auto justify-center"
-        >
-          <ArrowLeft size={14} />
-          <span>{isFr ? 'Modifier la config' : 'Edit setup'}</span>
-        </button>
-
-        <span className="text-xs text-ink-muted font-body text-center">
-          {isFr
-            ? 'Votre sortie est prête · aucune inscription requise'
-            : 'Your ride is ready · no signup required'}
-        </span>
-
-        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-          {/* Secondary Action: Direct Launch Cockpit */}
-          <button
-            type="button"
-            onClick={onContinueToCockpit}
-            className="flex-1 sm:flex-none min-h-[44px] px-4 py-2 rounded-full border border-black/15 dark:border-white/20 bg-pod hover:bg-chip text-ink text-xs font-rounded font-bold transition-all active:scale-[0.98] cursor-pointer"
-          >
-            {isFr ? 'Voir le plan de route' : 'View ride plan'}
-          </button>
-
-          {/* Primary Action: Go to Save & Sync options */}
-          <button
-            type="button"
-            onClick={onGoToSaveSync}
-            className="flex-1 sm:flex-none min-h-[44px] px-5 py-2 rounded-full bg-volt text-[#4d5200] ring-2 ring-inset ring-[#a3b300] text-xs font-rounded font-bold hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
-          >
-            <span>{isFr ? 'Options de sauvegarde' : 'Save & sync options'}</span>
-            <ArrowRight size={14} className="stroke-[2.5]" />
-          </button>
         </div>
       </div>
     </div>

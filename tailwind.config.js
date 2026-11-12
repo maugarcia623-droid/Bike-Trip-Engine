@@ -64,7 +64,7 @@ export default {
       fontFamily: {
         /* Rounded voice (data, metrics, labels & headers): SF Pro Rounded on Mac, Nunito cross-platform fallback */
         sans: ['ui-rounded', '-apple-system-rounded', '"SF Pro Rounded"', 'Nunito', 'Inter', 'sans-serif'],
-        mono: ['ui-rounded', '-apple-system-rounded', '"SF Pro Rounded"', 'Nunito', 'Inter', 'sans-serif'],
+        mono: ['"SF Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
         /* Inter: comfortable reading text — paragraphs, placeholders, buttons, inputs */
         body: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'SF Pro Text', 'system-ui', 'sans-serif'],
       },

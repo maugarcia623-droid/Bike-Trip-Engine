@@ -471,12 +471,12 @@ export function allocatePhase2OnBikeItems(
     return [
       {
         name: isFr ? 'Eau Pure & Électrolytes' : 'Pure Water & Electrolytes',
-        quantity: isFr ? `1x Bidon ${bidonSizeMl} ml (450 ml cible)` : `1x ${bidonSizeMl}ml bidon (450ml target)`,
+        quantity: isFr ? `1× Bidon ${bidonSizeMl} ml (450 ml cible)` : `1× ${bidonSizeMl} ml bottle (450 ml target)`,
         carbsGrams: 0,
         proteinGrams: 0,
         fatsGrams: 0,
         kcals: 0,
-        quantitativeLabel: isFr ? 'Eau pure & électrolytes (0g C)' : 'Pure water & electrolytes (0g C)',
+        quantitativeLabel: isFr ? 'Eau pure & électrolytes (0 g C)' : 'Pure water & electrolytes (0 g C)',
         portionLabel: isFr ? '1 bidon d’eau' : '1 bottle water',
         notes: isFr ? 'Hydratation seule pour une sortie courte (< 45 min).' : 'Just water for a short ride (under 45 min).',
         isRealFoodVerified: true,
@@ -653,25 +653,25 @@ export function allocatePhase2OnBikeItems(
         quantity:
           pureWaterBidons > 0
             ? isFr
-              ? `${liquidCarbBidons}x Bidon Glucidique (${bidonSizeMl} ml) + ${pureWaterBidons}x Bidon${pureWaterBidons > 1 ? 's' : ''} Eau/Électrolytes (${bidonSizeMl} ml)`
-              : `${liquidCarbBidons}x Carbohydrate Bidon (${bidonSizeMl}ml) + ${pureWaterBidons}x Pure/Electrolyte Water Bidon${pureWaterBidons > 1 ? 's' : ''} (${bidonSizeMl}ml)`
+              ? `${liquidCarbBidons}× Bidon Glucidique (${bidonSizeMl} ml) + ${pureWaterBidons}× Bidon${pureWaterBidons > 1 ? 's' : ''} Eau/Électrolytes (${bidonSizeMl} ml)`
+              : `${liquidCarbBidons}× Carbohydrate Bottle (${bidonSizeMl} ml) + ${pureWaterBidons}× Pure/Electrolyte Water Bottle${pureWaterBidons > 1 ? 's' : ''} (${bidonSizeMl} ml)`
             : isFr
-            ? `${liquidCarbBidons}x Bidon${liquidCarbBidons > 1 ? 's' : ''} ${bidonSizeMl} ml`
-            : `${liquidCarbBidons}x ${bidonSizeMl}ml bidon${liquidCarbBidons > 1 ? 's' : ''}`,
+            ? `${liquidCarbBidons}× Bidon${liquidCarbBidons > 1 ? 's' : ''} ${bidonSizeMl} ml`
+            : `${liquidCarbBidons}× ${bidonSizeMl} ml bottle${liquidCarbBidons > 1 ? 's' : ''}`,
         carbsGrams: liquidCarbBidons * ISOTONIC_SCOOP_BIDON.carbsG,
         proteinGrams: 0,
         fatsGrams: 0,
         kcals: liquidCarbBidons * ISOTONIC_SCOOP_BIDON.kcal,
         quantitativeLabel: isFr
-          ? `Boisson glucidique isotonique (${liquidCarbBidons * ISOTONIC_SCOOP_BIDON.carbsG}g C)`
-          : `Isotonic carb mix (${liquidCarbBidons * ISOTONIC_SCOOP_BIDON.carbsG}g C)`,
+          ? `Boisson glucidique isotonique (${liquidCarbBidons * ISOTONIC_SCOOP_BIDON.carbsG} g C)`
+          : `Isotonic carb mix (${liquidCarbBidons * ISOTONIC_SCOOP_BIDON.carbsG} g C)`,
         portionLabel:
           pureWaterBidons > 0
             ? isFr
-              ? `${liquidCarbBidons}x Bidon glucidique + ${pureWaterBidons}x Bidon${pureWaterBidons > 1 ? 's' : ''} eau/électrolytes`
-              : `${liquidCarbBidons}x Carbohydrate Bidon + ${pureWaterBidons}x Pure/Electrolyte Water Bidon${pureWaterBidons > 1 ? 's' : ''}`
+              ? `${liquidCarbBidons}× Bidon glucidique + ${pureWaterBidons}× Bidon${pureWaterBidons > 1 ? 's' : ''} eau/électrolytes`
+              : `${liquidCarbBidons}× Carbohydrate Bottle + ${pureWaterBidons}× Water Bottle${pureWaterBidons > 1 ? 's' : ''}`
             : isFr
-            ? `${liquidCarbBidons} ${liquidCarbBidons > 1 ? 'bidons' : 'bidon'} d'eau & électrolytes`
+            ? `${liquidCarbBidons} ${liquidCarbBidons > 1 ? 'bidons' : 'bidon'} d’eau & électrolytes`
             : `${liquidCarbBidons} ${liquidCarbBidons > 1 ? 'bottles' : 'bottle'} hydration drink`,
         notes: isFr ? 'Facile à boire, rien à mâcher.' : 'Easy to drink, nothing to chew.',
         isRealFoodVerified: false,
@@ -682,14 +682,14 @@ export function allocatePhase2OnBikeItems(
     if (counts.gelsCount > 0) {
       items.push({
         name: isFr ? 'Gels Énergétiques Glucose/Fructose' : 'Dual-Source Energy Gels',
-        quantity: `${counts.gelsCount}x gel (25g)`,
+        quantity: `${counts.gelsCount}× gel (25 g)`,
         carbsGrams: counts.gelsCount * ENERGY_GEL_UNIT.carbsG,
         proteinGrams: 0,
         fatsGrams: 0,
         kcals: counts.gelsCount * ENERGY_GEL_UNIT.kcal,
         quantitativeLabel: isFr
-          ? `${counts.gelsCount}x gel énergétique (${counts.gelsCount * ENERGY_GEL_UNIT.carbsG}g C)`
-          : `${counts.gelsCount}x energy gel (${counts.gelsCount * ENERGY_GEL_UNIT.carbsG}g C)`,
+          ? `${counts.gelsCount}× gel énergétique (${counts.gelsCount * ENERGY_GEL_UNIT.carbsG} g C)`
+          : `${counts.gelsCount}× energy gel (${counts.gelsCount * ENERGY_GEL_UNIT.carbsG} g C)`,
         portionLabel: isFr
           ? `${counts.gelsCount} ${counts.gelsCount > 1 ? 'collations' : 'collation'} de poche rapide`
           : `${counts.gelsCount} quick pocket ${counts.gelsCount > 1 ? 'snacks' : 'snack'}`,
@@ -711,23 +711,23 @@ export function allocatePhase2OnBikeItems(
       quantity:
         pureWaterBidons > 0
           ? isFr
-            ? `${liquidCarbBidons}x Bidon Glucidique (${bidonSizeMl} ml) + ${pureWaterBidons}x Bidon${pureWaterBidons > 1 ? 's' : ''} Eau/Électrolytes (${bidonSizeMl} ml)`
-            : `${liquidCarbBidons}x Carbohydrate Bidon (${bidonSizeMl}ml) + ${pureWaterBidons}x Pure/Electrolyte Water Bidon${pureWaterBidons > 1 ? 's' : ''} (${bidonSizeMl}ml)`
+            ? `${liquidCarbBidons}× Bidon Glucidique (${bidonSizeMl} ml) + ${pureWaterBidons}× Bidon${pureWaterBidons > 1 ? 's' : ''} Eau/Électrolytes (${bidonSizeMl} ml)`
+            : `${liquidCarbBidons}× Carbohydrate Bottle (${bidonSizeMl} ml) + ${pureWaterBidons}× Pure/Electrolyte Water Bottle${pureWaterBidons > 1 ? 's' : ''} (${bidonSizeMl} ml)`
           : isFr
-          ? `${liquidCarbBidons}x Bidon${liquidCarbBidons > 1 ? 's' : ''} ${bidonSizeMl} ml`
-          : `${liquidCarbBidons}x ${bidonSizeMl}ml bidon${liquidCarbBidons > 1 ? 's' : ''}`,
+          ? `${liquidCarbBidons}× Bidon${liquidCarbBidons > 1 ? 's' : ''} ${bidonSizeMl} ml`
+          : `${liquidCarbBidons}× ${bidonSizeMl} ml bottle${liquidCarbBidons > 1 ? 's' : ''}`,
       carbsGrams: liquidCarbBidons * JUICE_BIDON_650ML.carbsG,
       proteinGrams: 0,
       fatsGrams: 0,
       kcals: liquidCarbBidons * JUICE_BIDON_650ML.kcal,
       quantitativeLabel: isFr
-        ? `50/50 eau & pur jus pressé (${liquidCarbBidons * JUICE_BIDON_650ML.carbsG}g C)`
-        : `50/50 water & 100% pressed juice (${liquidCarbBidons * JUICE_BIDON_650ML.carbsG}g C)`,
+        ? `50/50 eau & pur jus pressé (${liquidCarbBidons * JUICE_BIDON_650ML.carbsG} g C)`
+        : `50/50 water & 100% pressed juice (${liquidCarbBidons * JUICE_BIDON_650ML.carbsG} g C)`,
       portionLabel:
         pureWaterBidons > 0
           ? isFr
-            ? `${liquidCarbBidons}x Bidon glucidique + ${pureWaterBidons}x Bidon${pureWaterBidons > 1 ? 's' : ''} eau/électrolytes`
-            : `${liquidCarbBidons}x Carbohydrate Bidon + ${pureWaterBidons}x Pure/Electrolyte Water Bidon${pureWaterBidons > 1 ? 's' : ''}`
+            ? `${liquidCarbBidons}× Bidon glucidique + ${pureWaterBidons}× Bidon${pureWaterBidons > 1 ? 's' : ''} eau/électrolytes`
+            : `${liquidCarbBidons}× Carbohydrate Bottle + ${pureWaterBidons}× Water Bottle${pureWaterBidons > 1 ? 's' : ''}`
           : isFr
           ? `${liquidCarbBidons} ${liquidCarbBidons > 1 ? 'bidons' : 'bidon'} jus naturel dilué`
           : `${liquidCarbBidons} ${liquidCarbBidons > 1 ? 'bottles' : 'bottle'} diluted fruit juice`,
@@ -746,8 +746,8 @@ export function allocatePhase2OnBikeItems(
       fatsGrams: 0,
       kcals: counts.datesCount * MEDJOOL_DATE.kcal,
       quantitativeLabel: isFr
-        ? `Dattes Medjool dénoyautées (${counts.datesCount * MEDJOOL_DATE.carbsG}g C)`
-        : `Medjool dates (${counts.datesCount * MEDJOOL_DATE.carbsG}g C)`,
+        ? `Dattes Medjool dénoyautées (${counts.datesCount * MEDJOOL_DATE.carbsG} g C)`
+        : `Medjool dates (${counts.datesCount * MEDJOOL_DATE.carbsG} g C)`,
       portionLabel: isFr
         ? `${counts.datesCount} ${counts.datesCount > 1 ? 'dattes' : 'datte'} ou fruits secs`
         : `${counts.datesCount} plump ${counts.datesCount > 1 ? 'dates' : 'date'} or dried fruit`,
@@ -759,14 +759,14 @@ export function allocatePhase2OnBikeItems(
   if (preference === 'mixed' && counts.gelsCount > 0) {
     items.push({
       name: isFr ? 'Gel Énergétique Rapide (Secours Bosses)' : 'Fast Energy Gel (Climb Backup)',
-      quantity: `${counts.gelsCount}x gel (25g)`,
+      quantity: `${counts.gelsCount}× gel (25 g)`,
       carbsGrams: counts.gelsCount * ENERGY_GEL_UNIT.carbsG,
       proteinGrams: 0,
       fatsGrams: 0,
       kcals: counts.gelsCount * ENERGY_GEL_UNIT.kcal,
       quantitativeLabel: isFr
-        ? `${counts.gelsCount}x gel énergétique (${counts.gelsCount * ENERGY_GEL_UNIT.carbsG}g C)`
-        : `${counts.gelsCount}x energy gel (${counts.gelsCount * ENERGY_GEL_UNIT.carbsG}g C)`,
+        ? `${counts.gelsCount}× gel énergétique (${counts.gelsCount * ENERGY_GEL_UNIT.carbsG} g C)`
+        : `${counts.gelsCount}× energy gel (${counts.gelsCount * ENERGY_GEL_UNIT.carbsG} g C)`,
       portionLabel: isFr
         ? `${counts.gelsCount} ${counts.gelsCount > 1 ? 'collations' : 'collation'} de poche rapide`
         : `${counts.gelsCount} quick pocket ${counts.gelsCount > 1 ? 'snacks' : 'snack'}`,
@@ -901,14 +901,14 @@ export function getRealFoodNutritionPlan(
         name: isFr
           ? 'Boisson glucidique légère (pur jus ou eau d’érable salée)'
           : 'Light carb drink (pure juice or salted maple water)',
-        quantity: '250ml',
+        quantity: '250 ml',
         carbsGrams: 28,
         proteinGrams: 0,
         fatsGrams: 0,
         kcals: 115,
         quantitativeLabel: isFr
           ? 'Boisson glucidique légère (250 ml, 28 g glucides)'
-          : 'Light carb drink (250ml, 28g carbs)',
+          : 'Light carb drink (250 ml, 28 g carbs)',
         portionLabel: isFr ? '1 petit verre de jus ou boisson légère' : '1 small glass of juice or light drink',
         notes: isFr
           ? 'Boisson légère, facile à digérer 20 min avant de partir.'
@@ -917,24 +917,24 @@ export function getRealFoodNutritionPlan(
       },
       {
         name: isFr ? 'Double expresso' : 'Double espresso',
-        quantity: isFr ? '60 ml (2 doses)' : '60ml (2 shots)',
+        quantity: isFr ? '60 ml (2 doses)' : '60 ml (2 shots)',
         carbsGrams: 0,
         proteinGrams: 0,
         fatsGrams: 0,
         kcals: 5,
-        quantitativeLabel: isFr ? 'Double expresso (60 ml, ~140 mg caféine)' : 'Double espresso (60ml, ~140mg caffeine)',
+        quantitativeLabel: isFr ? 'Double expresso (60 ml, ~140 mg caféine)' : 'Double espresso (60 ml, ~140 mg caffeine)',
         portionLabel: isFr ? '1 café ou expresso' : '1 coffee or espresso',
         notes: isFr ? 'Un petit coup de fouet avant de partir.' : 'A quick pick-me-up before you leave.',
         isRealFoodVerified: true,
       },
       {
         name: isFr ? 'Eau fraîche + pincée de sel' : 'Water with a pinch of salt',
-        quantity: '300ml',
+        quantity: '300 ml',
         carbsGrams: 0,
         proteinGrams: 0,
         fatsGrams: 0,
         kcals: 0,
-        quantitativeLabel: isFr ? 'Eau fraîche + sel (300 ml)' : 'Water with a pinch of salt (300ml)',
+        quantitativeLabel: isFr ? 'Eau fraîche + sel (300 ml)' : 'Water with a pinch of salt (300 ml)',
         portionLabel: isFr ? '1 grand verre d’eau salée' : '1 tall glass of salted water',
         notes: isFr ? 'Hydratation avant le départ avec une pincée de sel.' : 'Pre-ride water with a pinch of salt.',
         isRealFoodVerified: true,
@@ -946,24 +946,24 @@ export function getRealFoodNutritionPlan(
     phase1Items = [
       {
         name: isFr ? 'Double expresso' : 'Double espresso',
-        quantity: isFr ? '60 ml (2 doses)' : '60ml (2 shots)',
+        quantity: isFr ? '60 ml (2 doses)' : '60 ml (2 shots)',
         carbsGrams: 0,
         proteinGrams: 0,
         fatsGrams: 0,
         kcals: 5,
-        quantitativeLabel: isFr ? 'Double expresso (60 ml, ~140 mg caféine, 0 g glucides)' : 'Double espresso (60ml, ~140mg caffeine, 0g carbs)',
+        quantitativeLabel: isFr ? 'Double expresso (60 ml, ~140 mg caféine, 0 g glucides)' : 'Double espresso (60 ml, ~140 mg caffeine, 0 g carbs)',
         portionLabel: isFr ? '1 café ou expresso' : '1 coffee or espresso',
         notes: isFr ? 'Un café court pour démarrer léger.' : 'A quick espresso for a light start.',
         isRealFoodVerified: true,
       },
       {
         name: isFr ? 'Eau fraîche + pincée de sel' : 'Water with a pinch of salt',
-        quantity: '350ml',
+        quantity: '350 ml',
         carbsGrams: 0,
         proteinGrams: 0,
         fatsGrams: 0,
         kcals: 0,
-        quantitativeLabel: isFr ? 'Eau fraîche + sel (350 ml)' : 'Water with a pinch of salt (350ml)',
+        quantitativeLabel: isFr ? 'Eau fraîche + sel (350 ml)' : 'Water with a pinch of salt (350 ml)',
         portionLabel: isFr ? '1 grand verre d’eau salée' : '1 tall glass of salted water',
         notes: isFr
           ? 'Un grand verre d’eau avec une pincée de sel avant de rouler.'
@@ -984,31 +984,31 @@ export function getRealFoodNutritionPlan(
         kcals: compliantPantry.preRide.kcal,
         quantitativeLabel: isFr
           ? `${compliantPantry.preRide.nameFr} (${compliantPantry.preRide.carbsG} g glucides, ${compliantPantry.preRide.proteinG} g protéines)`
-          : `${compliantPantry.preRide.nameEn} (${compliantPantry.preRide.carbsG}g carbs, ${compliantPantry.preRide.proteinG}g protein)`,
+          : `${compliantPantry.preRide.nameEn} (${compliantPantry.preRide.carbsG} g carbs, ${compliantPantry.preRide.proteinG} g protein)`,
         portionLabel: isFr ? compliantPantry.preRide.portionLabelFr : compliantPantry.preRide.portionLabelEn,
         notes: isFr ? 'Facile à digérer avant de partir.' : 'Easy to digest before you head out.',
         isRealFoodVerified: !compliantPantry.preRide.id.includes('gel'),
       },
       {
         name: isFr ? 'Double expresso' : 'Double espresso',
-        quantity: isFr ? '60 ml (2 doses)' : '60ml (2 shots)',
+        quantity: isFr ? '60 ml (2 doses)' : '60 ml (2 shots)',
         carbsGrams: 0,
         proteinGrams: 0,
         fatsGrams: 0,
         kcals: 5,
-        quantitativeLabel: isFr ? 'Double expresso (60 ml, ~140 mg caféine)' : 'Double espresso (60ml, ~140mg caffeine)',
+        quantitativeLabel: isFr ? 'Double expresso (60 ml, ~140 mg caféine)' : 'Double espresso (60 ml, ~140 mg caffeine)',
         portionLabel: isFr ? '1 café ou expresso' : '1 coffee or espresso',
         notes: isFr ? 'Un petit coup de fouet avant de partir.' : 'A quick pick-me-up before you leave.',
         isRealFoodVerified: true,
       },
       {
         name: isFr ? 'Eau fraîche + pincée de sel' : 'Water with a pinch of salt',
-        quantity: '300ml',
+        quantity: '300 ml',
         carbsGrams: 0,
         proteinGrams: 0,
         fatsGrams: 0,
         kcals: 0,
-        quantitativeLabel: isFr ? 'Eau fraîche + sel (300 ml)' : 'Water with a pinch of salt (300ml)',
+        quantitativeLabel: isFr ? 'Eau fraîche + sel (300 ml)' : 'Water with a pinch of salt (300 ml)',
         portionLabel: isFr ? '1 grand verre d’eau salée' : '1 tall glass of salted water',
         notes: isFr ? 'Hydratation avant le départ avec une pincée de sel.' : 'Pre-ride water with a pinch of salt.',
         isRealFoodVerified: true,
@@ -1123,14 +1123,14 @@ export function getRealFoodNutritionPlan(
           : isFr
           ? 'Galette d’avoine ou flocons d’avoine minute'
           : 'Packable oat bar or instant oats cup',
-        quantity: isFr ? '1 portion (65 g)' : '1 serving (65g)',
+        quantity: isFr ? '1 portion (65 g)' : '1 serving (65 g)',
         carbsGrams: 42,
         proteinGrams: 8,
         fatsGrams: 6,
         kcals: 255,
         quantitativeLabel: isFr
           ? `${isGF ? 'Galette d’avoine sans gluten' : 'Galette d’avoine'} (65 g, 42 g glucides, 8 g protéines)`
-          : `${isGF ? 'GF oat bar' : 'Packable oat bar'} (65g, 42g carbs, 8g protein)`,
+          : `${isGF ? 'GF oat bar' : 'Packable oat bar'} (65 g, 42 g carbs, 8 g protein)`,
         portionLabel: isFr ? '1 galette ou bol d’avoine' : '1 oat bar or instant oats cup',
         notes: isFr ? 'Se transporte dans le sac, sans frigo.' : 'Packs in your bag, no fridge needed.',
         isRealFoodVerified: true,
@@ -1143,14 +1143,14 @@ export function getRealFoodNutritionPlan(
           : isFr
           ? 'Flocons d’avoine préparés au lait d’avoine & chia'
           : 'Oat milk overnight oats with chia',
-        quantity: isFr ? 'Bocal 250 g' : '250g jar',
+        quantity: isFr ? 'Bocal 250 g' : '250 g jar',
         carbsGrams: 42,
         proteinGrams: 8,
         fatsGrams: 6,
         kcals: 255,
         quantitativeLabel: isFr
           ? `${isGF ? 'Avoine sans gluten' : 'Flocons d’avoine préparés'} (250 g, 42 g glucides, 8 g protéines)`
-          : `${isGF ? 'GF overnight oats' : 'Oat milk overnight oats'} (250g jar, 42g carbs, 8g protein)`,
+          : `${isGF ? 'GF overnight oats' : 'Oat milk overnight oats'} (250 g jar, 42 g carbs, 8 g protein)`,
         portionLabel: isFr ? '1 bocal d’avoine préparée' : '1 jar of prepared oats',
         notes: isFr ? 'Préparé la veille, frais et rassasiant.' : 'Prepared the night before, cool and filling.',
         isRealFoodVerified: true,
@@ -1159,24 +1159,24 @@ export function getRealFoodNutritionPlan(
   const fruitItem: NutritionItem = isLowFodmap
     ? {
         name: isFr ? '1 banane ferme ou portion de fraises' : '1 firm banana or fresh strawberries',
-        quantity: '120g',
+        quantity: '120 g',
         carbsGrams: 27,
         proteinGrams: 1,
         fatsGrams: 0,
         kcals: 105,
-        quantitativeLabel: isFr ? '1 banane ferme (120 g, 27 g glucides)' : '1 firm banana (120g, 27g carbs)',
+        quantitativeLabel: isFr ? '1 banane ferme (120 g, 27 g glucides)' : '1 firm banana (120 g, 27 g carbs)',
         portionLabel: isFr ? '1 portion de fruits frais' : '1 serving of fresh fruit',
         notes: isFr ? 'Doux pour l’estomac.' : 'Gentle on the stomach.',
         isRealFoodVerified: true,
       }
     : {
         name: isFr ? '1 pomme croquante de saison' : '1 crisp seasonal apple',
-        quantity: '140g',
+        quantity: '140 g',
         carbsGrams: 19,
         proteinGrams: 0,
         fatsGrams: 0,
         kcals: 75,
-        quantitativeLabel: isFr ? '1 pomme croquante (140 g, 19 g glucides)' : '1 crisp apple (140g, 19g carbs)',
+        quantitativeLabel: isFr ? '1 pomme croquante (140 g, 19 g glucides)' : '1 crisp apple (140 g, 19 g carbs)',
         portionLabel: isFr ? '1 pomme croquante fraîche' : '1 crisp fresh apple',
         notes: isFr ? 'Fruits frais et croquants.' : 'Fresh and crisp.',
         isRealFoodVerified: true,
@@ -1185,24 +1185,24 @@ export function getRealFoodNutritionPlan(
   const nutOrSeedItem: NutritionItem = isNutFree
     ? {
         name: isFr ? 'Graines de courge & tournesol grillées' : 'Toasted pumpkin & sunflower seeds',
-        quantity: '20g',
+        quantity: '20 g',
         carbsGrams: 4,
         proteinGrams: 6,
         fatsGrams: 10,
         kcals: 125,
-        quantitativeLabel: isFr ? 'Graines de courge & tournesol (20 g, 10 g lipides)' : 'Pumpkin & sunflower seeds (20g, 10g fats)',
+        quantitativeLabel: isFr ? 'Graines de courge & tournesol (20 g, 10 g lipides)' : 'Pumpkin & sunflower seeds (20 g, 10 g fats)',
         portionLabel: isFr ? '1 poignée de graines' : '1 small handful of seeds',
         notes: isFr ? 'Croquant salé, garanti sans fruits à coque.' : 'Crunchy and savory, 100% nut-free.',
         isRealFoodVerified: true,
       }
     : {
         name: isFr ? 'Cerneaux de noix' : 'Raw walnuts',
-        quantity: '20g',
+        quantity: '20 g',
         carbsGrams: 3,
         proteinGrams: 3,
         fatsGrams: 13,
         kcals: 130,
-        quantitativeLabel: isFr ? 'Cerneaux de noix (20 g, 13 g lipides)' : 'Walnuts (20g, 13g fats)',
+        quantitativeLabel: isFr ? 'Cerneaux de noix (20 g, 13 g lipides)' : 'Walnuts (20 g, 13 g fats)',
         portionLabel: isFr ? '1 poignée de noix' : '1 small handful of walnuts',
         notes: isFr ? 'Une petite poignée pour accompagner le repas.' : 'A small handful alongside your meal.',
         isRealFoodVerified: true,
@@ -1247,14 +1247,14 @@ export function getRealFoodNutritionPlan(
 
   const sandwichItem: NutritionItem = {
     name: isFr ? `${breadLabelFr} (${fillingLabelFr})` : `${breadLabelEn} (${fillingLabelEn})`,
-    quantity: isFr ? '100 g (demi-sandwich)' : '100g half sandwich',
+    quantity: isFr ? '100 g (demi-sandwich)' : '100 g half sandwich',
     carbsGrams: 36,
     proteinGrams: isVegan ? 10 : 14,
     fatsGrams: 5,
     kcals: 245,
     quantitativeLabel: isFr
       ? `${breadLabelFr} (100 g, 36 g glucides, ${isVegan ? '10 g' : '14 g'} protéines)`
-      : `${breadLabelEn} (100g, 36g carbs, ${isVegan ? '10g' : '14g'} protein)`,
+      : `${breadLabelEn} (100 g, 36 g carbs, ${isVegan ? '10 g' : '14 g'} protein)`,
     portionLabel: isFr ? '1 demi-sandwich frais' : '1 half fresh sandwich',
     notes: isFr ? 'Une part salée pour tenir toute la matinée.' : 'Something savory to keep you going through the morning.',
     isRealFoodVerified: true,
@@ -1262,12 +1262,12 @@ export function getRealFoodNutritionPlan(
 
   const coffeeItem: NutritionItem = {
     name: isFr ? 'Café filtre ou thé chaud' : 'Filter coffee or hot tea',
-    quantity: isFr ? 'Tasse 200 ml' : '200ml mug',
+    quantity: isFr ? 'Tasse 200 ml' : '200 ml mug',
     carbsGrams: 0,
     proteinGrams: 0,
     fatsGrams: 0,
     kcals: 2,
-    quantitativeLabel: isFr ? 'Café filtre ou thé (200 ml)' : 'Filter coffee or tea (200ml mug)',
+    quantitativeLabel: isFr ? 'Café filtre ou thé (200 ml)' : 'Filter coffee or tea (200 ml mug)',
     portionLabel: isFr ? '1 tasse de café ou thé' : '1 mug of coffee or tea',
     notes: isFr ? 'Une boisson chaude pour bien démarrer la journée.' : 'A warm drink as you ease into the day.',
     isRealFoodVerified: true,
@@ -1283,8 +1283,8 @@ export function getRealFoodNutritionPlan(
   const resolvedPostRideMealWindow = solved?.postRideMealWindow ?? `${breakRoomTime} – ${addMinutesToTime(breakRoomTime, 15)}`;
   const resolvedPostRideConsolidatedWindow = solved?.postRideConsolidatedWindow ?? `${addMinutesToTime(resolvedArrival, 10)} – ${addMinutesToTime(resolvedArrival, 30)}`;
 
-  const stage1Location = logistics?.stage1LocationLabel || (isFr ? 'Destination / Vestiaire' : 'Destination / Locker');
-  const stage2Location = logistics?.stage2LocationLabel || (isFr ? 'Salle de Pause / Espace Bureau' : 'Break Room / Workspace');
+  const stage1Location = logistics?.stage1LocationLabel || (isFr ? 'À l’arrivée' : 'On arrival');
+  const stage2Location = logistics?.stage2LocationLabel || (isFr ? 'Salle de Pause / Bureau' : 'Break Room / Office');
 
   const phases: NutritionPhase[] = [
     {
@@ -1293,12 +1293,12 @@ export function getRealFoodNutritionPlan(
         ? preRideStyle === 'fasted-rollout'
           ? 'Départ léger & hydratation'
           : preRideStyle === 'light-liquid'
-          ? 'Petite boisson avant de partir (T − 20 min)'
+          ? 'Petite boisson avant de partir (20 min avant)'
           : 'Petit-déjeuner avant de partir'
         : preRideStyle === 'fasted-rollout'
         ? 'Light start & hydration'
         : preRideStyle === 'light-liquid'
-        ? 'Quick drink before you leave (T − 20 min)'
+        ? 'Quick drink before you leave (20 min before)'
         : 'Breakfast before you ride',
       timeWindow: resolvedPreRideWindow,
       location: isFr ? 'Domicile' : 'Home',
@@ -1325,15 +1325,15 @@ export function getRealFoodNutritionPlan(
           : pref === 'sports-fuel'
           ? isFr
             ? `Ravito sportif en selle (${effectiveHourlyRateG} g/h)`
-            : `On-bike sports fueling (${effectiveHourlyRateG}g/h)`
+            : `On-bike sports fueling (${effectiveHourlyRateG} g/h)`
           : pref === 'mixed'
           ? isFr
             ? `Ravito mixte en selle (${effectiveHourlyRateG} g/h)`
-            : `On-bike mixed fueling (${effectiveHourlyRateG}g/h)`
+            : `On-bike mixed fueling (${effectiveHourlyRateG} g/h)`
           : isFr
           ? `Ravito naturel en selle (${effectiveHourlyRateG} g/h)`
-          : `On-bike real-food fueling (${effectiveHourlyRateG}g/h)`,
-      timeWindow: isFr ? 'Du départ à l’arrivée (boire toutes les 15-20 min)' : 'Rollout to arrival (sip every 15-20 min)',
+          : `On-bike real-food fueling (${effectiveHourlyRateG} g/h)`,
+      timeWindow: isFr ? 'Du départ à l’arrivée (boire toutes les 15–20 min)' : 'Rollout to arrival (sip every 15–20 min)',
       location: isFr ? 'Sur la route' : 'On the road',
       rules:
         finalOnBikeCarbsG === 0
@@ -1343,11 +1343,11 @@ export function getRealFoodNutritionPlan(
           : pref === 'sports-fuel'
           ? isFr
             ? `Calibré selon votre confort digestif (${effectiveHourlyRateG} g/h) : boisson glucidique et gels d’appoint.`
-            : `Tuned to your digestion comfort (${effectiveHourlyRateG}g/h): drink mix and pocket gels.`
+            : `Tuned to your digestion comfort (${effectiveHourlyRateG} g/h): drink mix and pocket gels.`
           : pref === 'mixed'
           ? isFr
             ? `Calibré sur ${effectiveHourlyRateG} g/h : vrais aliments pour rouler au train + 1 collation rapide pour les côtes.`
-            : `Tuned to ${effectiveHourlyRateG}g/h: real food for steady riding + 1 quick snack for the climbs.`
+            : `Tuned to ${effectiveHourlyRateG} g/h: real food for steady riding + 1 quick snack for the climbs.`
           : isFr
           ? `Calibré sur ${effectiveHourlyRateG} g/h avec des aliments simples et faciles à emporter.`
           : `Tuned to ${effectiveHourlyRateG}g/h with simple, easy-to-carry foods.`,

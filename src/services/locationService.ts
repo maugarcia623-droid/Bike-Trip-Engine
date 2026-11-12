@@ -38,8 +38,71 @@ function setCache(key: string, results: LocationSuggestion[]) {
   suggestionCache.set(key, results);
 }
 
-// Preset popular cycling hubs in the corridor
+// Preset popular cycling hubs in the corridor and Côte d'Azur touring regions
 export const POPULAR_CYCLING_HUBS: LocationSuggestion[] = [
+  {
+    id: 'preset-rougiers',
+    name: 'Rougiers',
+    secondaryText: '83170, Massif de la Sainte-Baume, Var',
+    fullDisplayName: 'Rougiers, 83170 Var, Provence-Alpes-Côte d’Azur, France',
+    coordinates: [43.3925, 5.8503],
+    type: 'village',
+    source: 'preset',
+  },
+  {
+    id: 'preset-mazaugues',
+    name: 'Mazaugues',
+    secondaryText: '83136, Massif de la Sainte-Baume, Var',
+    fullDisplayName: 'Mazaugues, 83136 Var, Provence-Alpes-Côte d’Azur, France',
+    coordinates: [43.3486, 5.9228],
+    type: 'village',
+    source: 'preset',
+  },
+  {
+    id: 'preset-sainte-maxime',
+    name: 'Sainte-Maxime',
+    secondaryText: '83120, Golfe de Saint-Tropez, Côte d’Azur',
+    fullDisplayName: 'Sainte-Maxime, 83120 Var, Côte d’Azur, France',
+    coordinates: [43.3083, 6.6403],
+    type: 'city',
+    source: 'preset',
+  },
+  {
+    id: 'preset-st-raphael',
+    name: 'Saint-Raphaël',
+    secondaryText: '83700, Corniche d’Or & Massif de l’Estérel',
+    fullDisplayName: 'Saint-Raphaël, 83700 Var, Côte d’Azur, France',
+    coordinates: [43.4252, 6.7684],
+    type: 'city',
+    source: 'preset',
+  },
+  {
+    id: 'preset-hyeres',
+    name: 'Hyères',
+    secondaryText: '83400, Presqu’île de Giens & Îles d’Or, Var',
+    fullDisplayName: 'Hyères, 83400 Var, Côte d’Azur, France',
+    coordinates: [43.1206, 6.1286],
+    type: 'city',
+    source: 'preset',
+  },
+  {
+    id: 'preset-cannes',
+    name: 'Cannes',
+    secondaryText: '06400, La Croisette & Baie de Cannes',
+    fullDisplayName: 'Cannes, 06400 Alpes-Maritimes, Côte d’Azur, France',
+    coordinates: [43.5528, 7.0174],
+    type: 'city',
+    source: 'preset',
+  },
+  {
+    id: 'preset-nice',
+    name: 'Nice',
+    secondaryText: '06000, Promenade des Anglais, Baie des Anges',
+    fullDisplayName: 'Nice, 06000 Alpes-Maritimes, Côte d’Azur, France',
+    coordinates: [43.7102, 7.2620],
+    type: 'city',
+    source: 'preset',
+  },
   {
     id: 'preset-nantes',
     name: 'Nantes',
@@ -219,7 +282,56 @@ export function formatTypeBadge(type?: string, lang: 'fr' | 'en' = 'fr'): string
 }
 
 /**
- * High-speed multi-source search combining Base Adresse Nationale + Photon OSM
+ * Fetches JSON with an independent per-request timeout, while still respecting
+ * an external AbortSignal (e.g. from user typing).
+ * - External abort rethrows AbortError so callers can ignore stale requests.
+ * - Timeout or network/HTTP errors return null so other providers aren't blocked.
+ */
+async function fetchJsonWithTimeout(
+  url: string,
+  options: {
+    signal?: AbortSignal;
+    timeoutMs: number;
+    headers?: Record<string, string>;
+  }
+): Promise<any | null> {
+  if (options.signal?.aborted) {
+    throw new DOMException('Aborted', 'AbortError');
+  }
+
+  const controller = new AbortController();
+  let timedOut = false;
+
+  const onExternalAbort = () => {
+    controller.abort();
+  };
+  options.signal?.addEventListener('abort', onExternalAbort, { once: true });
+
+  const timeoutId = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, options.timeoutMs);
+
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: options.headers,
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err: any) {
+    if (options.signal?.aborted && !timedOut) {
+      throw new DOMException('Aborted', 'AbortError');
+    }
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+    options.signal?.removeEventListener('abort', onExternalAbort);
+  }
+}
+
+/**
+ * High-speed multi-source search combining Base Adresse Nationale (Geoplateforme) + Photon OSM
  */
 export async function searchLocationSuggestions(
   rawQuery: string,
@@ -236,14 +348,12 @@ export async function searchLocationSuggestions(
     return suggestionCache.get(cacheKey)!;
   }
 
-  // 1. BAN API (French National Address Database)
-  const banUrl = `https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(query)}&limit=${limit}`;
-  const banPromise = fetch(banUrl, { signal: options?.signal })
-    .then(async (res) => (res.ok ? await res.json() : null))
-    .catch((err) => {
-      if (err?.name === 'AbortError') throw err;
-      return null;
-    });
+  // 1. BAN API via IGN Geoplateforme (replaces deprecated api-adresse.data.gouv.fr)
+  const banUrl = `https://data.geopf.fr/geocodage/search/?q=${encodeURIComponent(query)}&limit=${limit}`;
+  const banPromise = fetchJsonWithTimeout(banUrl, {
+    signal: options?.signal,
+    timeoutMs: 3000,
+  });
 
   // 2. Komoot Photon API (Global OpenStreetMap POIs, stations, mountains, cities)
   let photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=${limit}&lang=${lang}`;
@@ -252,23 +362,39 @@ export async function searchLocationSuggestions(
     photonUrl += `&lat=${options.biasCoords[0]}&lon=${options.biasCoords[1]}`;
   }
 
-  const photonPromise = fetch(photonUrl, {
+  const photonPromise = fetchJsonWithTimeout(photonUrl, {
     signal: options?.signal,
+    timeoutMs: 2000,
     headers: { Accept: 'application/json' },
-  })
-    .then(async (res) => (res.ok ? await res.json() : null))
-    .catch((err) => {
-      if (err?.name === 'AbortError') throw err;
-      return null;
-    });
+  });
 
   let banData: any = null;
   let photonData: any = null;
 
-  try {
-    [banData, photonData] = await Promise.all([banPromise, photonPromise]);
-  } catch (err: any) {
-    if (err?.name === 'AbortError') throw err;
+  // If BAN responds first with results, give Photon at most a short grace window
+  // so a slow/unreachable Photon endpoint never stalls French address/city autocomplete.
+  let photonSettled = false;
+  const trackedPhoton = photonPromise.then((res) => {
+    photonSettled = true;
+    return res;
+  });
+
+  banData = await banPromise;
+  if (options?.signal?.aborted) {
+    throw new DOMException('Aborted', 'AbortError');
+  }
+
+  if (banData?.features?.length > 0 && !photonSettled) {
+    photonData = await Promise.race([
+      trackedPhoton,
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 500)),
+    ]);
+  } else {
+    photonData = await trackedPhoton;
+  }
+
+  if (options?.signal?.aborted) {
+    throw new DOMException('Aborted', 'AbortError');
   }
 
   const banResults: LocationSuggestion[] = (banData?.features || [])
@@ -328,22 +454,20 @@ export async function searchLocationSuggestions(
       query
     )}&format=json&addressdetails=1&limit=${limit}&accept-language=${lang}`;
 
-    const nominatimRes = await fetch(nominatimUrl, {
+    const items = await fetchJsonWithTimeout(nominatimUrl, {
       signal: options?.signal,
+      timeoutMs: 3500,
       headers: { 'Accept-Language': `${lang},en` },
     });
 
-    if (nominatimRes.ok) {
-      const items = await nominatimRes.json();
-      if (Array.isArray(items) && items.length > 0) {
-        const results = items
-          .map(formatNominatimItem)
-          .filter((s: LocationSuggestion | null): s is LocationSuggestion => s !== null);
+    if (Array.isArray(items) && items.length > 0) {
+      const results = items
+        .map(formatNominatimItem)
+        .filter((s: LocationSuggestion | null): s is LocationSuggestion => s !== null);
 
-        if (results.length > 0) {
-          setCache(cacheKey, results);
-          return results;
-        }
+      if (results.length > 0) {
+        setCache(cacheKey, results);
+        return results;
       }
     }
   } catch (err: any) {
@@ -380,4 +504,75 @@ export async function geocodeLocation(
   }
 
   return null;
+}
+
+/**
+ * Reverse Geocoder: converts [lat, lng] to a human-friendly place name (village, town, landmark)
+ */
+export async function reverseGeocodeLocation(
+  lat: number,
+  lon: number,
+  lang: 'en' | 'fr' = 'fr'
+): Promise<string> {
+  const fallbackLabel = `${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E`;
+
+  // 1. Try Photon reverse geocoding (fast POIs & hamlets) with short timeout
+  const photonData = await fetchJsonWithTimeout(
+    `https://photon.komoot.io/reverse?lat=${lat}&lon=${lon}`,
+    { timeoutMs: 1800 }
+  );
+  const photonFirst = photonData?.features?.[0];
+  if (photonFirst?.properties) {
+    const p = photonFirst.properties;
+    const name = p.name || p.street || p.city || p.locality || p.district;
+    const context = p.city && p.city !== name ? p.city : p.county || '';
+    if (name && context) return `${name} (${context})`;
+    if (name) return name;
+  }
+
+  // 2. Try French Base Adresse Nationale via Geoplateforme for high-accuracy French addresses/villages
+  const banData = await fetchJsonWithTimeout(
+    `https://data.geopf.fr/geocodage/reverse/?lon=${lon}&lat=${lat}`,
+    { timeoutMs: 2500 }
+  );
+  const banFirst = banData?.features?.[0];
+  if (banFirst?.properties) {
+    const p = banFirst.properties;
+    if (p.city && p.name && p.name !== p.city) {
+      return `${p.name}, ${p.city}`;
+    }
+    if (p.city) return p.city;
+    if (p.label) return p.label;
+  }
+
+  // 3. Fallback to OpenStreetMap Nominatim
+  const nominatimData = await fetchJsonWithTimeout(
+    `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=${lang}`,
+    {
+      timeoutMs: 3000,
+      headers: { 'Accept-Language': `${lang},en` },
+    }
+  );
+  if (nominatimData?.address) {
+    const a = nominatimData.address;
+    const place =
+      a.village ||
+      a.town ||
+      a.city ||
+      a.municipality ||
+      a.hamlet ||
+      a.suburb ||
+      a.road ||
+      nominatimData.name;
+    if (place) {
+      const state = a.county || a.state;
+      return state && state !== place ? `${place} (${state})` : place;
+    }
+  }
+  if (nominatimData?.display_name) {
+    const short = nominatimData.display_name.split(',')[0];
+    if (short) return short.trim();
+  }
+
+  return fallbackLabel;
 }

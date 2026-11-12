@@ -40,7 +40,7 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
   onCreateNew,
 }) => {
   const { lang, t } = useTranslation();
-  const riderSpecs = useMemo(() => loadRiderBikeSpecs(), []);
+  const riderSpecs = loadRiderBikeSpecs();
   const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
   const switcherRef = useRef<HTMLDivElement>(null);
 
@@ -60,7 +60,18 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
   // Keyboard navigation shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        e.target instanceof HTMLSelectElement ||
+        (e.target as HTMLElement | null)?.isContentEditable
+      ) {
+        return;
+      }
+      if (
+        e.key !== 'Escape' &&
+        (e.metaKey || e.ctrlKey || e.altKey || document.querySelector('[role="dialog"][aria-modal="true"]'))
+      ) {
         return;
       }
       if (e.key === 'Escape') {
@@ -107,13 +118,13 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
 
   return (
     <div
-      className="fixed bottom-[max(0.875rem,env(safe-area-inset-bottom))] sm:bottom-6 left-1/2 -translate-x-1/2 z-50 w-max max-w-[calc(100vw-1.5rem)] select-none print:hidden no-print"
+      className="fixed inset-x-3 bottom-[max(0.875rem,env(safe-area-inset-bottom))] sm:bottom-6 z-50 flex justify-center pointer-events-none select-none print:hidden no-print"
       aria-label={t('navPrimaryViewsAria')}
     >
       {/* ── THE DYNAMIC ISLAND PILL (OVERFLOW-VISIBLE SO POPOVER FLOATS FREELY ABOVE) ── */}
       <div
         ref={switcherRef}
-        className="relative flex items-center gap-1 sm:gap-2.5 p-1.5 sm:p-2.5 max-w-full rounded-full bg-white dark:bg-[#111114] text-ink dark:text-white shadow-[0_16px_36px_rgba(0,0,0,0.12)] dark:shadow-[0_20px_45px_rgba(0,0,0,0.5)] overflow-visible transition-colors duration-150"
+        className="pointer-events-auto relative flex items-center gap-1 sm:gap-2.5 p-1.5 sm:p-2.5 w-fit max-w-full rounded-full bg-white dark:bg-[#111114] text-ink dark:text-white shadow-[0_16px_36px_rgba(0,0,0,0.12)] dark:shadow-[0_20px_45px_rgba(0,0,0,0.5)] overflow-visible transition-colors duration-150"
       >
         {/* Primary Views Navigation */}
         <nav
@@ -199,7 +210,7 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
                 {activeMeta.name}
               </span>
               <span
-                className={`hidden min-[480px]:inline-flex text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider shrink-0 ${
+                className={`hidden min-[480px]:inline-flex text-[10px] font-rounded font-bold px-2 py-0.5 rounded-full tracking-wide shrink-0 ${
                   isGo
                     ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
                     : isCaution
@@ -242,7 +253,7 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
               >
                 {/* Header with Active Trip Count & New Trip Action */}
                 <div className="flex items-center justify-between gap-2 pb-2.5 mb-2.5 border-b border-[#E5E3DD] dark:border-[#2C2C30] px-1">
-                  <span className="text-[11px] font-mono uppercase tracking-wider text-ink-muted dark:text-zinc-400 font-bold">
+                  <span className="text-xs font-rounded text-ink-muted dark:text-zinc-400 font-semibold">
                     {t('activeTripAria')} ({allTrips.length})
                   </span>
                   <button
@@ -261,13 +272,13 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
 
                 {/* Active Trip Feasibility Insight Capsule */}
                 {physics && activeTrip && (
-                  <div className="mb-2.5 p-2.5 rounded-2xl bg-zinc-50 dark:bg-zinc-900/70 border border-ink/5 dark:border-white/5">
+                  <div className="mb-2.5 p-2.5 rounded-sub-pod bg-pod dark:bg-zinc-900/70">
                     <div className="flex items-center justify-between gap-2 mb-1">
-                      <span className="text-[10px] font-mono uppercase tracking-wider text-ink-muted dark:text-zinc-400 font-bold">
+                      <span className="text-[10px] font-rounded uppercase tracking-wider text-ink-muted dark:text-zinc-400 font-bold">
                         {t('rideFeasibility')}
                       </span>
                       <span
-                        className={`inline-flex items-center gap-1.5 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${
+                        className={`inline-flex items-center gap-1.5 text-[10px] font-rounded font-bold tnum px-2 py-0.5 rounded-full ${
                           isGo
                             ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
                             : isCaution
@@ -345,14 +356,14 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
                             <span className="break-words leading-tight">{meta.name}</span>
                           </div>
                           <div
-                            className={`text-[11px] font-mono mt-0.5 break-words leading-tight ${
+                            className={`text-[11px] tnum mt-0.5 break-words leading-tight ${
                               isSelected ? 'opacity-80' : 'text-ink-muted dark:text-zinc-400'
                             }`}
                           >
                             <span className="font-medium mr-1">
                               {itemPhysics.goStatus === 'GO' ? t('feasibilityOptimal') : itemPhysics.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')}
                             </span>
-                            · {tripItem.tag === 'VÉLOTAF' && lang !== 'fr' ? 'Commute' : tripItem.tag} · {tripItem.route.distanceKm} km · {tripItem.route.elevationGainM ?? Math.round(tripItem.route.distanceKm * 6.5)}m+
+                            · {tripItem.tag === 'VÉLOTAF' ? (lang === 'fr' ? 'Vélotaf' : 'Commute') : tripItem.tag} · {tripItem.route.distanceKm} km · +{tripItem.route.elevationGainM ?? Math.round(tripItem.route.distanceKm * 6.5)} m
                           </div>
                         </div>
                         {isSelected && (
@@ -389,6 +400,5 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
   );
 };
 
-export { DynamicIslandNav as FloatingWebsiteHeader };
 export default DynamicIslandNav;
 

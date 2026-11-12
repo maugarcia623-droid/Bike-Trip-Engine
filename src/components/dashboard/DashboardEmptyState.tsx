@@ -29,13 +29,13 @@ export const DashboardEmptyState: React.FC<DashboardEmptyStateProps> = ({
 
           {/* Heading & Subtitle */}
           <div className="space-y-2">
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">
-              {isFr ? 'Aucun profil de trajet pour le moment' : 'No Trip Profiles Yet'}
+            <h2 className="font-rounded text-2xl sm:text-3xl font-semibold text-ink tracking-tight">
+              {isFr ? 'Aucune sortie planifiée' : 'No rides planned yet'}
             </h2>
             <p className="text-sm sm:text-base text-ink-muted leading-relaxed">
               {isFr
-                ? 'Votre cockpit Cadence est prêt. Calibrez votre première sortie avec aérodynamisme CdA, rétro-planning horaire et ravitaillement en aliments bruts, ou explorez immédiatement avec une sortie démo.'
-                : 'Your Cadence cockpit is ready. Calibrate your first ride with CdA aerodynamics, exact reverse schedule, and whole-food fueling, or instantly explore with a verified demo trip.'}
+                ? 'Votre espace Cadence est prêt. Planifiez votre première sortie avec météo en direct, timing d’arrivée serein et ravitaillement simple, ou découvrez l’application avec un exemple.'
+                : 'Your Cadence planner is ready. Set up your first ride with live weather, calm arrival timing, and simple fueling, or explore right away with an example trip.'}
             </p>
           </div>
 
@@ -44,10 +44,10 @@ export const DashboardEmptyState: React.FC<DashboardEmptyStateProps> = ({
             <div className="p-4 rounded-2xl bg-pod border border-black/5 dark:border-white/10 space-y-1">
               <div className="flex items-center gap-2 text-ink font-bold text-xs">
                 <Lightning className="w-4 h-4 text-volt-dim dark:text-volt" />
-                <span>{isFr ? 'Aéro & Watts' : 'Aero & Watts'}</span>
+                <span>{isFr ? 'Allure & Vent' : 'Pace & Wind'}</span>
               </div>
               <p className="text-[11px] text-ink-muted leading-tight">
-                {isFr ? 'Calcul CdA, Crr et résistance au vent de face.' : 'CdA drag, rolling resistance & headwind physics.'}
+                {isFr ? 'Estimation de l’allure, du relief et du vent sur le parcours.' : 'Realistic pace, elevation & wind impact along your route.'}
               </p>
             </div>
 
@@ -57,7 +57,7 @@ export const DashboardEmptyState: React.FC<DashboardEmptyStateProps> = ({
                 <span>{isFr ? 'Rétro-planning' : 'Reverse Timeline'}</span>
               </div>
               <p className="text-[11px] text-ink-muted leading-tight">
-                {isFr ? 'Heure exacte de départ selon vos marges vestiaire.' : 'Exact hard rollout backward from your target.'}
+                {isFr ? 'Heure exacte de départ selon vos marges et préparatifs.' : 'Exact departure time backward from your target.'}
               </p>
             </div>
 
@@ -67,7 +67,9 @@ export const DashboardEmptyState: React.FC<DashboardEmptyStateProps> = ({
                 <span>{isFr ? 'Carburant brut' : 'Real-Food Fueling'}</span>
               </div>
               <p className="text-[11px] text-ink-muted leading-tight">
-                {isFr ? 'Dattes Medjool, figues, Skyr 0%, zéro gel chimique.' : 'Medjool dates, Turkish figs, 0% Skyr, zero synthetic gels.'}
+                {isFr
+                  ? 'Dattes, bananes, barres simples — adaptées à vos préférences.'
+                  : 'Real whole foods like dates, figs, and simple bars tailored to you.'}
               </p>
             </div>
           </div>

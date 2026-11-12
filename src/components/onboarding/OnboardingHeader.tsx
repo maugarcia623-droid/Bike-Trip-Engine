@@ -40,7 +40,7 @@ export const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({
             cadence
           </span>
           <span className="hidden md:inline-block w-1.5 h-1.5 rounded-full bg-volt-lime"></span>
-          <span className="hidden md:inline text-[11px] font-mono tracking-wider text-ink-muted uppercase">
+          <span className="hidden md:inline text-xs font-rounded font-medium text-ink-muted">
             {isFr ? 'Planificateur de sortie' : 'Ride planner'}
           </span>
         </div>
@@ -89,7 +89,7 @@ export const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({
           <button
             type="button"
             onClick={toggleTheme}
-            className="w-8 h-8 rounded-full bg-pod hover:bg-chip flex items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer border border-black/5 dark:border-white/10 text-ink"
+            className="relative before:content-[''] before:absolute before:-inset-1.5 w-8 h-8 rounded-full bg-pod hover:bg-surface-active flex items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer border border-black/5 dark:border-white/10 text-ink"
             title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             aria-label={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           >
@@ -104,7 +104,7 @@ export const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-pod hover:bg-chip flex items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer border border-black/5 dark:border-white/10 text-ink-muted hover:text-ink"
+            className="relative before:content-[''] before:absolute before:-inset-1.5 w-8 h-8 rounded-full bg-pod hover:bg-surface-active flex items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer border border-black/5 dark:border-white/10 text-ink-muted hover:text-ink"
             title={isFr ? 'Fermer l’assistant' : 'Close and dismiss'}
             aria-label={isFr ? 'Fermer l’assistant' : 'Close and dismiss'}
           >

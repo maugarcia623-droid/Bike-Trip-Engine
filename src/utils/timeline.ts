@@ -1,4 +1,7 @@
-import { RouteParams, OfficeConstraints, WeatherCondition, TimelineStep, LogisticsSettings, PreRideStyle, TimelineAnchorMode } from '../types/trip';
+import { RouteParams, RouteWaypoint, OfficeConstraints, WeatherCondition, TimelineStep, LogisticsSettings, PreRideStyle, TimelineAnchorMode } from '../types/trip';
+import { AmenityCategory, StageAmenity } from '../types/amenities';
+import { computeCumulativeDistances, haversineDistanceMeters, snapToPolyline } from '../services/overpassCorridor';
+import { estimateAmenityDetourKm } from './cueSheet';
 import { subtractMinutesFromTime, addMinutesToTime } from './nutrition';
 import { loadRiderBikeSpecs } from './specsStorage';
 import { formatFuelTarget } from '../types/specs';
@@ -131,6 +134,217 @@ export interface ReverseTimelineCalculation {
   weatherHeadwindImpactMinutes: number;
 }
 
+const ROLLOUT_STEP_PRIORITY_IDS = new Set([
+  'hard-departure',
+  'sport-rollout',
+  'bp-departure',
+]);
+
+const ARRIVAL_STEP_PRIORITY_IDS = new Set([
+  'gate-security',
+  'destination-arrival',
+  'bp-destination-arrive',
+  'sport-session-finish',
+]);
+
+function resolveAmenityStopMeta(
+  category: AmenityCategory,
+  isFr: boolean
+): { iconName: string; label: string; category: TimelineStep['category'] } {
+  switch (category) {
+    case 'water':
+      return {
+        iconName: 'Droplets',
+        label: isFr ? "Point d'eau" : 'Water stop',
+        category: 'nutrition',
+      };
+    case 'cemetery':
+      return {
+        iconName: 'Cemetery',
+        label: isFr ? 'Cimetière (Eau)' : 'Cemetery water',
+        category: 'nutrition',
+      };
+    case 'food':
+      return {
+        iconName: 'Baguette',
+        label: isFr ? 'Ravitaillement' : 'Resupply stop',
+        category: 'nutrition',
+      };
+    case 'mechanix':
+      return {
+        iconName: 'Wrench',
+        label: isFr ? 'Atelier / Abri' : 'Repair / Shelter',
+        category: 'ride',
+      };
+  }
+}
+
+/**
+ * Builds chronological TimelineStep entries for intermediate stops between Point A and Point B,
+ * unifying Configurator waypoints (`route.waypoints`) and Resupply Radar pins (`pinnedAmenities`)
+ * without duplicating stops that have been both pinned and routed.
+ */
+function buildIntermediateStopSteps(
+  route: RouteParams,
+  pinnedAmenities: StageAmenity[],
+  hardDepartureTime: string,
+  totalRideMinutes: number,
+  isFr: boolean
+): TimelineStep[] {
+  const waypoints = route.waypoints || [];
+  const amenities = pinnedAmenities || [];
+  if (waypoints.length === 0 && amenities.length === 0) {
+    return [];
+  }
+
+  const hasPolyline = Boolean(route.coordinates && route.coordinates.length >= 2);
+  const cumDistances = hasPolyline ? computeCumulativeDistances(route.coordinates!) : null;
+  const polylineTotalKm =
+    cumDistances && cumDistances.length > 0 ? cumDistances[cumDistances.length - 1] : 0;
+  const totalKm = Math.max(1, route.distanceKm || polylineTotalKm || 30);
+
+  const matchedAmenityIds = new Set<string>();
+
+  const findMatchingAmenity = (wp: RouteWaypoint): StageAmenity | undefined => {
+    for (const amenity of amenities) {
+      if (wp.sourceAmenityId && wp.sourceAmenityId === amenity.id) return amenity;
+      if (wp.id === `wp-poi-${amenity.id}`) return amenity;
+      if (
+        wp.coordinates &&
+        haversineDistanceMeters(wp.coordinates[0], wp.coordinates[1], amenity.lat, amenity.lon) < 60
+      ) {
+        return amenity;
+      }
+    }
+    return undefined;
+  };
+
+  interface NormalizedStop {
+    id: string;
+    name: string;
+    stopKm: number;
+    amenity?: StageAmenity;
+    isRoutedWaypoint: boolean;
+  }
+
+  const normalized: NormalizedStop[] = [];
+
+  waypoints.forEach((wp, idx) => {
+    const matched = findMatchingAmenity(wp);
+    if (matched) {
+      matchedAmenityIds.add(matched.id);
+    }
+
+    let stopKm: number;
+    if (
+      typeof wp.distanceFromStartKm === 'number' &&
+      Number.isFinite(wp.distanceFromStartKm) &&
+      wp.distanceFromStartKm >= 0
+    ) {
+      stopKm = wp.distanceFromStartKm;
+    } else if (wp.coordinates && cumDistances && route.coordinates) {
+      stopKm = snapToPolyline(wp.coordinates[0], wp.coordinates[1], route.coordinates, cumDistances).routeKm;
+    } else if (matched && Number.isFinite(matched.routeKm) && matched.routeKm >= 0) {
+      stopKm = matched.routeKm;
+    } else {
+      stopKm = ((idx + 1) / (waypoints.length + 1)) * totalKm;
+    }
+
+    normalized.push({
+      id: `intermediate-stop-wp-${wp.id || idx}`,
+      name: wp.name || matched?.name || (isFr ? `Étape ${idx + 1}` : `Intermediate stop ${idx + 1}`),
+      stopKm,
+      amenity: matched,
+      isRoutedWaypoint: true,
+    });
+  });
+
+  amenities.forEach((amenity) => {
+    if (matchedAmenityIds.has(amenity.id)) return;
+
+    let stopKm: number;
+    if (Number.isFinite(amenity.routeKm) && amenity.routeKm >= 0) {
+      stopKm = amenity.routeKm;
+    } else if (cumDistances && route.coordinates) {
+      stopKm = snapToPolyline(amenity.lat, amenity.lon, route.coordinates, cumDistances).routeKm;
+    } else {
+      stopKm = totalKm * 0.5;
+    }
+
+    const meta = resolveAmenityStopMeta(amenity.category, isFr);
+    normalized.push({
+      id: `intermediate-stop-poi-${amenity.id}`,
+      name: amenity.name || meta.label,
+      stopKm,
+      amenity,
+      isRoutedWaypoint: false,
+    });
+  });
+
+  normalized.sort((a, b) => a.stopKm - b.stopKm);
+
+  const safeRideMinutes = Math.max(1, totalRideMinutes);
+  const minOffset = totalRideMinutes >= 2 ? 1 : 0;
+  const maxOffset = totalRideMinutes >= 2 ? totalRideMinutes - 1 : safeRideMinutes;
+
+  return normalized.map((stop) => {
+    const clampedKm = Math.max(0, Math.min(totalKm, stop.stopKm));
+    const rawOffset = Math.round((clampedKm / totalKm) * safeRideMinutes);
+    const offsetMinutes = Math.max(minOffset, Math.min(maxOffset, rawOffset));
+    const time = addMinutesToTime(hardDepartureTime, offsetMinutes);
+    const location = `KM ${clampedKm.toFixed(1)}`;
+
+    if (stop.amenity) {
+      const meta = resolveAmenityStopMeta(stop.amenity.category, isFr);
+      const parts = [
+        meta.label,
+        stop.isRoutedWaypoint
+          ? isFr
+            ? 'Étape intégrée au tracé'
+            : 'Routed via stop'
+          : isFr
+          ? 'Épingle Radar'
+          : 'Radar pin',
+      ];
+      if (!stop.isRoutedWaypoint) {
+        const detourKm = estimateAmenityDetourKm(stop.amenity.detourMeters);
+        if (detourKm > 0) {
+          parts.push(`+${detourKm.toFixed(1)} km`);
+        } else if (stop.amenity.detourMeters >= 50) {
+          parts.push(`+${Math.round(stop.amenity.detourMeters)} m`);
+        }
+      }
+      if (stop.amenity.openingHours) {
+        parts.push(stop.amenity.openingHours);
+      }
+
+      return {
+        id: stop.id,
+        time,
+        title: stop.name,
+        location,
+        category: meta.category,
+        isCrucialCheckpoint: true,
+        description: parts.join(' · '),
+        iconName: meta.iconName,
+      };
+    }
+
+    return {
+      id: stop.id,
+      time,
+      title: stop.name,
+      location,
+      category: 'ride',
+      isCrucialCheckpoint: true,
+      description: isFr
+        ? 'Point de passage intermédiaire sur le parcours'
+        : 'Intermediate stop along the route',
+      iconName: 'MapPin',
+    };
+  });
+}
+
 export function calculateReverseTimeline(
   route: RouteParams,
   office: OfficeConstraints,
@@ -148,6 +362,7 @@ export function calculateReverseTimeline(
     movingTimeSeconds?: number;
     logistics?: LogisticsSettings;
     savoryResetCount?: number;
+    pinnedAmenities?: StageAmenity[];
   }
 ): ReverseTimelineCalculation {
   const isFr = lang === 'fr';
@@ -233,7 +448,21 @@ export function calculateReverseTimeline(
   const wakeUpTime = subtractMinutesFromTime(hardDepartureTime, 60);
 
   const destTitle = destinationName || route.destination || 'Destination';
-  const rawGate = office.gateName || (isFr ? 'Porte' : 'Gate');
+  const fallbackGate = isEscapade
+    ? (isFr ? 'Réception Hôtel' : 'Hotel Check-in')
+    : isBikepacking
+    ? (isFr ? 'Zone de Bivouac' : 'Camp / Bivouac Site')
+    : isSport
+    ? (isFr ? 'Ligne d’arrivée' : 'Finish Line')
+    : (isFr ? 'Porte' : 'Gate');
+  const hasCommuterGateText = Boolean(
+    office.gateName &&
+      /gate\s*(b|17)|porte\s*(b|17)|atlantis|campus|office|bureau|workplace|entreprise/i.test(office.gateName)
+  );
+  const rawGate =
+    !office.gateName?.trim() || ((isEscapade || isBikepacking || isSport) && hasCommuterGateText)
+      ? fallbackGate
+      : office.gateName;
   const localizedGate = isFr
     ? rawGate.replace(/^Gate\b/i, 'Porte')
     : rawGate.replace(/^Porte\b/i, 'Gate');
@@ -267,7 +496,7 @@ export function calculateReverseTimeline(
         description: isQuant
           ? isFr
             ? '500 ml de boisson électrolytes + 60 g de glucides à IG élevé. Vérifiez la charge du compteur GPS et de la ceinture cardio.'
-            : '500ml electrolyte mix + 60g high-glycemic carbs. Top off bike computer & heart rate monitor.'
+            : '500 ml electrolyte mix + 60 g high-glycemic carbs. Top off bike computer & heart rate monitor.'
           : isFr
           ? `Un grand verre d’eau électrolytes + ${compliantPantry.preRide.nameFr.toLowerCase()}. Vérifiez la charge du compteur GPS.`
           : `1 tall glass electrolyte water + ${compliantPantry.preRide.nameEn.toLowerCase()}. Top off bike computer.`,
@@ -281,8 +510,8 @@ export function calculateReverseTimeline(
         category: 'prep',
         isCrucialCheckpoint: false,
         description: isFr
-          ? `Pression ajustée pour minimiser le Crr. Vérification lubrification chaîne et mise en place des ${slots} bidon${slots > 1 ? 's' : ''} de ${bidonMl} ml.`
-          : `Tire pressures dialed for low rolling resistance. Lube check and ${slots}x ${bidonMl}ml water bottle${slots > 1 ? 's' : ''}.`,
+          ? `Pression des pneus ajustée pour un bon rendement. Vérification lubrification chaîne et mise en place des ${slots} bidon${slots > 1 ? 's' : ''} de ${bidonMl} ml.`
+          : `Tire pressures dialed for smooth rolling. Lube check and ${slots}× ${bidonMl} ml water bottle${slots > 1 ? 's' : ''}.`,
         iconName: 'CheckCircle2',
       },
       {
@@ -307,7 +536,7 @@ export function calculateReverseTimeline(
         description: isQuant
           ? isFr
             ? `Prise énergétique en selle adaptée à votre profil (~${riderCarbs} g glucides/h). Contrôle de l’allure et de la dérive cardiaque.`
-            : `On-the-bike fueling scaled to your rider profile (~${riderCarbs}g carbs/hr target). Smooth pacing & hydration check.`
+            : `On-the-bike fueling scaled to your rider profile (~${riderCarbs} g carbs/h target). Smooth pacing & hydration check.`
           : isFr
           ? `Prise énergétique en selle adaptée à votre profil (${fuelRateText}). Gardez une allure fluide et régulière.`
           : `On-the-bike fueling scaled to your rider profile (${fuelRateText}). Smooth pacing & hydration check.`,
@@ -328,14 +557,14 @@ export function calculateReverseTimeline(
       {
         id: 'sport-post-recovery',
         time: recoveryWindowTime,
-        title: isFr ? 'Fenêtre Métabolique Récup & Étirements' : 'Anabolic Recovery Window & Stretch',
-        location: isFr ? 'Zone Récup' : 'Recovery Staging',
+        title: isFr ? 'Récupération & étirements' : 'Post-Ride Recovery & Stretch',
+        location: isFr ? 'Après la sortie' : 'Post-ride',
         category: 'prep',
         isCrucialCheckpoint: false,
         description: isQuant
           ? isFr
             ? '25 g de protéines + 500 ml d’eau fraîche. Relâchement ischio-jambiers et fléchisseurs de hanche.'
-            : '25g whey/plant protein + 500ml cold water. Hamstring & hip flexor release protocol.'
+            : '25 g protein + 500 ml cold water. Hamstring & hip flexor stretch.'
           : isFr
           ? `${compliantPantry.postRide.nameFr} + grand verre d’eau fraîche. Relâchement ischio-jambiers et fléchisseurs de hanche.`
           : `${compliantPantry.postRide.nameEn} + tall glass of cold water. Gentle hamstring & hip flexor stretch.`,
@@ -353,8 +582,8 @@ export function calculateReverseTimeline(
         isCrucialCheckpoint: true,
         description: showWatts
           ? isFr
-            ? 'Attaques à 380W+ sur les segments clés, relances explosives en danseuse et descente aéro en récupération.'
-            : 'Punchy 380W+ surges on target segments, out-of-the-saddle attacks and aero recovery descents.'
+            ? 'Attaques à 380 W+ sur les segments clés, relances explosives en danseuse et descente souple en récupération.'
+            : 'Punchy 380 W+ surges on target segments, out-of-the-saddle attacks and smooth recovery descents.'
           : isFr
           ? 'Attaques soutenues sur les segments clés, relances dynamiques en danseuse et descente souple en récupération.'
           : 'Punchy hard surges on target segments, out-of-the-saddle attacks and smooth recovery descents.',
@@ -368,18 +597,18 @@ export function calculateReverseTimeline(
         time: addMinutesToTime(hardDepartureTime, Math.round(totalRideMinutes * 0.35)),
         title: showWatts
           ? isFr
-            ? 'Fractionné au Seuil (Séries à 310W+)'
-            : 'Threshold VO2max Interval Sets (310W+)'
+            ? 'Fractionné au Seuil (Séries à 310 W+)'
+            : 'Threshold VO2max Interval Sets (310 W+)'
           : isFr
           ? 'Fractionné soutenu au seuil'
           : 'Sustained Threshold Interval Sets',
-        location: isFr ? 'Corridor Chrono' : 'Interval Strip',
+        location: isFr ? 'Zone d’effort' : 'Interval Stretch',
         category: 'ride',
         isCrucialCheckpoint: true,
         description: showWatts
           ? isFr
-            ? 'Répétitions au seuil anaérobie (310W+) avec maintien d’une cadence stricte à 95–100 tr/min.'
-            : 'Structured threshold repetitions holding 310W+ with tight cadence control (95-100 RPM).'
+            ? 'Répétitions au seuil (310 W+) avec maintien d’une cadence régulière à 95–100 tr/min.'
+            : 'Structured threshold repetitions holding 310 W+ with steady cadence (95–100 RPM).'
           : isFr
           ? 'Répétitions soutenues au seuil avec maintien d’une cadence fluide à 95–100 tr/min.'
           : 'Structured hard threshold repetitions with smooth cadence control (95-100 RPM).',
@@ -391,13 +620,13 @@ export function calculateReverseTimeline(
       steps.push({
         id: 'sport-paceline-echelon',
         time: addMinutesToTime(hardDepartureTime, Math.round(totalRideMinutes * 0.6)),
-        title: isFr ? 'Peloton & Relais Organisés (33 km/h)' : 'Paceline Echelon Rotations (33 km/h)',
-        location: isFr ? 'Corridor Peloton' : 'Drafting Corridor',
+        title: isFr ? 'Peloton & Relais Organisés (33 km/h)' : 'Paceline Rotations (33 km/h)',
+        location: isFr ? 'Groupe' : 'Open Road',
         category: 'ride',
         isCrucialCheckpoint: false,
         description: isFr
-          ? 'Relais réguliers de 20-30 secondes à 33 km/h avec 15-20% d’économie d’effort à l’abri du vent.'
-          : 'Smooth 20-30s pulls at 33 km/h, harvesting 15-20% aerodynamic savings in the echelon.',
+          ? 'Relais réguliers de 20–30 s à 33 km/h avec 15–20 % d’économie d’effort à l’abri du vent.'
+          : 'Smooth 20–30 s pulls at 33 km/h, saving 15–20% effort riding in the draft.',
         iconName: 'Users',
       });
     }
@@ -407,15 +636,15 @@ export function calculateReverseTimeline(
       if (fuelStep) {
         fuelStep.title = isQuant
           ? isFr
-            ? `Protocole ${riderCarbs}g Glucides/h & Électrolytes`
-            : `Tailored Carb Pacing (${riderCarbs}g/hr) & Electrolytes`
+            ? `Ravitaillement ${riderCarbs} g glucides/h & électrolytes`
+            : `Tailored Carb Pacing (${riderCarbs} g/h) & Electrolytes`
           : isFr
-          ? `Protocole Ravito (${fuelRateText}) & Électrolytes`
+          ? `Ravitaillement (${fuelRateText}) & électrolytes`
           : `Steady Fueling (${fuelRateText}) & Electrolytes`;
         fuelStep.description = isQuant
           ? isFr
-            ? `Apport régulier calibré sur votre tolérance digestive (${riderCarbs}g/h) + recharge sodium 500–750 mg pour éviter toute fringale.`
-            : `Steady fueling calibrated to your gut capacity (${riderCarbs}g/hr) + 500–750mg sodium reload to prevent bonking and cramping.`
+            ? `Apport régulier calibré sur votre tolérance digestive (${riderCarbs} g/h) + recharge sodium 500–750 mg pour éviter toute fringale.`
+            : `Steady fueling calibrated to your gut capacity (${riderCarbs} g/h) + 500–750 mg sodium reload to prevent bonking and cramping.`
           : isFr
           ? `Apport régulier calibré sur votre confort digestif (${fuelRateText}) + boisson électrolytes pour éviter le coup de mou.`
           : `Steady fueling calibrated to your digestion comfort (${fuelRateText}) + electrolyte sips to prevent energy dips.`;
@@ -430,13 +659,13 @@ export function calculateReverseTimeline(
       {
         id: 'bp-stowage-check',
         time: wakeUpTime,
-        title: isFr ? 'Chargement des sacoches & repas' : 'Pack bags & snacks',
-        location: isFr ? 'Camp / Domicile' : 'Camp / Home Base',
+        title: isFr ? 'Répartition du poids sacoches & repas' : 'Pannier / Saddlebag weight distribution & meals',
+        location: isFr ? 'Camp / Départ' : 'Camp / Base',
         category: 'prep',
         isCrucialCheckpoint: true,
         description: isFr
-          ? 'Compression des sacs étanches, équilibrage de la sacoche de cadre, contrôle du couchage et de la filtration d’eau.'
-          : 'Pack dry bags, balance frame bag weight, inspect sleeping kit and water filtration gear.',
+          ? 'Compression des sacs étanches, répartition du poids sacoches / sac de selle, contrôle du couchage et de la filtration d’eau.'
+          : 'Pack dry bags, balance pannier / saddlebag weight distribution, inspect sleeping kit and water filtration gear.',
         iconName: 'AlarmClock',
       },
       {
@@ -490,13 +719,13 @@ export function calculateReverseTimeline(
       {
         id: 'bp-camp-settle',
         time: campPitchTime,
-        title: isFr ? 'Montage Bivouac & Repas Chaud' : 'Bivouac Setup & Calorie Refuel',
+        title: isFr ? 'Montage Bivouac, Recharge & Récupération' : 'Bivouac Setup, Evening Charging & Recovery',
         location: isFr ? 'Zone de Bivouac' : 'Bivouac Site',
         category: 'prep',
         isCrucialCheckpoint: false,
         description: isFr
-          ? 'Montage de la tente, aération de la tenue et réchaud pour un dîner riche de récupération.'
-          : 'Pitch shelter, hang bike kit to air dry, fire stove for warm calorie-dense recovery meal.',
+          ? 'Montage de la tente, recharge GPS/phares sur batterie externe, étirements et dîner chaud de récupération.'
+          : 'Pitch shelter, plug GPS/lights into power bank for evening charging, air kit and enjoy warm recovery meal.',
         iconName: 'Coffee',
       },
     ];
@@ -567,13 +796,13 @@ export function calculateReverseTimeline(
       {
         id: 'prep-hydration',
         time: wakeUpTime,
-        title: isFr ? 'Préparation Bagages & Hydratation' : 'Stage Equipment & Hydration Primer',
-        location: isFr ? 'Domicile' : 'Home Base',
+        title: isFr ? 'Répartition sacoches & hydratation' : 'Pannier balance & hydration primer',
+        location: isFr ? 'Départ' : 'Home / Start',
         category: 'prep',
         isCrucialCheckpoint: false,
         description: isFr
-          ? 'Boire 400 ml d’eau avec électrolytes. Dernier contrôle des sacoches (chargeurs, tenue du soir).'
-          : 'Drink 400ml water with electrolytes. Final pack check (chargers, overnight kit).',
+          ? 'Boire 400 ml d’eau avec électrolytes. Contrôler la répartition du poids sacoches / sac de selle (chargeurs, tenue du soir).'
+          : 'Drink 400 ml water with electrolytes. Check pannier / saddlebag weight distribution (chargers, overnight kit).',
         iconName: 'AlarmClock',
       },
       {
@@ -585,7 +814,7 @@ export function calculateReverseTimeline(
         isCrucialCheckpoint: true,
         description: isFr
           ? `${compliantPantry.preRide.nameFr} + expresso. Remplissage des ${slots} bidon${slots > 1 ? 's' : ''} pour la route.`
-          : `${compliantPantry.preRide.nameEn} + espresso. Fill ${slots}x water bottle${slots > 1 ? 's' : ''} for the road.`,
+          : `${compliantPantry.preRide.nameEn} + espresso. Fill ${slots}× water bottle${slots > 1 ? 's' : ''} for the road.`,
         iconName: 'Utensils',
       },
       {
@@ -639,25 +868,25 @@ export function calculateReverseTimeline(
       {
         id: 'hotel-checkin',
         time: targetArrival,
-        title: isFr ? 'Check-In & Local Vélo Sécurisé' : 'Check-In & Secure Bike Storage',
+        title: isFr ? 'Check-In Hôtel & Local Vélo Sécurisé' : 'Hotel Check-In & Secure Bike Storage',
         location: isFr ? 'Réception Hôtel' : 'Hotel Reception',
         category: 'office',
         isCrucialCheckpoint: true,
         description: isFr
           ? 'Enregistrement à la réception, rangement du vélo au local fermé et dépôt des bagages.'
-          : 'Check in, secure bike in dedicated room/rack, and drop luggage.',
+          : 'Hotel Check-in at reception, secure bike in dedicated storage/room, and unload panniers.',
         iconName: 'Briefcase',
       },
       {
         id: 'freshen-up',
         time: roomSettleTime,
-        title: isFr ? 'Douche, Récup & Tenue Civile' : 'Shower, Refresh & Casual Kit Change',
+        title: isFr ? 'Recharge Soir, Douche & Récupération' : 'Evening Charging, Shower & Recovery',
         location: isFr ? "Chambre d'Hôtel" : 'Hotel Room',
         category: 'prep',
         isCrucialCheckpoint: false,
         description: isFr
-          ? 'Douche chaude, réhydratation et passage en tenue de ville confortable.'
-          : 'Hot shower, rehydrate, slip into off-bike walking clothes.',
+          ? 'Mise en charge GPS, phares et batterie externe, douche chaude, réhydratation et tenue de soirée.'
+          : 'Plug GPS, lights & power bank for evening charging, hot shower, rehydrate, and slip into casual clothes.',
         iconName: 'ShowerHead',
       },
       {
@@ -752,7 +981,7 @@ export function calculateReverseTimeline(
         isCrucialCheckpoint: false,
         description: isFr
           ? 'Boire 300 ml d’eau fraîche avec une pincée de sel. Mise en route.'
-          : 'Drink 300ml fresh water with pinch of salt. Wake up and get ready.',
+          : 'Drink 300 ml fresh water with pinch of salt. Wake up and get ready.',
         iconName: 'AlarmClock',
       },
       {
@@ -805,47 +1034,47 @@ export function calculateReverseTimeline(
         description: weather.isHeadwindActive
           ? showWatts
             ? isFr
-              ? `Vent de face détecté (${windKmh} km/h). Position aéro sur les cocottes pour économiser ~${Math.round(windKmh * 3.5)}W.`
-              : `Headwind detected (${windKmh} km/h). Hold aero tuck to conserve ~${Math.round(windKmh * 3.5)}W.`
+              ? `Vent de face détecté (${windKmh} km/h). Position basse sur les cocottes pour économiser ~${Math.round(windKmh * 3.5)} W.`
+              : `Headwind detected (${windKmh} km/h). Tuck low on the hoods to save ~${Math.round(windKmh * 3.5)} W.`
             : isFr
             ? `Vent de face détecté (${windKmh} km/h). Position basse sur les cocottes pour protéger votre allure face au vent.`
-            : `Headwind detected (${windKmh} km/h). Hold a low aero posture to save energy into the wind.`
+            : `Headwind detected (${windKmh} km/h). Hold a low riding posture to save energy into the wind.`
           : isFr
-          ? 'Vent calme sur le parcours. Cadence d’endurance régulière (88–92 tr/min).'
-          : 'Calm road conditions. Cruise at steady endurance cadence (88-92 RPM).',
+          ? 'Vent calme sur le parcours. Cadence régulière (88–92 tr/min).'
+          : 'Calm road conditions. Cruise at a steady cadence (88–92 RPM).',
         iconName: 'Wind',
       },
       {
         id: 'gate-security',
         time: gateTurnstileTime,
         title: isFr
-          ? `Arrivée au Portillon Sécurité (${localizedGate})`
+          ? `Arrivée & stationnement vélo (${localizedGate})`
           : `Arrival & Bike Lockup (${localizedGate})`,
         location: localizedGate,
         category: 'transit',
         isCrucialCheckpoint: true,
         description: isFr
-          ? `Scan du badge à ${localizedGate}. Stationnement sécurisé au parking vélo.`
-          : `Badge scan at ${localizedGate}. Lock bike in secure facility.`,
+          ? `Arrivée à ${localizedGate} et stationnement du vélo.`
+          : `Arrive at ${localizedGate} and lock your bike.`,
         iconName: 'ShieldCheck',
       },
       {
         id: 'locker-refuel',
         time: gateArrivalAnchor,
-        title: isFr ? 'Collation au vestiaire' : 'Locker room snack',
-        location: isFr ? 'Vestiaires' : 'Locker room',
+        title: isFr ? 'Collation à l’arrivée' : 'Arrival snack',
+        location: isFr ? 'À l’arrivée' : 'At work',
         category: 'nutrition',
         isCrucialCheckpoint: true,
         description: isFr
-          ? 'Recharge glycémique et protéinée rapide avant la douche.'
-          : 'Fast glycemic reload before shower.',
+          ? 'Collation rapide avant la douche.'
+          : 'Quick snack before showering.',
         iconName: 'Zap',
       },
       {
         id: 'shower-groom',
         time: lockerRefuelEnd,
         title: isFr ? 'Douche & Tenue de Travail' : 'Shower & Clean Kit Change',
-        location: isFr ? 'Douches' : 'Locker room',
+        location: isFr ? 'Douches' : 'Showers',
         category: 'office',
         isCrucialCheckpoint: false,
         description: isFr
@@ -954,16 +1183,34 @@ export function calculateReverseTimeline(
     }
   }
 
+  // Inject intermediate stops between Point A and Point B (Configurator waypoints + Resupply Radar pins)
+  const intermediateStops = buildIntermediateStopSteps(
+    route,
+    physicsSpeedOverride?.pinnedAmenities || [],
+    hardDepartureTime,
+    totalRideMinutes,
+    isFr
+  );
+  if (intermediateStops.length > 0) {
+    steps.push(...intermediateStops);
+  }
+
   // Ensure steps are strictly ordered chronologically relative to wakeUpTime (midnight-wrap safe)
   const toMinutes = (hhmm: string) => {
     const [h, m] = (hhmm || '00:00').split(':').map(Number);
     return (h || 0) * 60 + (m || 0);
   };
+  const getStepSortRank = (step: TimelineStep): number => {
+    if (ROLLOUT_STEP_PRIORITY_IDS.has(step.id)) return -1;
+    if (ARRIVAL_STEP_PRIORITY_IDS.has(step.id)) return 1;
+    return 0;
+  };
   const anchorMinutes = toMinutes(wakeUpTime);
   steps.sort((a, b) => {
     const relA = (toMinutes(a.time) - anchorMinutes + 1440) % 1440;
     const relB = (toMinutes(b.time) - anchorMinutes + 1440) % 1440;
-    return relA - relB;
+    if (relA !== relB) return relA - relB;
+    return getStepSortRank(a) - getStepSortRank(b);
   });
 
   const totalDoorToDeskMinutes =

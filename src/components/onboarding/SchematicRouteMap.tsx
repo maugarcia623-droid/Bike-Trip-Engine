@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useTheme } from '../../context/ThemeContext';
+import { RouteWaypoint } from '../../types/trip';
 import { DEFAULT_NANTES_ROUTE_COORDS } from './constants';
 
 interface SchematicRouteMapProps {
@@ -10,6 +11,7 @@ interface SchematicRouteMapProps {
   distanceKm?: number;
   estimatedMinutes?: number;
   coordinates?: [number, number][];
+  waypoints?: RouteWaypoint[];
   className?: string;
   showLabels?: boolean;
 }
@@ -20,6 +22,7 @@ export const SchematicRouteMap: React.FC<SchematicRouteMapProps> = ({
   distanceKm = 6.0,
   estimatedMinutes = 20,
   coordinates = DEFAULT_NANTES_ROUTE_COORDS,
+  waypoints,
   className = '',
   showLabels = true,
 }) => {
@@ -98,6 +101,21 @@ export const SchematicRouteMap: React.FC<SchematicRouteMapProps> = ({
         weight: 2,
         fillOpacity: 1,
       }).addTo(map);
+
+      // Intermediate Waypoints
+      if (waypoints && waypoints.length > 0) {
+        waypoints.forEach((wp) => {
+          if (wp.coordinates) {
+            L.circleMarker(wp.coordinates, {
+              radius: 5.5,
+              fillColor: '#F2F455',
+              color: isDark ? '#111113' : '#111111',
+              weight: 2,
+              fillOpacity: 1,
+            }).addTo(map);
+          }
+        });
+      }
 
       // Fit map view bounds with ergonomic padding
       const bounds = routeLine.getBounds();

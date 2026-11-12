@@ -56,6 +56,7 @@ export interface RenderTelemetryCardOptions {
   heroMetric?: 'work' | 'power';
   customTimestamp?: string;
   ftpWatts?: number;
+  lang?: 'en' | 'fr';
 }
 
 // ─── Canvas & Ticket Safe-Zone Architecture (1080 x 1920 px, 9:16) ───
@@ -104,6 +105,14 @@ const ZONE_TOKENS: Record<PowerZoneCode, ZoneToken> = {
   Z3: { bg: '#FFFBEB', ring: '#D97706', text: '#92400E', name: 'Z3 Tempo' },
   Z4: { bg: '#FFF7ED', ring: '#EA580C', text: '#C2410C', name: 'Z4 Threshold' },
   Z5: { bg: '#FFF1F2', ring: '#E11D48', text: '#BE123C', name: 'Z5 VO2 Max' },
+};
+
+const ZONE_LABELS_FR: Record<PowerZoneCode, string> = {
+  Z1: 'Z1 Récupération',
+  Z2: 'Z2 Endurance',
+  Z3: 'Z3 Tempo',
+  Z4: 'Z4 Seuil',
+  Z5: 'Z5 VO2 Max',
 };
 
 // ─── Dual-Voice Typography (DESIGN_SYSTEM.md Section 6) ───
@@ -159,10 +168,41 @@ function resolveCogganZone(watts: number, ftpWatts: number): PowerZoneCode {
 /**
  * Format date string into uppercase editorial format (e.g. "THURSDAY, NOVEMBER 3RD")
  */
-function formatEditorialDate(rawDate?: string, customTimestamp?: string): string {
+function formatEditorialDate(
+  rawDate?: string,
+  customTimestamp?: string,
+  lang: 'en' | 'fr' = 'en'
+): string {
   if (customTimestamp) return customTimestamp.toUpperCase();
   const dateObj = rawDate ? new Date(rawDate) : new Date();
   const validDate = isNaN(dateObj.getTime()) ? new Date() : dateObj;
+
+  if (lang === 'fr') {
+    const daysFr = [
+      'DIMANCHE',
+      'LUNDI',
+      'MARDI',
+      'MERCREDI',
+      'JEUDI',
+      'VENDREDI',
+      'SAMEDI',
+    ];
+    const monthsFr = [
+      'JANVIER',
+      'FÉVRIER',
+      'MARS',
+      'AVRIL',
+      'MAI',
+      'JUIN',
+      'JUILLET',
+      'AOÛT',
+      'SEPTEMBRE',
+      'OCTOBRE',
+      'NOVEMBRE',
+      'DÉCEMBRE',
+    ];
+    return `${daysFr[validDate.getDay()]} ${validDate.getDate()} ${monthsFr[validDate.getMonth()]}`;
+  }
 
   const days = [
     'SUNDAY',
@@ -281,7 +321,11 @@ function normalizeData(
   const ftpWatts = options?.ftpWatts ?? data.ftpWatts ?? 210;
   const powerZone = data.powerZone ?? resolveCogganZone(avgPower, ftpWatts);
 
-  const dateStr = formatEditorialDate(data.departureDate, options?.customTimestamp ?? data.timestamp);
+  const dateStr = formatEditorialDate(
+    data.departureDate,
+    options?.customTimestamp ?? data.timestamp,
+    options?.lang ?? 'en'
+  );
 
   const coordinates = normalizeCoordinates(data.coordinates);
 
@@ -877,38 +921,40 @@ function drawTopRouteTrace(
  */
 function drawPhysicsLedger(
   ctx: CanvasRenderingContext2D,
-  data: NormalizedData
+  data: NormalizedData,
+  lang: 'en' | 'fr' = 'en'
 ): void {
   ctx.save();
+  const isFr = lang === 'fr';
 
   const startY = 935;
   const rowHeight = 112;
 
-  // Signed Wind Tax formatting
+  // Signed Wind Impact formatting
   const windTaxVal = Math.round(data.windTax);
   const windTaxStr = windTaxVal > 0 ? `+${windTaxVal}` : `${windTaxVal}`;
 
   const rows = [
     {
-      title: 'WIND TAX',
-      caption: 'Aerodynamic drag surcharge',
+      title: isFr ? 'EFFET DU VENT' : 'WIND IMPACT',
+      caption: isFr ? 'Résistance aérodynamique du vent' : 'Aero wind resistance',
       value: windTaxStr,
       unit: 'WATTS',
     },
     {
-      title: 'CARB BURN',
-      caption: 'Hourly glycogen oxidation',
+      title: isFr ? 'GLUCIDES' : 'CARB BURN',
+      caption: isFr ? 'Dépense horaire estimée' : 'Hourly carb energy',
       value: String(Math.round(data.carbBurn)),
       unit: 'G/H',
     },
     {
-      title: 'AIR DENSITY',
-      caption: 'Barometric air resistance (ρ)',
+      title: isFr ? 'DENSITÉ DE L’AIR' : 'AIR DENSITY',
+      caption: isFr ? 'Densité atmosphérique locale (ρ)' : 'Local air density (ρ)',
       value: data.airDensity.toFixed(2),
       unit: 'KG/M³',
     },
     {
-      title: 'EFFORT ZONE',
+      title: isFr ? 'ZONE D’EFFORT' : 'EFFORT ZONE',
       caption: '', // Custom Coggan pill badge rendered below title
       value: `${Math.round(data.avgPower)}`,
       unit: 'W',
@@ -938,13 +984,16 @@ function drawPhysicsLedger(
       ctx.fillText(row.title, 100, rowY + 34);
 
       const zoneToken = ZONE_TOKENS[data.powerZone] || ZONE_TOKENS.Z1;
+      const zoneLabel = isFr
+        ? ZONE_LABELS_FR[data.powerZone] || ZONE_LABELS_FR.Z1
+        : zoneToken.name;
       const pillX = 100;
       const pillY = rowY + 46;
       const pillHeight = 46;
       const pillRadius = 23;
 
       ctx.font = `700 24px ${FONT_ROUNDED}`;
-      const zoneTextW = ctx.measureText(zoneToken.name).width;
+      const zoneTextW = ctx.measureText(zoneLabel).width;
       const pillW = zoneTextW + 36; // 18px padding on each side
 
       drawRoundedRect(ctx, pillX, pillY, pillW, pillHeight, pillRadius);
@@ -958,7 +1007,7 @@ function drawPhysicsLedger(
       ctx.fillStyle = zoneToken.text;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(zoneToken.name, pillX + pillW / 2, pillY + pillHeight / 2);
+      ctx.fillText(zoneLabel, pillX + pillW / 2, pillY + pillHeight / 2);
     }
 
     // 2. Right Big Number at x = 855 (right-aligned, 68px extrabold rounded #111111)
@@ -1000,9 +1049,11 @@ function drawPhysicsLedger(
  */
 function drawBottomFooterPod(
   ctx: CanvasRenderingContext2D,
-  data: NormalizedData
+  data: NormalizedData,
+  lang: 'en' | 'fr' = 'en'
 ): void {
   ctx.save();
+  const isFr = lang === 'fr';
 
   const podX = 92;
   const podY = 1430;
@@ -1032,29 +1083,31 @@ function drawBottomFooterPod(
 
   // 3. Column Data
   const bidons = Math.max(1, Math.round(data.distanceKm / 35));
-  const bidonDisplay = `${bidons}x Bidon${bidons > 1 ? 's' : ''}`;
+  const bidonDisplay = isFr
+    ? `${bidons}× Bidon${bidons > 1 ? 's' : ''}`
+    : `${bidons}× Bottle${bidons > 1 ? 's' : ''}`;
   const totalKjDisplay = `${Math.round(data.totalKj)} kJ`;
 
   const columns = [
     {
       x: 136,
-      label: 'MECHANICAL WORK',
+      label: isFr ? 'TRAVAIL TOTAL' : 'TOTAL WORK',
       value: totalKjDisplay,
-      subLabel: 'Total crank output',
+      subLabel: isFr ? 'Énergie dépensée' : 'Energy spent',
       valueColor: COLOR_INK,
     },
     {
       x: 425,
-      label: 'HYDRATION PLAN',
+      label: isFr ? 'HYDRATATION' : 'HYDRATION',
       value: bidonDisplay,
-      subLabel: '~650 ml fluid target',
+      subLabel: isFr ? '~650 ml par bidon' : '~650 ml target',
       valueColor: COLOR_INK,
     },
     {
       x: 715,
-      label: 'FUEL CLEARANCE',
-      value: 'Cleared',
-      subLabel: 'Pre-flight verified',
+      label: isFr ? 'RAVITAILLEMENT' : 'FUELING',
+      value: isFr ? 'Prêt' : 'Ready',
+      subLabel: isFr ? 'Plan vérifié' : 'Plan ready',
       valueColor: COLOR_BEACON_GREEN, // #3D9A00
     },
   ];
@@ -1144,11 +1197,13 @@ export async function renderTelemetryCardToCanvas(
   // 5. Top Route Trace — Real GPX Path & Yellow-Vest Badges (y = 660 to 840)
   drawTopRouteTrace(ctx, normalized);
 
+  const lang = options.lang ?? 'en';
+
   // 6. Enriched Middle Receipt Ledger (Eliminate empty white space, y = 935 to 1383)
-  drawPhysicsLedger(ctx, normalized);
+  drawPhysicsLedger(ctx, normalized, lang);
 
   // 7. 3-Column Peloton Summary Pod (y = 1430 to 1626)
-  drawBottomFooterPod(ctx, normalized);
+  drawBottomFooterPod(ctx, normalized, lang);
 
   return canvas;
 }

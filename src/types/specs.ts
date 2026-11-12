@@ -33,6 +33,7 @@ export interface BikeSpec {
   crr: number;
   cda: number;
   isTubeless: boolean;
+  tireWidthMm?: number;
 }
 
 export interface RiderBikeSpecs {
@@ -76,8 +77,8 @@ export const DEFAULT_RIDER_BIKE_SPECS: RiderBikeSpecs = {
   ],
   customPantryItems: [],
   riderLevel: 'regular',
-  cockpitViewMode: 'pro',
-  telemetryMode: 'quantitative',
+  cockpitViewMode: 'essential',
+  telemetryMode: 'fuel-first',
   pacingInputMode: 'feel',
   bidonSizeMl: 650,
   frameBottleSlots: 2,
@@ -93,6 +94,7 @@ export const DEFAULT_RIDER_BIKE_SPECS: RiderBikeSpecs = {
       crr: 0.0055,
       cda: 0.38,
       isTubeless: true,
+      tireWidthMm: 38,
     },
     {
       id: 'bike-aeroad',
@@ -101,6 +103,7 @@ export const DEFAULT_RIDER_BIKE_SPECS: RiderBikeSpecs = {
       crr: 0.0040,
       cda: 0.32,
       isTubeless: true,
+      tireWidthMm: 28,
     },
     {
       id: 'bike-urban',
@@ -109,6 +112,7 @@ export const DEFAULT_RIDER_BIKE_SPECS: RiderBikeSpecs = {
       crr: 0.0070,
       cda: 0.44,
       isTubeless: false,
+      tireWidthMm: 42,
     },
   ],
 };

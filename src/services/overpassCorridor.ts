@@ -186,9 +186,9 @@ out center qt 200;`;
 }
 
 /**
- * Snaps an OSM element to the nearest polyline vertex.
+ * Snaps an OSM element or GPS coordinate to the nearest polyline vertex.
  */
-function snapToPolyline(
+export function snapToPolyline(
   lat: number,
   lon: number,
   coordinates: [number, number][],
@@ -198,6 +198,7 @@ function snapToPolyline(
   routeKm: number;
   detourMeters: number;
   elevationMeters?: number;
+  nearestIdx: number;
 } {
   let minDetour = Infinity;
   let nearestIdx = 0;
@@ -226,7 +227,32 @@ function snapToPolyline(
     }
   }
 
-  return { routeKm, detourMeters, elevationMeters };
+  return { routeKm, detourMeters, elevationMeters, nearestIdx };
+}
+
+/**
+ * Re-snaps an array of StageAmenities against updated route coordinates (e.g. after rerouting).
+ */
+export function resnapAmenitiesToRoute(
+  amenities: StageAmenity[],
+  coordinates: [number, number][],
+  elevationProfile?: { distKm: number; eleM: number }[]
+): StageAmenity[] {
+  if (!coordinates || coordinates.length < 2 || amenities.length === 0) {
+    return amenities;
+  }
+  const cumDistancesMeters = computeCumulativeDistances(coordinates);
+  return amenities
+    .map((item) => {
+      const snapped = snapToPolyline(item.lat, item.lon, coordinates, cumDistancesMeters, elevationProfile);
+      return {
+        ...item,
+        routeKm: snapped.routeKm,
+        detourMeters: snapped.detourMeters,
+        elevationMeters: snapped.elevationMeters ?? item.elevationMeters,
+      };
+    })
+    .sort((a, b) => a.routeKm - b.routeKm);
 }
 
 /**
@@ -296,7 +322,7 @@ function parseOsmAmenity(
     } else if (subType === 'bicycle_repair_station') {
       fallbackName = isFr ? 'Station gonflage & outils' : 'Bike Repair Station';
     } else {
-      fallbackName = isFr ? 'Abri & Refuge' : 'Corridor Shelter';
+      fallbackName = isFr ? 'Abri & Refuge' : 'Trail Shelter';
     }
   } else {
     return null;
@@ -472,14 +498,17 @@ function generateCorridorFallbackAmenities(
 }
 
 /**
- * Executes resilient Overpass query with failover and 4.5s timeout across public mirrors.
+ * Executes resilient Overpass query with failover and configurable timeout across public mirrors.
  */
-async function fetchOverpassWithFailover(query: string): Promise<any> {
+export async function fetchOverpassWithFailover(
+  query: string,
+  timeoutMs = 4500
+): Promise<any> {
   let lastError: Error | null = null;
 
   for (const endpoint of OVERPASS_ENDPOINTS) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4500);
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
       const response = await fetch(endpoint, {

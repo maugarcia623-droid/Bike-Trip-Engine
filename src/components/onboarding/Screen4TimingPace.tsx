@@ -1,9 +1,6 @@
 import React, { useState } from 'react';
 import {
-  ArrowLeft,
-  ArrowRight,
   Cloud,
-  Sun,
   SpinnerGap,
   Check,
   Coffee,
@@ -36,20 +33,20 @@ interface ArchetypeChipItem {
 const ARCHETYPE_CHIPS_BY_PURPOSE: Record<string, ArchetypeChipItem[]> = {
   commute: [
     { id: 'coffee-stop', labelEn: 'Coffee stop (+15 min)', labelFr: 'Pause café (+15 min)', theme: 'amber', icon: Coffee, addedBufferMin: 15 },
-    { id: 'shower-buffer', labelEn: 'Locker & shower (+15 min)', labelFr: 'Douche & vestiaire (+15 min)', theme: 'teal', icon: Shower, addedBufferMin: 15 },
+    { id: 'shower-buffer', labelEn: 'Shower & changing (+15 min)', labelFr: 'Douche & changement (+15 min)', theme: 'teal', icon: Shower, addedBufferMin: 15 },
     { id: 'rush-hour-buffer', labelEn: 'Rush hour buffer (+10 min)', labelFr: 'Marge heure de pointe (+10 min)', theme: 'orange', icon: Gauge, addedBufferMin: 10 },
-    { id: 'real-food', labelEn: 'Real food fuel', labelFr: 'Ravitaillement réel', theme: 'emerald', icon: Apple },
+    { id: 'real-food', labelEn: 'Real food fuel', labelFr: 'Aliments naturels', theme: 'emerald', icon: Apple },
     { id: 'night-transit', labelEn: 'Night lights setup', labelFr: 'Éclairage nocturne', theme: 'purple', icon: Moon },
   ],
   sport: [
-    { id: 'aero-bars', labelEn: 'Aero posture tuck', labelFr: 'Posture aéro agressive', theme: 'sky', icon: BikeFast },
+    { id: 'aero-bars', labelEn: 'Aero riding position', labelFr: 'Position aérodynamique', theme: 'sky', icon: BikeFast },
     { id: 'warmup-rollout', labelEn: 'Warmup spin (+10 min)', labelFr: 'Échauffement (+10 min)', theme: 'orange', icon: Flame, addedBufferMin: 10 },
-    { id: 'real-food', labelEn: 'Carb nutrition fuel', labelFr: 'Carburant glucidique', theme: 'emerald', icon: Apple },
+    { id: 'real-food', labelEn: 'Real food fuel', labelFr: 'Aliments naturels', theme: 'emerald', icon: Apple },
   ],
   bikepacking: [
     { id: 'bivouac-stop', labelEn: 'Bivouac rest stop (+20 min)', labelFr: 'Étape bivouac (+20 min)', theme: 'emerald', icon: Tent, addedBufferMin: 20 },
-    { id: 'water-resupply', labelEn: 'Water resupply (+10 min)', labelFr: 'Ravitaillement eau (+10 min)', theme: 'blue', icon: Bottle, addedBufferMin: 10 },
-    { id: 'real-food', labelEn: 'Trail real food', labelFr: 'Vraie nourriture trail', theme: 'amber', icon: Apple },
+    { id: 'water-resupply', labelEn: 'Water refill stop (+10 min)', labelFr: 'Point d’eau (+10 min)', theme: 'blue', icon: Bottle, addedBufferMin: 10 },
+    { id: 'real-food', labelEn: 'Trail real food', labelFr: 'Aliments naturels', theme: 'amber', icon: Apple },
   ],
   leisure: [
     { id: 'bakery-raid', labelEn: 'Bakery stop (+15 min)', labelFr: 'Pause boulangerie (+15 min)', theme: 'amber', icon: Coffee, addedBufferMin: 15 },
@@ -84,8 +81,6 @@ interface Screen4TimingPaceProps {
     headwindKmH: number;
     windDirection: string;
   }) => void;
-  onBack: () => void;
-  onContinue: () => void;
 }
 
 function formatMinutesToTime(totalMins: number): string {
@@ -121,8 +116,6 @@ export const Screen4TimingPace: React.FC<Screen4TimingPaceProps> = ({
   gradientPercent,
   onChangeGradient,
   onWeatherFetched,
-  onBack,
-  onContinue,
 }) => {
   const { lang } = useTranslation();
   const isFr = lang === 'fr';
@@ -202,9 +195,9 @@ export const Screen4TimingPace: React.FC<Screen4TimingPaceProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start flex-1">
         {/* Left Column: Timing & Pace Form */}
         <div className="lg:col-span-7 flex flex-col">
-          <div className="inline-flex items-center gap-2 text-xs font-mono font-bold tracking-wider text-ink-muted uppercase mb-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-volt" />
-            <span>{isFr ? 'HORAIRES & ALLURE' : 'TIMING & PACE'}</span>
+          <div className="inline-flex items-center gap-2 text-xs font-rounded font-semibold text-ink-muted mb-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#4D7C0F] dark:bg-volt" />
+            <span>{isFr ? 'Horaires & allure' : 'Timing & pace'}</span>
           </div>
 
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold font-rounded tracking-tight text-ink leading-tight mb-3">
@@ -234,7 +227,7 @@ export const Screen4TimingPace: React.FC<Screen4TimingPaceProps> = ({
               }}
               className={`p-3.5 sm:p-4 rounded-pod flex items-center justify-between cursor-pointer select-none transition-all active:scale-[0.98] min-h-[50px] ${
                 targetMode === 'arrive'
-                  ? 'bg-card text-ink ring-2 ring-inset ring-volt shadow-xs'
+                  ? 'bg-card text-ink ring-2 ring-inset ring-[#4D7C0F] dark:ring-volt shadow-xs'
                   : 'bg-card hover:bg-pod/60 text-ink ring-1 ring-inset ring-black/10 dark:ring-white/10'
               }`}
             >
@@ -242,12 +235,12 @@ export const Screen4TimingPace: React.FC<Screen4TimingPaceProps> = ({
                 <div
                   className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 border transition-colors ${
                     targetMode === 'arrive'
-                      ? 'border-volt dark:border-volt'
+                      ? 'border-2 border-[#4D7C0F] dark:border-volt'
                       : 'border-ink/40 dark:border-white/40'
                   }`}
                 >
                   {targetMode === 'arrive' && (
-                    <div className="w-2 h-2 rounded-full bg-volt" />
+                    <div className="w-2 h-2 rounded-full bg-[#4D7C0F] dark:bg-volt" />
                   )}
                 </div>
                 <span className="text-sm font-rounded font-bold text-ink">
@@ -272,7 +265,7 @@ export const Screen4TimingPace: React.FC<Screen4TimingPaceProps> = ({
               }}
               className={`p-3.5 sm:p-4 rounded-pod flex items-center justify-between cursor-pointer select-none transition-all active:scale-[0.98] min-h-[50px] ${
                 targetMode === 'depart'
-                  ? 'bg-card text-ink ring-2 ring-inset ring-volt shadow-xs'
+                  ? 'bg-card text-ink ring-2 ring-inset ring-[#4D7C0F] dark:ring-volt shadow-xs'
                   : 'bg-card hover:bg-pod/60 text-ink ring-1 ring-inset ring-black/10 dark:ring-white/10'
               }`}
             >
@@ -280,12 +273,12 @@ export const Screen4TimingPace: React.FC<Screen4TimingPaceProps> = ({
                 <div
                   className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 border transition-colors ${
                     targetMode === 'depart'
-                      ? 'border-volt dark:border-volt'
+                      ? 'border-2 border-[#4D7C0F] dark:border-volt'
                       : 'border-ink/40 dark:border-white/40'
                   }`}
                 >
                   {targetMode === 'depart' && (
-                    <div className="w-2 h-2 rounded-full bg-volt" />
+                    <div className="w-2 h-2 rounded-full bg-[#4D7C0F] dark:bg-volt" />
                   )}
                 </div>
                 <span className="text-sm font-rounded font-bold text-ink">
@@ -423,7 +416,19 @@ export const Screen4TimingPace: React.FC<Screen4TimingPaceProps> = ({
           {/* Commute Parking & Preparation Buffer */}
           <div className="mb-5">
             <label className="block text-xs font-medium text-ink-secondary mb-1.5 font-body">
-              {isFr
+              {purposeId === 'leisure'
+                ? isFr
+                  ? 'Pause café, visite ou déchargement · marge'
+                  : 'Stopover, sightseeing & bike parking buffer'
+                : purposeId === 'bikepacking'
+                ? isFr
+                  ? 'Installation bivouac, recharge soir & rangement · marge'
+                  : 'Camp setup, evening charging & gear buffer'
+                : purposeId === 'sport'
+                ? isFr
+                  ? 'Retour au calme, rangement vélo & marge d’arrivée'
+                  : 'Cooldown, bike check & arrival buffer'
+                : isFr
                 ? 'Temps de stationnement & préparation · marge'
                 : 'Time to park & get ready · commute buffer'}
             </label>
@@ -445,7 +450,7 @@ export const Screen4TimingPace: React.FC<Screen4TimingPaceProps> = ({
           {/* Trip Archetype Chips Options */}
           <div className="mb-5">
             <div className="text-xs font-medium text-ink-secondary mb-2 font-body">
-              {isFr ? 'Options et badges opérationnels du trajet :' : 'Trip archetype chips & options:'}
+              {isFr ? 'Options pour cette sortie' : 'Helpful ride options'}
             </div>
             <div className="flex flex-wrap gap-2">
               {activeArchetypeChips.map((chipDef) => {
@@ -601,37 +606,6 @@ export const Screen4TimingPace: React.FC<Screen4TimingPaceProps> = ({
             </p>
           </div>
         </div>
-      </div>
-
-      {/* Footer Navigation Bar - Sticky Mobile Bar */}
-      <div className="sticky bottom-0 z-20 bg-card/95 backdrop-blur-md pt-3 sm:pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-4 border-t border-black/10 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 shrink-0 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_16px_rgba(0,0,0,0.3)] -mx-4 sm:-mx-8 md:-mx-10 px-4 sm:px-8 md:px-10 mt-auto">
-        <button
-          type="button"
-          onClick={onBack}
-          className="min-h-[44px] px-4 py-2 rounded-full border border-black/15 dark:border-white/20 bg-card hover:bg-pod text-ink text-xs font-rounded font-bold transition-all active:scale-[0.98] cursor-pointer flex items-center gap-1.5 w-full sm:w-auto justify-center"
-        >
-          <ArrowLeft size={14} />
-          <span>{isFr ? 'Retour' : 'Back'}</span>
-        </button>
-
-        <span className="hidden sm:inline text-xs text-ink-muted font-body">
-          {targetMode === 'arrive'
-            ? isFr
-              ? `Départ calculé : ${leaveTimeFormatted}`
-              : `Calculated departure: ${leaveTimeFormatted}`
-            : isFr
-            ? `Arrivée calculée : ${arriveTimeFormatted}`
-            : `Calculated arrival: ${arriveTimeFormatted}`}
-        </span>
-
-        <button
-          type="button"
-          onClick={onContinue}
-          className="min-h-[44px] px-5 py-2 rounded-full bg-volt text-[#4d5200] ring-2 ring-inset ring-[#a3b300] text-xs font-rounded font-bold hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer flex items-center gap-1.5 shadow-sm w-full sm:w-auto justify-center"
-        >
-          <span>{isFr ? 'Continuer vers le vélo' : 'Continue to rider & bike'}</span>
-          <ArrowRight size={14} className="stroke-[2.5]" />
-        </button>
       </div>
     </div>
   );

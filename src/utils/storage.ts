@@ -25,15 +25,15 @@ export const DEFAULT_CHECKLIST: ChecklistItem[] = [
   { id: 'chk-shell', label: 'Gore-Tex Shakedry emergency shell stowed in middle pocket', category: 'gear', checked: false, critical: false },
 
   // Nutrition Pack (NO POWDERS / NO MILK / NO BANANAS)
-  { id: 'chk-bidon', label: 'Bidon: 650ml 50/50 Water & 100% Pressed Grape/Apple juice', category: 'nutrition', checked: true, critical: true },
+  { id: 'chk-bidon', label: 'Bidon: 650 ml 50/50 Water & 100% Pressed Grape/Apple juice', category: 'nutrition', checked: true, critical: true },
   { id: 'chk-dates', label: 'Pocket Fuel: 2 Medjool dates + 2 dried Turkish figs', category: 'nutrition', checked: true, critical: true },
   { id: 'chk-pate', label: 'Pocket Fuel: 2 artisanal pâte de fruits squares', category: 'nutrition', checked: false, critical: false },
-  { id: 'chk-skyr', label: 'Commute Pack: 200g Skyr 0% in insulated cooler pouch for Locker Bay', category: 'nutrition', checked: true, critical: true },
+  { id: 'chk-skyr', label: 'Commute Pack: 200 g plain yogurt in insulated cooler pouch', category: 'nutrition', checked: true, critical: true },
   { id: 'chk-oats', label: 'Commute Pack: Jar of oat milk overnight oats + apple + walnuts', category: 'nutrition', checked: true, critical: true },
 
   // Office & Security Logistics
-  { id: 'chk-badge', label: 'Gate 17 RFID Security Badge & Subterranean Shelter Token', category: 'logistics', checked: true, critical: true },
-  { id: 'chk-padlock', label: 'Locker Bay Heavy-Duty Master Padlock + Cable', category: 'logistics', checked: true, critical: true },
+  { id: 'chk-badge', label: 'Office RFID Security Badge & Bike Shelter Token', category: 'logistics', checked: true, critical: true },
+  { id: 'chk-padlock', label: 'Bike Shelter Heavy-Duty Padlock + Cable', category: 'logistics', checked: true, critical: true },
   { id: 'chk-shirt', label: 'Ironed Oxford shirt & lightweight office trousers in dry pack', category: 'logistics', checked: true, critical: true },
   { id: 'chk-towel', label: 'Microfiber quick-dry bath towel + natural cedar deodorant', category: 'logistics', checked: true, critical: true },
 ];

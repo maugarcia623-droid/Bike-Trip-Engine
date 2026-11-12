@@ -1,4 +1,5 @@
 import { ElevationProfilePoint, RouteParams, TerrainSummary } from '../types/trip';
+import { computeSurfaceBreakdown } from './surfaceProfile';
 
 export interface GpxWaypoint {
   lat: number;
@@ -75,8 +76,17 @@ export function buildTerrainSummaryFromProfile(
   profile: ElevationProfilePoint[],
   distanceKm: number,
   elevationGainM: number,
-  titleHint: string = ''
+  titleHint: string = '',
+  coordinates?: [number, number][]
 ): TerrainSummary {
+  const surfaceBreakdown = computeSurfaceBreakdown({
+    origin: titleHint,
+    distanceKm,
+    elevationGainM,
+    elevationProfile: profile,
+    coordinates,
+  });
+
   if (!profile || profile.length < 2) {
     return {
       flatPct: 65,
@@ -88,6 +98,10 @@ export function buildTerrainSummaryFromProfile(
       maxEleM: Math.max(25, Math.round(12 + elevationGainM * 0.35)),
       surfaceLabel: inferSurfaceFromTitle(titleHint),
       difficultyLevel: classifyDifficulty(distanceKm, elevationGainM, 3.2),
+      pavedPct: surfaceBreakdown.pavedPct,
+      gravelPct: surfaceBreakdown.gravelPct,
+      singletrackPct: surfaceBreakdown.singletrackPct,
+      surfaceBreakdown,
     };
   }
 
@@ -137,6 +151,10 @@ export function buildTerrainSummaryFromProfile(
     maxEleM: Math.round(maxEleM),
     surfaceLabel: inferSurfaceFromTitle(titleHint),
     difficultyLevel: classifyDifficulty(distanceKm, elevationGainM, roundedMaxGrade),
+    pavedPct: surfaceBreakdown.pavedPct,
+    gravelPct: surfaceBreakdown.gravelPct,
+    singletrackPct: surfaceBreakdown.singletrackPct,
+    surfaceBreakdown,
   };
 }
 
@@ -151,14 +169,21 @@ export function synthesizeRouteElevationProfile(route: RouteParams): {
 } {
   if (route.elevationProfile && route.elevationProfile.length >= 3) {
     const summary =
-      route.terrainSummary ||
-      buildTerrainSummaryFromProfile(
-        route.elevationProfile,
-        route.distanceKm,
-        route.elevationGainM ?? Math.round(route.distanceKm * 6.5),
-        `${route.origin || ''} ${route.destination || ''}`
-      );
-    return { elevationProfile: route.elevationProfile, terrainSummary: summary };
+      route.terrainSummary && route.terrainSummary.surfaceBreakdown
+        ? route.terrainSummary
+        : buildTerrainSummaryFromProfile(
+            route.elevationProfile,
+            route.distanceKm,
+            route.elevationGainM ?? Math.round(route.distanceKm * 6.5),
+            `${route.origin || ''} ${route.destination || ''} ${route.gpxFileName || ''}`,
+            route.coordinates
+          );
+    const enrichedProfile = route.elevationProfile.map((pt, idx) => ({
+      ...pt,
+      surfaceType:
+        pt.surfaceType ?? summary.surfaceBreakdown?.pointSurfaces[idx] ?? 'paved',
+    }));
+    return { elevationProfile: enrichedProfile, terrainSummary: summary };
   }
 
   const distKm = Math.max(2, route.distanceKm || 30);
@@ -216,10 +241,16 @@ export function synthesizeRouteElevationProfile(route: RouteParams): {
     profile,
     distKm,
     targetGainM,
-    `${route.origin || ''} ${route.destination || ''} ${route.gpxFileName || ''}`
+    `${route.origin || ''} ${route.destination || ''} ${route.gpxFileName || ''}`,
+    route.coordinates
   );
 
-  return { elevationProfile: profile, terrainSummary };
+  const enrichedProfile = profile.map((pt, idx) => ({
+    ...pt,
+    surfaceType: terrainSummary.surfaceBreakdown?.pointSurfaces[idx] ?? 'paved',
+  }));
+
+  return { elevationProfile: enrichedProfile, terrainSummary };
 }
 
 /**
@@ -446,8 +477,13 @@ export function parseGpxFileContent(gpxText: string, fileNameHint: string = ''):
     elevationProfile,
     distanceKm,
     roundedGain,
-    `${trackName} ${fileNameHint}`
+    `${trackName} ${fileNameHint}`,
+    coordinates
   );
+  elevationProfile = elevationProfile.map((pt, idx) => ({
+    ...pt,
+    surfaceType: terrainSummary.surfaceBreakdown?.pointSurfaces[idx] ?? 'paved',
+  }));
 
   return {
     trackName,

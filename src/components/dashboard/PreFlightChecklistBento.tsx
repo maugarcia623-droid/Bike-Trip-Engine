@@ -196,7 +196,7 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
   return (
     <Card
       title={t('checklistTitle')}
-      subtitle={t('checklistSub', { done: completedCount, total: items.length, tag: effectiveTag === 'VÉLOTAF' && !isFr ? 'Commute' : effectiveTag })}
+      subtitle={t('checklistSub', { done: completedCount, total: items.length, tag: effectiveTag === 'VÉLOTAF' ? (isFr ? 'Vélotaf' : 'Commute') : effectiveTag })}
       badge={
         <div className="flex items-center gap-2 flex-wrap">
           <Badge variant={isTubeless ? 'emerald' : 'zinc'} size="sm" className="tnum">
@@ -247,11 +247,11 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
       </div>
 
       {/* Category Filter Pill Bar + Hide Checked Toggle */}
-      <div className="flex items-center justify-between gap-2 mb-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
         <div
           role="tablist"
           aria-label={t('checklistFilterAria')}
-          className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 min-w-0 flex-1"
+          className="flex flex-wrap items-center gap-1.5 py-0.5 min-w-0 flex-1"
         >
           {filterPills.map((pill) => {
             const isSelected = activeFilter === pill.id;
@@ -263,7 +263,7 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
                 role="tab"
                 aria-selected={isSelected}
                 onClick={() => setActiveFilter(pill.id)}
-                className={`px-3 py-1.5 rounded-full text-xs font-rounded font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer select-none tnum ${CHIP_RING_BASE} ${
+                className={`min-h-[38px] px-3 py-1.5 rounded-full text-xs font-rounded font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer select-none tnum ${CHIP_RING_BASE} ${
                   isSelected
                     ? isCriticalPill
                       ? `${CHIP_TOKENS.orange.surface} ${CHIP_TOKENS.orange.primary} ${CHIP_TOKENS.orange.selectedRing}`
@@ -281,7 +281,7 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
           type="button"
           onClick={() => setHideChecked((prev) => !prev)}
           aria-pressed={hideChecked}
-          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-rounded font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer select-none tnum ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+          className={`self-start sm:self-auto inline-flex items-center gap-1.5 min-h-[38px] px-3 py-1.5 rounded-full text-xs font-rounded font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer select-none tnum ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
             hideChecked
               ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_TOKENS.emerald.selectedRing}`
               : `${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} ${CHIP_RING_UNSELECTED} hover:text-ink`
@@ -294,13 +294,13 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
           )}
           <span>{t('checklistHideChecked')}</span>
           {hideChecked && completedCount > 0 && (
-            <span className="font-mono text-[11px] opacity-80">({completedCount})</span>
+            <span className="font-rounded font-medium text-[11px] opacity-80">({completedCount})</span>
           )}
         </button>
       </div>
 
-      {/* Bounded Scroll Viewport: Full-Radius Chain-Link Checklist Capsules */}
-      <div className="max-h-[320px] overflow-y-auto pr-1.5 space-y-2 scrollbar-thin">
+      {/* Checklist Capsules */}
+      <div className="space-y-2">
         {visibleItems.length === 0 ? (
           <div className="rounded-pod bg-pod p-4 text-center text-xs text-ink-muted space-y-2">
             <p className="tnum">
@@ -386,9 +386,9 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
       </div>
 
       {items.length > 6 && (
-        <div className="mt-3 pt-2.5 border-t border-dashed border-ink/10 dark:border-white/10 flex items-center justify-between text-xs text-ink-muted">
+        <div className="mt-3 pt-2.5 flex items-center justify-between text-xs text-ink-muted">
           <span>{t('checklistFooterHint')}</span>
-          <span className="font-mono tnum">
+          <span className="font-rounded font-medium tnum">
             {completedCount}/{items.length}
           </span>
         </div>

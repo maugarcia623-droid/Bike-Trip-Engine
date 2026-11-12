@@ -16,6 +16,7 @@ import {
   MapPin,
   Eye,
   EyeOff,
+  Download,
 } from '@/components/icons';
 import { TripProfile } from '../../types/trip';
 import { StageAmenity, AmenityCategory } from '../../types/amenities';
@@ -31,6 +32,19 @@ import { useTranslation } from '../../context/LanguageContext';
 import { loadRiderBikeSpecs } from '../../utils/specsStorage';
 import { calculateHydrationPlan } from '../../utils/nutrition';
 import { formatKm, formatCriticalGapAdvice, formatGapDetail } from '../../utils/waterGapCopy';
+import { estimateAmenityDetourKm } from '../../utils/cueSheet';
+import {
+  isAmenityInRoute,
+  removeAmenityFromRoute,
+  rerouteTripThroughAmenity,
+  togglePinnedAmenityOnTrip,
+} from '../../utils/routing';
+import { downloadEntireTourGpx, downloadTripGpx } from '../../utils/gpxExporter';
+import {
+  AmenityInRouteBadge,
+  AmenityReroutePrompt,
+  AmenityRouteSubAction,
+} from './AmenityReroutePrompt';
 import { InfoTooltip } from '../common/InfoTooltip';
 import {
   CHIP_TOKENS,
@@ -84,6 +98,13 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
   const [scanError, setScanError] = useState<string | null>(null);
   const [hasScanned, setHasScanned] = useState<boolean>(false);
   const [justPinnedId, setJustPinnedId] = useState<string | null>(null);
+  const [reroutePromptAmenityId, setReroutePromptAmenityId] = useState<string | null>(null);
+  const [reroutingAmenityId, setReroutingAmenityId] = useState<string | null>(null);
+  const [rerouteFeedback, setRerouteFeedback] = useState<{
+    id: string;
+    message: string;
+    isError?: boolean;
+  } | null>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
 
   // Lock background page scroll while overlay is active (iOS Safari bulletproof lock)
@@ -207,11 +228,11 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
         onAmenitiesLoaded(results);
       }
     } catch (err) {
-      console.error('Overpass scan error:', err);
+      console.error('Corridor stop scan error:', err);
       setScanError(
         isFr
-          ? 'Échec du scan Overpass. Veuillez vérifier votre réseau et réessayer.'
-          : 'Overpass corridor scan failed. Please check network connection and retry.'
+          ? 'Impossible de charger les points de passage. Vérifiez votre connexion et réessayez.'
+          : 'Could not load route stops. Please check your connection and retry.'
       );
     } finally {
       setIsScanning(false);
@@ -245,41 +266,88 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
   // Pin / unpin stop
   const handleTogglePin = (amenity: StageAmenity, e?: React.MouseEvent) => {
     e?.stopPropagation();
-    const isCurrentlyPinned = pinnedIds.has(amenity.id);
-    let updatedPinned: StageAmenity[];
+    // If already added as a route detour, unpinning also cleanly removes it from the route
+    if (pinnedIds.has(amenity.id) && isAmenityInRoute(trip.route, amenity)) {
+      void runRouteStopMutation(amenity, 'remove', e, { unpin: true });
+      return;
+    }
 
-    if (isCurrentlyPinned) {
-      updatedPinned = pinnedAmenities.filter((p) => p.id !== amenity.id);
-    } else {
-      const newPinnedItem: StageAmenity = {
-        ...amenity,
-        isPinned: true,
-      };
-      updatedPinned = [...pinnedAmenities, newPinnedItem].sort(
-        (a, b) => a.routeKm - b.routeKm
-      );
+    const { updatedTrip, isNowPinned } = togglePinnedAmenityOnTrip(trip, amenity);
+
+    if (isNowPinned) {
       setJustPinnedId(amenity.id);
       setTimeout(() => setJustPinnedId(null), 1200);
+      if (!isAmenityInRoute(trip.route, amenity)) {
+        setReroutePromptAmenityId(amenity.id);
+      }
+    } else if (reroutePromptAmenityId === amenity.id) {
+      setReroutePromptAmenityId(null);
     }
 
-    // Update active stage snapshot if multi-stage
-    let updatedStages = trip.stages;
-    if (trip.stages && trip.stages.length > 0) {
-      const activeIdx = Math.max(
-        0,
-        Math.min(trip.activeStageIndex ?? 0, trip.stages.length - 1)
-      );
-      updatedStages = trip.stages.map((st, idx) =>
-        idx === activeIdx ? { ...st, pinnedAmenities: updatedPinned } : st
-      );
-    }
+    onUpdateTrip(updatedTrip);
+  };
 
-    onUpdateTrip({
-      ...trip,
-      pinnedAmenities: updatedPinned,
-      stages: updatedStages,
-      updatedAt: new Date().toISOString(),
-    });
+  // Add or remove a Radar POI as an intermediate route stop
+  const runRouteStopMutation = async (
+    amenity: StageAmenity,
+    action: 'add' | 'remove',
+    e?: React.MouseEvent,
+    options?: { unpin?: boolean }
+  ) => {
+    e?.stopPropagation();
+    if (reroutingAmenityId) return;
+
+    setReroutingAmenityId(amenity.id);
+    setRerouteFeedback(null);
+
+    try {
+      const result =
+        action === 'add'
+          ? await rerouteTripThroughAmenity(trip, amenity, amenities)
+          : await removeAmenityFromRoute(trip, amenity, amenities, options);
+      setAmenities(result.updatedAmenities);
+      if (onAmenitiesLoaded) {
+        onAmenitiesLoaded(result.updatedAmenities);
+      }
+      onUpdateTrip(result.updatedTrip);
+      setReroutePromptAmenityId(null);
+      setRerouteFeedback({
+        id: amenity.id,
+        message:
+          action === 'add'
+            ? result.actualDetourKm > 0
+              ? t('rerouteSuccessMsg', {
+                  name: amenity.name,
+                  delta: result.actualDetourKm.toFixed(1),
+                })
+              : t('rerouteSuccessOnRouteMsg', { name: amenity.name })
+            : result.actualDetourKm > 0
+            ? t('rerouteRemovedMsg', {
+                name: amenity.name,
+                delta: result.actualDetourKm.toFixed(1),
+              })
+            : t('rerouteRemovedOnRouteMsg', { name: amenity.name }),
+      });
+      setTimeout(() => {
+        setRerouteFeedback((curr) => (curr?.id === amenity.id ? null : curr));
+      }, 3500);
+    } catch (err) {
+      console.error('Route stop mutation error:', err);
+      setRerouteFeedback({
+        id: amenity.id,
+        isError: true,
+        message:
+          action === 'add'
+            ? isFr
+              ? 'Impossible de recalculer cet arrêt pour le moment.'
+              : 'Could not reroute through this stop right now.'
+            : isFr
+            ? 'Impossible de retirer cet arrêt pour le moment.'
+            : 'Could not remove this stop from the route right now.',
+      });
+    } finally {
+      setReroutingAmenityId(null);
+    }
   };
 
   // Filtered amenities according to category & detour pills
@@ -389,11 +457,11 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby="resupply-radar-title"
-        className="relative z-10 pointer-events-auto w-full max-w-lg sm:max-w-xl max-h-[85vh] max-h-[85dvh] bg-card dark:bg-[#18181B] border-0 sm:border sm:border-ink/[0.08] sm:dark:border-white/[0.08] rounded-[32px] px-4 sm:px-5 pb-4 sm:pb-5 pt-0 shadow-2xl overflow-y-auto overscroll-contain touch-pan-y animate-apple-modal"
+        className="relative z-10 pointer-events-auto w-full max-w-lg sm:max-w-xl max-h-[85vh] max-h-[85dvh] bg-card dark:bg-[#18181B] rounded-[32px] px-4 sm:px-5 pb-4 sm:pb-5 pt-0 shadow-2xl overflow-y-auto overscroll-contain touch-pan-y animate-apple-modal"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {/* ── Sticky Header: Grabber + Identity & 1:1 action buttons ── */}
-        <div className="sticky top-0 z-20 bg-card dark:bg-[#18181B] -mx-4 sm:-mx-5 px-4 sm:px-5 pt-3 pb-2.5 rounded-t-[32px] border-b border-ink/[0.06] dark:border-white/[0.06]">
+        <div className="sticky top-0 z-20 bg-card dark:bg-[#18181B] -mx-4 sm:-mx-5 px-4 sm:px-5 pt-3 pb-2.5 rounded-t-[32px]">
           {/* Grabber handle pill (touch handle on mobile only) */}
           <div className="w-10 h-1 bg-ink/15 dark:bg-white/20 rounded-full mx-auto mb-2.5 shrink-0 sm:hidden" />
 
@@ -405,7 +473,7 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
             </div>
 
             <div className="min-w-0 flex-1">
-              <div className="text-[17px] font-semibold text-ink tracking-tight break-words font-rounded">
+              <div id="resupply-radar-title" className="text-[17px] font-semibold text-ink tracking-tight break-words font-rounded">
                 {t('resupplyRadarTitle')}
               </div>
               <div className="text-[13px] text-ink-muted break-words mt-0.5">
@@ -425,7 +493,7 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
                   aria-pressed={showMapDots}
                   aria-label={showMapDots ? t('hideMapDots') : t('showMapDots')}
                   title={showMapDots ? t('hideMapDots') : t('showMapDots')}
-                  className={`w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-colors shrink-0 select-none ${
+                  className={`relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-colors shrink-0 select-none ${
                     showMapDots
                       ? `${CHIP_TOKENS.sky.surface} ${CHIP_TOKENS.sky.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.sky.selectedRing}`
                       : 'bg-pod dark:bg-white/[0.06] hover:bg-chip text-ink-secondary hover:text-ink'
@@ -441,7 +509,7 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
                   type="button"
                   onClick={() => handleScanCorridor(true)}
                   disabled={isScanning}
-                  className="w-10 h-10 rounded-full bg-pod dark:bg-white/[0.06] hover:bg-chip text-ink-secondary hover:text-ink flex items-center justify-center cursor-pointer transition-colors shrink-0 select-none"
+                  className="relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 w-10 h-10 rounded-full bg-pod dark:bg-white/[0.06] hover:bg-chip text-ink-secondary hover:text-ink flex items-center justify-center cursor-pointer transition-colors shrink-0 select-none"
                   title={t('reScanCorridor')}
                   aria-label={t('reScanCorridor')}
                 >
@@ -457,21 +525,22 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="w-10 h-10 rounded-full bg-pod dark:bg-white/[0.06] hover:bg-chip text-ink-secondary hover:text-ink flex items-center justify-center cursor-pointer transition-colors shrink-0 select-none"
+                className="relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 w-10 h-10 rounded-full bg-pod dark:bg-white/[0.06] hover:bg-chip text-ink-secondary hover:text-ink flex items-center justify-center cursor-pointer transition-colors shrink-0 select-none"
                 aria-label={t('closeRadarModal')}
               >
                 <X size={18} />
               </button>
             </div>
           </div>
+          <div className="lane-divider mt-2.5" aria-hidden="true" />
         </div>
 
         {/* ── Scrollable Body Content ── */}
-        <div className="flex flex-col gap-2.5 pt-3">
-          {/* 1. INFORMATION BANNER (Clean, crisp borders, ZERO shadow clipping) */}
+        <div className="flex flex-col gap-2.5 pt-2.5">
+          {/* 1. INFORMATION BANNER */}
           <div className="shrink-0">
             {!hasScanned ? null : waterGaps.status === 'critical' ? (
-              <div className="rounded-[22px] p-3.5 sm:p-4 bg-rose-500/[0.1] dark:bg-rose-500/[0.15] text-rose-900 dark:text-rose-200 border border-rose-500/25 dark:border-rose-400/25 flex items-start gap-3 transition-colors shadow-none">
+              <div className="rounded-[22px] p-3.5 sm:p-4 bg-rose-500/[0.1] dark:bg-rose-500/[0.15] text-rose-900 dark:text-rose-200 flex items-start gap-3 transition-colors shadow-none">
                 <div className="w-8 h-8 rounded-full bg-rose-500/20 text-rose-700 dark:text-rose-300 flex items-center justify-center shrink-0 mt-0.5">
                   <TriangleAlert className="w-4 h-4 text-current" />
                 </div>
@@ -512,7 +581,7 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
                 </div>
               </div>
             ) : (
-              <div className="rounded-[22px] p-3 sm:p-3.5 bg-emerald-500/[0.08] dark:bg-emerald-500/[0.12] text-emerald-900 dark:text-emerald-200 border border-emerald-500/20 dark:border-emerald-400/25 flex items-center gap-2.5 transition-colors shadow-none">
+              <div className="rounded-[22px] p-3 sm:p-3.5 bg-emerald-500/[0.08] dark:bg-emerald-500/[0.12] text-emerald-900 dark:text-emerald-200 flex items-center gap-2.5 transition-colors shadow-none">
                 <div className="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0">
                   <ShieldCheck className="w-4 h-4 text-current" />
                 </div>
@@ -524,8 +593,8 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
           </div>
 
           {/* 2. CATEGORY FILTERS & DETOUR TOGGLE */}
-          <div className="px-2 pt-2 pb-1 text-[11px] font-bold uppercase tracking-[0.09em] text-ink-muted font-rounded shrink-0">
-            {isFr ? 'Filtres de ravitaillement' : 'Resupply Filters'}
+          <div className="px-2 pt-2 pb-1 text-xs font-semibold text-ink-muted font-rounded shrink-0">
+            {isFr ? 'Filtres de ravitaillement' : 'Resupply filters'}
           </div>
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 shrink-0">
             {categoryConfig.map((cat) => {
@@ -539,7 +608,7 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
                     type="button"
                     onClick={() => toggleCategory(cat.id)}
                     aria-pressed={isSelected}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-rounded text-xs font-semibold select-none transition-all cursor-pointer ${
+                    className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[34px] px-3 py-1.5 rounded-full font-rounded text-xs font-semibold select-none transition-all cursor-pointer ${
                       tokens.surface
                     } ${tokens.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${CHIP_RING_BASE} ${
                       isSelected ? tokens.selectedRing : CHIP_RING_UNSELECTED
@@ -569,10 +638,10 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
               onClick={() => setDetourOnly250m((prev) => !prev)}
               aria-pressed={detourOnly250m}
               title={t('radarDetourOnlyTooltip')}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-rounded text-xs font-semibold select-none transition-all cursor-pointer shrink-0 ${
+              className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[34px] px-3 py-1.5 rounded-full font-rounded text-xs font-semibold select-none transition-all cursor-pointer shrink-0 ${CHIP_RING_BASE} ${
                 detourOnly250m
-                  ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
-                  : 'bg-pod dark:bg-white/[0.045] text-ink-muted hover:text-ink hover:bg-chip ring-1 ring-inset ring-ink/10 dark:ring-white/10'
+                  ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
+                  : `bg-pod dark:bg-white/[0.045] text-ink-muted hover:text-ink hover:bg-chip ${CHIP_RING_UNSELECTED}`
               }`}
             >
               <span>{t('radarDetourOnly')}</span>
@@ -580,13 +649,13 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
           </div>
 
           {/* 3. CORRIDOR HORIZON BAR */}
-          <div className="px-2 pt-2 pb-1 text-[11px] font-bold uppercase tracking-[0.09em] text-ink-muted font-rounded shrink-0">
+          <div className="px-2 pt-2 pb-1 text-xs font-semibold text-ink-muted font-rounded shrink-0">
             {t('corridorHorizonTitle', { total: totalDistanceKm })}
           </div>
           <div className="rounded-[22px] bg-pod/70 dark:bg-white/[0.045] p-3.5 shrink-0">
-            <div className="flex items-center justify-between text-[11px] font-mono font-bold text-ink-muted uppercase tracking-wider mb-2 tnum">
+            <div className="flex items-center justify-between text-[11px] font-semibold text-ink-muted mb-2 tnum">
               <span>0 km → {totalDistanceKm} km</span>
-              <span>{filteredAmenities.length} POIs</span>
+              <span>{filteredAmenities.length} {isFr ? 'points' : 'stops'}</span>
             </div>
 
             <div className="relative w-full h-3 bg-card dark:bg-black/30 rounded-full overflow-hidden flex items-center">
@@ -640,7 +709,7 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
             </div>
 
             {/* Kilometer Markers Under Spine */}
-            <div className="flex justify-between text-[10px] font-mono text-ink-muted mt-1.5 tnum">
+            <div className="flex justify-between text-[10px] text-ink-muted mt-1.5 tnum">
               <span>0 km</span>
               <span>{Math.round(totalDistanceKm * 0.25)} km</span>
               <span>{Math.round(totalDistanceKm * 0.5)} km</span>
@@ -649,8 +718,8 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
             </div>
           </div>
 
-          {/* 4. TACTICAL CORRIDOR FEED / EMPTY STATE */}
-          <div className="px-2 pt-2 pb-1 text-[11px] font-bold uppercase tracking-[0.09em] text-ink-muted font-rounded shrink-0">
+          {/* 4. CORRIDOR FEED / EMPTY STATE */}
+          <div className="px-2 pt-2 pb-1 text-xs font-semibold text-ink-muted font-rounded shrink-0">
             {isFr ? 'Points de passage' : 'Checkpoints'}
           </div>
 
@@ -706,6 +775,15 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
                 const isPinned = pinnedIds.has(amenity.id);
                 const isSelected = selectedAmenity?.id === amenity.id;
                 const isJustPinned = justPinnedId === amenity.id;
+                const inRoute = isAmenityInRoute(trip.route, amenity);
+                const detourKm = estimateAmenityDetourKm(amenity.detourMeters);
+                const reroutePromptText =
+                  detourKm >= 0.1
+                    ? t('reroutePrompt', { detour: detourKm.toFixed(1) })
+                    : t('reroutePromptOnRoute');
+                const isPromptOpen = isPinned && !inRoute && reroutePromptAmenityId === amenity.id;
+                const isReroutingThis = reroutingAmenityId === amenity.id;
+                const rowFeedback = rerouteFeedback?.id === amenity.id ? rerouteFeedback : null;
 
                 const eta = calculateAmenityEta(
                   hardDepartureTime,
@@ -721,7 +799,7 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
                   <div
                     key={amenity.id}
                     onClick={() => onSelectAmenity?.(amenity)}
-                    className={`p-3 transition-colors flex items-center justify-between gap-3 cursor-pointer touch-pan-y ${
+                    className={`p-3 transition-colors cursor-pointer touch-pan-y ${
                       isFirst ? 'rounded-t-[22px]' : ''
                     } ${isLast ? 'rounded-b-[22px]' : ''} ${
                       isSelected
@@ -729,114 +807,171 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
                         : 'hover:bg-pod/80 dark:hover:bg-white/[0.03]'
                     }`}
                   >
-                    {/* Left: Category Icon & Name */}
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div
-                        className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${tokens.surface} ${tokens.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
-                      >
-                        <IconComp className="w-4 h-4 text-current" />
+                    <div className="flex items-center justify-between gap-3">
+                      {/* Left: Category Icon & Name */}
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${tokens.surface} ${tokens.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                        >
+                          <IconComp className="w-4 h-4 text-current" />
+                        </div>
+
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-rounded font-semibold text-[13px] text-ink break-words leading-tight">
+                              {amenity.name}
+                            </span>
+                            {inRoute && (
+                              <AmenityInRouteBadge
+                                isUpdating={isReroutingThis}
+                                disabled={Boolean(reroutingAmenityId)}
+                                onRemove={(e) => runRouteStopMutation(amenity, 'remove', e)}
+                              />
+                            )}
+                            {amenity.openingHours && (
+                              <span
+                                className="text-[10px] px-1.5 py-0.5 rounded bg-card dark:bg-black/30 text-ink-muted shrink-0 hidden sm:inline tnum"
+                                title={amenity.openingHours}
+                              >
+                                {amenity.openingHours.length > 15
+                                  ? `${amenity.openingHours.slice(0, 15)}...`
+                                  : amenity.openingHours}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="text-[11px] text-ink-muted capitalize mt-0.5 flex items-center gap-2 flex-wrap">
+                            <span>{amenity.subType.replace(/_/g, ' ')}</span>
+                            <AmenityRouteSubAction
+                              inRoute={inRoute}
+                              isPinned={isPinned}
+                              isPromptOpen={isPromptOpen}
+                              isUpdating={isReroutingThis}
+                              disabled={Boolean(reroutingAmenityId)}
+                              reroutePromptText={reroutePromptText}
+                              onAdd={(e) => runRouteStopMutation(amenity, 'add', e)}
+                              onRemove={(e) => runRouteStopMutation(amenity, 'remove', e)}
+                            />
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-rounded font-semibold text-[13px] text-ink break-words leading-tight">
-                            {amenity.name}
-                          </span>
-                          {amenity.openingHours && (
-                            <span
-                              className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-card dark:bg-black/30 text-ink-muted shrink-0 hidden sm:inline"
-                              title={amenity.openingHours}
-                            >
-                              {amenity.openingHours.length > 15
-                                ? `${amenity.openingHours.slice(0, 15)}...`
-                                : amenity.openingHours}
+                      {/* Right: Telemetry Cluster, Map Action & Pin CTA */}
+                      <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+                        {/* Snapped KM & Reverse-timeline ETA */}
+                        <div className="text-right tnum">
+                          <div className="font-rounded font-bold text-xs text-ink">
+                            {amenity.routeKm} km
+                          </div>
+                          <div className="text-[10px] text-ink-muted">
+                            {eta}
+                          </div>
+                        </div>
+
+                        {/* Perpendicular Detour Badge */}
+                        <div className="hidden sm:block">
+                          {amenity.detourMeters < 75 ? (
+                            <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold font-rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                              {t('onRoute')}
+                            </span>
+                          ) : amenity.detourMeters > 500 ? (
+                            <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold font-rounded bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 tnum">
+                              {t('detourDist', { detour: amenity.detourMeters })}
+                            </span>
+                          ) : (
+                            <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-medium font-rounded bg-card dark:bg-white/[0.08] text-ink-secondary tnum">
+                              {t('detourDist', { detour: amenity.detourMeters })}
                             </span>
                           )}
                         </div>
 
-                        <div className="text-[11px] text-ink-muted capitalize mt-0.5">
-                          {amenity.subType.replace(/_/g, ' ')}
-                        </div>
-                      </div>
-                    </div>
+                        {/* View on Map Button (1:1 aspect-ratio, centers map and closes sheet) */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectAmenity?.(amenity);
+                            onClose();
+                          }}
+                          className="relative before:content-[''] before:absolute before:-inset-1.5 sm:before:inset-0 w-9 h-9 rounded-full bg-card dark:bg-white/[0.08] hover:bg-chip flex items-center justify-center text-ink-secondary hover:text-ink cursor-pointer transition-colors"
+                          title={t('viewOnMap')}
+                          aria-label={t('viewOnMap')}
+                        >
+                          <MapPin className="w-3.5 h-3.5 text-current" />
+                        </button>
 
-                    {/* Right: Telemetry Cluster, Map Action & Pin CTA */}
-                    <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-                      {/* Snapped KM & Reverse-timeline ETA */}
-                      <div className="text-right tnum">
-                        <div className="font-rounded font-bold text-xs text-ink">
-                          KM {amenity.routeKm}
-                        </div>
-                        <div className="text-[10px] font-mono text-ink-muted">
-                          ETA {eta}
-                        </div>
-                      </div>
-
-                      {/* Perpendicular Detour Badge */}
-                      <div className="hidden sm:block">
-                        {amenity.detourMeters < 75 ? (
-                          <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold font-rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-                            {t('onRoute')}
-                          </span>
-                        ) : amenity.detourMeters > 500 ? (
-                          <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold font-rounded bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 tnum">
-                            {t('detourDist', { detour: amenity.detourMeters })}
-                          </span>
-                        ) : (
-                          <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-medium font-rounded bg-card dark:bg-white/[0.08] text-ink-secondary tnum">
-                            {t('detourDist', { detour: amenity.detourMeters })}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* View on Map Button (1:1 aspect-ratio, centers map and closes sheet) */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectAmenity?.(amenity);
-                          onClose();
-                        }}
-                        className="w-8 h-8 rounded-full bg-card dark:bg-white/[0.08] hover:bg-chip flex items-center justify-center text-ink-secondary hover:text-ink cursor-pointer transition-colors"
-                        title={t('viewOnMap')}
-                        aria-label={t('viewOnMap')}
-                      >
-                        <MapPin className="w-3.5 h-3.5 text-current" />
-                      </button>
-
-                      {/* Pin to Ride Plan Button */}
-                      <button
-                        type="button"
-                        onClick={(e) => handleTogglePin(amenity, e)}
-                        aria-pressed={isPinned}
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-rounded font-bold transition-all cursor-pointer select-none ${
-                          isPinned
-                            ? `bg-volt text-[#4d5200] ring-2 ring-inset ring-[#a3b300] shadow-xs ${
-                                isJustPinned ? 'animate-apple-check-pop' : ''
-                              }`
-                            : 'bg-card dark:bg-white/[0.08] text-ink-secondary hover:text-ink hover:bg-chip'
-                        }`}
-                        title={isPinned ? t('unpinStop') : t('pinToPlan')}
-                      >
-                        <Star
-                          className={`w-3.5 h-3.5 ${
-                            isPinned ? 'text-[#4d5200] fill-current' : 'text-current'
+                        {/* Pin to Ride Plan Button */}
+                        <button
+                          type="button"
+                          onClick={(e) => handleTogglePin(amenity, e)}
+                          aria-pressed={isPinned}
+                          className={`inline-flex items-center gap-1 min-h-[44px] sm:min-h-[34px] px-3 py-1 rounded-full text-xs font-rounded font-bold transition-all cursor-pointer select-none ${
+                            isPinned
+                              ? `bg-volt text-[#4d5200] ring-2 ring-inset ring-[#a3b300] shadow-xs ${
+                                  isJustPinned ? 'animate-apple-check-pop' : ''
+                                }`
+                              : 'bg-card dark:bg-white/[0.08] text-ink-secondary hover:text-ink hover:bg-chip'
                           }`}
-                        />
-                        <span className="hidden min-[480px]:inline">
-                          {isPinned ? t('pinnedStop') : t('pinToPlan')}
-                        </span>
-                      </button>
+                          title={isPinned ? t('unpinStop') : t('pinToPlan')}
+                        >
+                          <Star
+                            className={`w-3.5 h-3.5 ${
+                              isPinned ? 'text-[#4d5200] fill-current' : 'text-current'
+                            }`}
+                          />
+                          <span className="hidden min-[480px]:inline">
+                            {isPinned ? t('pinnedStop') : t('pinToPlan')}
+                          </span>
+                        </button>
+                      </div>
                     </div>
+
+                    {/* 1-Click Intermediate Stop Reroute Prompt & Feedback */}
+                    <AmenityReroutePrompt
+                      promptText={reroutePromptText}
+                      isOpen={isPromptOpen}
+                      isRerouting={isReroutingThis}
+                      disabled={Boolean(reroutingAmenityId)}
+                      feedback={rowFeedback}
+                      onConfirm={(e) => runRouteStopMutation(amenity, 'add', e)}
+                      onDismiss={(e) => {
+                        e.stopPropagation();
+                        setReroutePromptAmenityId(null);
+                      }}
+                    />
                   </div>
                 );
               })}
             </div>
           )}
+
+          {/* GPX / TCX Export Readiness Bar when stops are pinned */}
+          {pinnedAmenities.length > 0 && (
+            <div className="rounded-[20px] bg-pod/70 dark:bg-white/[0.045] px-3.5 py-2.5 flex items-center justify-between gap-2.5 shrink-0">
+              <span className="text-[11px] font-rounded text-ink-secondary leading-snug">
+                {t('gpxExportReadyNote')}
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  trip.stages && trip.stages.length > 1
+                    ? downloadEntireTourGpx(trip)
+                    : downloadTripGpx(trip)
+                }
+                className="inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[34px] px-3.5 py-1.5 rounded-full bg-volt text-[#111111] font-rounded font-bold text-xs shrink-0 cursor-pointer hover:brightness-95 active:scale-[0.98] transition-all shadow-xs"
+              >
+                <Download className="w-3.5 h-3.5 text-current" />
+                <span>
+                  {trip.stages && trip.stages.length > 1 ? 'Tour .gpx' : 'Download .gpx'}
+                </span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* ── Footer matching Settings Bottom Sheet ── */}
-        <div className="flex items-center justify-center gap-1.5 pt-2.5 pb-0.5 text-[11px] text-ink-muted font-mono tnum shrink-0 border-t border-ink/[0.06] dark:border-white/[0.06]">
+        <div className="lane-divider mt-3" aria-hidden="true" />
+        <div className="flex items-center justify-center gap-1.5 pt-2.5 pb-0.5 text-[11px] text-ink-muted tnum shrink-0">
           <span>{t('appName')}</span>
           <span aria-hidden="true">·</span>
           <span>v2.6</span>

@@ -7,8 +7,10 @@ import {
   CheckCircle,
   ArrowsClockwise,
   Lightning,
+  ChevronDown,
 } from '@/components/icons';
 import { TripProfile } from '../../types/trip';
+import { getArchetypeFromTag } from '../../utils/archetypeChips';
 import { calculatePhysics } from '../../utils/physics';
 import { useTranslation } from '../../context/LanguageContext';
 import { loadRiderBikeSpecs, getActiveBike } from '../../utils/specsStorage';
@@ -41,6 +43,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
       : initialTab
   );
   const [autofillFeedback, setAutofillFeedback] = useState(false);
+  const [showAdvancedPhysics, setShowAdvancedPhysics] = useState(false);
 
   const isFr = lang === 'fr';
 
@@ -152,7 +155,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
     : tabs[0].id;
 
   return (
-    <div className="bg-card text-ink rounded-card p-4 sm:p-5 border border-ink/5 dark:border-white/5 shadow-xs transition-colors">
+    <div className="bg-card text-ink rounded-card p-4 sm:p-5 shadow-xs transition-colors">
       {/* Header or Full-Radius Segmented Pill Switcher */}
       {tabs.length === 1 ? (
         <div className="flex items-center justify-between gap-2 mb-4">
@@ -251,7 +254,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                   max="140"
                   value={trip.physics.riderWeightKg}
                   onChange={(e) => updatePhysics('riderWeightKg', parseFloat(e.target.value) || 74)}
-                  className="w-full h-11 bg-pod rounded-full px-4 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
+                  className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
                 />
               </div>
 
@@ -266,7 +269,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                   max="30"
                   value={trip.physics.bikeWeightKg}
                   onChange={(e) => updatePhysics('bikeWeightKg', parseFloat(e.target.value) || 9.4)}
-                  className="w-full h-11 bg-pod rounded-full px-4 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
+                  className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
                 />
               </div>
 
@@ -281,26 +284,41 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                   max="25"
                   value={trip.physics.gearWeightKg}
                   onChange={(e) => updatePhysics('gearWeightKg', parseFloat(e.target.value) || 0)}
-                  className="w-full h-11 bg-pod rounded-full px-4 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
+                  className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
                 />
               </div>
             </div>
 
-            {/* Aerodynamic & Mechanical Constants Section with Autofill Button */}
-            <div className="pt-4 border-t border-dashed border-ink/10 dark:border-white/10">
-              <div className="flex items-center justify-between gap-2 flex-wrap mb-3.5">
-                <h4 className="text-sm font-semibold text-ink">
-                  {t('aeroMechConstantsHeading')}
-                </h4>
+            {/* Advanced Bike Physics Disclosure (CdA / Crr / Efficiency tucked cleanly) */}
+            <div className="pt-2 space-y-3">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <button
+                  type="button"
+                  aria-expanded={showAdvancedPhysics}
+                  onClick={() => setShowAdvancedPhysics((v) => !v)}
+                  className="inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 rounded-full bg-pod hover:bg-chip text-xs font-semibold text-ink-secondary hover:text-ink transition-colors cursor-pointer"
+                >
+                  <span>
+                    {isFr ? 'Physique vélo avancée' : 'Advanced bike physics'}
+                  </span>
+                  <span className="text-[11px] font-normal text-ink-muted tnum">
+                    (CdA {trip.physics.cda} · Crr {trip.physics.crr})
+                  </span>
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 text-current transition-transform duration-200 ${
+                      showAdvancedPhysics ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
                 <button
                   type="button"
                   onClick={handleAutofillSpecs}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                  className={`inline-flex items-center gap-1.5 min-h-[44px] px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
                     autofillFeedback
                       ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary}`
                       : `${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} hover:brightness-[0.97] dark:hover:brightness-110`
                   }`}
-                  title="Autofill aerodynamic constants from configured Rider & Bike Specs"
+                  title="Autofill from Rider & Bike Settings"
                 >
                   {autofillFeedback ? (
                     <>
@@ -316,127 +334,131 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                <div className="rounded-pod bg-pod p-3.5 space-y-2.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <label className="text-xs font-medium text-ink-secondary">
-                      {t('dragAreaLabel')}
-                    </label>
-                    <span className="text-xs font-mono font-semibold text-ink tnum">
-                      {trip.physics.cda} m&sup2;
-                    </span>
+              {showAdvancedPhysics && (
+                <div className="space-y-4 pt-1 animate-apple-step-in">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="rounded-pod bg-pod p-3.5 space-y-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <label className="text-xs font-medium text-ink-secondary">
+                          {t('dragAreaLabel')}
+                        </label>
+                        <span className="text-xs font-rounded font-semibold text-ink tnum">
+                          {trip.physics.cda} m&sup2;
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {[
+                          { val: 0.32, label: t('postureAeroPill') },
+                          { val: 0.38, label: t('postureHoodsPill') },
+                          { val: 0.44, label: t('postureUprightPill') },
+                        ].map((preset) => {
+                          const active = Math.abs(trip.physics.cda - preset.val) < 0.015;
+                          return (
+                            <button
+                              key={preset.val}
+                              type="button"
+                              onClick={() => updatePhysics('cda', preset.val)}
+                              className={`min-h-[36px] py-1.5 px-2 rounded-full text-[11px] font-semibold transition-all cursor-pointer break-words leading-tight tnum text-center ${CHIP_RING_BASE} ${
+                                active
+                                  ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
+                                  : `${CHIP_RING_UNSELECTED} bg-card text-ink-secondary hover:text-ink`
+                              }`}
+                            >
+                              {preset.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={trip.physics.cda}
+                        onChange={(e) => updatePhysics('cda', parseFloat(e.target.value) || 0.40)}
+                        className="w-full min-h-[44px] h-10 bg-card rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
+                      />
+                    </div>
+
+                    <div className="rounded-pod bg-pod p-3.5 space-y-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <label className="text-xs font-medium text-ink-secondary">
+                          {t('rollingResLabel')}
+                        </label>
+                        <span className="text-xs font-rounded font-semibold text-ink tnum">
+                          Crr {trip.physics.crr}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {[
+                          { val: 0.004, label: t('tireRoadPill') },
+                          { val: 0.0055, label: t('tireGravelPill') },
+                          { val: 0.007, label: t('tireTouringPill') },
+                        ].map((preset) => {
+                          const active = Math.abs(trip.physics.crr - preset.val) < 0.0006;
+                          return (
+                            <button
+                              key={preset.val}
+                              type="button"
+                              onClick={() => updatePhysics('crr', preset.val)}
+                              className={`min-h-[36px] py-1.5 px-2 rounded-full text-[11px] font-semibold transition-all cursor-pointer break-words leading-tight tnum text-center ${CHIP_RING_BASE} ${
+                                active
+                                  ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_TOKENS.emerald.selectedRing}`
+                                  : `${CHIP_RING_UNSELECTED} bg-card text-ink-secondary hover:text-ink`
+                              }`}
+                            >
+                              {preset.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <input
+                        type="number"
+                        step="0.0005"
+                        value={trip.physics.crr}
+                        onChange={(e) => updatePhysics('crr', parseFloat(e.target.value) || 0.006)}
+                        className="w-full min-h-[44px] h-10 bg-card rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
+                      />
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {[
-                      { val: 0.32, label: t('postureAeroPill') },
-                      { val: 0.38, label: t('postureHoodsPill') },
-                      { val: 0.44, label: t('postureUprightPill') },
-                    ].map((preset) => {
-                      const active = Math.abs(trip.physics.cda - preset.val) < 0.015;
-                      return (
-                        <button
-                          key={preset.val}
-                          type="button"
-                          onClick={() => updatePhysics('cda', preset.val)}
-                          className={`py-1.5 px-2 rounded-full text-[11px] font-semibold transition-all cursor-pointer break-words leading-tight tnum text-center ${CHIP_RING_BASE} ${
-                            active
-                              ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
-                              : `${CHIP_RING_UNSELECTED} bg-card text-ink-secondary hover:text-ink`
-                          }`}
-                        >
-                          {preset.label}
-                        </button>
-                      );
-                    })}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-ink-secondary mb-1.5 px-1">
+                        {t('drivetrainEffLabel')}
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={trip.physics.drivetrainEfficiency}
+                        onChange={(e) => updatePhysics('drivetrainEfficiency', parseFloat(e.target.value) || 0.95)}
+                        className="w-full min-h-[44px] h-10 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
+                      />
+                      <span className="text-[11px] text-ink-muted mt-1 px-1 block">
+                        {isFr ? '0.95 chaîne propre' : '0.95 clean chain'}
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-ink-secondary mb-1.5 px-1">
+                        {t('muscularEffLabel')}
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={trip.physics.grossMechanicalEfficiency}
+                        onChange={(e) => updatePhysics('grossMechanicalEfficiency', parseFloat(e.target.value) || 0.21)}
+                        className="w-full min-h-[44px] h-10 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
+                      />
+                      <span className="text-[11px] text-ink-muted mt-1 px-1 block">
+                        {isFr ? '0.21 rendement humain brut' : '0.21 human gross eff'}
+                      </span>
+                    </div>
                   </div>
-
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={trip.physics.cda}
-                    onChange={(e) => updatePhysics('cda', parseFloat(e.target.value) || 0.40)}
-                    className="w-full h-10 bg-card rounded-full px-4 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
-                  />
                 </div>
-
-                <div className="rounded-pod bg-pod p-3.5 space-y-2.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <label className="text-xs font-medium text-ink-secondary">
-                      {t('rollingResLabel')}
-                    </label>
-                    <span className="text-xs font-mono font-semibold text-ink tnum">
-                      Crr {trip.physics.crr}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {[
-                      { val: 0.004, label: t('tireRoadPill') },
-                      { val: 0.0055, label: t('tireGravelPill') },
-                      { val: 0.007, label: t('tireTouringPill') },
-                    ].map((preset) => {
-                      const active = Math.abs(trip.physics.crr - preset.val) < 0.0006;
-                      return (
-                        <button
-                          key={preset.val}
-                          type="button"
-                          onClick={() => updatePhysics('crr', preset.val)}
-                          className={`py-1.5 px-2 rounded-full text-[11px] font-semibold transition-all cursor-pointer break-words leading-tight tnum text-center ${CHIP_RING_BASE} ${
-                            active
-                              ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_TOKENS.emerald.selectedRing}`
-                              : `${CHIP_RING_UNSELECTED} bg-card text-ink-secondary hover:text-ink`
-                          }`}
-                        >
-                          {preset.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <input
-                    type="number"
-                    step="0.0005"
-                    value={trip.physics.crr}
-                    onChange={(e) => updatePhysics('crr', parseFloat(e.target.value) || 0.006)}
-                    className="w-full h-10 bg-card rounded-full px-4 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-ink-secondary mb-1.5 px-1">
-                    {t('drivetrainEffLabel')}
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={trip.physics.drivetrainEfficiency}
-                    onChange={(e) => updatePhysics('drivetrainEfficiency', parseFloat(e.target.value) || 0.95)}
-                    className="w-full h-10 bg-pod rounded-full px-4 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
-                  />
-                  <span className="text-[11px] text-ink-muted mt-1 px-1 block">
-                    {isFr ? '0.95 chaîne propre' : '0.95 clean chain'}
-                  </span>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-ink-secondary mb-1.5 px-1">
-                    {t('muscularEffLabel')}
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={trip.physics.grossMechanicalEfficiency}
-                    onChange={(e) => updatePhysics('grossMechanicalEfficiency', parseFloat(e.target.value) || 0.21)}
-                    className="w-full h-10 bg-pod rounded-full px-4 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
-                  />
-                  <span className="text-[11px] text-ink-muted mt-1 px-1 block">
-                    {isFr ? '0.21 rendement humain brut' : '0.21 human gross eff'}
-                  </span>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         )}
@@ -529,7 +551,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                   max="250"
                   value={trip.route.distanceKm}
                   onChange={(e) => updateRoute('distanceKm', parseFloat(e.target.value) || 22)}
-                  className="w-full h-11 bg-pod rounded-full px-4 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
+                  className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
                 />
               </div>
 
@@ -545,7 +567,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                     max="450"
                     value={trip.route.targetEffortWatts || calmPresetWatts}
                     onChange={(e) => updateRoute('targetEffortWatts', parseInt(e.target.value, 10) || calmPresetWatts)}
-                    className="w-full h-11 bg-pod rounded-full px-4 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
+                    className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
                   />
                 </div>
               ) : (
@@ -560,14 +582,21 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                     max="50"
                     value={trip.route.targetSpeedKmH}
                     onChange={(e) => updateRoute('targetSpeedKmH', parseFloat(e.target.value) || 27.5)}
-                    className="w-full h-11 bg-pod rounded-full px-4 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
+                    className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
                   />
                 </div>
               )}
 
               <div>
                 <label className="block text-xs font-medium text-ink-secondary mb-1.5 px-1">
-                  {t('trafficBufferLabel')}
+                  {t(
+                    ({
+                      COMMUTE: 'trafficBufferLabel',
+                      ESCAPADE: 'trafficBufferLabelEscapade',
+                      BIKEPACKING: 'trafficBufferLabelBikepacking',
+                      SPORT: 'trafficBufferLabelSport',
+                    } as const)[getArchetypeFromTag(trip.tag, trip.name)]
+                  )}
                 </label>
                 <input
                   type="number"
@@ -576,16 +605,30 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                   max="60"
                   value={trip.route.urbanTrafficDelayMinutes}
                   onChange={(e) => updateRoute('urbanTrafficDelayMinutes', parseInt(e.target.value, 10) || 8)}
-                  className="w-full h-11 bg-pod rounded-full px-4 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
+                  className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
                 />
                 <span className="text-[11px] text-ink-muted mt-1 px-1 block">
-                  {t('trafficBufferHint')}
+                  {t(
+                    ({
+                      COMMUTE: 'trafficBufferHint',
+                      ESCAPADE: 'trafficBufferHintEscapade',
+                      BIKEPACKING: 'trafficBufferHintBikepacking',
+                      SPORT: 'trafficBufferHintSport',
+                    } as const)[getArchetypeFromTag(trip.tag, trip.name)]
+                  )}
                 </span>
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-ink-secondary mb-1.5 px-1">
-                  {t('gateBufferLabel')}
+                  {t(
+                    ({
+                      COMMUTE: 'gateBufferLabel',
+                      ESCAPADE: 'gateBufferLabelEscapade',
+                      BIKEPACKING: 'gateBufferLabelBikepacking',
+                      SPORT: 'gateBufferLabelSport',
+                    } as const)[getArchetypeFromTag(trip.tag, trip.name)]
+                  )}
                 </label>
                 <input
                   type="number"
@@ -594,10 +637,17 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                   max="30"
                   value={trip.route.gateSecurityDelayMinutes}
                   onChange={(e) => updateRoute('gateSecurityDelayMinutes', parseInt(e.target.value, 10) || 5)}
-                  className="w-full h-11 bg-pod rounded-full px-4 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
+                  className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
                 />
                 <span className="text-[11px] text-ink-muted mt-1 px-1 block">
-                  {t('gateBufferHint')}
+                  {t(
+                    ({
+                      COMMUTE: 'gateBufferHint',
+                      ESCAPADE: 'gateBufferHintEscapade',
+                      BIKEPACKING: 'gateBufferHintBikepacking',
+                      SPORT: 'gateBufferHintSport',
+                    } as const)[getArchetypeFromTag(trip.tag, trip.name)]
+                  )}
                 </span>
               </div>
             </div>
@@ -644,7 +694,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                     const parsed = parseFloat(e.target.value);
                     updateWeather('baseWindSpeedKmH', Number.isFinite(parsed) ? Math.max(0, parsed) : 0);
                   }}
-                  className="w-full h-11 bg-pod rounded-full px-4 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
+                  className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
                 />
               </div>
 
@@ -657,7 +707,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                   step="1"
                   value={trip.weather.temperatureC}
                   onChange={(e) => updateWeather('temperatureC', parseFloat(e.target.value) || 11)}
-                  className="w-full h-11 bg-pod rounded-full px-4 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
+                  className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
                 />
               </div>
 
@@ -672,7 +722,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                   max="100"
                   value={trip.weather.precipitationRiskPercent}
                   onChange={(e) => updateWeather('precipitationRiskPercent', parseInt(e.target.value, 10) || 15)}
-                  className="w-full h-11 bg-pod rounded-full px-4 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
+                  className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
                 />
               </div>
 
@@ -687,7 +737,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                   max="50"
                   value={trip.weather.visibilityKm ?? 15}
                   onChange={(e) => updateWeather('visibilityKm', parseFloat(e.target.value) || 15)}
-                  className="w-full h-11 bg-pod rounded-full px-4 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
+                  className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
                 />
               </div>
             </div>
