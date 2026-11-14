@@ -24,6 +24,7 @@ import { IconBadge } from '../common/IconBadge';
 import { InfoTooltip } from '../common/InfoTooltip';
 import { Collapsible, DisclosureChevron } from '../common/Collapsible';
 import { SurfaceProfileBar } from '../common/SurfaceProfileBar';
+import { TerrainEffortStory } from './TerrainEffortStory';
 import { computeSurfaceBreakdown } from '../../utils/surfaceProfile';
 import { useOsmSurface } from '../../services/osmSurfaceService';
 import { useTranslation } from '../../context/LanguageContext';
@@ -61,20 +62,6 @@ function getZoneChipTheme(zone: PowerZoneCode): ChipTheme {
   }
 }
 
-function getZoneBarColor(zone: PowerZoneCode): string {
-  switch (zone) {
-    case 'Z1':
-      return '#10B981';
-    case 'Z2':
-      return '#84CC16';
-    case 'Z3':
-      return '#EAB308';
-    case 'Z4':
-      return '#F59E0B';
-    default:
-      return '#F43F5E';
-  }
-}
 
 export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
   trip,
@@ -533,38 +520,29 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
           aria-controls={sectionalPanelId}
           className="w-full min-h-[44px] p-3 sm:p-3.5 flex items-center justify-between gap-2.5 hover:bg-chip/60 transition-colors cursor-pointer text-left select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
         >
-          <div className="flex items-center gap-2.5 min-w-0">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <IconBadge theme="amber" icon={Mountains} size="sm" solidBacker />
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h4 className="text-xs sm:text-[13px] font-bold font-rounded text-ink">
-                  {t('sectionalEnergyHeading')}
-                </h4>
-                {!isEssential && (
-                  <Badge variant={getZoneChipTheme(sectional.peakZone)} size="xs" className="tnum">
-                    {isFr
-                      ? `Pic bosses : ~${sectional.peakClimbWatts} W (${sectional.peakZone})`
-                      : `Climb peak: ~${sectional.peakClimbWatts}W (${sectional.peakZone})`}
-                  </Badge>
-                )}
-                <Badge
-                  variant={
-                    surfaceBreakdown.suitability.overallLevel === 'ideal'
-                      ? 'emerald'
-                      : surfaceBreakdown.suitability.overallLevel === 'good-with-care'
-                      ? 'amber'
-                      : 'rose'
-                  }
-                  size="xs"
-                  className="tnum"
-                >
-                  {surfaceBreakdown.pavedPct}% {isFr ? 'Bitume' : 'Paved'} ·{' '}
-                  {surfaceBreakdown.gravelPct}% Gravel · {surfaceBreakdown.singletrackPct}%{' '}
-                  {isFr ? 'Sentier' : 'Trail'}
-                </Badge>
-              </div>
-              <p className="text-[11px] text-ink-muted break-words leading-relaxed">
-                {sectional.isFromGpx ? t('sectionalEnergySubGpx') : t('sectionalEnergySubSynth')}
+            <div className="min-w-0 flex-1">
+              <h4 className="text-xs sm:text-[13px] font-bold font-rounded text-ink leading-snug">
+                {t('sectionalEnergyHeading')}
+              </h4>
+              <p className="text-[11px] text-ink-muted break-words leading-relaxed tnum">
+                {(() => {
+                  const aerobic =
+                    (sectional.zoneShares.find((z) => z.zone === 'Z1')?.pctTime ?? 0) +
+                    (sectional.zoneShares.find((z) => z.zone === 'Z2')?.pctTime ?? 0);
+                  const peak =
+                    isEssential && !showWattsInGuided
+                      ? isFr
+                        ? `pic ${sectional.peakZone}`
+                        : `peak ${sectional.peakZone}`
+                      : isFr
+                      ? `pic ${sectional.peakClimbWatts} W`
+                      : `peak ${sectional.peakClimbWatts} W`;
+                  return isFr
+                    ? `${aerobic} % aérobie · ${peak} · ${surfaceBreakdown.pavedPct} % bitume`
+                    : `${aerobic}% aerobic · ${peak} · ${surfaceBreakdown.pavedPct}% paved`;
+                })()}
               </p>
             </div>
           </div>
@@ -575,86 +553,24 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
         <Collapsible
           open={showSectional}
           id={sectionalPanelId}
-          innerClassName="px-3.5 sm:px-4 pb-3.5 sm:pb-4 pt-1 space-y-3"
+          innerClassName="px-3 sm:px-3.5 pb-3.5"
         >
-          <div className="lane-divider mb-2" aria-hidden="true" />
-          {/* Stacked Multi-Zone Ride Time Distribution Bar */}
-          <div>
-            <div className="flex items-center justify-between text-[11px] text-ink-secondary mb-1.5 gap-2 flex-wrap">
-              <span className="font-medium">
-                {isFr ? 'Répartition réelle dans les zones :' : 'Time across effort zones:'}
-              </span>
-              <div className="flex items-center gap-2 flex-wrap tnum text-[10px]">
-                {sectional.zoneShares
-                  .filter((z) => z.pctTime > 0)
-                  .map((z) => (
-                    <span key={z.zone} className="inline-flex items-center gap-1">
-                      <span
-                        className="w-2 h-2 rounded-full inline-block"
-                        style={{ backgroundColor: getZoneBarColor(z.zone) }}
-                      />
-                      <strong>{z.zone}</strong> {z.pctTime}%
-                    </span>
-                  ))}
-              </div>
-            </div>
-
-            <div className="w-full h-2.5 rounded-full bg-card overflow-hidden flex gap-0.5 p-0.5">
-              {sectional.zoneShares
-                .filter((z) => z.pctTime > 0)
-                .map((z) => (
-                  <div
-                    key={z.zone}
-                    style={{
-                      width: `${Math.max(4, z.pctTime)}%`,
-                      backgroundColor: getZoneBarColor(z.zone),
-                    }}
-                    title={`${z.zone} (${z.wattsRange}): ${z.pctTime}% (~${z.minutes} min)`}
-                    className="h-full rounded-full transition-all duration-300"
-                  />
-                ))}
-            </div>
-          </div>
-
-          {/* 3 Terrain Intensity Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
-            {sectional.bands.map((band) => {
-              const bTheme = getZoneChipTheme(band.zone);
-              return (
-                <div
-                  key={band.id}
-                  className="p-3 rounded-sub-pod bg-card flex flex-col justify-between gap-1.5"
-                >
-                  <div>
-                    <div className="flex items-center justify-between gap-1.5">
-                      <span className="text-[11px] font-bold font-rounded text-ink leading-tight">
-                        {band.title}
-                      </span>
-                      <Badge variant={bTheme} size="xs" className="tnum shrink-0">
-                        {band.zone}
-                      </Badge>
-                    </div>
-                    <p className="text-[10px] text-ink-muted mt-0.5">{band.subtitle}</p>
-                  </div>
-
-                  <div className="pt-1.5 flex items-baseline justify-between gap-1 tnum">
-                    <span className="text-sm font-bold text-ink">
-                      {!isEssential ? `~${band.avgWatts} W` : band.zone}
-                    </span>
-                    <span className="text-[10px] text-ink-secondary tnum">
-                      {band.pctDistance}% ({band.distanceKm} km)
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Interactive Surface & Road Type Profile + 38c Gravel Suitability */}
-          <SurfaceProfileBar
-            breakdown={surfaceBreakdown}
-            onRefreshOsm={canQueryOsmSurface ? refreshOsmSurface : undefined}
+          <TerrainEffortStory
+            sectional={sectional}
+            showWatts={!isEssential || showWattsInGuided}
+            totalKcal={Math.round(physicsResult.totalKcalBurn)}
+            surfaceSlot={
+              <SurfaceProfileBar
+                bare
+                breakdown={surfaceBreakdown}
+                onRefreshOsm={canQueryOsmSurface ? refreshOsmSurface : undefined}
+              />
+            }
           />
+
+          <p className="mt-3 text-[10px] text-ink-muted leading-relaxed">
+            {sectional.isFromGpx ? t('sectionalEnergySubGpx') : t('sectionalEnergySubSynth')}
+          </p>
         </Collapsible>
       </div>
 

@@ -477,7 +477,8 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center justify-between gap-2 pt-1.5 lane-divider pl-6">
+          <div className="lane-divider my-1.5" aria-hidden="true" />
+<div className="flex items-center justify-between gap-2 pl-6">
             {renderFlavorBadge(item.flavor)}
             {metricText && (
               <span className="text-[11px] font-rounded font-semibold text-ink-secondary tnum">
@@ -763,7 +764,8 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
         </div>
 
         {/* Active Slot Header + Flavor Filter (for Pocket Solids) + Add Custom CTA */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 lane-divider">
+        <div className="lane-divider my-2.5" aria-hidden="true" />
+<div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <IconBadge
               theme={currentSlotConfig.theme}
@@ -1120,7 +1122,8 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
           </div>
 
           {/* Form Action Footer */}
-          <div className="flex items-center justify-end gap-2 pt-2.5 lane-divider">
+          <div className="lane-divider my-2.5" aria-hidden="true" />
+<div className="flex items-center justify-end gap-2">
             <button
               type="button"
               onClick={() => setShowCustomForm(false)}

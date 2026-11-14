@@ -48,6 +48,7 @@ import {
   TelemetryCardMode,
   TelemetryShareData,
 } from '../types/trip';
+import { loadRiderBikeSpecs } from './specsStorage';
 
 export type { TelemetryCardMode, TelemetryShareData };
 
@@ -1100,7 +1101,9 @@ function drawBottomFooterPod(
       x: 425,
       label: isFr ? 'HYDRATATION' : 'HYDRATION',
       value: bidonDisplay,
-      subLabel: isFr ? '~650 ml par bidon' : '~650 ml target',
+      subLabel: isFr
+        ? `~${(data as any).bottleVolumeMl || 650} ml par bidon`
+        : `~${(data as any).bottleVolumeMl || 650} ml / bottle`,
       valueColor: COLOR_INK,
     },
     {
@@ -1270,10 +1273,16 @@ export async function downloadTelemetryCard(
 export function extractTelemetryShareData(
   trip: Partial<TripProfile>,
   physicsResult?: Partial<PhysicsCalculationResult>
-): TelemetryShareData {
+): TelemetryShareData & { bottleVolumeMl?: number } {
   const dist = trip.route?.distanceKm;
   const elev = trip.route?.elevationGainM;
   const rho = trip.weather?.airDensityRho ?? trip.physics?.rho ?? 1.23;
+  const specs = loadRiderBikeSpecs();
+  const bottleVolumeMl = specs.bidonSizeMl || 650;
+  const lockedCarb =
+    specs.carbPacingMode === 'locked' && specs.carbTargetGPerHr
+      ? specs.carbTargetGPerHr
+      : undefined;
 
   return {
     routeName: trip.name || 'Seine Express Cycleway\n(Bastille → La Défense)',
@@ -1289,19 +1298,22 @@ export function extractTelemetryShareData(
         : 0,
     airDensityRho: typeof rho === 'number' ? Number(rho.toFixed(2)) : 1.23,
     carbBurnGramsPerHour:
-      typeof physicsResult?.carbOxidationGramPerHour === 'number'
-        ? Math.round(physicsResult.carbOxidationGramPerHour)
-        : 0,
+      lockedCarb !== undefined
+        ? Math.round(lockedCarb)
+        : typeof physicsResult?.carbOxidationGramPerHour === 'number'
+          ? Math.round(physicsResult.carbOxidationGramPerHour)
+          : 0,
     totalWorkKj:
       typeof physicsResult?.totalWorkKj === 'number'
         ? Math.round(physicsResult.totalWorkKj)
         : 935,
-    ftpWatts: physicsResult?.ftpWatts ?? 210,
+    ftpWatts: physicsResult?.ftpWatts ?? specs.ftpWatts ?? 210,
     powerZone: physicsResult?.powerZone,
     departureDate: trip.departureDate,
     coordinates: trip.route?.coordinates,
     elevationProfile: trip.route?.elevationProfile,
     movingTimeFormatted: physicsResult?.movingTimeFormatted,
     avgSpeedKmH: physicsResult?.effectiveSpeedKmH ?? trip.route?.targetSpeedKmH,
+    bottleVolumeMl,
   };
 }

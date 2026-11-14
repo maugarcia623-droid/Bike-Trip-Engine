@@ -267,7 +267,7 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
       panelClassName="relative w-full max-w-4xl max-h-[90vh] max-h-[90dvh] flex flex-col bg-card text-ink rounded-card p-4 sm:p-6 shadow-2xl ring-1 ring-inset ring-black/10 dark:ring-white/10 transition-colors my-auto overflow-hidden animate-apple-modal"
     >
       {/* ── Modal Header ── */}
-      <div className="flex items-start justify-between gap-3 pb-3 mb-3 lane-divider shrink-0 min-w-0 animate-apple-in stagger-1">
+      <div className="flex items-start justify-between gap-3 pb-3 shrink-0 min-w-0 animate-apple-in stagger-1">
         <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
           <div
             className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0 ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} shadow-xs transition-transform duration-200 hover:scale-105`}
@@ -301,8 +301,7 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
           <X className="w-4 h-4 text-current" />
         </button>
       </div>
-
-      {/* ── Main Modal Body: Split 2-Column Deck (Zero Horizontal Overflow) ── */}
+      <div className="lane-divider mb-3 shrink-0" aria-hidden="true" />
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain touch-pan-y no-scrollbar py-1 w-full">
         {/* ════════ LEFT COLUMN (5 COLS): LIVE IMAGE PREVIEW (9:16) ════════ */}
         <div className="lg:col-span-5 flex flex-col items-center justify-center min-w-0 w-full animate-apple-receipt stagger-2">

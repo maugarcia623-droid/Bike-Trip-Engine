@@ -91,8 +91,19 @@ function prepareStageTrackPoints(
   const speedMetersPerSec = (speedKmH * 1000) / 3600;
 
   let profile = route.elevationProfile;
-  if (!profile || profile.length < 2) {
-    profile = synthesizeRouteElevationProfile(route).elevationProfile;
+  const profileSpanKm = profile && profile.length >= 2 ? profile[profile.length - 1].distKm : 0;
+  const routeDistKm = route.distanceKm || 30;
+  const isProfileStale =
+    !profile ||
+    profile.length < 2 ||
+    Math.abs(profileSpanKm - routeDistKm) > Math.max(5, routeDistKm * 0.15);
+
+  if (isProfileStale) {
+    profile = synthesizeRouteElevationProfile({
+      ...route,
+      elevationProfile: undefined,
+      terrainSummary: undefined,
+    }).elevationProfile;
   }
 
   let startDate = new Date();
@@ -567,6 +578,11 @@ export function exportTripToTcx(trip: TripProfile): string {
   const startPt = points[0] || { lat: 47.2186, lng: -1.5541 };
   const endPt = points[points.length - 1] || startPt;
 
+  const targetWatts =
+    typeof trip.route.targetEffortWatts === 'number' && trip.route.targetEffortWatts > 0
+      ? Math.round(trip.route.targetEffortWatts)
+      : null;
+
   let trackpointsXml = '';
   for (const p of points) {
     trackpointsXml += `          <Trackpoint>\n`;
@@ -577,6 +593,13 @@ export function exportTripToTcx(trip: TripProfile): string {
     trackpointsXml += `            </Position>\n`;
     trackpointsXml += `            <AltitudeMeters>${p.eleM.toFixed(1)}</AltitudeMeters>\n`;
     trackpointsXml += `            <DistanceMeters>${p.distanceMeters.toFixed(1)}</DistanceMeters>\n`;
+    if (targetWatts !== null) {
+      trackpointsXml += `            <Extensions>\n`;
+      trackpointsXml += `              <TPX xmlns="http://www.garmin.com/xmlschemas/ActivityExtension/v2">\n`;
+      trackpointsXml += `                <Watts>${targetWatts}</Watts>\n`;
+      trackpointsXml += `              </TPX>\n`;
+      trackpointsXml += `            </Extensions>\n`;
+    }
     trackpointsXml += `          </Trackpoint>\n`;
   }
 

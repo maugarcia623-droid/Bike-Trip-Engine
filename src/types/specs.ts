@@ -42,6 +42,9 @@ export interface RiderBikeSpecs {
   riderHeightCm: number;
   ftpWatts: number;
   carbTargetGPerHr: number;
+  carbPacingMode?: 'auto' | 'locked';
+  sweatRateLPerHr?: number;
+  sweatSodiumMgPerL?: number;
   nutritionPreference: NutritionPreference;
   dietaryFilters?: DietaryFilter[];
   activePantryIds?: string[];

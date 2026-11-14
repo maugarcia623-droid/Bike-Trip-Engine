@@ -81,8 +81,8 @@ interface HeroRouteCardProps {
 
 type ActiveHeroPopover = 'bike' | 'target' | 'route' | 'pace' | 'elevation' | null;
 
-const ELEV_MATRIX_COLS = 38;
-const ELEV_MATRIX_ROWS = 13;
+const ELEV_MATRIX_COLS = 60; // 60 × 12 @ 8u pitch → 5:1 aspect, fills the popover width edge to edge
+const ELEV_MATRIX_ROWS = 12;
 
 function shiftTimeHHMM(timeStr: string, deltaMinutes: number): string {
   const [hRaw, mRaw] = (timeStr || '08:30').split(':');
@@ -204,7 +204,6 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
   const [isElevationHovered, setIsElevationHovered] = useState<boolean>(false);
   const [hoveredElevCol, setHoveredElevCol] = useState<number | null>(null);
   const [activeSurfaceSegmentId, setActiveSurfaceSegmentId] = useState<string | null>(null);
-  const [showAllPopoverSectors, setShowAllPopoverSectors] = useState(false);
   const surfaceHighlightLayerRef = useRef<L.Polyline | null>(null);
 
   const effectiveSpecs = riderSpecs || loadRiderBikeSpecs();
@@ -563,7 +562,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
           distKm: Number((((idx / (ELEV_MATRIX_COLS - 1)) * (trip.route.distanceKm || 30))).toFixed(1)),
           eleM: 20,
           gradePct: 0,
-          filledRows: 4,
+          filledRows: 3,
           surfaceType: (seg?.type ?? 'paved') as SurfaceType,
           segmentId: seg?.id ?? null,
         };
@@ -603,12 +602,12 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
     return sampled.map((s) => {
       const filledRows =
         eleSpan < 1.5
-          ? 4
+          ? 3
           : Math.max(
-              2,
+              1,
               Math.min(
-                ELEV_MATRIX_ROWS - 2,
-                Math.round(2 + ((s.eleM - minEle) / eleSpan) * (ELEV_MATRIX_ROWS - 4))
+                ELEV_MATRIX_ROWS - 1,
+                Math.round(1 + ((s.eleM - minEle) / eleSpan) * (ELEV_MATRIX_ROWS - 2))
               )
             );
       const seg = surfaceBreakdown.segments.find(
@@ -1425,102 +1424,6 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
               </>
             )}
           </div>
-
-          {/* ── Top-Right Map Surface Legend & 38c Gravel Suitability Pill ── */}
-          <button
-            type="button"
-            onClick={() =>
-              setActivePopover((prev) => (prev === 'elevation' ? null : 'elevation'))
-            }
-            title={
-              isFr
-                ? 'Cliquez pour inspecter le profil des surfaces & la compatibilité gravel 38c'
-                : 'Click to inspect Surface Breakdown & 38c Gravel Suitability'
-            }
-            className="pointer-events-auto inline-flex flex-wrap items-center gap-x-2 gap-y-1 max-w-full px-3 py-1.5 rounded-2xl sm:rounded-full bg-card/92 dark:bg-[#161618]/92 backdrop-blur-xl ring-1 ring-inset ring-ink/10 dark:ring-white/15 shadow-lg hover:ring-ink/25 dark:hover:ring-white/30 transition-all cursor-pointer select-none"
-          >
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-rounded font-bold text-ink tnum">
-              <span className="inline-flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-sky-500 dark:bg-sky-400" />
-                <span>{surfaceBreakdown.pavedPct}%</span>
-                <span className="hidden sm:inline text-ink-secondary font-medium">
-                  {isFr ? 'Bitume' : 'Paved'}
-                </span>
-              </span>
-              <span className="opacity-35">·</span>
-              <span className="inline-flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-amber-500 dark:bg-amber-400" />
-                <span>{surfaceBreakdown.gravelPct}%</span>
-                <span className="hidden sm:inline text-ink-secondary font-medium">
-                  Gravel
-                </span>
-              </span>
-              {surfaceBreakdown.singletrackPct > 0 && (
-                <>
-                  <span className="opacity-35">·</span>
-                  <span className="inline-flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-rose-500 dark:bg-rose-400" />
-                    <span>{surfaceBreakdown.singletrackPct}%</span>
-                    <span className="hidden sm:inline text-ink-secondary font-medium">
-                      {isFr ? 'Sentier' : 'Trail'}
-                    </span>
-                  </span>
-                </>
-              )}
-            </span>
-
-            <span
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-rounded font-extrabold tnum ${
-                surfaceBreakdown.suitability.overallLevel === 'ideal'
-                  ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 ring-1 ring-inset ring-emerald-500/30'
-                  : surfaceBreakdown.suitability.overallLevel === 'good-with-care'
-                  ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300 ring-1 ring-inset ring-amber-500/30'
-                  : 'bg-rose-500/15 text-rose-700 dark:text-rose-300 ring-1 ring-inset ring-rose-500/30'
-              }`}
-            >
-              {surfaceBreakdown.suitability.overallLevel === 'ideal' ? (
-                <ShieldCheck className="w-3 h-3 shrink-0" />
-              ) : (
-                <TriangleAlert className="w-3 h-3 shrink-0" />
-              )}
-              <span>
-                {surfaceBreakdown.suitability.tireWidthMm}c{' '}
-                {surfaceBreakdown.suitability.overallLevel === 'ideal'
-                  ? isFr
-                    ? 'Idéal'
-                    : 'Ideal'
-                  : surfaceBreakdown.suitability.overallLevel === 'good-with-care'
-                  ? (() => {
-                      const count = Math.max(
-                        1,
-                        surfaceBreakdown.suitability.technicalCount ||
-                          surfaceBreakdown.suitability.unpavedCount
-                      );
-                      return isFr
-                        ? `${count} secteur${count > 1 ? 's' : ''}`
-                        : `Watch ${count}`;
-                    })()
-                  : isFr
-                  ? 'Technique'
-                  : 'Technical'}
-              </span>
-            </span>
-
-            {surfaceBreakdown.isLoadingOsm ? (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-rounded font-bold bg-sky-500/15 text-sky-700 dark:text-sky-300 ring-1 ring-inset ring-sky-500/25">
-                <LoaderCircle className="w-2.5 h-2.5 animate-spin" />
-                <span>{isFr ? 'Analyse' : 'Sync'}</span>
-              </span>
-            ) : surfaceBreakdown.dataSource === 'osm-overpass' ? (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-rounded font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 ring-1 ring-inset ring-emerald-500/25">
-                {isFr ? 'Vérifié' : 'Verified'}
-              </span>
-            ) : (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-rounded font-bold bg-ink/8 dark:bg-white/10 text-ink-muted">
-                Est.
-              </span>
-            )}
-          </button>
         </div>
 
         <div ref={lowerContentRef} className="mt-auto flex flex-col gap-3.5 sm:gap-4 pointer-events-auto">
@@ -2169,305 +2072,260 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                 }, 130);
               }}
             >
-              {showElevationOverlay && (
-                <div className="absolute right-0 bottom-full mb-2 w-[min(27.5rem,calc(100vw-2rem))] max-h-[min(23rem,calc(100vh-8rem))] overflow-y-auto z-40 rounded-pod p-3.5 bg-[#faffcb] text-[#4d5200] dark:bg-[#191C06] dark:text-[#dfff00] ring-1 ring-inset ring-[#8ea000]/30 dark:ring-[#dfff00]/25 shadow-2xl animate-apple-popover">
-                  {/* Top Header Row modeled after reference card */}
-                  <div className="flex items-start justify-between gap-3 mb-2">
-                    <div className="min-w-0">
-                      <div className="text-base sm:text-lg font-bold tracking-tight leading-none">
-                        {isFr ? 'Dénivelé & surfaces' : 'Elevation & surface'}
-                      </div>
-                      <div className="text-[11px] font-medium opacity-80 mt-1.5 break-words tnum">
-                        {hoveredElevPoint
-                          ? `km ${hoveredElevPoint.distKm.toFixed(1)} · Alt ${Math.round(hoveredElevPoint.eleM)} m · ${
-                              isFr
-                                ? SURFACE_VISUAL_META[hoveredElevPoint.surfaceType].labelFr
-                                : SURFACE_VISUAL_META[hoveredElevPoint.surfaceType].labelEn
-                            }`
-                          : `${surfaceBreakdown.pavedPct}% ${isFr ? 'Bitume' : 'Paved'} · ${surfaceBreakdown.gravelPct}% Gravel · ${surfaceBreakdown.singletrackPct}% ${isFr ? 'Sentier' : 'Singletrack'}`}
-                      </div>
-                    </div>
+              {showElevationOverlay && (() => {
+                /* ── Elevation & surface popover ──────────────────────────────
+                 * Yellow-vest card (rounded-card + p-4 → rounded-pod inside).
+                 * Solid backer (bg-card) keeps the translucent dark tint opaque
+                 * over the map. Layout: header → KPI → full-width dot matrix →
+                 * route-ordered surface track → 3-col split → tire pressure pod.
+                 * ─────────────────────────────────────────────────────────── */
+                const fmtKm = (v: number) => (isFr ? v.toFixed(1).replace('.', ',') : v.toFixed(1));
+                const fmtBar = (v: number) => (isFr ? String(v).replace('.', ',') : String(v));
+                const { suitability } = surfaceBreakdown;
+                const tireLabel = `${suitability.tireWidthMm}c ${
+                  suitability.isTubeless ? 'Tubeless' : isFr ? 'chambre' : 'tubes'
+                }`;
+                const pressureSeg =
+                  surfaceBreakdown.segments.find((s) => s.id === activeSurfaceSegmentId) ??
+                  surfaceBreakdown.segments.find((s) => s.suitability38c === 'caution') ??
+                  surfaceBreakdown.segments.find((s) => s.type !== 'paved');
+                const composition = [
+                  { type: 'paved' as const, pct: surfaceBreakdown.pavedPct, km: surfaceBreakdown.pavedKm },
+                  { type: 'gravel' as const, pct: surfaceBreakdown.gravelPct, km: surfaceBreakdown.gravelKm },
+                  {
+                    type: 'singletrack' as const,
+                    pct: surfaceBreakdown.singletrackPct,
+                    km: surfaceBreakdown.singletrackKm,
+                  },
+                ];
+                const pickElevCol = (e: React.MouseEvent<SVGSVGElement>) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  if (rect.width <= 0) return;
+                  const relX = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                  const col = Math.min(ELEV_MATRIX_COLS - 1, Math.max(0, Math.floor(relX * ELEV_MATRIX_COLS)));
+                  setHoveredElevCol(col);
+                  setActiveSurfaceSegmentId(elevationColumns[col]?.segmentId ?? null);
+                };
 
-                    <div className="text-right shrink-0">
-                      <div className="text-lg sm:text-[21px] font-bold tracking-tight tnum leading-none">
-                        {hoveredElevPoint ? `${Math.round(hoveredElevPoint.eleM)} m` : `+${elevationGainM} m`}
+                return (
+                  <div className="fixed left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 sm:translate-x-0 sm:translate-y-0 sm:top-auto sm:left-auto sm:absolute sm:right-0 sm:bottom-full sm:mb-2 w-[min(27.5rem,calc(100vw-2rem))] z-40 rounded-card bg-card shadow-2xl animate-apple-popover">
+                    <div className="rounded-card p-4 bg-[#FAFFCB] text-[#4D5200] dark:bg-[#1F2203]/60 dark:text-[#DFFF00]">
+                      {/* ── Header: title + data source · refresh action ── */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h4 className="text-base sm:text-[17px] font-semibold font-rounded tracking-tight leading-snug">
+                            {isFr ? 'Dénivelé & surfaces' : 'Elevation & surface'}
+                          </h4>
+                          <p className="mt-0.5 text-[11px] font-rounded font-semibold opacity-75 tnum truncate">
+                            {surfaceBreakdown.isLoadingOsm
+                              ? isFr
+                                ? 'Analyse des surfaces…'
+                                : 'Checking road surfaces…'
+                              : surfaceBreakdown.dataSource === 'osm-overpass'
+                              ? isFr
+                                ? `Données carte · ${surfaceBreakdown.osmWayCount ?? 0} segments · ${surfaceBreakdown.osmCoveragePct ?? 100}% couverts`
+                                : `Map data · ${surfaceBreakdown.osmWayCount ?? 0} segments · ${surfaceBreakdown.osmCoveragePct ?? 100}% mapped`
+                              : isFr
+                              ? 'Estimé selon le type de parcours'
+                              : 'Estimated from route geometry'}
+                          </p>
+                        </div>
+                        {canQueryOsmSurface && (
+                          <button
+                            type="button"
+                            onClick={refreshOsmSurface}
+                            disabled={surfaceBreakdown.isLoadingOsm}
+                            aria-label={isFr ? 'Actualiser les surfaces' : 'Refresh road surfaces'}
+                            title={isFr ? 'Actualiser les surfaces' : 'Refresh road surfaces'}
+                            className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center bg-[#4D5200]/10 dark:bg-[#DFFF00]/10 hover:bg-[#4D5200]/15 dark:hover:bg-[#DFFF00]/15 active:scale-[0.97] transition-all cursor-pointer disabled:cursor-wait"
+                          >
+                            <RefreshCw className={`w-4 h-4 ${surfaceBreakdown.isLoadingOsm ? 'animate-spin' : ''}`} />
+                          </button>
+                        )}
                       </div>
-                      <div className="text-xs font-semibold tnum opacity-80 mt-1">
-                        {hoveredElevPoint
-                          ? `${hoveredElevPoint.gradePct >= 0 ? '↑' : '↓'}${Math.abs(hoveredElevPoint.gradePct).toFixed(1)}%`
-                          : `↑${maxGradientPercent}%`}
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* Dot-Matrix Elevation Silhouette (38 cols × 13 rows, bottom row color-coded by surface) */}
-                  <svg
-                    viewBox={`0 0 ${ELEV_MATRIX_COLS * 8} ${ELEV_MATRIX_ROWS * 8}`}
-                    className="w-full h-auto max-h-[74px] block select-none cursor-crosshair"
-                    role="img"
-                    aria-label={isFr ? 'Aperçu du dénivelé et du terrain' : 'Elevation and terrain overview'}
-                    onMouseMove={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      if (rect.width <= 0) return;
-                      const relX = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-                      const col = Math.min(
-                        ELEV_MATRIX_COLS - 1,
-                        Math.max(0, Math.round(relX * (ELEV_MATRIX_COLS - 1)))
-                      );
-                      setHoveredElevCol(col);
-                      const segId = elevationColumns[col]?.segmentId ?? null;
-                      setActiveSurfaceSegmentId(segId);
-                    }}
-                    onMouseLeave={() => {
-                      setHoveredElevCol(null);
-                      setActiveSurfaceSegmentId(null);
-                    }}
-                  >
-                    {elevationColumns.map((colData, colIdx) => {
-                      const isColHovered = hoveredElevCol === colIdx;
-                      const surfMeta = SURFACE_VISUAL_META[colData.surfaceType];
-                      return Array.from({ length: ELEV_MATRIX_ROWS }, (_, rowFromTop) => {
-                        const rowFromBottom = ELEV_MATRIX_ROWS - 1 - rowFromTop;
-                        const isFilled = rowFromBottom < colData.filledRows;
-                        const isSurfaceBaseline = rowFromBottom === 0;
-                        const fill = isSurfaceBaseline
-                          ? isDarkMode
-                            ? surfMeta.colorDark
-                            : surfMeta.colorLight
-                          : isFilled
-                          ? isColHovered
+                      {/* ── KPI row: total gain + live readout ── */}
+                      <div className="mt-3 flex items-end justify-between gap-3">
+                        <div className="flex items-start shrink-0">
+                          <span className="text-[34px] font-bold font-rounded tracking-tight tnum leading-none">
+                            +{elevationGainM}
+                          </span>
+                          <span className="self-end ml-1 mb-0.5 text-xs font-semibold font-rounded opacity-75">m</span>
+                          <span className="ml-1.5 text-[11px] font-bold font-rounded tnum leading-none opacity-75">
+                            ↑{maxGradientPercent}%
+                          </span>
+                        </div>
+                        <div className="min-w-0 text-right text-[11px] font-rounded font-semibold tnum leading-snug">
+                          {hoveredElevPoint ? (
+                            <>
+                              <p className="truncate">
+                                km {fmtKm(hoveredElevPoint.distKm)} ·{' '}
+                                {isFr
+                                  ? SURFACE_VISUAL_META[hoveredElevPoint.surfaceType].shortLabelFr
+                                  : SURFACE_VISUAL_META[hoveredElevPoint.surfaceType].shortLabelEn}
+                              </p>
+                              <p className="truncate opacity-75">
+                                {Math.round(hoveredElevPoint.eleM)} m ·{' '}
+                                {hoveredElevPoint.gradePct >= 0 ? '↑' : '↓'}
+                                {Math.abs(hoveredElevPoint.gradePct).toFixed(1)}%
+                              </p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="truncate">
+                                {Math.round(terrainSummary.minEleM)}–{Math.round(terrainSummary.maxEleM)} m
+                              </p>
+                              <p className="truncate opacity-75">
+                                {isFr ? 'Plat' : 'Flat'} {terrainSummary.flatPct} ·{' '}
+                                {isFr ? 'Vallonné' : 'Rolling'} {terrainSummary.rollingPct} ·{' '}
+                                {isFr ? 'Bosses' : 'Climb'} {terrainSummary.climbPct}%
+                              </p>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* ── Full-width dot-matrix elevation silhouette ── */}
+                      <svg
+                        viewBox={`0 0 ${ELEV_MATRIX_COLS * 8} ${ELEV_MATRIX_ROWS * 8}`}
+                        className="mt-3 w-full h-auto block select-none cursor-crosshair"
+                        role="img"
+                        aria-label={isFr ? 'Profil du dénivelé' : 'Elevation profile'}
+                        onMouseMove={pickElevCol}
+                        onClick={pickElevCol}
+                        onMouseLeave={() => setHoveredElevCol(null)}
+                      >
+                        {elevationColumns.map((colData, colIdx) => {
+                          const isColHovered = hoveredElevCol === colIdx;
+                          const isInActiveSeg =
+                            activeSurfaceSegmentId !== null && colData.segmentId === activeSurfaceSegmentId;
+                          const filledFill = isColHovered || isInActiveSeg
                             ? isDarkMode
-                              ? '#FFFFFF'
+                              ? '#F5F5F7'
                               : '#4D5200'
                             : isDarkMode
                             ? '#DFFF00'
-                            : '#8EA000'
-                          : isDarkMode
-                          ? 'rgba(223, 255, 0, 0.15)'
-                          : 'rgba(77, 82, 0, 0.14)';
-
-                        return (
-                          <circle
-                            key={`${colIdx}-${rowFromTop}`}
-                            cx={colIdx * 8 + 4}
-                            cy={rowFromTop * 8 + 4}
-                            r={3.3}
-                            fill={fill}
-                          />
-                        );
-                      });
-                    })}
-                  </svg>
-
-                  {/* Interactive Surface & Road Type Profile Bar alongside Elevation */}
-                  <div className="mt-3 pt-2.5 lane-divider space-y-2">
-                    <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-rounded font-bold tnum opacity-85">
-                      <span>
-                        {surfaceBreakdown.isLoadingOsm
-                          ? isFr
-                            ? 'Analyse des surfaces en cours…'
-                            : 'Scanning route surfaces…'
-                          : surfaceBreakdown.dataSource === 'osm-overpass'
-                          ? isFr
-                            ? `Données carte · ${surfaceBreakdown.osmWayCount ?? 0} segments · ${surfaceBreakdown.osmCoveragePct ?? 100}% couverts`
-                            : `Map data · ${surfaceBreakdown.osmWayCount ?? 0} segments · ${surfaceBreakdown.osmCoveragePct ?? 100}% mapped`
-                          : isFr
-                          ? 'Estimation de surface'
-                          : 'Estimated surface mix'}
-                      </span>
-                      {canQueryOsmSurface && (
-                        <button
-                          type="button"
-                          onClick={refreshOsmSurface}
-                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-black/8 dark:bg-white/10 hover:bg-black/15 dark:hover:bg-white/20 transition-colors cursor-pointer"
-                        >
-                          <RefreshCw
-                            className={`w-2.5 h-2.5 ${
-                              surfaceBreakdown.isLoadingOsm ? 'animate-spin' : ''
-                            }`}
-                          />
-                          <span>{isFr ? 'Actualiser' : 'Refresh'}</span>
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between gap-2 text-[11px] font-rounded font-bold tnum">
-                      <span className="inline-flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-sky-500 dark:bg-sky-400" />
-                        <span>
-                          {surfaceBreakdown.pavedPct}% {isFr ? 'Bitume' : 'Paved'}
-                        </span>
-                      </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-amber-500 dark:bg-amber-400" />
-                        <span>
-                          {surfaceBreakdown.gravelPct}% {isFr ? 'Gravel' : 'Gravel'}
-                        </span>
-                      </span>
-                      <span className="inline-flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-rose-500 dark:bg-rose-400" />
-                        <span>
-                          {surfaceBreakdown.singletrackPct}%{' '}
-                          {isFr ? 'Sentier' : 'Singletrack'}
-                        </span>
-                      </span>
-                    </div>
-
-                    {/* Interactive Route-Ordered Surface Timeline Bar */}
-                    <div className="h-3 w-full rounded-full overflow-hidden bg-black/15 dark:bg-white/10 p-0.5 flex items-stretch gap-0.5">
-                      {surfaceBreakdown.segments.map((seg) => {
-                        const meta = SURFACE_VISUAL_META[seg.type];
-                        const widthPct = Math.max(4, seg.endPct - seg.startPct);
-                        const isActive = activeSurfaceSegmentId === seg.id;
-                        return (
-                          <button
-                            key={seg.id}
-                            type="button"
-                            style={{ width: `${widthPct}%` }}
-                            onMouseEnter={() => setActiveSurfaceSegmentId(seg.id)}
-                            onClick={() =>
-                              setActiveSurfaceSegmentId((prev) =>
-                                prev === seg.id ? null : seg.id
-                              )
-                            }
-                            title={`${isFr ? seg.nameFr : seg.nameEn} · km ${seg.startKm}–${seg.endKm}`}
-                            className={`h-full first:rounded-l-full last:rounded-r-full transition-all cursor-pointer ${
-                              meta.barBgClass
-                            } ${
-                              isActive
-                                ? 'ring-2 ring-inset ring-white opacity-100'
-                                : 'opacity-85 hover:opacity-100'
-                            }`}
-                          />
-                        );
-                      })}
-                    </div>
-
-                    {/* Unpaved Sector Quick-Pills (prioritize top 5 notable sectors unless expanded) */}
-                    {(() => {
-                      const allUnpaved = surfaceBreakdown.segments.filter(
-                        (s) => s.type !== 'paved'
-                      );
-                      const MAX_COMPACT = 5;
-                      let visiblePills = allUnpaved;
-                      if (!showAllPopoverSectors && allUnpaved.length > MAX_COMPACT) {
-                        const prioritized = [...allUnpaved]
-                          .sort((a, b) => {
-                            if (a.id === activeSurfaceSegmentId) return -1;
-                            if (b.id === activeSurfaceSegmentId) return 1;
-                            const aRank = a.type === 'singletrack' ? 2 : 1;
-                            const bRank = b.type === 'singletrack' ? 2 : 1;
-                            if (aRank !== bRank) return bRank - aRank;
-                            return b.distanceKm - a.distanceKm;
-                          })
-                          .slice(0, MAX_COMPACT);
-                        const chosenIds = new Set(prioritized.map((s) => s.id));
-                        visiblePills = allUnpaved.filter((s) => chosenIds.has(s.id));
-                      }
-                      const hiddenCount = allUnpaved.length - visiblePills.length;
-
-                      return (
-                        <div className="flex items-center gap-1 flex-wrap">
-                          {visiblePills.map((seg) => {
-                            const isActive = activeSurfaceSegmentId === seg.id;
+                            : '#A3B300';
+                          const filledOpacity = isInActiveSeg && !isColHovered ? 0.6 : 1;
+                          return Array.from({ length: ELEV_MATRIX_ROWS }, (_, rowFromTop) => {
+                            const rowFromBottom = ELEV_MATRIX_ROWS - 1 - rowFromTop;
+                            const isFilled = rowFromBottom < colData.filledRows;
                             return (
-                              <button
-                                key={seg.id}
-                                type="button"
-                                onMouseEnter={() => setActiveSurfaceSegmentId(seg.id)}
-                                onClick={() => setActiveSurfaceSegmentId(seg.id)}
-                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-rounded font-bold tnum cursor-pointer transition-all ${
-                                  seg.type === 'singletrack'
-                                    ? 'bg-rose-500/20 text-rose-900 dark:text-rose-200 ring-1 ring-inset ring-rose-500/40'
-                                    : 'bg-amber-500/20 text-amber-900 dark:text-amber-200 ring-1 ring-inset ring-amber-500/40'
-                                } ${isActive ? 'ring-2 ring-current' : ''}`}
-                              >
-                                <span>
-                                  km {seg.startKm}–{seg.endKm}{' '}
-                                  {seg.type === 'singletrack'
-                                    ? isFr
-                                      ? 'Sentier'
-                                      : 'Trail'
-                                    : 'Gravel'}
-                                </span>
-                              </button>
+                              <circle
+                                key={`${colIdx}-${rowFromTop}`}
+                                cx={colIdx * 8 + 4}
+                                cy={rowFromTop * 8 + 4}
+                                r={3.2}
+                                fill={
+                                  isFilled
+                                    ? filledFill
+                                    : isDarkMode
+                                    ? 'rgba(223, 255, 0, 0.12)'
+                                    : 'rgba(77, 82, 0, 0.1)'
+                                }
+                                fillOpacity={isFilled ? filledOpacity : 1}
+                              />
                             );
-                          })}
-                          {hiddenCount > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => setShowAllPopoverSectors(true)}
-                              className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-rounded font-bold tnum bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 cursor-pointer transition-colors"
-                            >
-                              +{hiddenCount}
-                            </button>
-                          )}
-                          {showAllPopoverSectors && allUnpaved.length > MAX_COMPACT && (
-                            <button
-                              type="button"
-                              onClick={() => setShowAllPopoverSectors(false)}
-                              className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-rounded font-bold bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 cursor-pointer transition-colors"
-                            >
-                              {isFr ? 'Réduire' : 'Less'}
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })()}
+                          });
+                        })}
+                      </svg>
 
-                    {/* Elodie 38c Gravel Suitability & Pressure Box */}
-                    {(() => {
-                      const activeSeg =
-                        surfaceBreakdown.segments.find(
-                          (s) => s.id === activeSurfaceSegmentId
-                        ) ??
-                        surfaceBreakdown.segments.find(
-                          (s) => s.suitability38c === 'caution'
-                        ) ??
-                        surfaceBreakdown.segments.find((s) => s.type !== 'paved');
+                      {/* ── Route-ordered surface track (aligned under the matrix) ── */}
+                      <div className="mt-2 h-6 w-full rounded-full bg-[#4D5200]/10 dark:bg-[#DFFF00]/10 p-[3px] flex items-stretch gap-[2px]">
+                        {surfaceBreakdown.segments.map((seg) => {
+                          const meta = SURFACE_VISUAL_META[seg.type];
+                          const isActive = activeSurfaceSegmentId === seg.id;
+                          return (
+                            <button
+                              key={seg.id}
+                              type="button"
+                              style={{ flexGrow: Math.max(0.5, seg.endPct - seg.startPct), flexBasis: 0 }}
+                              onMouseEnter={() => {
+                                setHoveredElevCol(null);
+                                setActiveSurfaceSegmentId(seg.id);
+                              }}
+                              onClick={() => setActiveSurfaceSegmentId((prev) => (prev === seg.id ? null : seg.id))}
+                              title={`${isFr ? seg.nameFr : seg.nameEn} · km ${seg.startKm}–${seg.endKm}`}
+                              aria-label={`${isFr ? meta.shortLabelFr : meta.shortLabelEn} · km ${seg.startKm}–${seg.endKm}`}
+                              aria-pressed={isActive}
+                              className={`h-full min-w-[4px] rounded-full cursor-pointer ring-2 ring-inset transition-shadow ${
+                                meta.barBgClass
+                              } ${seg.type !== 'paved' ? 'paint-hatch' : ''} ${
+                                isActive ? 'ring-[#4D5200] dark:ring-[#F5F5F7]' : 'ring-transparent'
+                              }`}
+                            />
+                          );
+                        })}
+                      </div>
 
-                      return (
-                        <div className="rounded-sub-pod bg-black/8 dark:bg-white/8 p-2.5 text-[11px] leading-snug space-y-1">
-                          <div className="flex items-center justify-between gap-2 font-rounded font-bold">
-                            <span>
-                              {activeSeg
-                                ? `${isFr ? activeSeg.nameFr : activeSeg.nameEn} (km ${activeSeg.startKm}–${activeSeg.endKm})`
-                                : isFr
-                                ? surfaceBreakdown.suitability.headlineFr
-                                : surfaceBreakdown.suitability.headlineEn}
-                            </span>
-                            <span className="tnum shrink-0">
-                              {surfaceBreakdown.suitability.recommendedFrontBar}/
-                              {surfaceBreakdown.suitability.recommendedRearBar} bar
-                            </span>
-                          </div>
-                          <p className="opacity-85 text-[10.5px]">
-                            {activeSeg
-                              ? isFr
-                                ? `${activeSeg.surfaceDetailFr} — ${activeSeg.riderNoteFr}`
-                                : `${activeSeg.surfaceDetailEn} — ${activeSeg.riderNoteEn}`
+                      {/* ── Surface split (how much) ── */}
+                      <dl className="mt-3 grid grid-cols-3 divide-x divide-[#4D5200]/15 dark:divide-[#DFFF00]/15">
+                        {composition.map((item, i) => {
+                          const meta = SURFACE_VISUAL_META[item.type];
+                          return (
+                            <div
+                              key={item.type}
+                              className={`${i === 0 ? 'pr-3' : 'px-3'} min-w-0 ${item.km <= 0.05 ? 'opacity-50' : ''}`}
+                            >
+                              <dt className="flex items-center gap-1.5 text-[11px] font-rounded font-bold opacity-75">
+                                <span
+                                  className={`w-2.5 h-2.5 rounded-full shrink-0 ${meta.barBgClass} ${
+                                    item.type !== 'paved' ? 'paint-hatch' : ''
+                                  }`}
+                                />
+                                <span className="truncate">{isFr ? meta.shortLabelFr : meta.shortLabelEn}</span>
+                              </dt>
+                              <dd className="mt-1 flex items-start font-rounded tnum whitespace-nowrap">
+                                <span className="text-[22px] font-bold leading-none tracking-tight">{item.pct}</span>
+                                <span className="self-end text-[11px] font-semibold opacity-75">%</span>
+                                <span className="ml-1 text-[10px] font-semibold leading-none opacity-75">
+                                  {fmtKm(item.km)} km
+                                </span>
+                              </dd>
+                            </div>
+                          );
+                        })}
+                      </dl>
+
+                      {/* ── Tire pressure pod (rounded-pod = rounded-card − p-4) ── */}
+                      <div className="mt-3 rounded-pod p-3 bg-ink/[0.04] dark:bg-white/[0.04] flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-rounded font-bold opacity-75 truncate">
+                            {isFr ? 'Pression' : 'Tire pressure'} · {tireLabel}
+                          </p>
+                          <p className="mt-0.5 text-[13px] font-rounded font-bold leading-snug truncate tnum">
+                            {pressureSeg
+                              ? `${isFr ? pressureSeg.nameFr : pressureSeg.nameEn} · km ${pressureSeg.startKm}–${pressureSeg.endKm}`
                               : isFr
-                              ? surfaceBreakdown.suitability.summaryFr
-                              : surfaceBreakdown.suitability.summaryEn}
+                              ? suitability.headlineFr
+                              : suitability.headlineEn}
+                          </p>
+                          <p className="mt-0.5 text-[11px] font-body leading-snug opacity-75 line-clamp-1">
+                            {pressureSeg
+                              ? isFr
+                                ? pressureSeg.riderNoteFr
+                                : pressureSeg.riderNoteEn
+                              : isFr
+                              ? suitability.summaryFr
+                              : suitability.summaryEn}
                           </p>
                         </div>
-                      );
-                    })()}
+                        <div className="shrink-0 text-right">
+                          <div className="flex items-start justify-end font-rounded tnum whitespace-nowrap">
+                            <span className="text-[22px] font-bold leading-none tracking-tight">
+                              {fmtBar(suitability.recommendedFrontBar)}/{fmtBar(suitability.recommendedRearBar)}
+                            </span>
+                            <span className="self-end ml-0.5 text-[11px] font-semibold opacity-75">bar</span>
+                          </div>
+                          <p className="mt-1 text-[10px] font-rounded font-semibold opacity-75">
+                            {isFr ? 'Avant / arrière' : 'Front / rear'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-
-                  {/* Compact Monochrome Terrain Split Footer */}
-                  <div className="mt-2.5 pt-2 flex items-center justify-between gap-2 text-[11px] font-semibold opacity-80 tnum">
-                    <span className="break-words leading-tight">
-                      {isFr ? 'Plat' : 'Flat'} {terrainSummary.flatPct}% ·{' '}
-                      {isFr ? 'Vallonné' : 'Rolling'} {terrainSummary.rollingPct}% ·{' '}
-                      {isFr ? 'Bosses' : 'Climb'} {terrainSummary.climbPct}%
-                    </span>
-                    <span className="shrink-0">
-                      {Math.round(terrainSummary.minEleM)}–{Math.round(terrainSummary.maxEleM)} m
-                    </span>
-                  </div>
-                </div>
-              )}
+                );
+              })()}
 
               <div
                 role="button"
@@ -2496,7 +2354,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                 }}
                 className={`h-full rounded-pod p-3 sm:p-3.5 bg-pod dark:bg-[#161618] text-ink flex flex-col justify-between min-h-[100px] sm:min-h-[112px] transition-all cursor-pointer select-none group ${
                   showElevationOverlay
-                    ? 'ring-2 ring-inset ring-[#8ea000]/50 dark:ring-[#dfff00]/45'
+                    ? 'ring-2 ring-inset ring-[#A3B300] dark:ring-[#DFFF00]'
                     : 'hover:bg-chip/60'
                 }`}
               >

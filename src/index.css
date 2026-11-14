@@ -172,6 +172,18 @@
     box-shadow: inset 0 0 0 1px var(--tarmac-hatch-border);
   }
 
+  /* Painted hatch overlay for SOLID coloured data fills (bars, segments, chips).
+     Pair with a flat background-color — the stripes darken the paint like a road marking. */
+  .paint-hatch {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      rgb(0 0 0 / 0.16) 0px,
+      rgb(0 0 0 / 0.16) 2px,
+      transparent 2px,
+      transparent 6px
+    );
+  }
+
   /* Full-radius tire/chain-link range slider */
   input[type='range'].peloton-slider {
     -webkit-appearance: none;
@@ -386,13 +398,23 @@
 
 /* Interactive Tactile Classes (Apple-Style physical response) */
 .apple-card-hover {
-  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.24s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.18s ease;
+  will-change: transform, box-shadow;
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.3s ease;
 }
-.apple-card-hover:hover {
-  transform: translateY(-2px);
-}
-.apple-card-hover:active {
-  transform: translateY(0px) scale(0.99);
+@media (hover: hover) and (pointer: fine) {
+  .apple-card-hover:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.08),
+                0 4px 10px -2px rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.1);
+  }
+  .dark .apple-card-hover:hover {
+    box-shadow: 0 14px 28px -4px rgba(0, 0, 0, 0.45),
+                0 4px 12px -2px rgba(0, 0, 0, 0.25);
+    border-color: rgba(255, 255, 255, 0.12);
+  }
 }
 
 .apple-interactive-btn {

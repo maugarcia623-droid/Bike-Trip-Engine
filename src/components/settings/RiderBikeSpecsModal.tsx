@@ -373,7 +373,8 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                     </div>
                   </div>
 
-                  <div className="pt-2.5 lane-divider space-y-1.5">
+                  <div className="lane-divider my-2.5" aria-hidden="true" />
+                  <div className="space-y-1.5">
                     <label className="block text-xs font-rounded font-bold text-ink">
                       {isFr ? 'Mesure de l’effort' : 'How you pace your effort'}
                     </label>
@@ -592,7 +593,9 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                         </button>
                       </div>
                       {showFtpEstimator && (
-                        <div className="mt-2.5 pt-2.5 lane-divider space-y-2 animate-fade-in">
+                        <>
+                          <div className="lane-divider my-2.5" aria-hidden="true" />
+                          <div className="space-y-2 animate-fade-in">
                           <p className="text-[11px] text-ink-muted leading-snug">
                             {isFr
                               ? `La FTP est la puissance max soutenable 1 h. Basé sur ${localSpecs.riderWeightKg || 68} kg :`
@@ -632,6 +635,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                             })}
                           </div>
                         </div>
+                        </>
                       )}
                     </div>
                   </>
@@ -1170,7 +1174,9 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                   </button>
 
                   {showAdvancedBike && (
-                    <div className="grid grid-cols-2 gap-2.5 mt-3 pt-3 lane-divider animate-apple-fade-in">
+                    <>
+                      <div className="lane-divider my-3" aria-hidden="true" />
+                      <div className="grid grid-cols-2 gap-2.5 animate-apple-fade-in">
                       <div className="p-3 rounded-sub-pod bg-pod">
                         <label className="block text-[11px] font-rounded text-ink-muted mb-1">
                           {t('tireCrrLabel')}
@@ -1247,6 +1253,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                         </div>
                       </div>
                     </div>
+                    </>
                   )}
                 </div>
               </div>
@@ -1269,7 +1276,8 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
       </div>
 
       {/* Footer */}
-      <div className="mt-4 pt-3.5 lane-divider flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+      <div className="lane-divider mt-4 mb-3.5" aria-hidden="true" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
         <span className="text-xs text-ink-muted">
           {t('syncActiveTripNotice')}
         </span>

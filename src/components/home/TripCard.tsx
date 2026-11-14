@@ -70,7 +70,7 @@ export const TripCard: React.FC<TripCardProps> = ({
   const activeSegments = Math.round((checkedCount / totalChecklist) * 5);
 
   return (
-    <div className="group relative rounded-card p-4 bg-card text-ink apple-card-hover flex flex-col justify-between h-full shadow-xs hover:shadow-lg border border-ink/5 dark:border-white/5">
+    <div className="group relative rounded-card p-4 bg-card text-ink apple-card-hover flex flex-col justify-between h-full shadow-xs border border-ink/5 dark:border-white/5">
       {/* Top Section: Category, Actions, Title, Description, Preset Tags */}
       <div>
         {/* Top Row: Category Pill & Circular Action Buttons */}

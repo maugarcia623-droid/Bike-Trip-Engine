@@ -24,6 +24,7 @@ import { getKitRecommendation } from '../../utils/kitAdvisor';
 import { Badge } from '../common/Badge';
 import { IconBadge } from '../common/IconBadge';
 import { Collapsible, DisclosureChevron } from '../common/Collapsible';
+import { WeatherGlance } from './WeatherGlance';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
   CHIP_RING_BASE,
@@ -429,41 +430,19 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
         </div>
       </div>
 
-      {/* Compact Collapsed Summary Strip */}
+      {/* Collapsed "at a glance" summary — conditions during the planned ride */}
       <Collapsible open={!isCardExpanded} innerClassName="pt-3">
-        <button
-          type="button"
-          onClick={toggleCardExpanded}
-          className="w-full p-2.5 px-3 rounded-pod bg-pod hover:bg-chip/60 transition-colors flex items-center justify-between gap-2 text-left cursor-pointer"
-        >
-          <div className="flex items-center gap-2 min-w-0 flex-wrap tnum text-xs">
-            <Badge
-              variant={
-                goStatus === 'GO' ? 'emerald' : goStatus === 'CAUTION' ? 'yellow-vest' : 'rose'
-              }
-              size="xs"
-              dot
-            >
-              {goStatus === 'GO'
-                ? t('feasibilityOptimal')
-                : goStatus === 'CAUTION'
-                ? t('feasibilityCaution')
-                : t('feasibilitySevere')}
-            </Badge>
-            <span className="font-semibold text-ink">{temperature}&deg;C</span>
-            <span className="text-ink-muted">&middot;</span>
-            <span className="tnum text-ink-secondary">
-              {windSpeed} km/h {windCardinal}
-            </span>
-            <span className="text-ink-muted hidden min-[400px]:inline">&middot;</span>
-            <Badge variant={kitAdvice.tierTheme} size="xs" className="hidden min-[400px]:inline-flex">
-              {kitAdvice.tierBadge}
-            </Badge>
-          </div>
-          <span className="text-xs font-rounded font-semibold text-ink-secondary shrink-0">
-            {t('bannerDetails')}
-          </span>
-        </button>
+        <WeatherGlance
+          weather={trip.weather}
+          visibility={visibilityAnalysis}
+          kitAdvice={kitAdvice}
+          goStatus={goStatus}
+          temperature={temperature}
+          windSpeed={windSpeed}
+          windCardinal={windCardinal}
+          maxGust={maxGust}
+          onExpand={toggleCardExpanded}
+        />
       </Collapsible>
 
       <Collapsible open={isCardExpanded} innerClassName="pt-3">

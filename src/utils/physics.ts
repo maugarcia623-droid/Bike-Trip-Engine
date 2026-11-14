@@ -356,12 +356,31 @@ export interface SectionalEffortBand {
   avgSpeedKmH: number;
 }
 
+export interface EffortTracePoint {
+  distKm: number;
+  eleM: number;
+  /** Time-weighted average leg watts across the segment ending at this point. */
+  watts: number;
+  gradePct: number;
+  zone: PowerZoneCode;
+}
+
 export interface SectionalEnergySummary {
   isFromGpx: boolean;
   zoneShares: ZoneTimeShare[];
   bands: SectionalEffortBand[];
   peakClimbWatts: number;
   peakZone: PowerZoneCode;
+  /** Downsampled route-ordered elevation + effort trace (≤ 96 points) for dataviz. */
+  effortTrace: EffortTracePoint[];
+  /** Distance (km) along the route where the peak effort occurs. */
+  peakAtKm: number;
+  /** Grade (%) of the segment where the peak effort occurs. */
+  peakGradePct: number;
+  totalMinutes: number;
+  totalDistanceKm: number;
+  elevationGainM: number;
+  ftpWatts: number;
 }
 
 /**
@@ -410,6 +429,10 @@ export function calculateSectionalEnergyBreakdown(
   };
 
   let peakClimbWatts = Math.round(result.legWatts);
+  let peakAtKm = 0;
+  let peakGradePct = 0;
+  let elevationGainM = 0;
+  const rawTrace: Array<{ distKm: number; eleM: number; watts: number; timeSec: number; gradePct: number }> = [];
 
   for (let i = 1; i < elevationProfile.length; i++) {
     const prev = elevationProfile[i - 1];
@@ -494,7 +517,19 @@ export function calculateSectionalEnergyBreakdown(
 
     if (segLegWatts > peakClimbWatts) {
       peakClimbWatts = Math.round(segLegWatts);
+      peakAtKm = curr.distKm;
+      peakGradePct = gradePct;
     }
+    if (curr.eleM > prev.eleM) {
+      elevationGainM += curr.eleM - prev.eleM;
+    }
+    rawTrace.push({
+      distKm: curr.distKm,
+      eleM: curr.eleM,
+      watts: segLegWatts,
+      timeSec: dtSec,
+      gradePct,
+    });
 
     const bucketKey: 'easy' | 'rolling' | 'climbs' =
       gradePct < 1.0 ? 'easy' : gradePct <= 3.5 ? 'rolling' : 'climbs';
@@ -587,12 +622,49 @@ export function calculateSectionalEnergyBreakdown(
   // Suppress unused grossEff warning by referencing it if needed
   void grossEff;
 
+  // Downsample the route-ordered trace to ≤ 96 time-weighted buckets for lightweight SVG rendering
+  const MAX_TRACE_POINTS = 96;
+  const effortTrace: EffortTracePoint[] = [];
+  if (elevationProfile.length > 0) {
+    const first = elevationProfile[0];
+    const firstW = rawTrace[0]?.watts ?? result.legWatts;
+    effortTrace.push({
+      distKm: first.distKm,
+      eleM: first.eleM,
+      watts: Math.round(firstW),
+      gradePct: rawTrace[0]?.gradePct ?? 0,
+      zone: getPowerZone(Math.round((firstW / ftp) * 100)),
+    });
+  }
+  const step = Math.max(1, Math.ceil(rawTrace.length / MAX_TRACE_POINTS));
+  for (let s = 0; s < rawTrace.length; s += step) {
+    const chunk = rawTrace.slice(s, s + step);
+    const t = chunk.reduce((acc, p) => acc + p.timeSec, 0) || 1;
+    const w = chunk.reduce((acc, p) => acc + p.watts * p.timeSec, 0) / t;
+    const g = chunk.reduce((acc, p) => acc + p.gradePct * p.timeSec, 0) / t;
+    const last = chunk[chunk.length - 1];
+    effortTrace.push({
+      distKm: last.distKm,
+      eleM: last.eleM,
+      watts: Math.round(w),
+      gradePct: Number(g.toFixed(1)),
+      zone: getPowerZone(Math.round((w / ftp) * 100)),
+    });
+  }
+
   return {
     isFromGpx,
     zoneShares,
     bands,
     peakClimbWatts,
     peakZone,
+    effortTrace,
+    peakAtKm: Number(peakAtKm.toFixed(1)),
+    peakGradePct: Number(peakGradePct.toFixed(1)),
+    totalMinutes: Math.round(totalTimeSec / 60),
+    totalDistanceKm: Number(totalDistKm.toFixed(1)),
+    elevationGainM: Math.round(elevationGainM),
+    ftpWatts: Math.round(ftp),
   };
 }
 

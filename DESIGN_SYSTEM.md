@@ -233,7 +233,26 @@ Used for lane buffers, construction zones, or neutral road accents:
 }
 ```
 
-### 4. Peloton Slider (`input[type='range'].peloton-slider`)
+### 4. Painted Data Hatch (`.paint-hatch`)
+Overlay for **solid, flat-coloured** data fills (progress bars, surface segments, zone bars). Always pair with a flat `background-color` — never with a gradient. Unpaved/off-road and "time-in-zone" fills use it; plain paved/neutral fills stay solid.
+```css
+.paint-hatch {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgb(0 0 0 / 0.16) 0px,
+    rgb(0 0 0 / 0.16) 2px,
+    transparent 2px,
+    transparent 6px
+  );
+}
+```
+Companion data-viz primitives (colored flat design — no gradients, glows or blurs):
+* **Value pill at bar end**: `bg-ink text-ink-inverse rounded-full text-[10px] font-rounded font-bold tnum`, sitting inside the fill's right edge (or just outside it when the fill is too short).
+* **Solid metric pill** (list rows): flat palette fill (`bg-emerald-500`, `bg-amber-400`…) with `text-[#111111]` label.
+* **Dot-matrix meter**: `grid grid-cols-10 gap-[3px]` of `aspect-square rounded-full` dots; filled dots take the data colour, empty dots `bg-ink/10`.
+* **Divided stat footer**: `bg-ink/[0.04] dark:bg-white/[0.04] rounded-md grid grid-cols-3 divide-x divide-ink/10`.
+
+### 5. Peloton Slider (`input[type='range'].peloton-slider`)
 Tire-inspired full-radius range slider with 20px round thumb:
 ```html
 <input

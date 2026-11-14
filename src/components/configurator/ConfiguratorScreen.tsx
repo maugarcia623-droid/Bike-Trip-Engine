@@ -2794,7 +2794,8 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                   {t('targetTimeLabel', { time: timelineResult.gateArrivalTime })}
                 </span>
               </div>
-              <div className="mt-2.5 pt-2 lane-divider text-[11px] space-y-0.5 tnum opacity-90">
+              <div className="lane-divider mt-2.5 mb-2" aria-hidden="true" />
+<div className="text-[11px] space-y-0.5 tnum opacity-90">
                 <div className="flex items-center justify-between">
                   <span>{t('timeSaddleExclPauses')}</span>
                   <span className="font-rounded font-semibold">{physicsResult.movingTimeFormatted}</span>

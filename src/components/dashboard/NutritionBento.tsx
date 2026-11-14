@@ -271,9 +271,16 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
     totalDays,
     activeChips,
   });
-  const recommendedGPerHr = dynamicCarb.recommendedGPerHr;
+  const isLockedCarbTarget =
+    riderSpecs?.carbPacingMode === 'locked' ||
+    (riderSpecs?.riderLevel === 'pro' && carbTarget >= 60);
   const effectiveCeilingGPerHr = dynamicCarb.effectiveCeilingGPerHr;
-  const targetOnBikeCarbsG = dynamicCarb.targetOnBikeCarbsG;
+  const recommendedGPerHr = isLockedCarbTarget
+    ? effectiveCeilingGPerHr
+    : dynamicCarb.recommendedGPerHr;
+  const targetOnBikeCarbsG = isLockedCarbTarget
+    ? Math.round(recommendedGPerHr * Math.max(0.5, movingMinutes / 60))
+    : dynamicCarb.targetOnBikeCarbsG;
   const pacingTier = dynamicCarb.pacingTier;
   const isEmergencySurge = pctFtp > 105;
 

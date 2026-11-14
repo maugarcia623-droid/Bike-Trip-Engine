@@ -2,17 +2,14 @@ import React, { useState } from 'react';
 import { SurfaceBreakdown, SurfaceSegment } from '../../types/trip';
 import { SURFACE_VISUAL_META } from '../../utils/surfaceProfile';
 import { useTranslation } from '../../context/LanguageContext';
-import {
-  CheckCircle2,
-  TriangleAlert,
-  Info,
-  Gauge,
-  Compass,
-  ShieldCheck,
-  RefreshCw,
-  LoaderCircle,
-  Map as MapIcon,
-} from '../icons';
+import { Badge } from './Badge';
+import { CheckCircle2, TriangleAlert, Info, ShieldCheck, RefreshCw, LoaderCircle } from '../icons';
+
+/* ──────────────────────────────────────────────────────────────────────────────
+ * Road surfaces & tire suitability — coloured flat design
+ * One route-ordered track (where), one 3-column legend (how much), one sector
+ * readout (what it means). No nested surfaces beyond the bar track (bg-chip).
+ * ────────────────────────────────────────────────────────────────────────────── */
 
 interface SurfaceProfileBarProps {
   breakdown: SurfaceBreakdown;
@@ -20,8 +17,12 @@ interface SurfaceProfileBarProps {
   onSelectSegment?: (segment: SurfaceSegment | null) => void;
   onRefreshOsm?: () => void;
   compact?: boolean;
+  /** Render without its own pod surface/padding (when already placed on a pod). */
+  bare?: boolean;
   className?: string;
 }
+
+const EYEBROW = 'text-[10px] font-rounded font-bold uppercase tracking-[0.14em] text-ink-muted';
 
 export const SurfaceProfileBar: React.FC<SurfaceProfileBarProps> = ({
   breakdown,
@@ -29,18 +30,17 @@ export const SurfaceProfileBar: React.FC<SurfaceProfileBarProps> = ({
   onSelectSegment,
   onRefreshOsm,
   compact = false,
+  bare = false,
   className = '',
 }) => {
   const { lang } = useTranslation();
   const isFr = lang === 'fr';
   const [internalSegmentId, setInternalSegmentId] = useState<string | null>(null);
-  const [showAllUnpaved, setShowAllUnpaved] = useState<boolean>(false);
 
-  const effectiveSegmentId =
-    activeSegmentId !== undefined ? activeSegmentId : internalSegmentId;
+  const effectiveSegmentId = activeSegmentId !== undefined ? activeSegmentId : internalSegmentId;
 
   const unpavedSegments = breakdown.segments.filter((s) => s.type !== 'paved');
-  const defaultHighlightedSegment =
+  const highlighted =
     breakdown.segments.find((s) => s.id === effectiveSegmentId) ??
     unpavedSegments.find((s) => s.suitability38c === 'caution') ??
     unpavedSegments[0] ??
@@ -52,409 +52,227 @@ export const SurfaceProfileBar: React.FC<SurfaceProfileBarProps> = ({
   };
 
   const { suitability } = breakdown;
+  const num = (v: number, d = 1) => (isFr ? v.toFixed(d).replace('.', ',') : v.toFixed(d));
+  const pct = (v: number) => (isFr ? `${v}\u00A0%` : `${v}%`);
+  const tireLabel = `${suitability.tireWidthMm}c ${
+    suitability.isTubeless ? 'Tubeless' : isFr ? 'Chambre' : 'Tubes'
+  }`;
 
-  const suitabilityBadgeTone =
+  const totalKm = breakdown.pavedKm + breakdown.gravelKm + breakdown.singletrackKm;
+  const composition = [
+    { type: 'paved' as const, pct: breakdown.pavedPct, km: breakdown.pavedKm },
+    { type: 'gravel' as const, pct: breakdown.gravelPct, km: breakdown.gravelKm },
+    { type: 'singletrack' as const, pct: breakdown.singletrackPct, km: breakdown.singletrackKm },
+  ];
+
+  const fitTheme =
     suitability.overallLevel === 'ideal'
-      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 ring-1 ring-inset ring-emerald-500/30'
+      ? 'emerald'
       : suitability.overallLevel === 'good-with-care'
-      ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300 ring-1 ring-inset ring-amber-500/30'
-      : 'bg-rose-500/15 text-rose-700 dark:text-rose-300 ring-1 ring-inset ring-rose-500/30';
+      ? 'amber'
+      : 'rose';
 
-  const formatBar = (val: number) =>
-    isFr ? String(val.toFixed(1)).replace('.', ',') : val.toFixed(1);
+  const verdictCopy =
+    suitability.overallLevel === 'ideal'
+      ? isFr
+        ? 'Parfait pour ce parcours.'
+        : 'A perfect match for this route.'
+      : suitability.overallLevel === 'good-with-care'
+      ? isFr
+        ? 'Passe partout — prudence sur les secteurs techniques.'
+        : 'Will cope — take care on technical sectors.'
+      : isFr
+      ? 'Secteurs trop techniques — envisagez des pneus plus larges.'
+      : 'Too technical in places — consider going wider.';
+
+  const sectorTheme =
+    highlighted?.suitability38c === 'ideal'
+      ? 'emerald'
+      : highlighted?.suitability38c === 'capable'
+      ? 'amber'
+      : 'rose';
 
   return (
-    <div
-      className={`rounded-pod bg-pod/90 dark:bg-white/[0.04] p-3 ring-1 ring-inset ring-ink/8 dark:ring-white/10 ${className}`}
-    >
-      {/* Top Row: Title + 38c Gravel Suitability Verdict Badge */}
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 shrink-0">
-            <Compass className="w-3.5 h-3.5" />
-          </span>
-          <span className="text-xs font-rounded font-bold text-ink">
-            {isFr
-              ? 'Profil des surfaces & compatibilité pneus'
-              : 'Road surfaces & tire suitability'}
-          </span>
+    <div className={`${bare ? '' : 'rounded-pod bg-pod p-3.5'} ${className}`}>
+      {/* ── Tire verdict ── */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className={EYEBROW}>{isFr ? 'Vos pneus' : 'Your tires'}</p>
+          <p className="mt-1 text-[15px] font-rounded font-bold text-ink leading-tight">{tireLabel}</p>
+          <p className="mt-0.5 text-[11px] font-body text-ink-secondary leading-snug">{verdictCopy}</p>
         </div>
-
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {breakdown.isLoadingOsm ? (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-rounded font-semibold bg-sky-500/12 text-sky-700 dark:text-sky-300 ring-1 ring-inset ring-sky-500/25">
-              <LoaderCircle className="w-3 h-3 animate-spin" />
-              <span>{isFr ? 'Analyse des routes…' : 'Checking road surfaces…'}</span>
-            </span>
-          ) : breakdown.dataSource === 'osm-overpass' ? (
-            <span
-              title={
-                isFr
-                  ? `Données cartographiques : ${breakdown.osmWayCount ?? 0} tronçons · ${breakdown.osmCoveragePct ?? 100}% du tracé couvert`
-                  : `Map coverage: ${breakdown.osmWayCount ?? 0} road segments · ${breakdown.osmCoveragePct ?? 100}% mapped`
-              }
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-rounded font-semibold bg-emerald-500/12 text-emerald-700 dark:text-emerald-300 ring-1 ring-inset ring-emerald-500/25 tnum"
-            >
-              <MapIcon className="w-3 h-3 shrink-0" />
-              <span>
-                {isFr ? 'Carte vérifiée' : 'Verified map'} · {breakdown.osmCoveragePct ?? 100}%
-              </span>
-              {onRefreshOsm && (
-                <button
-                  type="button"
-                  onClick={onRefreshOsm}
-                  className="ml-0.5 p-0.5 rounded-full hover:bg-emerald-500/20 transition-colors cursor-pointer"
-                  title={
-                    isFr
-                      ? 'Actualiser les surfaces de la carte'
-                      : 'Refresh road surface details'
-                  }
-                >
-                  <RefreshCw className="w-2.5 h-2.5" />
-                </button>
-              )}
-            </span>
-          ) : (
-            <span
-              title={
-                breakdown.osmError ||
-                (isFr
-                  ? 'Estimation des surfaces basée sur le type de parcours'
-                  : 'Estimated surface breakdown from route geometry')
-              }
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-rounded font-semibold bg-ink/5 dark:bg-white/10 text-ink-muted ring-1 ring-inset ring-ink/10 dark:ring-white/15"
-            >
-              <span>{isFr ? 'Estimation' : 'Estimated'}</span>
-              {onRefreshOsm && (
-                <button
-                  type="button"
-                  onClick={onRefreshOsm}
-                  className="ml-0.5 p-0.5 rounded-full hover:bg-ink/10 dark:hover:bg-white/15 transition-colors cursor-pointer"
-                  title={
-                    isFr
-                      ? 'Vérifier les surfaces sur la carte'
-                      : 'Check road surface data'
-                  }
-                >
-                  <RefreshCw className="w-2.5 h-2.5" />
-                </button>
-              )}
-            </span>
-          )}
-
-          <span
-            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-rounded font-bold tnum ${suitabilityBadgeTone}`}
-          >
-            {suitability.overallLevel === 'ideal' ? (
-              <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
-            ) : (
-              <TriangleAlert className="w-3.5 h-3.5 shrink-0" />
-            )}
-            <span>
-              {suitability.tireWidthMm}c{' '}
-              {suitability.isTubeless ? 'Tubeless' : isFr ? 'Chambre' : 'Tube'} ·{' '}
-              {suitability.scorePct}%
-            </span>
-          </span>
-        </div>
+        <Badge
+          variant={fitTheme}
+          size="sm"
+          icon={suitability.overallLevel === 'ideal' ? ShieldCheck : TriangleAlert}
+          className="tnum shrink-0"
+        >
+          {pct(suitability.scorePct)} {isFr ? 'adapté' : 'fit'}
+        </Badge>
       </div>
 
-      {/* 3-Category Breakdown Summary Pills (e.g. 72% Paved Road, 22% Unpaved/Gravel, 6% Path/Singletrack) */}
-      <div className="grid grid-cols-3 gap-1.5 mb-2.5">
-        {(
-          [
-            {
-              type: 'paved' as const,
-              pct: breakdown.pavedPct,
-              km: breakdown.pavedKm,
-            },
-            {
-              type: 'gravel' as const,
-              pct: breakdown.gravelPct,
-              km: breakdown.gravelKm,
-            },
-            {
-              type: 'singletrack' as const,
-              pct: breakdown.singletrackPct,
-              km: breakdown.singletrackKm,
-            },
-          ] as const
-        ).map((item) => {
-          const meta = SURFACE_VISUAL_META[item.type];
-          return (
-            <button
-              key={item.type}
-              type="button"
-              onClick={() => {
-                const firstOfType = breakdown.segments.find(
-                  (s) => s.type === item.type
-                );
-                if (firstOfType) handleSegmentInteract(firstOfType);
-              }}
-              className="flex flex-col justify-between rounded-sub-pod bg-card/85 dark:bg-black/30 px-2.5 py-1.5 text-left ring-1 ring-inset ring-ink/6 dark:ring-white/10 hover:ring-ink/20 dark:hover:ring-white/25 transition-all"
-            >
-              <div className="flex items-center justify-between gap-1">
-                <span className="inline-flex items-center gap-1.5 min-w-0">
-                  <span
-                    className={`w-2 h-2 rounded-full shrink-0 ${meta.dotBgClass}`}
-                  />
-                  <span className="text-[11px] font-rounded font-semibold text-ink-secondary truncate">
-                    {isFr ? meta.labelFr : meta.labelEn}
-                  </span>
-                </span>
-              </div>
-              <div className="flex items-baseline justify-between gap-1 mt-0.5">
-                <span
-                  className={`text-sm sm:text-base font-rounded font-extrabold tnum ${meta.textClass}`}
-                >
-                  {item.pct}%
-                </span>
-                <span className="text-[11px] text-ink-muted tnum">
-                  {item.km} km
-                </span>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Interactive Route-Ordered Surface Timeline Bar */}
-      <div className="space-y-1">
-        <div className="flex items-center justify-between text-[10px] font-rounded font-semibold text-ink-muted tnum px-0.5">
-          <span>0 km</span>
-          <span className="uppercase tracking-wider">
-            {isFr
-              ? 'Survolez ou cliquez un secteur pour localiser sur la carte'
-              : 'Hover or tap a sector to highlight on map'}
-          </span>
-          <span>
-            {(
-              breakdown.pavedKm +
-              breakdown.gravelKm +
-              breakdown.singletrackKm
-            ).toFixed(1)}{' '}
-            km
-          </span>
-        </div>
-
+      {/* ── Route-ordered surface track (where) ── */}
+      <div className="mt-4">
         <div
-          className="relative h-4 w-full rounded-full overflow-hidden bg-black/10 dark:bg-white/10 p-0.5 flex items-stretch gap-0.5"
+          className="relative h-6 w-full rounded-full bg-chip p-[3px] flex items-stretch gap-[2px]"
           onMouseLeave={() => {
-            if (activeSegmentId === undefined) {
-              setInternalSegmentId(null);
-            }
+            if (activeSegmentId === undefined) setInternalSegmentId(null);
           }}
         >
           {breakdown.segments.map((seg) => {
             const meta = SURFACE_VISUAL_META[seg.type];
-            const widthPct = Math.max(4, seg.endPct - seg.startPct);
-            const isSelected = defaultHighlightedSegment?.id === seg.id;
-
+            const widthPct = Math.max(3, seg.endPct - seg.startPct);
+            const isSelected = highlighted?.id === seg.id;
             return (
               <button
                 key={seg.id}
                 type="button"
                 style={{ width: `${widthPct}%` }}
                 onMouseEnter={() => handleSegmentInteract(seg)}
-                onClick={() =>
-                  handleSegmentInteract(
-                    effectiveSegmentId === seg.id ? null : seg
-                  )
-                }
+                onClick={() => handleSegmentInteract(effectiveSegmentId === seg.id ? null : seg)}
                 title={`${isFr ? seg.nameFr : seg.nameEn} (km ${seg.startKm}–${seg.endKm})`}
-                className={`relative h-full first:rounded-l-full last:rounded-r-full transition-opacity cursor-pointer ${
+                aria-label={`${isFr ? meta.shortLabelFr : meta.shortLabelEn} · km ${seg.startKm}–${seg.endKm}`}
+                aria-pressed={isSelected}
+                className={`relative h-full min-w-[6px] rounded-full cursor-pointer ring-2 ring-inset transition-shadow ${
                   meta.barBgClass
-                } ${
-                  isSelected
-                    ? 'ring-2 ring-inset ring-white dark:ring-volt-lime opacity-100'
-                    : 'opacity-85 hover:opacity-100'
-                }`}
+                } ${seg.type !== 'paved' ? 'paint-hatch' : ''} ${isSelected ? 'ring-ink' : 'ring-transparent'}`}
               />
             );
           })}
         </div>
+        <div className="mt-1.5 flex items-center justify-between text-[10px] font-rounded font-semibold text-ink-muted tnum">
+          <span>0 km</span>
+          <span>{isFr ? 'Touchez un secteur' : 'Tap a sector'}</span>
+          <span>{num(totalKm)} km</span>
+        </div>
       </div>
 
-      {/* Unpaved Sector Quick-Jump Pills (Shows exact km of every gravel/singletrack stretch) */}
-      {unpavedSegments.length > 0 && (() => {
-        const MAX_PILLS = 7;
-        let visibleUnpaved = unpavedSegments;
-        if (!showAllUnpaved && unpavedSegments.length > MAX_PILLS) {
-          const prioritized = [...unpavedSegments]
-            .sort((a, b) => {
-              if (a.id === defaultHighlightedSegment?.id) return -1;
-              if (b.id === defaultHighlightedSegment?.id) return 1;
-              const aRank = a.suitability38c === 'caution' ? 2 : a.type === 'singletrack' ? 1 : 0;
-              const bRank = b.suitability38c === 'caution' ? 2 : b.type === 'singletrack' ? 1 : 0;
-              if (aRank !== bRank) return bRank - aRank;
-              return b.distanceKm - a.distanceKm;
-            })
-            .slice(0, MAX_PILLS);
-          const ids = new Set(prioritized.map((s) => s.id));
-          visibleUnpaved = unpavedSegments.filter((s) => ids.has(s.id));
-        }
-        const hiddenCount = unpavedSegments.length - visibleUnpaved.length;
-
-        return (
-          <div className="flex items-center gap-1.5 flex-wrap mt-2.5">
-            <span className="text-[11px] font-rounded font-semibold text-ink-muted">
-              {isFr ? 'Secteurs non-revêtus :' : 'Unpaved sectors:'}
-            </span>
-            {visibleUnpaved.map((seg) => {
-              const meta = SURFACE_VISUAL_META[seg.type];
-              const isActive = defaultHighlightedSegment?.id === seg.id;
-              const isCaution = seg.suitability38c === 'caution';
-              return (
-                <button
-                  key={seg.id}
-                  type="button"
-                  onMouseEnter={() => handleSegmentInteract(seg)}
-                  onClick={() => handleSegmentInteract(seg)}
-                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-rounded font-bold tnum transition-all cursor-pointer ${
-                    meta.badgeClass
-                  } ${
-                    isActive
-                      ? 'ring-2 ring-inset ring-ink dark:ring-volt-lime'
-                      : ''
+      {/* ── Legend (how much) ── */}
+      <dl className="mt-3 grid grid-cols-3 divide-x divide-ink/10">
+        {composition.map((item, i) => {
+          const meta = SURFACE_VISUAL_META[item.type];
+          const empty = item.km <= 0.05;
+          return (
+            <div key={item.type} className={`${i === 0 ? 'pr-2.5' : 'px-2.5'} min-w-0 ${empty ? 'opacity-50' : ''}`}>
+              <dt className="flex items-center gap-1.5 text-[10px] font-rounded font-bold text-ink-secondary">
+                <span
+                  className={`w-2.5 h-2.5 rounded-full shrink-0 ${meta.barBgClass} ${
+                    item.type !== 'paved' ? 'paint-hatch' : ''
                   }`}
-                >
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${meta.dotBgClass}`}
-                  />
-                  <span>
-                    km {seg.startKm}–{seg.endKm}
-                  </span>
-                  <span className="opacity-80">
-                    ({isFr ? meta.shortLabelFr : meta.shortLabelEn})
-                  </span>
-                  {isCaution && (
-                    <TriangleAlert className="w-3 h-3 text-rose-600 dark:text-rose-400 shrink-0" />
-                  )}
-                </button>
-              );
-            })}
-            {hiddenCount > 0 && (
-              <button
-                type="button"
-                onClick={() => setShowAllUnpaved(true)}
-                className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-rounded font-bold tnum bg-ink/8 dark:bg-white/10 text-ink hover:bg-ink/15 dark:hover:bg-white/20 transition-colors cursor-pointer"
-              >
-                +{hiddenCount}
-              </button>
-            )}
-            {showAllUnpaved && unpavedSegments.length > MAX_PILLS && (
-              <button
-                type="button"
-                onClick={() => setShowAllUnpaved(false)}
-                className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-rounded font-bold bg-ink/8 dark:bg-white/10 text-ink-muted hover:text-ink transition-colors cursor-pointer"
-              >
-                {isFr ? 'Réduire' : 'Show fewer'}
-              </button>
-            )}
-          </div>
-        );
-      })()}
-
-      {/* Active Sector Detail & 38c Suitability Advisor Pod */}
-      {!compact && defaultHighlightedSegment && (
-        <div className="mt-2.5 rounded-sub-pod bg-card/90 dark:bg-black/35 p-2.5 ring-1 ring-inset ring-ink/8 dark:ring-white/10 space-y-1.5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <span
-                className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-                  SURFACE_VISUAL_META[defaultHighlightedSegment.type].dotBgClass
-                }`}
-              />
-              <span className="text-xs font-rounded font-bold text-ink truncate">
-                {isFr
-                  ? defaultHighlightedSegment.nameFr
-                  : defaultHighlightedSegment.nameEn}
-              </span>
-              <span className="text-[11px] font-rounded font-semibold text-ink-muted tnum shrink-0">
-                · km {defaultHighlightedSegment.startKm}–
-                {defaultHighlightedSegment.endKm} (
-                {defaultHighlightedSegment.distanceKm} km)
-              </span>
+                />
+                <span className="truncate">{isFr ? meta.shortLabelFr : meta.shortLabelEn}</span>
+              </dt>
+              <dd className="mt-1 text-[15px] leading-none font-rounded font-bold text-ink tnum whitespace-nowrap">
+                {pct(item.pct)}
+              </dd>
+              <dd className="mt-0.5 text-[10px] font-rounded font-semibold text-ink-muted tnum">{num(item.km)} km</dd>
             </div>
+          );
+        })}
+      </dl>
 
-            <span
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-rounded font-bold uppercase tracking-wide ${
-                defaultHighlightedSegment.suitability38c === 'ideal'
-                  ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 ring-1 ring-inset ring-emerald-500/30'
-                  : defaultHighlightedSegment.suitability38c === 'capable'
-                  ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300 ring-1 ring-inset ring-amber-500/30'
-                  : 'bg-rose-500/15 text-rose-700 dark:text-rose-300 ring-1 ring-inset ring-rose-500/30'
-              }`}
+      {/* ── Selected sector (what it means) ── */}
+      {!compact && highlighted && (
+        <>
+          <div className="lane-divider my-3.5" aria-hidden="true" />
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className={EYEBROW}>
+                {isFr ? 'Secteur' : 'Sector'} · km {highlighted.startKm}–{highlighted.endKm}
+              </p>
+              <p className="mt-1 text-[13px] font-rounded font-bold text-ink leading-snug break-words">
+                {isFr ? highlighted.nameFr : highlighted.nameEn}
+              </p>
+            </div>
+            <Badge
+              variant={sectorTheme}
+              size="xs"
+              icon={
+                highlighted.suitability38c === 'ideal'
+                  ? CheckCircle2
+                  : highlighted.suitability38c === 'capable'
+                  ? Info
+                  : TriangleAlert
+              }
+              className="shrink-0"
             >
-              {defaultHighlightedSegment.suitability38c === 'ideal' ? (
-                <>
-                  <CheckCircle2 className="w-3 h-3" />
-                  {isFr
-                    ? `Idéal en ${suitability.tireWidthMm}c`
-                    : `Ideal on ${suitability.tireWidthMm}c`}
-                </>
-              ) : defaultHighlightedSegment.suitability38c === 'capable' ? (
-                <>
-                  <Info className="w-3 h-3" />
-                  {isFr
-                    ? `Adapté en ${suitability.tireWidthMm}c`
-                    : `Capable on ${suitability.tireWidthMm}c`}
-                </>
-              ) : (
-                <>
-                  <TriangleAlert className="w-3 h-3" />
-                  {isFr
-                    ? `Technique en ${suitability.tireWidthMm}c`
-                    : `Technical on ${suitability.tireWidthMm}c`}
-                </>
-              )}
-            </span>
+              {highlighted.suitability38c === 'ideal'
+                ? isFr
+                  ? 'Idéal'
+                  : 'Ideal'
+                : highlighted.suitability38c === 'capable'
+                ? isFr
+                  ? 'Adapté'
+                  : 'Capable'
+                : isFr
+                ? 'Technique'
+                : 'Technical'}
+            </Badge>
           </div>
 
-          <p className="text-[11px] text-ink-secondary leading-snug">
+          <p className="mt-1.5 text-[11px] font-body text-ink-secondary leading-relaxed">
             <span className="font-semibold text-ink">
-              {isFr
-                ? defaultHighlightedSegment.surfaceDetailFr
-                : defaultHighlightedSegment.surfaceDetailEn}
-              {' — '}
-            </span>
-            {isFr
-              ? defaultHighlightedSegment.riderNoteFr
-              : defaultHighlightedSegment.riderNoteEn}
+              {isFr ? highlighted.surfaceDetailFr : highlighted.surfaceDetailEn}
+            </span>{' '}
+            — {isFr ? highlighted.riderNoteFr : highlighted.riderNoteEn}
           </p>
 
-          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-[11px] text-ink-muted tnum">
-            <span className="inline-flex items-center gap-1">
-              <Gauge className="w-3.5 h-3.5 text-amber-500" />
-              <span>
-                {isFr ? 'Pression conseillée' : 'Recommended pressure'}{' '}
-                <strong className="text-ink font-rounded">
-                  {formatBar(suitability.recommendedFrontBar)} /{' '}
-                  {formatBar(suitability.recommendedRearBar)} bar
-                </strong>{' '}
-                ({suitability.tireWidthMm}c{' '}
-                {suitability.isTubeless
-                  ? 'Tubeless'
-                  : isFr
-                  ? 'Chambre'
-                  : 'Tubes'}
-                )
-              </span>
-            </span>
-
-            <span>
-              Crr{' '}
-              <strong className="text-ink font-rounded">
-                {defaultHighlightedSegment.effectiveCrr.toFixed(4)}
-              </strong>{' '}
-              · {isFr ? 'Pente max' : 'Max grade'}{' '}
-              <strong className="text-ink font-rounded">
-                {defaultHighlightedSegment.maxGradePct}%
-              </strong>
-            </span>
-          </div>
-        </div>
+          <dl className="mt-3 grid grid-cols-3 divide-x divide-ink/10">
+            {[
+              {
+                l: isFr ? 'Pression AV/AR' : 'Pressure F/R',
+                v: `${num(suitability.recommendedFrontBar)}/${num(suitability.recommendedRearBar)}`,
+                u: 'bar',
+              },
+              { l: 'Crr', v: highlighted.effectiveCrr.toFixed(4), u: '' },
+              { l: isFr ? 'Pente max' : 'Max grade', v: pct(highlighted.maxGradePct), u: '' },
+            ].map((s, i) => (
+              <div key={s.l} className={`${i === 0 ? 'pr-2.5' : 'px-2.5'} min-w-0`}>
+                <dt className="text-[10px] font-rounded font-semibold text-ink-muted truncate">{s.l}</dt>
+                <dd className="mt-0.5 text-[13px] font-rounded font-bold text-ink tnum whitespace-nowrap">
+                  {s.v}
+                  {s.u && <span className="ml-0.5 text-[10px] font-semibold text-ink-muted">{s.u}</span>}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </>
       )}
+
+      {/* ── Data source footnote ── */}
+      <div className="mt-3.5 flex items-center gap-1.5 text-[10px] font-rounded font-semibold text-ink-muted tnum">
+        {breakdown.isLoadingOsm ? (
+          <>
+            <LoaderCircle className="w-3 h-3 animate-spin" />
+            <span>{isFr ? 'Analyse des routes…' : 'Checking road surfaces…'}</span>
+          </>
+        ) : breakdown.dataSource === 'osm-overpass' ? (
+          <>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            <span>
+              {isFr ? 'Carte vérifiée' : 'Verified map'} · {pct(breakdown.osmCoveragePct ?? 100)}
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="w-1.5 h-1.5 rounded-full bg-ink/30" />
+            <span title={breakdown.osmError || undefined}>
+              {isFr ? 'Estimé selon le type de parcours' : 'Estimated from route geometry'}
+            </span>
+          </>
+        )}
+        {onRefreshOsm && !breakdown.isLoadingOsm && (
+          <button
+            type="button"
+            onClick={onRefreshOsm}
+            className="ml-auto inline-flex items-center gap-1 min-h-[28px] px-1.5 rounded-full text-ink-secondary hover:text-ink cursor-pointer transition-colors"
+            title={isFr ? 'Actualiser les surfaces de la carte' : 'Refresh road surface details'}
+          >
+            <RefreshCw className="w-3 h-3" />
+            {isFr ? 'Actualiser' : 'Refresh'}
+          </button>
+        )}
+      </div>
     </div>
   );
 };
