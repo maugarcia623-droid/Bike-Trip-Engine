@@ -196,6 +196,13 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
   const isInitialDestRadius = Boolean(initialDest.match(/loop radius|rayon boucle/i));
   const [destInput, setDestInput] = useState(isInitialDestRadius ? 'Saint-Nazaire' : initialDest);
   const lastCorridorDestRef = useRef<string>(isInitialDestRadius ? 'Saint-Nazaire' : initialDest);
+  const lastCorridorRouteRef = useRef<TripProfile['route'] | null>(
+    initialTrip.route?.routeMode !== 'manual-radius' &&
+      initialTrip.route?.coordinates &&
+      initialTrip.route.coordinates.length >= 2
+      ? { ...initialTrip.route }
+      : null
+  );
   const [originCoords, setOriginCoords] = useState<[number, number] | null>(() => {
     if (initialTrip.route?.originCoords) {
       return initialTrip.route.originCoords;
@@ -762,6 +769,13 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
       : `${clampedKm.toFixed(1)} km loop ride starting from ${originShort}.`;
 
     commitTrip((prev) => {
+      if (
+        prev.route.routeMode !== 'manual-radius' &&
+        prev.route.coordinates &&
+        prev.route.coordinates.length >= 2
+      ) {
+        lastCorridorRouteRef.current = { ...prev.route };
+      }
       const updatedDesc = prev.description
         ? prev.description.replace(/^\d+(\.\d+)?\s*km\b/i, `${clampedKm.toFixed(1)} km`)
         : newDesc;
@@ -1649,21 +1663,39 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                               trip.route.distanceKm || 35
                             );
                           } else if (modeOpt.id === 'corridor') {
+                            const stashed = lastCorridorRouteRef.current;
                             let sanitized = destInput;
                             if (!sanitized || sanitized.match(/loop radius|rayon boucle/i)) {
-                              sanitized = lastCorridorDestRef.current && !lastCorridorDestRef.current.match(/loop radius|rayon boucle/i)
-                                ? lastCorridorDestRef.current
-                                : 'Saint-Nazaire';
+                              sanitized =
+                                stashed?.destination && !stashed.destination.match(/loop radius|rayon boucle/i)
+                                  ? stashed.destination
+                                  : lastCorridorDestRef.current && !lastCorridorDestRef.current.match(/loop radius|rayon boucle/i)
+                                  ? lastCorridorDestRef.current
+                                  : 'Saint-Nazaire';
                               setDestInput(sanitized);
                             }
-                            commitTrip((prev) => ({
-                              ...prev,
-                              route: {
-                                ...prev.route,
-                                routeMode: 'corridor',
-                                destination: sanitized,
-                              },
-                            }));
+                            commitTrip((prev) => {
+                              if (stashed && stashed.coordinates && stashed.coordinates.length >= 2) {
+                                return {
+                                  ...prev,
+                                  route: {
+                                    ...stashed,
+                                    routeMode: 'corridor',
+                                    destination: sanitized,
+                                    radiusMeters: undefined,
+                                  },
+                                };
+                              }
+                              return {
+                                ...prev,
+                                route: {
+                                  ...prev.route,
+                                  routeMode: 'corridor',
+                                  destination: sanitized,
+                                  radiusMeters: undefined,
+                                },
+                              };
+                            });
                           }
                         }}
                         className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all cursor-pointer whitespace-nowrap ${

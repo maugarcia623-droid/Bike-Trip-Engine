@@ -47,15 +47,40 @@ export function getLocalTodayIso(): string {
 /**
  * Computes approximate compass bearing (0° = N, 90° = E, 180° = S, 270° = W)
  * from route coordinates if available, falling back to 280° (WNW Estuary).
+ * For closed loops / out-and-back round trips where start ≈ end, uses the
+ * outbound heading from start to the farthest turnaround point on the route.
  */
 export function computeRouteBearing(coordinates?: [number, number][]): number {
   if (!coordinates || coordinates.length < 2) return 280;
   const [lat1, lon1] = coordinates[0];
-  const [lat2, lon2] = coordinates[coordinates.length - 1];
-  if (lat1 === lat2 && lon1 === lon2) return 280;
+  let [lat2, lon2] = coordinates[coordinates.length - 1];
 
   const toRad = (deg: number) => (deg * Math.PI) / 180;
   const toDeg = (rad: number) => (rad * 180) / Math.PI;
+  const approxDistSq = (a: [number, number], b: [number, number]) => {
+    const dLat = b[0] - a[0];
+    const dLon = (b[1] - a[1]) * Math.cos(toRad((a[0] + b[0]) / 2));
+    return dLat * dLat + dLon * dLon;
+  };
+
+  if (coordinates.length >= 4) {
+    let maxDistSq = 0;
+    let apex = coordinates[Math.floor(coordinates.length / 2)];
+    for (let i = 1; i < coordinates.length - 1; i++) {
+      const dSq = approxDistSq(coordinates[0], coordinates[i]);
+      if (dSq > maxDistSq) {
+        maxDistSq = dSq;
+        apex = coordinates[i];
+      }
+    }
+    const endDistSq = approxDistSq(coordinates[0], coordinates[coordinates.length - 1]);
+    // If net displacement is < 25% of the furthest point's distance, treat as round-trip loop
+    if (maxDistSq > 0 && endDistSq < maxDistSq * 0.0625) {
+      [lat2, lon2] = apex;
+    }
+  }
+
+  if (lat1 === lat2 && lon1 === lon2) return 280;
 
   const dLon = toRad(lon2 - lon1);
   const phi1 = toRad(lat1);

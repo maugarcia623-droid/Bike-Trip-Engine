@@ -13,7 +13,6 @@ import {
   Wine,
   Droplets,
   TriangleAlert,
-  Clock,
   Check,
   MapPin,
   Baguette,
@@ -38,7 +37,6 @@ import {
   NutritionItem,
   LogisticsSettings,
   PreRideStyle,
-  TimelineAnchorMode,
 } from '../../types/trip';
 import { RiderBikeSpecs, TelemetryMode, formatFuelTarget } from '../../types/specs';
 import { useTranslation } from '../../context/LanguageContext';
@@ -63,7 +61,6 @@ import {
   getCachedScan,
   subscribeScanCache,
 } from '../../services/overpassCorridor';
-import { DEFAULT_CORRIDOR } from './HeroRouteCard';
 import { formatKm, formatCriticalGapAdvice, formatGapDetail } from '../../utils/waterGapCopy';
 import { getCafeSnackSuggestion, isLegacyRationDefault } from '../../utils/cafeSnack';
 
@@ -122,13 +119,11 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
   const isSport = mode === 'SPORT';
   const isBikepacking = mode === 'BIKEPACKING';
 
-  // Logistics & Single-Anchor Timeline Settings (Phase 5)
+  // Logistics Settings (meal prep, destination fridge, locations)
   const [localLogistics, setLocalLogistics] = useState<LogisticsSettings>(() => ({
     preRideStyle: trip.ruleSettings?.preRideStyle ?? 'full-breakfast',
     hasDestinationFridge: trip.ruleSettings?.hasDestinationFridge ?? true,
     splitPostRideRecovery: trip.ruleSettings?.splitPostRideRecovery ?? Boolean(trip.customChips?.includes('shower-locker')),
-    timelineAnchorMode: trip.ruleSettings?.timelineAnchorMode ?? (mode === 'COMMUTE' ? 'arrive-by' : 'depart-at'),
-    anchorTimeHHMM: trip.ruleSettings?.anchorTimeHHMM ?? (mode === 'COMMUTE' ? (gateArrivalTime || trip.office?.targetGateArrivalTime || '08:30') : (hardDepartureTime || trip.departureTime || '07:35')),
     stage1LocationLabel: trip.ruleSettings?.stage1LocationLabel,
     stage2LocationLabel: trip.ruleSettings?.stage2LocationLabel,
     coffeeDurationMin: trip.ruleSettings?.coffeeDurationMin ?? 15,
@@ -141,15 +136,13 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       preRideStyle: trip.ruleSettings?.preRideStyle ?? 'full-breakfast',
       hasDestinationFridge: trip.ruleSettings?.hasDestinationFridge ?? true,
       splitPostRideRecovery: trip.ruleSettings?.splitPostRideRecovery ?? Boolean(trip.customChips?.includes('shower-locker')),
-      timelineAnchorMode: trip.ruleSettings?.timelineAnchorMode ?? (mode === 'COMMUTE' ? 'arrive-by' : 'depart-at'),
-      anchorTimeHHMM: trip.ruleSettings?.anchorTimeHHMM ?? (mode === 'COMMUTE' ? (gateArrivalTime || trip.office?.targetGateArrivalTime || '08:30') : (hardDepartureTime || trip.departureTime || '07:35')),
       stage1LocationLabel: trip.ruleSettings?.stage1LocationLabel,
       stage2LocationLabel: trip.ruleSettings?.stage2LocationLabel,
       coffeeDurationMin: trip.ruleSettings?.coffeeDurationMin ?? 15,
       cafeName: trip.ruleSettings?.cafeName,
       rationType: trip.ruleSettings?.rationType,
     });
-  }, [trip.id, trip.ruleSettings, mode, gateArrivalTime, hardDepartureTime]);
+  }, [trip.id, trip.ruleSettings]);
 
   const handleUpdateLogistics = useCallback((partial: Partial<LogisticsSettings>) => {
     const updated: LogisticsSettings = { ...localLogistics, ...partial };
@@ -243,11 +236,23 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       : `${hydrationPlan.carriedOnFrameBidons}× ${bidonSizeMl} ml`;
   void recommendedBidons;
 
-  // Single-Anchor Deterministic Timeline Solver (INP-20 upgrade)
+  // Deterministic Timeline Windows using the configurator's planned departure/arrival times
   const solvedTimeline = useMemo(() => {
     const movingSecs = physicsResult?.movingTimeSeconds || movingMinutes * 60;
-    return solveTripTimeline(movingSecs, activeChips, localLogistics);
-  }, [physicsResult?.movingTimeSeconds, movingMinutes, activeChips, localLogistics]);
+    return solveTripTimeline(movingSecs, activeChips, localLogistics, {
+      departureTimeHHMM: hardDepartureTime || trip.departureTime,
+      arrivalTimeHHMM: gateArrivalTime || trip.office?.targetGateArrivalTime,
+    });
+  }, [
+    physicsResult?.movingTimeSeconds,
+    movingMinutes,
+    activeChips,
+    localLogistics,
+    hardDepartureTime,
+    trip.departureTime,
+    gateArrivalTime,
+    trip.office?.targetGateArrivalTime,
+  ]);
 
   // Fridge-compliant pantry resolution
   const compliantPantry = useMemo(
@@ -317,20 +322,29 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
   const activeStage = trip.stages && trip.activeStageIndex !== undefined
     ? trip.stages[trip.activeStageIndex]
     : undefined;
+  const hasValidCorridorCoords = Boolean(
+    trip.route?.routeMode !== 'manual-radius' &&
+      trip.route?.coordinates &&
+      trip.route.coordinates.length >= 2
+  );
   const currentCoords = useMemo(() => {
-    return trip.route?.coordinates && trip.route.coordinates.length >= 2
-      ? trip.route.coordinates
-      : DEFAULT_CORRIDOR;
-  }, [trip.route?.coordinates]);
+    return hasValidCorridorCoords ? trip.route!.coordinates! : [];
+  }, [hasValidCorridorCoords, trip.route?.coordinates]);
   const totalDistanceKm = trip.route?.distanceKm || 45;
   const stageId = activeStage?.id || trip.id;
   const routeCacheKey = useMemo(
-    () => getRouteHashKey(currentCoords, stageId, totalDistanceKm),
+    () => (currentCoords.length >= 2 ? getRouteHashKey(currentCoords, stageId, totalDistanceKm) : ''),
     [currentCoords, stageId, totalDistanceKm]
   );
   // Live scan results: refresh whenever a corridor scan lands anywhere in the UI (Phase 8)
-  const [cachedAmenities, setCachedAmenities] = useState(() => getCachedScan(routeCacheKey) || []);
+  const [cachedAmenities, setCachedAmenities] = useState(() =>
+    routeCacheKey ? getCachedScan(routeCacheKey) || [] : []
+  );
   useEffect(() => {
+    if (!routeCacheKey) {
+      setCachedAmenities([]);
+      return;
+    }
     setCachedAmenities(getCachedScan(routeCacheKey) || []);
     return subscribeScanCache((key) => {
       if (key === routeCacheKey || key === '*') {
@@ -501,7 +515,6 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
 
   const renderLogisticsControlBar = () => {
     const updateLogistics = handleUpdateLogistics;
-    const isArriveBy = localLogistics.timelineAnchorMode === 'arrive-by';
     const activeRollout = localLogistics.preRideStyle;
     const isCommuteMode = mode === 'COMMUTE';
     const rolloutLabel =
@@ -516,14 +529,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         {/* Compact Read-First Summary Row */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 flex-wrap text-xs text-ink-secondary tnum">
-            <span className="inline-flex items-center gap-1.5 font-semibold text-ink">
-              <Clock className="w-3.5 h-3.5 text-ink-muted shrink-0" />
-              {isArriveBy
-                ? `${isFr ? 'Départ' : 'Start'} ${solvedTimeline.departureTimeHHMM} → ${solvedTimeline.arrivalTimeHHMM}`
-                : `${solvedTimeline.departureTimeHHMM} → ${isFr ? 'Arrivée' : 'Arrive'} ${solvedTimeline.arrivalTimeHHMM}`}
-            </span>
-            <span className="text-ink-muted">·</span>
-            <span>{rolloutLabel}</span>
+            <span className="font-semibold text-ink">{rolloutLabel}</span>
             {localLogistics.hasDestinationFridge && (
               <>
                 <span className="text-ink-muted hidden sm:inline">·</span>
@@ -544,8 +550,8 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
                   ? 'Fermer les options'
                   : 'Hide options'
                 : isFr
-                ? 'Ajuster repas & horaires'
-                : 'Adjust meal & timing'}
+                ? 'Ajuster repas & logistique'
+                : 'Adjust meal & logistics'}
             </span>
             <DisclosureChevron open={showLogisticsForm} />
           </Button>
@@ -553,81 +559,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
 
         <Collapsible open={showLogisticsForm} innerClassName="pt-3 space-y-2.5">
           <div className="lane-divider mb-2.5" aria-hidden="true" />
-          {/* Top Row: Anchor Toggle & Time Input & Live Timeline Summary */}
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="inline-flex items-center rounded-full bg-chip/70 p-1 gap-1 text-xs font-rounded font-semibold">
-                <Button variant="ghost"
-                  type="button"
-                  aria-pressed={isArriveBy}
-                  onClick={() =>
-                    updateLogistics({
-                      timelineAnchorMode: 'arrive-by',
-                      anchorTimeHHMM: solvedTimeline.arrivalTimeHHMM,
-                    })
-                  }
-                  className={`min-h-[44px] sm:min-h-[32px] px-3 py-1 rounded-full transition-all cursor-pointer ${
-                    isArriveBy
-                      ? 'bg-card text-ink font-bold shadow-xs ring-1 ring-inset ring-ink/10 dark:ring-white/10'
-                      : 'text-ink-muted hover:text-ink'
-                  }`}
-                >
-                  {t('logisticsArriveBy')}
-                </Button>
-                <Button variant="ghost"
-                  type="button"
-                  aria-pressed={!isArriveBy}
-                  onClick={() =>
-                    updateLogistics({
-                      timelineAnchorMode: 'depart-at',
-                      anchorTimeHHMM: solvedTimeline.departureTimeHHMM,
-                    })
-                  }
-                  className={`min-h-[44px] sm:min-h-[32px] px-3 py-1 rounded-full transition-all cursor-pointer ${
-                    !isArriveBy
-                      ? 'bg-card text-ink font-bold shadow-xs ring-1 ring-inset ring-ink/10 dark:ring-white/10'
-                      : 'text-ink-muted hover:text-ink'
-                  }`}
-                >
-                  {t('logisticsDepartAt')}
-                </Button>
-              </div>
-
-              <div className="flex items-center gap-1.5 min-h-[44px] sm:min-h-[34px] bg-card px-3 py-1 rounded-full ring-1 ring-inset ring-ink/10 dark:ring-white/10">
-                <Clock className="w-3.5 h-3.5 text-ink-muted shrink-0" />
-                <input
-                  type="time"
-                  value={localLogistics.anchorTimeHHMM || (isArriveBy ? '08:30' : '07:35')}
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      updateLogistics({ anchorTimeHHMM: e.target.value });
-                    }
-                  }}
-                  className="bg-transparent text-ink text-base sm:text-xs font-bold focus:outline-none cursor-pointer tnum"
-                  aria-label={t('logisticsAnchorLabel')}
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1.5 text-[11px] text-ink-secondary flex-wrap tnum">
-              {isArriveBy ? (
-                <Badge variant="zinc" size="sm" className="tnum">
-                  {isFr ? 'Départ' : 'Start'} <strong className="ml-1 text-ink">{solvedTimeline.departureTimeHHMM}</strong>
-                </Badge>
-              ) : (
-                <Badge variant="zinc" size="sm" className="tnum">
-                  {isFr ? 'Arrivée' : 'Arrival'} <strong className="ml-1 text-ink">{solvedTimeline.arrivalTimeHHMM}</strong>
-                </Badge>
-              )}
-              <span className="text-[11px] font-rounded text-ink-muted">
-                ({solvedTimeline.movingMin} min {isFr ? 'vélo' : 'ride'}{solvedTimeline.dwellMin > 0 ? ` + ${solvedTimeline.dwellMin} min pause` : ''})
-              </span>
-            </div>
-          </div>
-
-          <div className="lane-divider" aria-hidden="true" />
-
-          {/* Second Row: Rollout Style & Pre-Ride Window */}
+          {/* Rollout Style & Pre-Ride Window */}
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="text-xs font-rounded font-semibold text-ink-secondary mr-1">

@@ -62,7 +62,11 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
   const solvedTimeline = solveTripTimeline(
     physicsResult.movingTimeSeconds,
     trip.customChips || [],
-    trip.ruleSettings
+    trip.ruleSettings,
+    {
+      departureTimeHHMM: timelineResult.hardDepartureTime,
+      arrivalTimeHHMM: timelineResult.gateArrivalTime,
+    }
   );
   const breakRoomTime = addMinutesToTime(
     timelineResult.gateArrivalTime,

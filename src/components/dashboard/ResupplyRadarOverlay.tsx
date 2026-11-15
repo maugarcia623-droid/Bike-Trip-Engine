@@ -21,7 +21,6 @@ import {
 } from '@/components/icons';
 import { TripProfile } from '../../types/trip';
 import { StageAmenity, AmenityCategory } from '../../types/amenities';
-import { DEFAULT_CORRIDOR } from './HeroRouteCard';
 import {
   scanCorridorAmenities,
   calculateWaterGaps,
@@ -169,21 +168,30 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
       ? trip.stages[trip.activeStageIndex]
       : undefined;
 
+  const hasValidCorridorCoords = Boolean(
+    trip.route?.routeMode !== 'manual-radius' &&
+      trip.route?.coordinates &&
+      trip.route.coordinates.length >= 2
+  );
   const currentCoords = useMemo(() => {
-    return trip.route?.coordinates && trip.route.coordinates.length >= 2
-      ? trip.route.coordinates
-      : DEFAULT_CORRIDOR;
-  }, [trip.route?.coordinates]);
+    return hasValidCorridorCoords ? trip.route!.coordinates! : [];
+  }, [hasValidCorridorCoords, trip.route?.coordinates]);
   const totalDistanceKm = trip.route?.distanceKm || 45;
   const stageId = activeStage?.id || trip.id;
 
   const routeCacheKey = useMemo(
-    () => getRouteHashKey(currentCoords, stageId, totalDistanceKm),
+    () => (currentCoords.length >= 2 ? getRouteHashKey(currentCoords, stageId, totalDistanceKm) : ''),
     [currentCoords, stageId, totalDistanceKm]
   );
 
   // Auto-load from in-memory Tier-1 cache if previously scanned
   useEffect(() => {
+    if (!routeCacheKey) {
+      setAmenities([]);
+      setHasScanned(false);
+      setScanError(null);
+      return;
+    }
     const cached = getCachedScan(routeCacheKey);
     if (cached && cached.length > 0) {
       setAmenities(cached);
@@ -305,7 +313,10 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
       const result =
         action === 'add'
           ? await rerouteTripThroughAmenity(trip, amenity, amenities)
-          : await removeAmenityFromRoute(trip, amenity, amenities, options);
+          : await removeAmenityFromRoute(trip, amenity, amenities, {
+              ...options,
+              unpin: options?.unpin ?? true,
+            });
       setAmenities(result.updatedAmenities);
       if (onAmenitiesLoaded) {
         onAmenitiesLoaded(result.updatedAmenities);
@@ -742,12 +753,16 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
                 <Radar className="w-6 h-6 text-current" />
               </div>
               <p className="text-[13px] text-ink-muted max-w-sm leading-relaxed">
-                {t('emptyRadarState')}
+                {hasValidCorridorCoords
+                  ? t('emptyRadarState')
+                  : isFr
+                  ? 'Tracez un corridor A→B ou importez un fichier GPX pour scanner les ravitaillements le long du parcours.'
+                  : 'Build a Corridor A→B route or import a GPX track to scan stops along your route.'}
               </p>
               <Button variant="primary"
                 type="button"
                 onClick={() => handleScanCorridor(false)}
-                disabled={isScanning}
+                disabled={isScanning || !hasValidCorridorCoords}
                 className="mt-1 w-full h-12 inline-flex items-center justify-center gap-2 rounded-full font-semibold cursor-pointer transition-all hover:brightness-[0.97] active:scale-[0.99] shadow-xs bg-volt text-[#111111]"
               >
                 {isScanning ? (

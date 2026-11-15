@@ -192,7 +192,7 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
                 e.stopPropagation();
                 setIsSwitcherOpen((prev) => !prev);
               }}
-              className={`inline-flex items-center gap-1.5 sm:gap-2.5 min-h-[36px] sm:h-10 py-1 sm:py-0 px-2.5 sm:px-4.5 max-w-full min-w-0 rounded-full text-xs sm:text-[13.5px] font-semibold transition-all duration-150 cursor-pointer focus:outline-none ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+              className={`flex sm:inline-flex items-center gap-1.5 sm:gap-2.5 w-full sm:w-auto sm:max-w-[260px] md:max-w-[340px] min-h-[36px] sm:h-10 py-1 sm:py-0 px-2.5 sm:px-4.5 max-w-full min-w-0 overflow-hidden rounded-full text-xs sm:text-[13.5px] font-semibold transition-all duration-150 cursor-pointer focus:outline-none ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
                 isSwitcherOpen
                   ? `${yellowVest.surface} ${yellowVest.primary} ${yellowVest.selectedRing}`
                   : `${CHIP_RING_UNSELECTED} bg-zinc-100 hover:bg-zinc-200/80 text-zinc-800 dark:bg-zinc-800/70 dark:hover:bg-zinc-800 dark:text-zinc-200`
@@ -211,7 +211,7 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
                 }`}
                 aria-hidden="true"
               />
-              <span className="break-words leading-tight text-left">
+              <span className="min-w-0 flex-1 truncate text-left">
                 {activeMeta.name}
               </span>
               <span

@@ -599,7 +599,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
 
               {isHeadwind ? (
                 pacingMode === 'effort' ? (
-                  <Badge variant="emerald" size="md" icon={Lightning} className="mt-2.5 tnum">
+                  <Badge variant="emerald" size="md" icon={Lightning} className="mt-2.5 tnum whitespace-normal text-left leading-snug rounded-2xl sm:rounded-full">
                     {t('dragHoldEffortPill', {
                       watts: cappedWatts,
                       zone: powerZone,
@@ -608,7 +608,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
                     })}
                   </Badge>
                 ) : (
-                  <Badge variant="amber" size="md" icon={WarningCircle} className="mt-2.5 tnum">
+                  <Badge variant="amber" size="md" icon={WarningCircle} className="mt-2.5 tnum whitespace-normal text-left leading-snug rounded-2xl sm:rounded-full">
                     {t('dragHoldSpeedPill', {
                       watts: aeroPenalty,
                       speed: effectiveSpeed,
@@ -616,7 +616,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
                   </Badge>
                 )
               ) : (
-                <Badge variant="emerald" size="md" icon={CheckCircle} className="mt-2.5 tnum">
+                <Badge variant="emerald" size="md" icon={CheckCircle} className="mt-2.5 tnum whitespace-normal text-left leading-snug rounded-2xl sm:rounded-full">
                   {t('zeroPenaltyPill')}
                 </Badge>
               )}
@@ -951,7 +951,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
           >
             <div className="flex items-center gap-2 min-w-0">
               <IconBadge theme={kitAdvice.tierTheme} icon={Shield} size="sm" solidBacker />
-              <span className="text-xs font-bold font-rounded text-ink tracking-tight break-words leading-tight">
+              <span className="text-xs font-bold font-rounded text-ink tracking-tight whitespace-nowrap truncate">
                 {t('kitDirectiveTitle')}
               </span>
             </div>
@@ -959,7 +959,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
               <Badge variant={kitAdvice.tierTheme} size="xs" className="tnum">
                 {kitAdvice.tierBadge}
               </Badge>
-              <span className="text-[11px] font-semibold text-ink-muted tnum hidden min-[380px]:inline">
+              <span className="text-[11px] font-semibold text-ink-muted tnum hidden sm:inline">
                 {t('kitFeelsLike', { temp: kitAdvice.feelsLikeC })}
               </span>
               <DisclosureChevron open={isKitOpen} />

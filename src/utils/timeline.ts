@@ -61,7 +61,8 @@ export function calculateDwellMinutes(
 export function solveTripTimeline(
   movingSeconds: number,
   activeChips: string[] = [],
-  logistics?: Partial<LogisticsSettings>
+  logistics?: Partial<LogisticsSettings>,
+  overrideTimes?: { departureTimeHHMM?: string; arrivalTimeHHMM?: string }
 ): SolvedTripTimeline {
   const dwellMin = calculateDwellMinutes(activeChips, logistics);
   const movingMin = Math.ceil(Math.max(60, movingSeconds) / 60);
@@ -74,7 +75,10 @@ export function solveTripTimeline(
   let resolvedDepartureMin: number;
   let resolvedArrivalMin: number;
 
-  if (anchorMode === 'arrive-by') {
+  if (overrideTimes?.departureTimeHHMM && overrideTimes?.arrivalTimeHHMM) {
+    resolvedDepartureMin = parseHHMM(overrideTimes.departureTimeHHMM);
+    resolvedArrivalMin = parseHHMM(overrideTimes.arrivalTimeHHMM);
+  } else if (anchorMode === 'arrive-by') {
     resolvedArrivalMin = parseHHMM(anchorTime);
     resolvedDepartureMin = resolvedArrivalMin - totalTransitMin;
   } else {
@@ -402,28 +406,18 @@ export function calculateReverseTimeline(
   const defaultAnchor = isSport ? '11:00' : isBikepacking ? '18:00' : isEscapade ? '15:00' : '08:30';
   const totalEnRouteMinutes = totalRideMinutes + routeBuffer + arrivalBuffer + extraBufferMinutes;
 
-  // Check if deterministic single-anchor logistics solver is active
-  const hasLogistics = Boolean(physicsSpeedOverride?.logistics);
-  const solved = hasLogistics
-    ? solveTripTimeline(physicsSpeedOverride?.movingTimeSeconds || actualMovingMinutes * 60, customChips, physicsSpeedOverride!.logistics)
-    : null;
-
   // Support both Reverse Chronometry ("Arrive at") and Forward Chronometry ("Depart at")
   const isDepartAtMode =
     physicsSpeedOverride?.arriveAtMode === false && Boolean(physicsSpeedOverride?.departureTime);
 
-  const hardDepartureTime = solved
-    ? solved.departureTimeHHMM
-    : isDepartAtMode
+  const hardDepartureTime = isDepartAtMode
     ? (physicsSpeedOverride!.departureTime as string)
     : subtractMinutesFromTime(
         office.targetGateArrivalTime || office.shiftStartTime || defaultAnchor,
         totalEnRouteMinutes
       );
 
-  const targetArrival = solved
-    ? solved.arrivalTimeHHMM
-    : isDepartAtMode
+  const targetArrival = isDepartAtMode
     ? addMinutesToTime(hardDepartureTime, totalEnRouteMinutes)
     : office.targetGateArrivalTime || office.shiftStartTime || defaultAnchor;
 
@@ -442,9 +436,9 @@ export function calculateReverseTimeline(
 
   // Pre-rollout checkpoints
   const bikePrepTime = subtractMinutesFromTime(hardDepartureTime, 15);
-  const preRideMealTime = solved
-    ? solved.preRideMealTimeHHMM
-    : subtractMinutesFromTime(hardDepartureTime, 45);
+  const preStyle = physicsSpeedOverride?.logistics?.preRideStyle ?? 'full-breakfast';
+  const preBufferMin = preStyle === 'full-breakfast' ? 45 : preStyle === 'light-liquid' ? 20 : 15;
+  const preRideMealTime = subtractMinutesFromTime(hardDepartureTime, preBufferMin);
   const wakeUpTime = subtractMinutesFromTime(hardDepartureTime, 60);
 
   const destTitle = destinationName || route.destination || 'Destination';
