@@ -26,6 +26,9 @@ export interface PantryItem {
   isCustom?: boolean;
 }
 
+export type BikeCategory = 'road' | 'gravel' | 'mtb' | 'urban' | 'touring';
+export type CasingType = 'supple' | 'standard' | 'reinforced';
+
 export interface BikeSpec {
   id: string;
   name: string;
@@ -34,6 +37,9 @@ export interface BikeSpec {
   cda: number;
   isTubeless: boolean;
   tireWidthMm?: number;
+  bikeCategory?: BikeCategory;
+  casingType?: CasingType;
+  isHookless?: boolean;
 }
 
 export interface RiderBikeSpecs {
@@ -98,6 +104,9 @@ export const DEFAULT_RIDER_BIKE_SPECS: RiderBikeSpecs = {
       cda: 0.38,
       isTubeless: true,
       tireWidthMm: 38,
+      bikeCategory: 'gravel',
+      casingType: 'standard',
+      isHookless: false,
     },
     {
       id: 'bike-aeroad',
@@ -107,6 +116,9 @@ export const DEFAULT_RIDER_BIKE_SPECS: RiderBikeSpecs = {
       cda: 0.32,
       isTubeless: true,
       tireWidthMm: 28,
+      bikeCategory: 'road',
+      casingType: 'supple',
+      isHookless: true,
     },
     {
       id: 'bike-urban',
@@ -116,6 +128,9 @@ export const DEFAULT_RIDER_BIKE_SPECS: RiderBikeSpecs = {
       cda: 0.44,
       isTubeless: false,
       tireWidthMm: 42,
+      bikeCategory: 'urban',
+      casingType: 'reinforced',
+      isHookless: false,
     },
   ],
 };

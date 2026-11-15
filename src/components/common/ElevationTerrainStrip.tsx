@@ -47,7 +47,9 @@ export const ElevationTerrainStrip: React.FC<ElevationTerrainStripProps> = ({
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const panelId = useId();
 
-  const isGpx = Boolean(route.elevationProfile && route.elevationProfile.length >= 3);
+  const hasProfile = Boolean(route.elevationProfile && route.elevationProfile.length >= 3);
+  const isGpx = hasProfile && (route.routeMode === 'gpx' || Boolean(route.gpxFileName));
+  const isDem = hasProfile && !isGpx;
   const { elevationProfile, terrainSummary } = useMemo(
     () => synthesizeRouteElevationProfile(route),
     [route]
@@ -203,9 +205,17 @@ export const ElevationTerrainStrip: React.FC<ElevationTerrainStripProps> = ({
             <Badge variant="zinc" size="xs" className="tnum">
               +{elevGain} m D+
             </Badge>
-            {isGpx && (
+            {isGpx ? (
               <Badge variant="emerald" size="xs" className="tnum">
                 {route.gpxFileName ? `GPX · ${route.gpxFileName}` : t('gpxLoadedBadge')}
+              </Badge>
+            ) : isDem ? (
+              <Badge variant="sky" size="xs" className="tnum">
+                DEM
+              </Badge>
+            ) : (
+              <Badge variant="amber" size="xs">
+                {isFr ? 'D+ estimé' : 'Estimated D+'}
               </Badge>
             )}
           </div>
@@ -228,9 +238,13 @@ export const ElevationTerrainStrip: React.FC<ElevationTerrainStripProps> = ({
                   ? isFr
                     ? `Profil réel extrait de votre trace GPX (+${elevGain} m D+ · pente max ${terrainSummary.maxGradePct}%)`
                     : `True elevation extracted from your GPX trace (+${elevGain} m D+ · max ${terrainSummary.maxGradePct}% grade)`
+                  : isDem
+                  ? isFr
+                    ? `Profil altimétrique réel DEM (+${elevGain} m D+ · pente max ${terrainSummary.maxGradePct}%)`
+                    : `Real DEM elevation profile (+${elevGain} m D+ · max ${terrainSummary.maxGradePct}% grade)`
                   : isFr
-                  ? `Aperçu topographique (+${elevGain} m D+) — importez un fichier .GPX pour le relief exact mètre par mètre`
-                  : `Topographic preview (+${elevGain} m D+) — upload a .GPX file for exact meter-by-meter slope`}
+                  ? `Courbe estimée depuis un D+ synthétique (+${elevGain} m) — tracez un corridor ou importez un .GPX pour le relief réel`
+                  : `Estimated curve from synthetic D+ (+${elevGain} m) — compute a Corridor route or upload a .GPX for exact elevation`}
               </p>
             ) : (
               <span />
@@ -241,7 +255,7 @@ export const ElevationTerrainStrip: React.FC<ElevationTerrainStripProps> = ({
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".gpx,application/gpx+xml,text/xml,application/xml"
+                  accept=".gpx,.tcx,.fit,application/gpx+xml,text/xml,application/xml,application/octet-stream"
                   className="hidden"
                   onChange={(e) => {
                     const f = e.target.files?.[0];

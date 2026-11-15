@@ -41,6 +41,10 @@ import {
   degreesToCompassCardinal,
 } from '../../services/weatherService';
 import {
+  fetchRouteSectorForecast,
+  RouteWeatherAnalysis,
+} from '../../services/routeWeatherService';
+import {
   calculateRideVisibility,
   getSolarElevation,
   minutesToHHMM,
@@ -142,9 +146,40 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
     return calculateRideVisibility(trip, currentDateStr, currentTimeStr, effectiveSpeed);
   }, [trip, currentDateStr, currentTimeStr, effectiveSpeed]);
 
+  const [sectorAnalysis, setSectorAnalysis] = useState<RouteWeatherAnalysis | null>(null);
+  const [isSectorsOpen, setIsSectorsOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    const coords = trip.route?.coordinates;
+    if (!coords || coords.length < 2) {
+      setSectorAnalysis(null);
+      return;
+    }
+    let cancelled = false;
+    fetchRouteSectorForecast(trip, currentDateStr, currentTimeStr, lang).then((res) => {
+      if (!cancelled) setSectorAnalysis(res);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    trip.id,
+    trip.route?.coordinates,
+    trip.route?.distanceKm,
+    trip.route?.targetSpeedKmH,
+    trip.route?.pacingMode,
+    currentDateStr,
+    currentTimeStr,
+    lang,
+  ]);
+
   const kitAdvice = useMemo(() => {
-    return getKitRecommendation(trip.weather, visibilityAnalysis.rolloutPhase, lang);
-  }, [trip.weather, visibilityAnalysis.rolloutPhase, lang]);
+    const targetWeather = sectorAnalysis?.worstCaseWeather ?? trip.weather;
+    return getKitRecommendation(targetWeather, visibilityAnalysis.rolloutPhase, lang, {
+      ridingSpeedKmH: effectiveSpeed,
+      coldestSectorLabel: sectorAnalysis?.coldestSectorLabel,
+    });
+  }, [sectorAnalysis, trip.weather, visibilityAnalysis.rolloutPhase, lang, effectiveSpeed]);
 
   const formattedSchedule = (() => {
     try {
@@ -714,6 +749,120 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
               </Button>
             </div>
           </div>
+
+          {/* ── SECTOR-BY-SECTOR WEATHER → WATTS & LOOP DIRECTION ── */}
+          {sectorAnalysis && sectorAnalysis.sectors.length > 0 && (
+            <div className="mt-4 rounded-pod bg-pod overflow-hidden">
+              <Button
+                variant="ghost"
+                type="button"
+                onClick={() => setIsSectorsOpen((v) => !v)}
+                aria-expanded={isSectorsOpen}
+                className="w-full min-h-[44px] p-3 sm:p-3.5 flex items-center justify-between gap-2 hover:bg-chip/60 transition-colors cursor-pointer text-left"
+              >
+                <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                  <IconBadge theme="sky" icon={Wind} size="sm" solidBacker />
+                  <span className="text-xs font-bold font-rounded text-ink tracking-tight">
+                    {isFr ? 'Météo & Watts par secteur' : 'Sector Wind & Power'}
+                  </span>
+                  {sectorAnalysis.loopComparison.isLoop && (
+                    <Badge
+                      variant={
+                        sectorAnalysis.loopComparison.recommendedDirection === 'reverse'
+                          ? 'amber'
+                          : 'emerald'
+                      }
+                      size="xs"
+                      className="tnum"
+                    >
+                      {(() => {
+                        const cmp = sectorAnalysis.loopComparison;
+                        const fwdLabel =
+                          cmp.forwardOrientation === 'clockwise'
+                            ? isFr
+                              ? 'sens horaire'
+                              : 'clockwise'
+                            : cmp.forwardOrientation === 'anticlockwise'
+                            ? isFr
+                              ? 'sens antihoraire'
+                              : 'anticlockwise'
+                            : isFr
+                            ? 'sens actuel'
+                            : 'as planned';
+                        const revLabel =
+                          cmp.forwardOrientation === 'clockwise'
+                            ? isFr
+                              ? 'sens antihoraire'
+                              : 'anticlockwise'
+                            : cmp.forwardOrientation === 'anticlockwise'
+                            ? isFr
+                              ? 'sens horaire'
+                              : 'clockwise'
+                            : isFr
+                            ? 'sens inversé'
+                            : 'reversed';
+                        if (cmp.recommendedDirection === 'reverse') {
+                          return isFr
+                            ? `Inverser (${revLabel}) économise ${cmp.minutesSaved} min · ${cmp.wattsSaved} W`
+                            : `Ride ${revLabel} saves ${cmp.minutesSaved} min · ${cmp.wattsSaved} W`;
+                        }
+                        if (cmp.recommendedDirection === 'forward') {
+                          return isFr
+                            ? `${fwdLabel} optimal (+${cmp.minutesSaved} min · ${cmp.wattsSaved} W gagnés)`
+                            : `${fwdLabel} optimal (saves ${cmp.minutesSaved} min · ${cmp.wattsSaved} W)`;
+                        }
+                        return isFr ? 'Boucle équilibrée (vent neutre)' : 'Balanced loop direction';
+                      })()}
+                    </Badge>
+                  )}
+                </div>
+                <DisclosureChevron open={isSectorsOpen} />
+              </Button>
+
+              <Collapsible open={isSectorsOpen} innerClassName="px-3.5 pb-3.5 pt-1 space-y-2">
+                <div className="lane-divider mb-1" aria-hidden="true" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {sectorAnalysis.sectors.map((sec) => {
+                    const isHead = sec.effectiveHeadwindKmH > 2;
+                    const isTail = sec.effectiveHeadwindKmH < -2;
+                    return (
+                      <div
+                        key={sec.index}
+                        className="rounded-xl bg-card/80 dark:bg-white/[0.04] px-3 py-2 flex items-center justify-between gap-2 text-xs tnum"
+                      >
+                        <div className="min-w-0">
+                          <div className="font-semibold text-ink">
+                            KM {sec.startKm}–{sec.endKm} · {sec.etaHHMM}
+                          </div>
+                          <div className="text-[11px] text-ink-muted">
+                            {sec.temperatureC}°C ·{' '}
+                            {isHead
+                              ? isFr
+                                ? `Face +${Math.round(sec.effectiveHeadwindKmH)} km/h`
+                                : `Head +${Math.round(sec.effectiveHeadwindKmH)} km/h`
+                              : isTail
+                              ? isFr
+                                ? `Dos ${Math.round(Math.abs(sec.effectiveHeadwindKmH))} km/h`
+                                : `Tail ${Math.round(Math.abs(sec.effectiveHeadwindKmH))} km/h`
+                              : `${sec.windSpeedKmH} km/h ${sec.windCardinal}`}
+                            {sec.precipitationRiskPercent >= 25
+                              ? ` · ${sec.precipitationRiskPercent}% rain`
+                              : ''}
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div className="font-bold text-ink">{sec.legWatts} W</div>
+                          <div className="text-[10px] text-ink-muted">
+                            {sec.durationMin} min · {sec.carbsG}g
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Collapsible>
+            </div>
+          )}
         </div>
       )}
 
@@ -989,6 +1138,11 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
               </span>
               <span className="text-ink-secondary leading-snug">{kitAdvice.opticsAndShield}</span>
             </div>
+            {kitAdvice.sectorNote && (
+              <div className="pt-1 text-[11px] font-medium text-ink-muted tnum">
+                {kitAdvice.sectorNote}
+              </div>
+            )}
           </Collapsible>
         </div>
       </div>

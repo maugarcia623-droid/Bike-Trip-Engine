@@ -1,4 +1,5 @@
 import { StageAmenity, AmenityCategory, WaterGapsSummary, WaterGapAlert } from '../types/amenities';
+import { evaluateOpeningHoursAtArrival } from '../utils/openingHours';
 
 /**
  * Public Overpass API instances for resilient failover.
@@ -181,8 +182,13 @@ export function buildOverpassQuery(coordinates: [number, number][]): string {
   node["amenity"="bicycle_repair_station"];
   node["amenity"="shelter"];
   way["amenity"="shelter"];
+  node["amenity"="toilets"];
+  node["amenity"="fuel"];
+  way["amenity"="fuel"];
+  node["amenity"="pharmacy"];
+  node["railway"~"^(station|halt)$"];
 );
-out center qt 200;`;
+out center qt 260;`;
 }
 
 /**
@@ -324,14 +330,33 @@ function parseOsmAmenity(
     } else {
       fallbackName = isFr ? 'Abri & Refuge' : 'Trail Shelter';
     }
+  } else if (
+    tags.amenity === 'toilets' ||
+    tags.amenity === 'fuel' ||
+    tags.amenity === 'pharmacy'
+  ) {
+    category = 'essentials';
+    subType = tags.amenity;
+    if (subType === 'toilets') {
+      fallbackName = isFr ? 'Toilettes publiques' : 'Public Toilets';
+    } else if (subType === 'fuel') {
+      fallbackName = isFr ? 'Station-service / Boutique' : 'Petrol Station';
+    } else {
+      fallbackName = isFr ? 'Pharmacie' : 'Pharmacy';
+    }
+  } else if (tags.railway === 'station' || tags.railway === 'halt') {
+    category = 'bailout';
+    subType = tags.railway;
+    fallbackName = isFr ? 'Gare / Halte (Repli)' : 'Train Station (Bailout)';
   } else {
     return null;
   }
 
   const snapped = snapToPolyline(lat, lon, coordinates, cumDistancesMeters, elevationProfile);
 
-  // Filter out any POI exceeding the 1200m corridor threshold
-  if (snapped.detourMeters > 1200) {
+  // Filter out POIs exceeding the corridor threshold (train bailouts allow up to 1600m)
+  const maxDetour = category === 'bailout' ? 1600 : 1200;
+  if (snapped.detourMeters > maxDetour) {
     return null;
   }
 
@@ -380,123 +405,6 @@ function deduplicateAmenities(amenities: StageAmenity[]): StageAmenity[] {
  * Generates verified corridor fallback amenities along the active route polyline
  * if public Overpass servers are down, rate-limited (429/502), or unreachable.
  */
-function generateCorridorFallbackAmenities(
-  coordinates: [number, number][],
-  cumDistancesMeters: number[],
-  elevationProfile?: { distKm: number; eleM: number }[],
-  lang: 'en' | 'fr' = 'en'
-): StageAmenity[] {
-  const isFr = lang === 'fr';
-  const totalMeters = cumDistancesMeters[cumDistancesMeters.length - 1] || 45000;
-
-  const templates: {
-    fraction: number;
-    category: AmenityCategory;
-    subType: string;
-    nameFr: string;
-    nameEn: string;
-    detourMeters: number;
-    openingHours?: string;
-  }[] = [
-    {
-      fraction: 0.14,
-      category: 'food',
-      subType: 'bakery',
-      nameFr: 'Boulangerie du Village',
-      nameEn: 'Village Bakery',
-      detourMeters: 45,
-      openingHours: '06:30-19:30',
-    },
-    {
-      fraction: 0.28,
-      category: 'water',
-      subType: 'drinking_water',
-      nameFr: "Fontaine d'eau potable",
-      nameEn: 'Drinking Water Tap',
-      detourMeters: 20,
-    },
-    {
-      fraction: 0.44,
-      category: 'cemetery',
-      subType: 'cemetery',
-      nameFr: "Cimetière communal (Point d'eau)",
-      nameEn: 'Municipal Cemetery (Water Spigot)',
-      detourMeters: 85,
-    },
-    {
-      fraction: 0.62,
-      category: 'food',
-      subType: 'bakery',
-      nameFr: 'Boulangerie & Épicerie',
-      nameEn: 'Bakery & Fresh Food',
-      detourMeters: 110,
-      openingHours: '07:00-19:00',
-    },
-    {
-      fraction: 0.76,
-      category: 'mechanix',
-      subType: 'bicycle_repair_station',
-      nameFr: 'Station de gonflage & Réparation vélo',
-      nameEn: 'Bike Repair Station & Pump',
-      detourMeters: 30,
-    },
-    {
-      fraction: 0.88,
-      category: 'water',
-      subType: 'drinking_water',
-      nameFr: "Borne fontaine de secours",
-      nameEn: 'Public Water Fountain',
-      detourMeters: 15,
-    },
-  ];
-
-  const results: StageAmenity[] = [];
-
-  for (let i = 0; i < templates.length; i++) {
-    const tmpl = templates[i];
-    const targetMeters = totalMeters * tmpl.fraction;
-
-    let nearestIdx = 0;
-    let bestDiff = Infinity;
-    for (let c = 0; c < cumDistancesMeters.length; c++) {
-      const diff = Math.abs(cumDistancesMeters[c] - targetMeters);
-      if (diff < bestDiff) {
-        bestDiff = diff;
-        nearestIdx = c;
-      }
-    }
-
-    const coord = coordinates[nearestIdx] || coordinates[0];
-    const snappedMeters = cumDistancesMeters[nearestIdx] || targetMeters;
-    const routeKm = Number((snappedMeters / 1000).toFixed(1));
-
-    const latOffset = (Math.random() - 0.5) * 0.0008;
-    const lonOffset = (Math.random() - 0.5) * 0.0008;
-
-    let elevationMeters: number | undefined;
-    if (elevationProfile && elevationProfile.length > 0) {
-      const pt = elevationProfile.find((p) => Math.abs(p.distKm - routeKm) < 1.5);
-      if (pt) elevationMeters = Math.round(pt.eleM);
-    }
-
-    results.push({
-      id: `fallback-${tmpl.category}-${i}-${Math.round(routeKm)}`,
-      category: tmpl.category,
-      subType: tmpl.subType,
-      name: isFr ? tmpl.nameFr : tmpl.nameEn,
-      lat: coord[0] + latOffset,
-      lon: coord[1] + lonOffset,
-      routeKm,
-      detourMeters: tmpl.detourMeters,
-      elevationMeters,
-      openingHours: tmpl.openingHours,
-      isPinned: false,
-    });
-  }
-
-  return results.sort((a, b) => a.routeKm - b.routeKm);
-}
-
 /**
  * Executes resilient Overpass query with failover and configurable timeout across public mirrors.
  */
@@ -596,25 +504,12 @@ export async function scanCorridorAmenities(params: {
     }
 
     const cleanAmenities = deduplicateAmenities(parsedAmenities);
-
-    // If Overpass returned real data, cache and return
-    if (cleanAmenities.length > 0) {
-      setCachedScan(cacheKey, cleanAmenities);
-      return cleanAmenities;
-    }
+    setCachedScan(cacheKey, cleanAmenities);
+    return cleanAmenities;
   } catch (err) {
-    console.warn('Overpass public servers unavailable or slow. Activating curated corridor fallback:', err);
+    console.warn('Overpass public servers unavailable or slow:', err);
+    throw err;
   }
-
-  // Graceful fallback: verified corridor resupply points along the route trace
-  const fallback = generateCorridorFallbackAmenities(
-    coordinates,
-    cumDistancesMeters,
-    elevationProfile,
-    lang
-  );
-  setCachedScan(cacheKey, fallback);
-  return fallback;
 }
 
 /**
@@ -767,4 +662,133 @@ export function calculateAmenityEta(
   const etaM = totalMin % 60;
 
   return `${String(etaH).padStart(2, '0')}:${String(etaM).padStart(2, '0')}`;
+}
+
+/**
+ * Auto-Marks optimal resupply stops along a corridor at regular distance buckets
+ * (or to plug critical/caution water gaps), prioritizing low-detour spots that
+ * are open at the rider's projected arrival time.
+ */
+export function autoMarkResupplyStops(params: {
+  amenities: StageAmenity[];
+  totalDistanceKm: number;
+  existingPinned?: StageAmenity[];
+  departureTime?: string;
+  targetDate?: string;
+  effectiveSpeedKmH?: number;
+  intervalKm?: number;
+}): {
+  selectedStops: StageAmenity[];
+  addedStops: StageAmenity[];
+} {
+  const {
+    amenities,
+    totalDistanceKm,
+    existingPinned = [],
+    departureTime = '08:00',
+    targetDate,
+    effectiveSpeedKmH = 24,
+    intervalKm = 25,
+  } = params;
+
+  const isOpenOrUnknown = (a: StageAmenity) => {
+    if (!a.openingHours) return true;
+    const eta = calculateAmenityEta(departureTime, a.routeKm, effectiveSpeedKmH);
+    const verdict = evaluateOpeningHoursAtArrival(a.openingHours, targetDate, eta, 'en');
+    return verdict?.status !== 'closed';
+  };
+
+  const existingIds = new Set(existingPinned.map((a) => a.id));
+  const merged: StageAmenity[] = [...existingPinned];
+  const added: StageAmenity[] = [];
+
+  const addStop = (stop: StageAmenity | undefined) => {
+    if (!stop || existingIds.has(stop.id)) return;
+    existingIds.add(stop.id);
+    const marked = { ...stop, isPinned: true };
+    merged.push(marked);
+    added.push(marked);
+  };
+
+  // 1. Distance-interval water coverage (skipping very first/last 4 km where rider starts/finishes)
+  const bucketSize = Math.max(12, intervalKm);
+  const startEdgeKm = Math.min(4, totalDistanceKm * 0.12);
+  const endEdgeKm = Math.max(startEdgeKm + 2, totalDistanceKm - Math.min(4, totalDistanceKm * 0.12));
+
+  for (let targetKm = bucketSize; targetKm < totalDistanceKm; targetKm += bucketSize) {
+    const winStart = Math.max(startEdgeKm, targetKm - bucketSize * 0.45);
+    const winEnd = Math.min(endEdgeKm, targetKm + bucketSize * 0.45);
+    if (winEnd <= winStart) continue;
+
+    // Already covered by a pinned water/cemetery stop in this window?
+    const alreadyHasWater = merged.some(
+      (p) => (p.category === 'water' || p.category === 'cemetery') && p.routeKm >= winStart && p.routeKm <= winEnd
+    );
+    if (alreadyHasWater) continue;
+
+    const waterCandidates = amenities
+      .filter(
+        (a) =>
+          (a.category === 'water' || a.category === 'cemetery') &&
+          a.routeKm >= winStart &&
+          a.routeKm <= winEnd &&
+          isOpenOrUnknown(a)
+      )
+      .sort((a, b) => {
+        // Prefer potable drinking water first, then smallest detour
+        const catRankA = a.category === 'water' ? 0 : 1;
+        const catRankB = b.category === 'water' ? 0 : 1;
+        if (catRankA !== catRankB) return catRankA - catRankB;
+        return a.detourMeters - b.detourMeters;
+      });
+
+    if (waterCandidates.length > 0) {
+      addStop(waterCandidates[0]);
+    }
+  }
+
+  // 2. If zero food stops are pinned on a ride >= 18 km, auto-mark best mid-route open cafe/bakery
+  const hasFoodPinned = merged.some((p) => p.category === 'food');
+  if (!hasFoodPinned && totalDistanceKm >= 18) {
+    const midStart = totalDistanceKm * 0.22;
+    const midEnd = totalDistanceKm * 0.78;
+    const midTarget = totalDistanceKm * 0.5;
+    const midFoodCandidates = amenities
+      .filter(
+        (a) =>
+          a.category === 'food' &&
+          a.routeKm >= midStart &&
+          a.routeKm <= midEnd &&
+          isOpenOrUnknown(a)
+      )
+      .sort((a, b) => {
+        const distScoreA = Math.abs(a.routeKm - midTarget) * 150 + a.detourMeters;
+        const distScoreB = Math.abs(b.routeKm - midTarget) * 150 + b.detourMeters;
+        return distScoreA - distScoreB;
+      });
+
+    if (midFoodCandidates.length > 0) {
+      addStop(midFoodCandidates[0]);
+    } else {
+      const anyOpenFood = amenities
+        .filter((a) => a.category === 'food' && isOpenOrUnknown(a))
+        .sort((a, b) => Math.abs(a.routeKm - midTarget) * 150 + a.detourMeters - (Math.abs(b.routeKm - midTarget) * 150 + b.detourMeters));
+      if (anyOpenFood.length > 0) {
+        addStop(anyOpenFood[0]);
+      }
+    }
+  }
+
+  // Fallback for shorter rides (or dry routes) if nothing was added: pick nearest open water/food stop
+  if (added.length === 0 && amenities.length > 0) {
+    const fallbackPool = amenities
+      .filter((a) => (a.category === 'water' || a.category === 'cemetery' || a.category === 'food') && isOpenOrUnknown(a))
+      .sort((a, b) => a.detourMeters - b.detourMeters);
+    if (fallbackPool.length > 0) {
+      addStop(fallbackPool[0]);
+    }
+  }
+
+  merged.sort((a, b) => a.routeKm - b.routeKm);
+  return { selectedStops: merged, addedStops: added };
 }

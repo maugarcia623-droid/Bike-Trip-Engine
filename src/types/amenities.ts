@@ -1,4 +1,4 @@
-export type AmenityCategory = 'water' | 'cemetery' | 'food' | 'mechanix';
+export type AmenityCategory = 'water' | 'cemetery' | 'food' | 'mechanix' | 'essentials' | 'bailout';
 
 export interface StageAmenity {
   /** Deterministic POI identifier (e.g. "node/123456" or "way/789012") */

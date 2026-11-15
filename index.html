@@ -68,5 +68,12 @@
   <body class="bg-canvas text-ink antialiased selection:bg-volt selection:text-[#111111] min-h-screen transition-colors duration-200">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('/sw.js').catch(function () {});
+        });
+      }
+    </script>
   </body>
 </html>

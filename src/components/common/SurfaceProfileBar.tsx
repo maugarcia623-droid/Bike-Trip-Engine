@@ -257,9 +257,9 @@ export const SurfaceProfileBar: React.FC<SurfaceProfileBarProps> = ({
           </>
         ) : (
           <>
-            <span className="w-1.5 h-1.5 rounded-full bg-ink/30" />
-            <span title={breakdown.osmError || undefined}>
-              {isFr ? 'Estimé selon le type de parcours' : 'Estimated from route geometry'}
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            <span className="text-amber-700 dark:text-amber-300" title={breakdown.osmError || undefined}>
+              {isFr ? 'Mix de surface estimé (modèle heuristique)' : 'Estimated surface mix (heuristic fallback)'}
             </span>
           </>
         )}

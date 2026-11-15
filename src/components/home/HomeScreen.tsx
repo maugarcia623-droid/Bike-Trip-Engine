@@ -12,6 +12,9 @@ import {
   Backpack,
   Compass,
   Cloud,
+  Wind,
+  Clock,
+  Gauge,
 } from '@/components/icons';
 import { TripProfile, WeatherCondition } from '../../types/trip';
 import { TripCard } from './TripCard';
@@ -46,6 +49,7 @@ interface HomeScreenProps {
   onOpenOnboarding?: () => void;
   onLoadDemoTrip?: () => void;
   onOpenFeedback?: () => void;
+  onOpenTools?: (tab?: 'wind' | 'leave-by' | 'pressure') => void;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -62,6 +66,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onOpenOnboarding,
   onLoadDemoTrip,
   onOpenFeedback,
+  onOpenTools,
 }) => {
   const { lang, t } = useTranslation();
   const { userProfile, username } = useUserProfile();
@@ -475,6 +480,48 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               </span>
             </div>
           </div>
+
+          {onOpenTools && (
+            <div className="p-4 rounded-card bg-card border border-ink/5 dark:border-white/5 flex flex-col gap-2.5 text-xs text-ink-secondary shadow-xs">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-rounded font-bold text-ink">
+                  {lang === 'fr' ? 'Calculateurs tactiques gratuits' : 'Free pre-ride physics tools'}
+                </span>
+                <span className="text-[10px] font-rounded font-semibold px-2 py-0.5 rounded-full bg-pod text-ink-muted">
+                  100% browser
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onOpenTools('wind')}
+                  className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-rounded font-semibold cursor-pointer ${CHIP_TOKENS.sky.surface} ${CHIP_TOKENS.sky.primary}`}
+                >
+                  <Wind className="w-3.5 h-3.5" />
+                  <span>{lang === 'fr' ? 'Coût du Vent' : 'Wind Cost'}</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onOpenTools('leave-by')}
+                  className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-rounded font-semibold cursor-pointer ${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary}`}
+                >
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>{lang === 'fr' ? 'Leave-By' : 'Leave-By'}</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onOpenTools('pressure')}
+                  className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-rounded font-semibold cursor-pointer ${CHIP_TOKENS.teal.surface} ${CHIP_TOKENS.teal.primary}`}
+                >
+                  <Gauge className="w-3.5 h-3.5" />
+                  <span>{lang === 'fr' ? 'Pression Pneus' : 'Tyre Pressure'}</span>
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

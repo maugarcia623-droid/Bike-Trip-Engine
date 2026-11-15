@@ -24,8 +24,11 @@ import {
   RefreshCw,
   Download,
   Compass,
+  ShieldCheck,
+  Calculator,
 } from '@/components/icons';
 import { downloadTripGpx, downloadTripTcx } from '../../utils/gpxExporter';
+import { downloadTripFit } from '../../utils/fitExporter';
 import { IconBadge } from '../common/IconBadge';
 import { Button, ActionButton } from '@/components/arc';
 import {
@@ -39,12 +42,14 @@ import {
 
 interface TopTelemetryBarProps {
   activeTrip?: TripProfile | null;
-  currentView: 'home' | 'configurator' | 'dashboard';
-  onNavigate: (view: 'home' | 'configurator' | 'dashboard') => void;
+  currentView: 'home' | 'configurator' | 'dashboard' | 'tools';
+  onNavigate: (view: 'home' | 'configurator' | 'dashboard' | 'tools') => void;
   onOpenSpecs?: () => void;
   onPrint?: () => void;
   onShareReceipt?: () => void;
   onOpenFeedback?: () => void;
+  onOpenRideBrief?: () => void;
+  onOpenTools?: (tab?: 'wind' | 'leave-by' | 'pressure') => void;
   riderSpecs?: RiderBikeSpecs;
   isMenuOpen?: boolean;
   onMenuOpenChange?: (open: boolean) => void;
@@ -58,6 +63,8 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
   onPrint,
   onShareReceipt,
   onOpenFeedback,
+  onOpenRideBrief,
+  onOpenTools,
   riderSpecs,
   isMenuOpen: propIsMenuOpen,
   onMenuOpenChange,
@@ -511,7 +518,22 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
               }}
             />
           )}
-          {onOpenSpecs && (onShareReceipt || onPrint) && <Divider />}
+          {onOpenSpecs && (onShareReceipt || onPrint || onOpenRideBrief) && <Divider />}
+          {activeTrip && onOpenRideBrief && (
+            <>
+              <Row
+                theme="yellow-vest"
+                icon={ShieldCheck}
+                label={isFr ? 'Brief de la veille (1 écran)' : 'Night-Before Ride Brief'}
+                sub={isFr ? 'Verdict GO, pression, glucides, 1er point d’alerte & lien groupe' : 'Go status, leave-by, 3 key numbers, first route issue & group link'}
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  onOpenRideBrief();
+                }}
+              />
+              {(onShareReceipt || onPrint) && <Divider />}
+            </>
+          )}
           {onShareReceipt && (
             <Row
               theme="lime"
@@ -559,6 +581,32 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
                 onClick={() => {
                   downloadTripTcx(activeTrip);
                   setIsMenuOpen(false);
+                }}
+              />
+              <Divider />
+              <Row
+                theme="amber"
+                icon={Download}
+                label={isFr ? 'Exporter .FIT (Garmin Up Ahead)' : 'Export .FIT (Garmin Up Ahead)'}
+                sub={isFr ? 'Parcours binaire .fit avec arrêts épinglés et repères' : 'Binary .fit course with pinned stops & cues'}
+                onClick={() => {
+                  downloadTripFit(activeTrip);
+                  setIsMenuOpen(false);
+                }}
+              />
+            </>
+          )}
+          {onOpenTools && (
+            <>
+              <Divider />
+              <Row
+                theme="purple"
+                icon={Calculator}
+                label={isFr ? 'Outils gratuits (Vent · Départ · Pneus)' : 'Free Cycling Tools (Wind · Leave-By · Pressure)'}
+                sub={isFr ? 'Calculateurs navigateur sans compte' : 'Standalone browser physics calculators'}
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  onOpenTools('wind');
                 }}
               />
             </>

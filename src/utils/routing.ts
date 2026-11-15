@@ -4,8 +4,9 @@
  */
 import { getCurrentLanguage } from '../context/LanguageContext';
 import { geocodeLocation } from '../services/locationService';
-import { RouteCueStep, RouteParams, RouteWaypoint, TripProfile } from '../types/trip';
+import { ElevationProfilePoint, RouteCueStep, RouteParams, RouteWaypoint, TripProfile } from '../types/trip';
 import { StageAmenity } from '../types/amenities';
+import { fetchDemElevationProfile } from '../services/elevationService';
 import {
   computeCumulativeDistances,
   getRouteHashKey,
@@ -42,6 +43,9 @@ export interface CalculatedBikeRoute {
   coordinates: [number, number][]; // [lat, lng]
   distanceKm: number;
   estimatedMinutes: number;
+  elevationGainM?: number;
+  elevationLossM?: number;
+  elevationProfile?: ElevationProfilePoint[];
   legs?: CalculatedBikeRouteLeg[];
   resolvedWaypoints?: ResolvedWaypoint[];
   cueSheet?: RouteCueStep[];
@@ -172,11 +176,15 @@ export async function calculateAutoBikeRoute(
   }
 
   const cueSheet = parseOsrmRouteSteps(route.legs);
+  const dem = await fetchDemElevationProfile(coordinates, distanceKm);
 
   return {
     coordinates,
     distanceKm,
     estimatedMinutes,
+    elevationGainM: dem?.elevationGainM,
+    elevationLossM: dem?.elevationLossM,
+    elevationProfile: dem?.elevationProfile,
     legs,
     resolvedWaypoints,
     cueSheet,
@@ -384,6 +392,9 @@ function finalizeAmenityRouteUpdate(params: {
   updatedPinnedInput: StageAmenity[];
   nextCoords: [number, number][];
   nextDistanceKm: number;
+  nextElevationGainM?: number;
+  nextElevationLossM?: number;
+  nextElevationProfile?: ElevationProfilePoint[];
   nextWaypoints: RouteWaypoint[];
   nextCueSheet: RouteCueStep[] | undefined;
   nextRouteMode: RouteParams['routeMode'];
@@ -397,6 +408,9 @@ function finalizeAmenityRouteUpdate(params: {
     updatedPinnedInput,
     nextCoords,
     nextDistanceKm,
+    nextElevationGainM,
+    nextElevationLossM,
+    nextElevationProfile,
     nextWaypoints,
     nextCueSheet,
     nextRouteMode,
@@ -408,14 +422,18 @@ function finalizeAmenityRouteUpdate(params: {
   const oldDistanceKm = trip.route.distanceKm || 0;
   const oldElev = trip.route.elevationGainM ?? Math.round(oldDistanceKm * 6.5);
   const nextElevGain =
-    oldDistanceKm > 0
+    typeof nextElevationGainM === 'number'
+      ? nextElevationGainM
+      : oldDistanceKm > 0
       ? Math.max(0, Math.round(oldElev * (nextDistanceKm / oldDistanceKm)))
       : oldElev;
+
+  const resolvedElevationProfile = nextElevationProfile;
 
   const updatedPinned = resnapAmenitiesToRoute(
     updatedPinnedInput.map((p) => ({ ...p, isPinned: true })),
     nextCoords,
-    trip.route.elevationProfile
+    resolvedElevationProfile ?? trip.route.elevationProfile
   );
 
   // Re-snap waypoint distanceFromStartKm against final coordinates
@@ -436,10 +454,13 @@ function finalizeAmenityRouteUpdate(params: {
     radiusMeters: nextRadiusMeters,
     distanceKm: nextDistanceKm,
     elevationGainM: nextElevGain,
+    elevationLossM:
+      typeof nextElevationLossM === 'number' ? nextElevationLossM : trip.route.elevationLossM,
     coordinates: nextCoords,
     waypoints: finalWaypoints,
     cueSheet: nextCueSheet,
-    elevationProfile: undefined, // Re-synthesized on demand for new distance
+    elevationProfile: resolvedElevationProfile,
+    terrainSummary: resolvedElevationProfile ? undefined : trip.route.terrainSummary,
   };
 
   let updatedStages = trip.stages;
@@ -529,6 +550,9 @@ export async function rerouteTripThroughAmenity(
   let nextRouteMode = trip.route.routeMode;
   let nextRadiusMeters = trip.route.radiusMeters;
   let usedOfflineFallback = false;
+  let nextElevationGainM: number | undefined;
+  let nextElevationLossM: number | undefined;
+  let nextElevationProfile: ElevationProfilePoint[] | undefined;
 
   const isCustomGpx = trip.route.routeMode === 'gpx' && currentCoords.length >= 10;
 
@@ -577,6 +601,9 @@ export async function rerouteTripThroughAmenity(
       if (routed && routed.coordinates.length >= 2) {
         nextCoords = routed.coordinates;
         nextDistanceKm = routed.distanceKm;
+        nextElevationGainM = routed.elevationGainM;
+        nextElevationLossM = routed.elevationLossM;
+        nextElevationProfile = routed.elevationProfile;
         nextWaypoints = routed.resolvedWaypoints || sortedWaypoints;
         nextCueSheet = routed.cueSheet;
         if (nextRouteMode === 'manual-radius') {
@@ -606,6 +633,9 @@ export async function rerouteTripThroughAmenity(
     updatedPinnedInput: basePinned,
     nextCoords,
     nextDistanceKm,
+    nextElevationGainM,
+    nextElevationLossM,
+    nextElevationProfile,
     nextWaypoints,
     nextCueSheet,
     nextRouteMode,
@@ -647,6 +677,9 @@ export async function removeAmenityFromRoute(
   let nextRouteMode = trip.route.routeMode;
   let nextRadiusMeters = trip.route.radiusMeters;
   let usedOfflineFallback = false;
+  let nextElevationGainM: number | undefined;
+  let nextElevationLossM: number | undefined;
+  let nextElevationProfile: ElevationProfilePoint[] | undefined;
 
   const isCustomGpx = trip.route.routeMode === 'gpx' && currentCoords.length >= 10;
 
@@ -691,6 +724,9 @@ export async function removeAmenityFromRoute(
       if (routed && routed.coordinates.length >= 2) {
         nextCoords = routed.coordinates;
         nextDistanceKm = routed.distanceKm;
+        nextElevationGainM = routed.elevationGainM;
+        nextElevationLossM = routed.elevationLossM;
+        nextElevationProfile = routed.elevationProfile;
         nextWaypoints =
           remainingWaypoints.length > 0
             ? routed.resolvedWaypoints || remainingWaypoints
@@ -719,6 +755,9 @@ export async function removeAmenityFromRoute(
     updatedPinnedInput: nextPinnedInput,
     nextCoords,
     nextDistanceKm,
+    nextElevationGainM,
+    nextElevationLossM,
+    nextElevationProfile,
     nextWaypoints,
     nextCueSheet,
     nextRouteMode,

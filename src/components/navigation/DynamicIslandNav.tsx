@@ -21,8 +21,8 @@ import {
 } from '../../tokens/chipTokens';
 
 export interface DynamicIslandNavProps {
-  currentView: 'home' | 'configurator' | 'dashboard';
-  onNavigate: (view: 'home' | 'configurator' | 'dashboard') => void;
+  currentView: 'home' | 'configurator' | 'dashboard' | 'tools';
+  onNavigate: (view: 'home' | 'configurator' | 'dashboard' | 'tools') => void;
   activeTrip?: TripProfile | null;
   allTrips: TripProfile[];
   onSelectTrip: (id: string) => void;

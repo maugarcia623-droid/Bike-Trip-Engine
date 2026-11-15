@@ -8,22 +8,27 @@ export interface KitRecommendation {
   upperBody: string;
   lowerAndExtremities: string;
   opticsAndShield: string;
+  sectorNote?: string;
 }
 
 /**
- * Computes apparent cycling temperature (wind-chill adjusted for airflow)
+ * Computes apparent cycling temperature (wind-chill adjusted for riding airflow)
  * and prescribes practical cycling kit, layering, rain shell, and lens tint.
  */
 export function getKitRecommendation(
   weather: WeatherCondition,
   solarPhase: string = 'daylight',
-  lang: Language = 'en'
+  lang: Language = 'en',
+  options?: {
+    ridingSpeedKmH?: number;
+    coldestSectorLabel?: string;
+  }
 ): KitRecommendation {
   const isFr = lang === 'fr';
   const tempC = weather.temperatureC ?? 12;
-  const effectiveWindKmh = weather.isHeadwindActive
-    ? Math.max(12, weather.baseWindSpeedKmH || 12)
-    : Math.max(10, (weather.baseWindSpeedKmH || 6) * 0.6 + 10);
+  const speedBase = options?.ridingSpeedKmH && options.ridingSpeedKmH > 5 ? options.ridingSpeedKmH : 22;
+  const headwind = weather.effectiveHeadwindKmH ?? (weather.isHeadwindActive ? weather.baseWindSpeedKmH || 12 : 0);
+  const effectiveWindKmh = Math.max(12, speedBase + headwind * 0.65);
 
   // Environment Canada / Steadman apparent wind-chill blend relevant to cycling airflow
   const feelsLikeRaw =
@@ -126,5 +131,6 @@ export function getKitRecommendation(
     upperBody,
     lowerAndExtremities,
     opticsAndShield,
+    sectorNote: options?.coldestSectorLabel,
   };
 }

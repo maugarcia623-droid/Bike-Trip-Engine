@@ -9,11 +9,13 @@ import {
   Loader2,
   ExternalLink,
   Receipt,
+  Send,
 } from '@/components/icons';
 import {
   renderTelemetryCard,
   extractTelemetryShareData,
 } from '../utils/renderTelemetryCard';
+import { buildPlanShareUrl } from '../utils/planShare';
 import {
   TelemetryShareData,
   TelemetryCardMode,
@@ -39,6 +41,8 @@ export interface ShareTelemetryModalProps {
   trip?: TripProfile;
   physicsResult?: PhysicsCalculationResult;
   defaultMode?: TelemetryCardMode;
+  leaveByHHMM?: string;
+  arrivalHHMM?: string;
 }
 
 export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
@@ -48,6 +52,8 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
   trip,
   physicsResult,
   defaultMode = 'solid',
+  leaveByHHMM,
+  arrivalHHMM,
 }) => {
   const { t, lang } = useTranslation();
   const isFr = lang === 'fr';
@@ -58,6 +64,7 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
+  const [copiedPlanLink, setCopiedPlanLink] = useState<boolean>(false);
 
   // Keep track of active object URL to clean up properly
   const activeUrlRef = useRef<string | null>(null);
@@ -589,6 +596,48 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
                 <span>{t('shareSavePngBtn')}</span>
               </Button>
             </div>
+
+            {trip && (
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={async () => {
+                  const planUrl = buildPlanShareUrl(trip, {
+                    leaveByHHMM: leaveByHHMM || trip.departureTime || '08:00',
+                    arrivalHHMM: arrivalHHMM || trip.office?.targetGateArrivalTime || '09:30',
+                    goStatus: physicsResult?.goStatus || 'GO',
+                  });
+                  try {
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                      await navigator.clipboard.writeText(planUrl);
+                    }
+                  } catch {
+                    // noop
+                  }
+                  setCopiedPlanLink(true);
+                  setTimeout(() => setCopiedPlanLink(false), 2400);
+                }}
+                className={`w-full min-h-[42px] py-2 px-3 rounded-sub-pod ${CHIP_TOKENS.sky.surface} ${CHIP_TOKENS.sky.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.sky.selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} hover:brightness-95 text-xs font-bold font-rounded flex items-center justify-center gap-2 transition-all cursor-pointer`}
+              >
+                {copiedPlanLink ? (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span>
+                      {isFr ? 'Lien du plan groupe copié !' : 'Group plan link copied!'}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-3.5 h-3.5 shrink-0 text-current" />
+                    <span>
+                      {isFr
+                        ? `Copier le lien du plan (${trip.pinnedAmenities?.length || 0} arrêts · Départ ${leaveByHHMM || trip.departureTime || '08:00'})`
+                        : `Copy Group Plan Link (${trip.pinnedAmenities?.length || 0} stops · Leave ${leaveByHHMM || trip.departureTime || '08:00'})`}
+                    </span>
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </div>
       </div>

@@ -12,9 +12,9 @@ import {
 } from '@/components/icons';
 import { useTranslation } from '../../context/LanguageContext';
 import { Button } from '@/components/arc';
-import { RouteWaypoint } from '../../types/trip';
+import { ElevationProfilePoint, RouteWaypoint } from '../../types/trip';
 import { SchematicRouteMap } from './SchematicRouteMap';
-import { parseGpxFileContent } from '../../utils/gpxParser';
+import { parseRouteFile } from '../../utils/routeFileParser';
 import { calculateAutoBikeRoute } from '../../utils/routing';
 import {
   LocationSuggestion,
@@ -338,6 +338,11 @@ interface Screen3RouteProps {
   onUpdateDistance: (km: number) => void;
   onUpdateCoordinates: (coords: [number, number][]) => void;
   onUpdateWaypoints?: (waypoints: RouteWaypoint[]) => void;
+  onUpdateElevation?: (data: {
+    elevationGainM?: number;
+    elevationLossM?: number;
+    elevationProfile?: ElevationProfilePoint[];
+  }) => void;
   onGpxLoaded?: (parsed: { name: string; distanceKm: number; coordinates: [number, number][] }) => void;
 }
 
@@ -395,6 +400,7 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
   onUpdateDistance,
   onUpdateCoordinates,
   onUpdateWaypoints,
+  onUpdateElevation,
   onGpxLoaded,
 }) => {
   const { lang } = useTranslation();
@@ -478,6 +484,11 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
           if (!originCoordsOverride) setOriginCoords(result.coordinates[0]);
           if (!destCoordsOverride) setDestCoords(result.coordinates[result.coordinates.length - 1]);
         }
+        onUpdateElevation?.({
+          elevationGainM: result.elevationGainM,
+          elevationLossM: result.elevationLossM,
+          elevationProfile: result.elevationProfile,
+        });
         setFetchSuccessMessage(
           isFr
             ? `Itinéraire calculé : ${result.distanceKm.toFixed(1)} km (~${Math.round(result.estimatedMinutes)} min)`
@@ -499,12 +510,11 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
     if (!file) return;
 
     try {
-      const text = await file.text();
-      const parsed = parseGpxFileContent(text);
+      const parsed = await parseRouteFile(file);
       if (parsed && parsed.distanceKm > 0) {
         if (onGpxLoaded) {
           onGpxLoaded({
-            name: file.name.replace(/\.gpx$/i, ''),
+            name: file.name.replace(/\.(gpx|tcx|fit)$/i, ''),
             distanceKm: parsed.distanceKm,
             coordinates: parsed.coordinates || [],
           });
@@ -826,7 +836,7 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".gpx"
+                accept=".gpx,.tcx,.fit,application/gpx+xml,text/xml,application/xml,application/octet-stream"
                 onChange={handleFileUpload}
                 className="hidden"
               />

@@ -30,6 +30,10 @@ export function formatAmenityCategoryLabel(
       return isFr ? 'Ravitaillement' : 'Food';
     case 'mechanix':
       return isFr ? 'Atelier / Abri' : 'Repair / Shelter';
+    case 'essentials':
+      return isFr ? 'WC / Pharm. / Station' : 'Toilet / Fuel / Med';
+    case 'bailout':
+      return isFr ? 'Gare (Repli)' : 'Train Bailout';
   }
 }
 
@@ -45,6 +49,10 @@ export function getAmenityGpxSymbol(category: StageAmenity['category']): string 
       return 'Restaurant';
     case 'mechanix':
       return 'Repair Service';
+    case 'essentials':
+      return 'Restroom';
+    case 'bailout':
+      return 'Crossing';
   }
 }
 
@@ -61,7 +69,10 @@ export function getAmenityTcxPointType(
     case 'food':
       return 'Food';
     case 'mechanix':
+    case 'essentials':
       return 'First Aid';
+    case 'bailout':
+      return 'Generic';
   }
 }
 

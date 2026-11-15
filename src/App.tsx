@@ -41,7 +41,13 @@ import { PrintFlightSheet } from './components/print/PrintFlightSheet';
 import { OnboardingModal } from './components/OnboardingModal';
 import { FeedbackModal } from './components/FeedbackModal';
 import { ShareTelemetryModal } from './components/ShareTelemetryModal';
+import { FreeWebToolsView, FreeWebToolTab } from './components/tools/FreeWebToolsView';
 import { calculatePhysics } from './utils/physics';
+import { calculateReverseTimeline } from './utils/timeline';
+import { getChipsExtraBufferMinutes } from './utils/archetypeChips';
+import { decodePlanShareToken, SharedPlanMeta } from './utils/planShare';
+import { parseRouteFile } from './utils/routeFileParser';
+import { importRouteFromUrl } from './utils/routeUrlImporter';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AuthModal } from './components/auth/AuthModal';
 import { ResetPasswordModal } from './components/auth/ResetPasswordModal';
@@ -158,6 +164,17 @@ function AppContent() {
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isTopMenuOpen, setIsTopMenuOpen] = useState(false);
+  const [isRideBriefOpen, setIsRideBriefOpen] = useState(false);
+  const [sharedPlanBanner, setSharedPlanBanner] = useState<({ name: string } & SharedPlanMeta) | null>(null);
+  const [toolsInitialTab, setToolsInitialTab] = useState<FreeWebToolTab>(() => {
+    if (typeof window !== 'undefined') {
+      const toolParam = new URLSearchParams(window.location.search).get('tool');
+      if (toolParam === 'wind' || toolParam === 'leave-by' || toolParam === 'pressure') {
+        return toolParam;
+      }
+    }
+    return 'wind';
+  });
 
   const isCloudApplyingRef = React.useRef(false);
   const saveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -169,8 +186,13 @@ function AppContent() {
     if (
       hash === '#configurator' ||
       hash === '#home' ||
+      hash === '#tools' ||
+      hash.includes('plan=') ||
       search.includes('view=configurator') ||
-      search.includes('view=home')
+      search.includes('view=home') ||
+      search.includes('view=tools') ||
+      search.includes('tool=') ||
+      search.includes('plan=')
     ) {
       return false;
     }
@@ -193,17 +215,58 @@ function AppContent() {
     }
   }, [user]);
 
-  const [currentView, setCurrentView] = useState<'home' | 'configurator' | 'dashboard'>(() => {
+  const [currentView, setCurrentView] = useState<'home' | 'configurator' | 'dashboard' | 'tools'>(() => {
     if (typeof window !== 'undefined') {
-      if (window.location.hash === '#configurator' || window.location.search.includes('view=configurator')) {
+      const hash = window.location.hash;
+      const search = window.location.search;
+      if (hash === '#configurator' || search.includes('view=configurator')) {
         return 'configurator';
       }
-      if (window.location.hash === '#home' || window.location.search.includes('view=home')) {
+      if (hash === '#home' || search.includes('view=home')) {
         return 'home';
+      }
+      if (hash === '#tools' || search.includes('view=tools') || search.includes('tool=')) {
+        return 'tools';
       }
     }
     return 'dashboard';
   });
+
+  const handleOpenTools = (tab: FreeWebToolTab = 'wind') => {
+    setToolsInitialTab(tab);
+    setCurrentView('tools');
+  };
+
+  // Shareable Group Plan Link decoder (?plan=<token> or #plan=<token>)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const hashRaw = window.location.hash || '';
+    const hashParams = new URLSearchParams(hashRaw.startsWith('#') ? hashRaw.slice(1) : hashRaw);
+    const planToken = params.get('plan') || hashParams.get('plan');
+    if (!planToken) return;
+
+    const decoded = decodePlanShareToken(planToken, lang);
+    if (decoded) {
+      setTrips((prev) => [
+        decoded.trip,
+        ...prev.filter((existing) => existing.id !== decoded.trip.id),
+      ]);
+      setActiveTripId(decoded.trip.id);
+      saveActiveTripId(decoded.trip.id);
+      setSharedPlanBanner({ name: decoded.trip.name, ...decoded.sharedMeta });
+      setCurrentView('dashboard');
+      markOnboardingSeen();
+      setIsOnboardingOpen(false);
+
+      params.delete('plan');
+      const nextSearch = params.toString();
+      const nextHash = hashRaw.includes('plan=') ? '' : hashRaw;
+      const cleanUrl =
+        window.location.pathname + (nextSearch ? `?${nextSearch}` : '') + nextHash;
+      window.history.replaceState({}, '', cleanUrl);
+    }
+  }, []);
 
   // Trip being edited in configurator
   const [configuratorTrip, setConfiguratorTrip] = useState<TripProfile | null>(null);
@@ -216,6 +279,84 @@ function AppContent() {
   useEffect(() => {
     saveTrips(trips);
   }, [trips]);
+
+  // PWA Share Target handler (?shared_file=1, ?shared_url=..., ?shared_text=...)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const hasSharedFile = params.get('shared_file') === '1';
+    const sharedUrl = params.get('shared_url') || '';
+    const sharedText = params.get('shared_text') || '';
+    if (!hasSharedFile && !sharedUrl && !sharedText) return;
+
+    // Clean URL immediately so reloads don't re-import
+    window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+
+    (async () => {
+      try {
+        let parsedResult: Awaited<ReturnType<typeof parseRouteFile>> | null = null;
+        let fileName = 'shared-route.gpx';
+
+        if (hasSharedFile && 'caches' in window) {
+          const cache = await caches.open('cadence-share-v1');
+          const cached = await cache.match('/__cadence_shared_route_file__');
+          if (cached) {
+            const rawName = cached.headers.get('X-Share-Filename');
+            fileName = rawName ? decodeURIComponent(rawName) : fileName;
+            const blob = await cached.blob();
+            const file = new File([blob], fileName, { type: blob.type || 'application/octet-stream' });
+            await cache.delete('/__cadence_shared_route_file__');
+            parsedResult = await parseRouteFile(file);
+          }
+        } else if (sharedUrl || sharedText) {
+          const outcome = await importRouteFromUrl(sharedUrl || sharedText);
+          if (outcome.ok && outcome.parsed) {
+            parsedResult = outcome.parsed;
+            fileName = outcome.fileName || 'shared-route.gpx';
+          }
+        }
+
+        if (parsedResult && parsedResult.distanceKm > 0) {
+          const newId = `trip-${Date.now()}`;
+          const base = buildDefaultNewTripTemplate(lang);
+          const avgGradePct = Number(
+            ((parsedResult.elevationGainM / (parsedResult.distanceKm * 1000)) * 100).toFixed(2)
+          );
+          const importedTrip: TripProfile = {
+            ...base,
+            id: newId,
+            name: parsedResult.trackName || `${parsedResult.originLabel} → ${parsedResult.destLabel}`,
+            updatedAt: new Date().toISOString(),
+            physics: {
+              ...base.physics,
+              gradientPercent: Math.min(8, Math.max(0, avgGradePct * 0.35)),
+            },
+            route: {
+              ...base.route,
+              routeMode: 'gpx',
+              gpxFileName: fileName,
+              origin: parsedResult.originLabel,
+              destination: parsedResult.destLabel,
+              distanceKm: parsedResult.distanceKm,
+              elevationGainM: parsedResult.elevationGainM,
+              elevationLossM: parsedResult.elevationLossM,
+              coordinates: parsedResult.coordinates,
+              elevationProfile: parsedResult.elevationProfile,
+              terrainSummary: parsedResult.terrainSummary,
+            },
+          };
+          setTrips((prev) => [importedTrip, ...prev]);
+          setActiveTripId(newId);
+          saveActiveTripId(newId);
+          setCurrentView('dashboard');
+          markOnboardingSeen();
+          setIsOnboardingOpen(false);
+        }
+      } catch (err) {
+        console.error('Failed to process shared route:', err);
+      }
+    })();
+  }, []);
 
   // Cloud sync on user login or initial session
   useEffect(() => {
@@ -744,6 +885,43 @@ function AppContent() {
     window.print();
   };
 
+  const sharePhysicsResult =
+    isShareModalOpen && activeTrip
+      ? calculatePhysics(
+          activeTrip.physics,
+          activeTrip.route,
+          activeTrip.weather,
+          lang,
+          riderSpecs?.ftpWatts
+        )
+      : undefined;
+
+  const shareTimelineResult =
+    isShareModalOpen && activeTrip && sharePhysicsResult
+      ? calculateReverseTimeline(
+          activeTrip.route,
+          activeTrip.office,
+          activeTrip.weather,
+          activeTrip.tag,
+          activeTrip.route?.destination,
+          lang,
+          getChipsExtraBufferMinutes(activeTrip),
+          activeTrip.customChips || [],
+          {
+            effectiveSpeedKmH: sharePhysicsResult.effectiveSpeedKmH,
+            calmSpeedKmH: sharePhysicsResult.calmSpeedKmH,
+            arriveAtMode: activeTrip.arriveAtMode,
+            departureTime: activeTrip.departureTime,
+            movingTimeSeconds: sharePhysicsResult.movingTimeSeconds,
+            logistics: activeTrip.ruleSettings,
+            pinnedAmenities: activeTrip.pinnedAmenities,
+            departureDate:
+              activeTrip.stages?.[activeTrip.activeStageIndex ?? 0]?.departureDate ||
+              activeTrip.departureDate,
+          }
+        )
+      : undefined;
+
   return (
     <div
       className={`min-h-screen w-full max-w-full overflow-x-clip ${
@@ -764,6 +942,11 @@ function AppContent() {
         onPrint={handlePrint}
         onShareReceipt={() => setIsShareModalOpen(true)}
         onOpenFeedback={() => setIsFeedbackModalOpen(true)}
+        onOpenRideBrief={() => {
+          setCurrentView('dashboard');
+          setIsRideBriefOpen(true);
+        }}
+        onOpenTools={(tab) => handleOpenTools(tab || 'wind')}
         riderSpecs={riderSpecs}
         isMenuOpen={isTopMenuOpen}
         onMenuOpenChange={setIsTopMenuOpen}
@@ -785,6 +968,7 @@ function AppContent() {
             onResetDefaults={handleResetDefaults}
             onOpenOnboarding={() => setIsOnboardingOpen(true)}
             onLoadDemoTrip={handleLoadDemoTrips}
+            onOpenTools={(tab) => handleOpenTools(tab || 'wind')}
           />
         )}
 
@@ -833,9 +1017,24 @@ function AppContent() {
                 onOpenConfigurator={() => handleEditTrip(activeTrip)}
                 onShareReceipt={() => setIsShareModalOpen(true)}
                 onOpenFeedback={() => setIsFeedbackModalOpen(true)}
+                isRideBriefOpen={isRideBriefOpen}
+                onOpenRideBrief={() => setIsRideBriefOpen(true)}
+                onCloseRideBrief={() => setIsRideBriefOpen(false)}
+                onOpenTools={(tab) => handleOpenTools(tab || 'wind')}
+                sharedPlanBanner={sharedPlanBanner}
+                onDismissSharedPlanBanner={() => setSharedPlanBanner(null)}
               />
             </CockpitErrorBoundary>
           )
+        )}
+
+        {currentView === 'tools' && (
+          <FreeWebToolsView
+            initialTab={toolsInitialTab}
+            activeTrip={activeTrip}
+            riderSpecs={riderSpecs}
+            onBackToCockpit={() => setCurrentView('dashboard')}
+          />
         )}
       </main>
 
@@ -939,17 +1138,9 @@ function AppContent() {
         isOpen={isShareModalOpen}
         onClose={() => setIsShareModalOpen(false)}
         trip={activeTrip || undefined}
-        physicsResult={
-          activeTrip
-            ? calculatePhysics(
-                activeTrip.physics,
-                activeTrip.route,
-                activeTrip.weather,
-                lang,
-                riderSpecs?.ftpWatts
-              )
-            : undefined
-        }
+        physicsResult={sharePhysicsResult}
+        leaveByHHMM={shareTimelineResult?.hardDepartureTime}
+        arrivalHHMM={shareTimelineResult?.gateArrivalTime}
       />
 
       {activeTrip && (

@@ -7,6 +7,7 @@ import { loadRiderBikeSpecs } from './specsStorage';
 import { formatFuelTarget } from '../types/specs';
 import { resolveCompliantPantry, getCafeSnackSuggestion } from '../data/pantryCatalog';
 import { Language, getCurrentLanguage } from '../context/LanguageContext';
+import { evaluateOpeningHoursAtArrival } from './openingHours';
 
 export interface SolvedTripTimeline {
   departureTimeHHMM: string;
@@ -180,6 +181,18 @@ function resolveAmenityStopMeta(
         label: isFr ? 'Atelier / Abri' : 'Repair / Shelter',
         category: 'ride',
       };
+    case 'essentials':
+      return {
+        iconName: 'Shield',
+        label: isFr ? 'WC / Pharm. / Station' : 'Toilet / Fuel / Med',
+        category: 'transit',
+      };
+    case 'bailout':
+      return {
+        iconName: 'TrainSimple',
+        label: isFr ? 'Gare de repli' : 'Train bailout',
+        category: 'transit',
+      };
   }
 }
 
@@ -193,7 +206,8 @@ function buildIntermediateStopSteps(
   pinnedAmenities: StageAmenity[],
   hardDepartureTime: string,
   totalRideMinutes: number,
-  isFr: boolean
+  isFr: boolean,
+  departureDate?: string
 ): TimelineStep[] {
   const waypoints = route.waypoints || [];
   const amenities = pinnedAmenities || [];
@@ -319,7 +333,17 @@ function buildIntermediateStopSteps(
         }
       }
       if (stop.amenity.openingHours) {
-        parts.push(stop.amenity.openingHours);
+        const verdict = evaluateOpeningHoursAtArrival(
+          stop.amenity.openingHours,
+          departureDate,
+          time,
+          isFr ? 'fr' : 'en'
+        );
+        parts.push(
+          verdict && verdict.status !== 'unknown'
+            ? `${verdict.badgeLabel} (${stop.amenity.openingHours})`
+            : stop.amenity.openingHours
+        );
       }
 
       return {
@@ -367,6 +391,7 @@ export function calculateReverseTimeline(
     logistics?: LogisticsSettings;
     savoryResetCount?: number;
     pinnedAmenities?: StageAmenity[];
+    departureDate?: string;
   }
 ): ReverseTimelineCalculation {
   const isFr = lang === 'fr';
@@ -1183,7 +1208,8 @@ export function calculateReverseTimeline(
     physicsSpeedOverride?.pinnedAmenities || [],
     hardDepartureTime,
     totalRideMinutes,
-    isFr
+    isFr,
+    physicsSpeedOverride?.departureDate
   );
   if (intermediateStops.length > 0) {
     steps.push(...intermediateStops);

@@ -18,6 +18,9 @@ import {
   Eye,
   EyeOff,
   Download,
+  Shield,
+  TrainSimple,
+  Sparkle,
 } from '@/components/icons';
 import { TripProfile } from '../../types/trip';
 import { StageAmenity, AmenityCategory } from '../../types/amenities';
@@ -27,12 +30,14 @@ import {
   calculateAmenityEta,
   getRouteHashKey,
   getCachedScan,
+  autoMarkResupplyStops,
 } from '../../services/overpassCorridor';
 import { useTranslation } from '../../context/LanguageContext';
 import { loadRiderBikeSpecs } from '../../utils/specsStorage';
 import { calculateHydrationPlan } from '../../utils/nutrition';
 import { formatKm, formatCriticalGapAdvice, formatGapDetail } from '../../utils/waterGapCopy';
 import { estimateAmenityDetourKm } from '../../utils/cueSheet';
+import { downloadTripFit } from '../../utils/fitExporter';
 import {
   isAmenityInRoute,
   removeAmenityFromRoute,
@@ -40,6 +45,19 @@ import {
   togglePinnedAmenityOnTrip,
 } from '../../utils/routing';
 import { downloadEntireTourGpx, downloadTripGpx } from '../../utils/gpxExporter';
+import { evaluateOpeningHoursAtArrival, ArrivalOpeningVerdict } from '../../utils/openingHours';
+
+function getOsmElementUrl(amenityId: string): string | null {
+  const match = amenityId.match(/^(node|way|relation)\/(\d+)$/);
+  return match ? `https://www.openstreetmap.org/${match[1]}/${match[2]}` : null;
+}
+
+const OPENING_BADGE_CLASSES: Record<ArrivalOpeningVerdict['status'], string> = {
+  open: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25',
+  'closing-soon': 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/25',
+  closed: 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/25',
+  unknown: 'bg-card dark:bg-black/30 text-ink-muted',
+};
 import {
   AmenityInRouteBadge,
   AmenityReroutePrompt,
@@ -88,9 +106,10 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
 
   // Category filters
   const [activeCategories, setActiveCategories] = useState<Set<AmenityCategory>>(
-    () => new Set<AmenityCategory>(['water', 'cemetery', 'food', 'mechanix'])
+    () => new Set<AmenityCategory>(['water', 'cemetery', 'food', 'mechanix', 'essentials', 'bailout'])
   );
   const [detourOnly250m, setDetourOnly250m] = useState<boolean>(false);
+  const [autoMarkMsg, setAutoMarkMsg] = useState<string | null>(null);
 
   // Amenity scanning states
   const [amenities, setAmenities] = useState<StageAmenity[]>([]);
@@ -167,6 +186,7 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
     trip.stages && trip.activeStageIndex !== undefined
       ? trip.stages[trip.activeStageIndex]
       : undefined;
+  const activeDateStr = activeStage?.departureDate || trip.departureDate;
 
   const hasValidCorridorCoords = Boolean(
     trip.route?.routeMode !== 'manual-radius' &&
@@ -193,11 +213,11 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
       return;
     }
     const cached = getCachedScan(routeCacheKey);
-    if (cached && cached.length > 0) {
+    if (cached !== undefined) {
       setAmenities(cached);
       setHasScanned(true);
       setScanError(null);
-      if (onAmenitiesLoaded) {
+      if (onAmenitiesLoaded && cached.length > 0) {
         onAmenitiesLoaded(cached);
       }
     } else {
@@ -294,6 +314,53 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
     }
 
     onUpdateTrip(updatedTrip);
+  };
+
+  // Auto-Mark water gaps & 25 km stops with open-at-arrival preference
+  const handleAutoMarkStops = (intervalKm = 25) => {
+    if (amenities.length === 0) return;
+    const { selectedStops, addedStops } = autoMarkResupplyStops({
+      amenities,
+      totalDistanceKm,
+      existingPinned: pinnedAmenities,
+      departureTime: hardDepartureTime,
+      targetDate: activeDateStr,
+      effectiveSpeedKmH,
+      intervalKm,
+    });
+
+    if (addedStops.length === 0) {
+      setAutoMarkMsg(
+        isFr ? 'Tous les intervalles sont déjà couverts.' : 'All intervals are already covered.'
+      );
+      setTimeout(() => setAutoMarkMsg(null), 2600);
+      return;
+    }
+
+    let updatedStages = trip.stages;
+    if (trip.stages && trip.stages.length > 0) {
+      const activeIdx = Math.max(
+        0,
+        Math.min(trip.activeStageIndex ?? 0, trip.stages.length - 1)
+      );
+      updatedStages = trip.stages.map((st, idx) =>
+        idx === activeIdx ? { ...st, pinnedAmenities: selectedStops } : st
+      );
+    }
+
+    onUpdateTrip({
+      ...trip,
+      pinnedAmenities: selectedStops,
+      stages: updatedStages,
+      updatedAt: new Date().toISOString(),
+    });
+
+    setAutoMarkMsg(
+      isFr
+        ? `+${addedStops.length} arrêt${addedStops.length > 1 ? 's' : ''} épinglé${addedStops.length > 1 ? 's' : ''}`
+        : `+${addedStops.length} stop${addedStops.length > 1 ? 's' : ''} auto-marked`
+    );
+    setTimeout(() => setAutoMarkMsg(null), 2600);
   };
 
   // Add or remove a Radar POI as an intermediate route stop
@@ -419,7 +486,7 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
   const categoryConfig: {
     id: AmenityCategory;
     label: string;
-    theme: 'sky' | 'purple' | 'amber' | 'teal';
+    theme: 'sky' | 'purple' | 'amber' | 'teal' | 'blue' | 'orange';
     icon: React.ElementType;
     tooltip?: string;
   }[] = [
@@ -447,6 +514,18 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
       label: t('catMechanix'),
       theme: 'teal',
       icon: Wrench,
+    },
+    {
+      id: 'essentials',
+      label: isFr ? 'WC / Pharm. / Carb.' : 'WC / Med / Fuel',
+      theme: 'blue',
+      icon: Shield,
+    },
+    {
+      id: 'bailout',
+      label: isFr ? 'Gares (Repli)' : 'Train Bailout',
+      theme: 'orange',
+      icon: TrainSimple,
     },
   ];
 
@@ -690,6 +769,10 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
                     ? 'bg-purple-500'
                     : amenity.category === 'food'
                     ? 'bg-amber-500'
+                    : amenity.category === 'essentials'
+                    ? 'bg-blue-500'
+                    : amenity.category === 'bailout'
+                    ? 'bg-orange-500'
                     : 'bg-teal-500';
 
                 if (isPinned) {
@@ -731,8 +814,34 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
           </div>
 
           {/* 4. CORRIDOR FEED / EMPTY STATE */}
-          <div className="px-2 pt-2 pb-1 text-xs font-semibold text-ink-muted font-rounded shrink-0">
-            {isFr ? 'Points de passage' : 'Checkpoints'}
+          <div className="px-2 pt-2 pb-1 flex items-center justify-between gap-2 shrink-0 flex-wrap">
+            <span className="text-xs font-semibold text-ink-muted font-rounded">
+              {isFr ? 'Points de passage' : 'Checkpoints'}
+            </span>
+            {hasScanned && amenities.length > 0 && (
+              <div className="flex items-center gap-2">
+                {autoMarkMsg && (
+                  <span className="text-[11px] font-rounded font-semibold text-emerald-600 dark:text-emerald-400">
+                    {autoMarkMsg}
+                  </span>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  onClick={() => handleAutoMarkStops(25)}
+                  className={`inline-flex items-center gap-1.5 min-h-[30px] px-3 py-1 rounded-full text-[11px] font-rounded font-bold transition-all cursor-pointer ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} hover:brightness-95 active:scale-[0.98]`}
+                  title={
+                    isFr
+                      ? 'Épingle automatiquement les points d’eau ouverts tous les ~25 km et une halte café'
+                      : 'Automatically pin open water taps every ~25 km and a mid-route café stop'
+                  }
+                >
+                  <Sparkle className="w-3 h-3 shrink-0 text-current" />
+                  <span>{isFr ? 'Auto-Marquer (25 km)' : 'Auto-Mark (25 km)'}</span>
+                </Button>
+              </div>
+            )}
           </div>
 
           {scanError ? (
@@ -780,12 +889,17 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
             </div>
           ) : filteredAmenities.length === 0 ? (
             <div className="rounded-[22px] p-5 text-center text-xs text-ink-muted bg-pod/70 dark:bg-white/[0.045] shrink-0">
-              {t('emptyFilteredRadarState')}
+              {amenities.length === 0
+                ? isFr
+                  ? 'Aucun point d’eau, boulangerie ou atelier vélo répertorié dans OpenStreetMap le long de ce corridor (1,2 km).'
+                  : 'No water taps, bakeries, or bike repair stops mapped on OpenStreetMap along this corridor (1.2 km).'
+                : t('emptyFilteredRadarState')}
             </div>
           ) : (
-            /* Grouped card container with smooth native touch pan */
-            <div className="rounded-[22px] bg-pod/70 dark:bg-white/[0.045] divide-y divide-ink/[0.06] dark:divide-white/[0.06] touch-pan-y">
-              {filteredAmenities.map((amenity, idx) => {
+            <div className="space-y-2 shrink-0">
+              {/* Grouped card container with smooth native touch pan */}
+              <div className="rounded-[22px] bg-pod/70 dark:bg-white/[0.045] divide-y divide-ink/[0.06] dark:divide-white/[0.06] touch-pan-y">
+                {filteredAmenities.map((amenity, idx) => {
                 const isFirst = idx === 0;
                 const isLast = idx === filteredAmenities.length - 1;
                 const isPinned = pinnedIds.has(amenity.id);
@@ -806,6 +920,13 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
                   amenity.routeKm,
                   effectiveSpeedKmH
                 );
+                const openVerdict = evaluateOpeningHoursAtArrival(
+                  amenity.openingHours,
+                  activeDateStr,
+                  eta,
+                  lang
+                );
+                const osmUrl = getOsmElementUrl(amenity.id);
 
                 const categoryDetails = categoryConfig.find((c) => c.id === amenity.category);
                 const tokens = CHIP_TOKENS[categoryDetails?.theme || 'sky'];
@@ -844,20 +965,30 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
                                 onRemove={(e) => runRouteStopMutation(amenity, 'remove', e)}
                               />
                             )}
-                            {amenity.openingHours && (
+                            {openVerdict && (
                               <span
-                                className="text-[10px] px-1.5 py-0.5 rounded bg-card dark:bg-black/30 text-ink-muted shrink-0 hidden sm:inline tnum"
-                                title={amenity.openingHours}
+                                className={`text-[10px] font-rounded font-semibold px-1.5 py-0.5 rounded-full shrink-0 tnum ${OPENING_BADGE_CLASSES[openVerdict.status]}`}
+                                title={openVerdict.detailLabel}
                               >
-                                {amenity.openingHours.length > 15
-                                  ? `${amenity.openingHours.slice(0, 15)}...`
-                                  : amenity.openingHours}
+                                {openVerdict.badgeLabel}
                               </span>
                             )}
                           </div>
 
                           <div className="text-[11px] text-ink-muted capitalize mt-0.5 flex items-center gap-2 flex-wrap">
                             <span>{amenity.subType.replace(/_/g, ' ')}</span>
+                            {osmUrl && (
+                              <a
+                                href={osmUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="normal-case text-[10px] font-rounded font-semibold text-ink-muted hover:text-ink underline-offset-2 hover:underline"
+                                title={isFr ? 'Voir la fiche OpenStreetMap' : 'Inspect on OpenStreetMap'}
+                              >
+                                OSM ↗
+                              </a>
+                            )}
                             <AmenityRouteSubAction
                               inRoute={inRoute}
                               isPinned={isPinned}
@@ -958,6 +1089,13 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
                   </div>
                 );
               })}
+              </div>
+
+              <p className="px-2 pt-0.5 text-[10px] text-ink-muted leading-relaxed">
+                {isFr
+                  ? 'Source : contributeurs OpenStreetMap · Données communautaires — traitez ces arrêts comme des pistes et vérifiez les horaires avant un ravitaillement critique.'
+                  : 'Source: OpenStreetMap contributors · Community-mapped data — treat stops as leads and verify hours before relying on a critical resupply.'}
+              </p>
             </div>
           )}
 
@@ -967,20 +1105,31 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
               <span className="text-[11px] font-rounded text-ink-secondary leading-snug">
                 {t('gpxExportReadyNote')}
               </span>
-              <Button variant="primary"
-                type="button"
-                onClick={() =>
-                  trip.stages && trip.stages.length > 1
-                    ? downloadEntireTourGpx(trip)
-                    : downloadTripGpx(trip)
-                }
-                className="inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[34px] px-3.5 py-1.5 rounded-full bg-volt text-[#111111] font-rounded font-bold text-xs shrink-0 cursor-pointer hover:brightness-95 active:scale-[0.98] transition-all shadow-xs"
-              >
-                <Download className="w-3.5 h-3.5 text-current" />
-                <span>
-                  {trip.stages && trip.stages.length > 1 ? 'Tour .gpx' : 'Download .gpx'}
-                </span>
-              </Button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Button variant="primary"
+                  type="button"
+                  onClick={() =>
+                    trip.stages && trip.stages.length > 1
+                      ? downloadEntireTourGpx(trip)
+                      : downloadTripGpx(trip)
+                  }
+                  className="inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[34px] px-3.5 py-1.5 rounded-full bg-volt text-[#111111] font-rounded font-bold text-xs shrink-0 cursor-pointer hover:brightness-95 active:scale-[0.98] transition-all shadow-xs"
+                >
+                  <Download className="w-3.5 h-3.5 text-current" />
+                  <span>
+                    {trip.stages && trip.stages.length > 1 ? 'Tour .gpx' : '.gpx'}
+                  </span>
+                </Button>
+                <Button variant="ghost"
+                  type="button"
+                  onClick={() => downloadTripFit(trip)}
+                  className="inline-flex items-center gap-1 min-h-[44px] sm:min-h-[34px] px-3 py-1.5 rounded-full bg-ink/10 dark:bg-white/10 text-ink font-rounded font-bold text-xs shrink-0 cursor-pointer hover:bg-ink/15 dark:hover:bg-white/15 active:scale-[0.98] transition-all"
+                  title={isFr ? 'Parcours .FIT avec arrêts épinglés pour Garmin Up Ahead' : 'Garmin .FIT course with pinned stops for Up Ahead'}
+                >
+                  <Download className="w-3.5 h-3.5 text-current" />
+                  <span>.fit</span>
+                </Button>
+              </div>
             </div>
           )}
         </div>

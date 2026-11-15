@@ -353,6 +353,10 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
                       ? (isFr ? 'Cimetière' : 'Cemetery')
                       : amenity.category === 'food'
                       ? (isFr ? 'Alimentation' : 'Food')
+                      : amenity.category === 'essentials'
+                      ? (isFr ? 'Essentiel' : 'Essential')
+                      : amenity.category === 'bailout'
+                      ? (isFr ? 'Gare (Repli)' : 'Train Bailout')
                       : (isFr ? 'Atelier vélo' : 'Bike shop');
 
                   return (

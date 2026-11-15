@@ -6,7 +6,8 @@ import { loadRiderBikeSpecs } from '../../utils/specsStorage';
 import { calculatePhysics } from '../../utils/physics';
 import { calculateReverseTimeline } from '../../utils/timeline';
 import { getChipsExtraBufferMinutes } from '../../utils/archetypeChips';
-import { parseGpxFileContent } from '../../utils/gpxParser';
+import { parseRouteFile } from '../../utils/routeFileParser';
+import { fetchDemElevationProfile } from '../../services/elevationService';
 import { HeroRouteCard } from './HeroRouteCard';
 import { AtmosphereCard } from './AtmosphereCard';
 import { PhysicsEngineCard } from './PhysicsEngineCard';
@@ -19,7 +20,18 @@ import { ShareTelemetryModal } from '../ShareTelemetryModal';
 import { FeedbackModal } from '../FeedbackModal';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { TourOverviewCard } from '../configurator/TourOverviewCard';
-import { BadgeInfo, Calendar, Download } from '@/components/icons';
+import { RideBriefCard } from './RideBriefCard';
+import { buildRideBrief } from '../../utils/rideBrief';
+import { SharedPlanMeta } from '../../utils/planShare';
+import { getCachedRouteSectorForecast } from '../../services/routeWeatherService';
+import { getLocalTodayIso } from '../../services/weatherService';
+import {
+  BadgeInfo,
+  Calendar,
+  Download,
+  X,
+  Compass,
+} from '@/components/icons';
 import { useTranslation, getLocalizedTripMeta } from '../../context/LanguageContext';
 import { switchActiveStage, getExpeditionTotals } from '../../utils/stageManager';
 import { downloadEntireTourGpx } from '../../utils/gpxExporter';
@@ -41,6 +53,12 @@ interface BentoDashboardProps {
   onSelectBike?: (bikeId: string) => void;
   onOpenSpecs?: () => void;
   onOpenConfigurator?: () => void;
+  isRideBriefOpen?: boolean;
+  onOpenRideBrief?: () => void;
+  onCloseRideBrief?: () => void;
+  onOpenTools?: (tab?: 'wind' | 'leave-by' | 'pressure') => void;
+  sharedPlanBanner?: ({ name: string } & SharedPlanMeta) | null;
+  onDismissSharedPlanBanner?: () => void;
 }
 
 function useIsDesktop(): boolean {
@@ -72,6 +90,12 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
   onSelectBike,
   onOpenSpecs,
   onOpenConfigurator,
+  isRideBriefOpen: externalRideBriefOpen,
+  onOpenRideBrief,
+  onCloseRideBrief,
+  onOpenTools,
+  sharedPlanBanner,
+  onDismissSharedPlanBanner,
 }) => {
   const { lang, t } = useTranslation();
   const isDesktop = useIsDesktop();
@@ -79,6 +103,55 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = React.useState<boolean>(false);
   const [gpxErrorMsg, setGpxErrorMsg] = React.useState<string | null>(null);
   const [loadedAmenities, setLoadedAmenities] = React.useState<StageAmenity[]>([]);
+  const [isBriefExpanded, setIsBriefExpanded] = React.useState<boolean>(() => {
+    try {
+      return localStorage.getItem('cadence_ride_brief_expanded') !== 'false';
+    } catch {
+      return true;
+    }
+  });
+  const toggleBriefExpanded = React.useCallback(() => {
+    setIsBriefExpanded((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('cadence_ride_brief_expanded', next ? 'true' : 'false');
+      } catch {
+        // Ignore storage errors
+      }
+      return next;
+    });
+  }, []);
+
+  React.useEffect(() => {
+    if (!externalRideBriefOpen) return;
+    setIsBriefExpanded(true);
+    try {
+      localStorage.setItem('cadence_ride_brief_expanded', 'true');
+    } catch {
+      // Ignore storage errors
+    }
+    const target = document.getElementById('ride-brief-card');
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    onCloseRideBrief?.();
+  }, [externalRideBriefOpen, onCloseRideBrief]);
+
+  const openRideBrief = () => {
+    setIsBriefExpanded(true);
+    try {
+      localStorage.setItem('cadence_ride_brief_expanded', 'true');
+    } catch {
+      // Ignore storage errors
+    }
+    const target = document.getElementById('ride-brief-card');
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    if (onOpenRideBrief) {
+      onOpenRideBrief();
+    }
+  };
   const [selectedAmenity, setSelectedAmenity] = React.useState<StageAmenity | null>(null);
   const [showTourOverview, setShowTourOverview] = React.useState<boolean>(false);
   const effectiveSpecs = riderSpecs || loadRiderBikeSpecs();
@@ -95,8 +168,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
 
   const handleUploadGpxInCockpit = async (file: File) => {
     try {
-      const text = await file.text();
-      const parsed = parseGpxFileContent(text, file.name);
+      const parsed = await parseRouteFile(file);
       const avgGradePct =
         parsed.distanceKm > 0
           ? Number(((parsed.elevationGainM / (parsed.distanceKm * 1000)) * 100).toFixed(2))
@@ -132,6 +204,97 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
     }
   };
 
+  const activeStageIdx = Math.max(
+    0,
+    Math.min(trip.activeStageIndex ?? 0, (trip.stages?.length || 1) - 1)
+  );
+  const activeStage =
+    trip.stages && trip.stages.length > 0 ? trip.stages[activeStageIdx] : undefined;
+
+  const failedDemKeysRef = React.useRef<Set<string>>(new Set());
+  const latestTripRef = React.useRef<TripProfile>(trip);
+  latestTripRef.current = trip;
+
+  React.useEffect(() => {
+    const route = trip.route;
+    const coords = route?.coordinates;
+    if (
+      !route ||
+      route.routeMode !== 'corridor' ||
+      !coords ||
+      coords.length < 2 ||
+      (route.elevationProfile && route.elevationProfile.length >= 3)
+    ) {
+      return;
+    }
+
+    const first = coords[0];
+    const last = coords[coords.length - 1];
+    const key = `${trip.id}:${route.routeMode}:${coords.length}:${first[0].toFixed(4)},${first[1].toFixed(4)}-${last[0].toFixed(4)},${last[1].toFixed(4)}`;
+    if (failedDemKeysRef.current.has(key)) {
+      return;
+    }
+
+    let cancelled = false;
+    fetchDemElevationProfile(coords, route.distanceKm).then((dem) => {
+      if (cancelled) return;
+      if (!dem) {
+        failedDemKeysRef.current.add(key);
+        return;
+      }
+      const currentTrip = latestTripRef.current;
+      const curCoords = currentTrip.route?.coordinates;
+      if (
+        !curCoords ||
+        curCoords.length < 2 ||
+        currentTrip.id !== trip.id ||
+        currentTrip.route.routeMode !== 'corridor'
+      ) {
+        return;
+      }
+      const curFirst = curCoords[0];
+      const curLast = curCoords[curCoords.length - 1];
+      const curKey = `${currentTrip.id}:${currentTrip.route.routeMode}:${curCoords.length}:${curFirst[0].toFixed(4)},${curFirst[1].toFixed(4)}-${curLast[0].toFixed(4)},${curLast[1].toFixed(4)}`;
+      if (curKey !== key) return;
+
+      const updatedRoute = {
+        ...currentTrip.route,
+        elevationProfile: dem.elevationProfile,
+        elevationGainM: dem.elevationGainM,
+        elevationLossM: dem.elevationLossM,
+        terrainSummary: undefined,
+      };
+      let updatedStages = currentTrip.stages;
+      if (currentTrip.stages && currentTrip.stages.length > 0) {
+        const sIdx = Math.max(
+          0,
+          Math.min(currentTrip.activeStageIndex ?? 0, currentTrip.stages.length - 1)
+        );
+        updatedStages = currentTrip.stages.map((st, i) =>
+          i === sIdx ? { ...st, route: { ...st.route, ...updatedRoute } } : st
+        );
+      }
+
+      onUpdateTrip({
+        ...currentTrip,
+        route: updatedRoute,
+        stages: updatedStages,
+        updatedAt: new Date().toISOString(),
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    trip.id,
+    trip.route?.routeMode,
+    trip.route?.coordinates,
+    trip.route?.elevationProfile,
+    trip.route?.distanceKm,
+    onUpdateTrip,
+  ]);
+
   const physicsResult = calculatePhysics(
     trip.physics,
     trip.route,
@@ -157,6 +320,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
       movingTimeSeconds: physicsResult.movingTimeSeconds,
       logistics: trip.ruleSettings,
       pinnedAmenities: trip.pinnedAmenities,
+      departureDate: activeStage?.departureDate || trip.departureDate,
     }
   );
   const meta = getLocalizedTripMeta(trip, lang);
@@ -204,9 +368,25 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
   const isFr = lang === 'fr';
   const hasMultipleStages = Boolean(trip.stages && trip.stages.length > 1);
   const expeditionTotals = getExpeditionTotals(trip);
-  const activeStageIdx = Math.max(
-    0,
-    Math.min(trip.activeStageIndex ?? 0, (trip.stages?.length || 1) - 1)
+
+  const briefDate =
+    trip.stages?.[trip.activeStageIndex ?? 0]?.departureDate ||
+    trip.departureDate ||
+    getLocalTodayIso();
+  const briefRollout = timelineResult.hardDepartureTime || trip.departureTime || '08:00';
+  const briefSectorCache = getCachedRouteSectorForecast(trip, briefDate, briefRollout, lang);
+  const quickBrief = React.useMemo(
+    () =>
+      buildRideBrief({
+        trip,
+        physics: physicsResult,
+        timeline: timelineResult,
+        riderSpecs: effectiveSpecs,
+        sectorForecast: briefSectorCache,
+        amenities: loadedAmenities,
+        lang,
+      }),
+    [trip, physicsResult, timelineResult, effectiveSpecs, briefSectorCache, loadedAmenities, lang]
   );
 
   React.useEffect(() => {
@@ -215,6 +395,61 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
 
   return (
     <div className="w-full max-w-[1720px] mx-auto px-3.5 sm:px-5 lg:px-7 pt-2 pb-12 sm:pb-20 no-print">
+      {/* ── SHARED GROUP PLAN BANNER (WHEN LOADED FROM ?plan= URL) ── */}
+      {sharedPlanBanner && (
+        <div
+          data-testid="shared-plan-banner"
+          className="mb-3.5 rounded-pod bg-card border border-volt/40 dark:border-volt/30 px-3.5 py-2.5 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 animate-flight-deck-in"
+        >
+          <div className="flex items-start sm:items-center gap-2.5 flex-1 min-w-0">
+            <span
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-rounded font-bold shrink-0 ${
+                sharedPlanBanner.goStatus === 'GO'
+                  ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary}`
+                  : sharedPlanBanner.goStatus === 'CAUTION'
+                  ? `${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary}`
+                  : `${CHIP_TOKENS.rose.surface} ${CHIP_TOKENS.rose.primary}`
+              }`}
+            >
+              <Compass className="w-3.5 h-3.5" />
+              {sharedPlanBanner.goStatus}
+            </span>
+            <div className="flex-1 min-w-0 text-xs text-ink leading-snug">
+              <div className="font-rounded font-bold break-words">
+                {isFr ? 'Plan de groupe partagé' : 'Shared Group Plan'} · {sharedPlanBanner.name}
+              </div>
+              <div className="text-ink-secondary tnum mt-0.5">
+                {isFr ? 'Départ' : 'Leave by'} {sharedPlanBanner.leaveBy} → {sharedPlanBanner.arrival}
+                {sharedPlanBanner.pinnedCount > 0
+                  ? ` · ${sharedPlanBanner.pinnedCount} ${isFr ? 'arrêts' : 'stops'}`
+                  : ''}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={openRideBrief}
+              className="h-8 px-3 rounded-full bg-volt text-[#111111] font-rounded font-bold text-xs cursor-pointer"
+            >
+              {isFr ? 'Ouvrir le Briefing' : 'Open Ride Brief'}
+            </Button>
+            {onDismissSharedPlanBanner && (
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label={isFr ? 'Fermer' : 'Dismiss'}
+                onClick={onDismissSharedPlanBanner}
+                className="w-8 h-8 p-0 rounded-full text-ink-muted hover:text-ink hover:bg-pod cursor-pointer flex items-center justify-center"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── TOUR STAGE SEQUENCER BAR (WHEN MULTI-STAGE TOUR) ── */}
       {hasMultipleStages && (
         <div className="space-y-3 mb-5 animate-flight-deck-in">
@@ -319,6 +554,19 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
           )}
         </div>
       )}
+
+      {/* ── FULL-WIDTH COLLAPSIBLE RIDE BRIEF CARD ── */}
+      <RideBriefCard
+        trip={trip}
+        physics={physicsResult}
+        timeline={timelineResult}
+        riderSpecs={effectiveSpecs}
+        amenities={loadedAmenities}
+        brief={quickBrief}
+        isExpanded={isBriefExpanded}
+        onToggleExpand={toggleBriefExpanded}
+        onOpenTools={onOpenTools}
+      />
 
       {/* ── 5-COLUMN BENTO COMMAND DECK (3 COLS LEFT / 2 COLS RIGHT) ── */}
       {/* On desktop (lg+), 2 independent vertical columns (3 cols left, 2 cols right) with 20px (gap-5) gutters */}
@@ -501,6 +749,8 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
         onClose={() => setIsShareModalOpen(false)}
         trip={trip}
         physicsResult={physicsResult}
+        leaveByHHMM={timelineResult.hardDepartureTime}
+        arrivalHHMM={timelineResult.gateArrivalTime}
       />
 
       {/* ── Cadence Feedback Modal ── */}

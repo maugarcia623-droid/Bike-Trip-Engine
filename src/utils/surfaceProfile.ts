@@ -9,6 +9,7 @@ import {
   SurfaceType,
 } from '../types/trip';
 import { loadRiderBikeSpecs } from './specsStorage';
+import { calculateTyrePressure } from './tyrePressure';
 import {
   EdgeOsmMatch,
   OsmSurfaceRouteData,
@@ -266,7 +267,7 @@ function selectSectorBlueprints(
   }
 
   // 2. Canal de Nantes à Brest / Redon (56% Paved, 38% Gravel, 6% Singletrack)
-  if (hay.includes('canal') || hay.includes('redon') || hay.includes('blain') || hay.includes('nort')) {
+  if (hay.includes('redon') && (hay.includes('canal') || hay.includes('blain'))) {
     return [
       {
         type: 'paved',
@@ -425,8 +426,8 @@ function selectSectorBlueprints(
     {
       type: 'paved',
       sharePct: s1Paved,
-      nameEn: 'Urban Exit & Cycleway Rollout',
-      nameFr: 'Sortie Urbaine & Voie Cyclable',
+      nameEn: '(Estimated) Urban Exit & Cycleway Rollout',
+      nameFr: '(Estimé) Sortie Urbaine & Voie Cyclable',
       surfaceDetailEn: 'Smooth asphalt cycle track & quiet collector road',
       surfaceDetailFr: 'Piste cyclable bitumée & route secondaire fluide',
       technicality: 'smooth',
@@ -437,8 +438,8 @@ function selectSectorBlueprints(
     {
       type: 'gravel',
       sharePct: s2Gravel,
-      nameEn: 'Riverside Compacted Towpath',
-      nameFr: 'Chemin de Halage Compacté',
+      nameEn: '(Estimated) Compacted Unpaved Stretch',
+      nameFr: '(Estimé) Chemin Stabilisé & Gravel',
       surfaceDetailEn: 'Stabilized white limestone gravel (Voie Verte)',
       surfaceDetailFr: 'Calcaire blanc stabilisé & gravier fin roulé',
       technicality: 'smooth',
@@ -449,8 +450,8 @@ function selectSectorBlueprints(
     {
       type: 'paved',
       sharePct: s3Paved,
-      nameEn: 'Bocage Country Lane Transition',
-      nameFr: 'Liaison Petites Routes du Bocage',
+      nameEn: '(Estimated) Rural Lane Transition',
+      nameFr: '(Estimé) Liaison Petites Routes Rurales',
       surfaceDetailEn: 'Low-traffic rural tarmac with gentle rollers',
       surfaceDetailFr: 'Petites routes de campagne à faible trafic',
       technicality: 'smooth',
@@ -461,8 +462,8 @@ function selectSectorBlueprints(
     {
       type: 'singletrack',
       sharePct: s4Singletrack,
-      nameEn: 'Woodland & Marsh Edge Singletrack',
-      nameFr: 'Sentier Monotrace de Lisière',
+      nameEn: '(Estimated) Narrow Trail Section',
+      nameFr: '(Estimé) Sentier Monotrace',
       surfaceDetailEn: 'Narrow dirt path with tree roots & occasional stones',
       surfaceDetailFr: 'Sentier étroit en terre avec quelques racines et pierres',
       technicality: 'technical',
@@ -473,8 +474,8 @@ function selectSectorBlueprints(
     {
       type: 'gravel',
       sharePct: s5Gravel,
-      nameEn: 'Estuary Meadow Gravel Track',
-      nameFr: 'Piste Gravel des Prairies d’Estuaire',
+      nameEn: '(Estimated) Secondary Gravel Track',
+      nameFr: '(Estimé) Piste Gravel Secondaire',
       surfaceDetailEn: 'Fine crushed gravel with slight washboard texture',
       surfaceDetailFr: 'Gravier concassé fin avec léger grain',
       technicality: 'moderate',
@@ -485,8 +486,8 @@ function selectSectorBlueprints(
     {
       type: 'paved',
       sharePct: s6Paved,
-      nameEn: 'Final Destination Approach',
-      nameFr: 'Approche Finale Bitumée',
+      nameEn: '(Estimated) Final Destination Approach',
+      nameFr: '(Estimé) Approche Finale Bitumée',
       surfaceDetailEn: 'Protected bike lane & smooth boulevard tarmac',
       surfaceDetailFr: 'Bande cyclable protégée & bitume lisse jusqu’à l’arrivée',
       technicality: 'smooth',
@@ -1177,24 +1178,23 @@ export function computeSurfaceBreakdown(
     return found ? found.type : 'paved';
   });
 
-  // Compute recommended tire pressures (in bar) for the active tire width & tubeless setup
+  // Compute recommended tire pressures (in bar) via continuous 15%-drop per-wheel load model
   const unpavedRatio = (gravelPct + singletrackPct) / 100;
-  const baseBar =
-    tireWidthMm <= 30
-      ? 4.6
-      : tireWidthMm <= 39
-      ? 2.55 // 38c sweet spot
-      : 2.15; // 42c+ sweet spot
-  const massAdj = (systemMassKg - 80) * 0.012;
-  const tubeAdj = isTubeless ? 0 : 0.35;
-  const surfaceAdj = unpavedRatio > 0.2 ? -0.15 : 0.1;
-
-  const recommendedFrontBar = Number(
-    Math.max(1.8, Math.min(6.0, baseBar + massAdj + tubeAdj + surfaceAdj - 0.1)).toFixed(1)
-  );
-  const recommendedRearBar = Number(
-    Math.max(1.9, Math.min(6.2, recommendedFrontBar + 0.2)).toFixed(1)
-  );
+  const tyrePressure = calculateTyrePressure({
+    systemMassKg,
+    tireWidthMm,
+    isTubeless,
+    pavedPct,
+    gravelPct,
+    singletrackPct,
+    gearWeightKg: options?.luggageWeightKg ?? 2,
+    bikeCategory: activeBike?.bikeCategory,
+    casingType: activeBike?.casingType,
+    isHookless: activeBike?.isHookless,
+    bikeName: activeBike?.name,
+  });
+  const recommendedFrontBar = tyrePressure.frontBar;
+  const recommendedRearBar = tyrePressure.rearBar;
 
   const unpavedSegments = segments.filter((s) => s.type !== 'paved');
   const technicalSegments = segments.filter(
@@ -1262,6 +1262,9 @@ export function computeSurfaceBreakdown(
     isTubeless,
     recommendedFrontBar,
     recommendedRearBar,
+    frontLoadPct: tyrePressure.frontLoadPct,
+    rearLoadPct: tyrePressure.rearLoadPct,
+    hooklessCapped: tyrePressure.hooklessCapped,
     headlineEn,
     headlineFr,
     summaryEn,

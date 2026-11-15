@@ -51,7 +51,9 @@ import { InteractiveRouteMap } from './InteractiveRouteMap';
 import { TourOverviewCard } from './TourOverviewCard';
 import { ElevationTerrainStrip } from '../common/ElevationTerrainStrip';
 import { POPULAR_CYCLING_HUBS } from '../../services/locationService';
-import { parseGpxFileContent } from '../../utils/gpxParser';
+import { GpxParseResult } from '../../utils/gpxParser';
+import { parseRouteFile } from '../../utils/routeFileParser';
+import { importRouteFromUrl } from '../../utils/routeUrlImporter';
 import { computeSurfaceBreakdown, SURFACE_VISUAL_META } from '../../utils/surfaceProfile';
 import { useOsmSurface } from '../../services/osmSurfaceService';
 import { getActiveBike, loadRiderBikeSpecs, getEffectiveRiderSpecs } from '../../utils/specsStorage';
@@ -242,6 +244,8 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
   const [isRouting, setIsRouting] = useState(false);
   const [routeSuccess, setRouteSuccess] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
+  const [routeUrlInput, setRouteUrlInput] = useState('');
+  const [isImportingUrl, setIsImportingUrl] = useState(false);
   const routeRequestIdRef = useRef(0);
   const [isUpdatingWeather, setIsUpdatingWeather] = useState(false);
   const [weatherFeedback, setWeatherFeedback] = useState<{
@@ -423,6 +427,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
       arriveAtMode: isArriveAtMode,
       departureTime: trip.departureTime,
       pinnedAmenities: trip.pinnedAmenities,
+      departureDate: trip.departureDate,
     }
   );
   const archetype = getTripArchetype(trip.tag, trip.name);
@@ -492,6 +497,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
           const hasMultipleStages = Boolean(prev.stages && prev.stages.length > 1);
           let newName = prev.name;
           const isTitleBlank = !prev.name || !prev.name.trim();
+          const computedGainM = result.elevationGainM ?? Math.round(result.distanceKm * 6.5);
           if (!hasMultipleStages) {
             if (isTitleBlank) {
               const hasWps = (result.resolvedWaypoints || activeWps).length > 0;
@@ -514,7 +520,9 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                   originCoords: resolvedOriginCoords || undefined,
                   destCoords: resolvedDestCoords || undefined,
                   distanceKm: result.distanceKm,
-                  elevationGainM: Math.round(result.distanceKm * 6.5),
+                  elevationGainM: computedGainM,
+                  elevationLossM: result.elevationLossM,
+                  elevationProfile: result.elevationProfile,
                   coordinates: result.coordinates,
                   waypoints: result.resolvedWaypoints || activeWps,
                 },
@@ -533,14 +541,15 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
               routeMode: 'corridor',
               radiusMeters: undefined,
               gpxFileName: undefined,
-              elevationProfile: undefined,
+              elevationProfile: result.elevationProfile,
               terrainSummary: undefined,
               origin: effectiveOrigin,
               destination: effectiveDest,
               originCoords: resolvedOriginCoords || undefined,
               destCoords: resolvedDestCoords || undefined,
               distanceKm: result.distanceKm,
-              elevationGainM: Math.round(result.distanceKm * 6.5),
+              elevationGainM: computedGainM,
+              elevationLossM: result.elevationLossM,
               coordinates: result.coordinates,
               waypoints: result.resolvedWaypoints || activeWps,
               cueSheet: result.cueSheet,
@@ -804,53 +813,80 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
     });
   };
 
+  const applyParsedRouteToConfigurator = (parsed: GpxParseResult, fileName: string) => {
+    const curMode = getArchetypeFromTag(tripRef.current.tag, tripRef.current.name);
+    setRouteGenMode(curMode === 'BIKEPACKING' ? 'corridor' : 'gpx');
+    setOriginInput(parsed.originLabel);
+    setDestInput(parsed.destLabel);
+    if (parsed.coordinates.length > 1) {
+      setOriginCoords(parsed.coordinates[0]);
+      setDestCoords(parsed.coordinates[parsed.coordinates.length - 1]);
+    }
+    setRouteSuccess(true);
+
+    commitTrip((prev) => {
+      const bearing =
+        parsed.coordinates.length >= 2
+          ? computeRouteBearing(parsed.coordinates)
+          : prev.weather.windDirectionDegrees || 0;
+      return {
+        ...prev,
+        name: prev.name.trim() ? prev.name : (parsed.trackName || prev.name),
+        route: {
+          ...prev.route,
+          routeMode: 'gpx',
+          gpxFileName: fileName,
+          radiusMeters: undefined,
+          origin: parsed.originLabel,
+          destination: parsed.destLabel,
+          distanceKm: parsed.distanceKm,
+          elevationGainM: parsed.elevationGainM,
+          elevationLossM: parsed.elevationLossM,
+          coordinates: parsed.coordinates,
+          elevationProfile: parsed.elevationProfile,
+          terrainSummary: parsed.terrainSummary,
+        },
+        weather: {
+          ...prev.weather,
+          windDirectionDegrees: Math.round(bearing),
+        },
+      };
+    });
+  };
+
   const handleConfigGpxUpload = async (file: File) => {
     if (!file) return;
     setRouteError(null);
     setRouteSuccess(false);
     try {
-      const xmlText = await file.text();
-      const parsed = parseGpxFileContent(xmlText, file.name);
-      const curMode = getArchetypeFromTag(tripRef.current.tag, tripRef.current.name);
-      setRouteGenMode(curMode === 'BIKEPACKING' ? 'corridor' : 'gpx');
-      setOriginInput(parsed.originLabel);
-      setDestInput(parsed.destLabel);
-      if (parsed.coordinates.length > 1) {
-        setOriginCoords(parsed.coordinates[0]);
-        setDestCoords(parsed.coordinates[parsed.coordinates.length - 1]);
-      }
-      setRouteSuccess(true);
-
-      commitTrip((prev) => {
-        const bearing =
-          parsed.coordinates.length >= 2
-            ? computeRouteBearing(parsed.coordinates)
-            : prev.weather.windDirectionDegrees || 0;
-        return {
-          ...prev,
-          name: prev.name.trim() ? prev.name : (parsed.trackName || prev.name),
-          route: {
-            ...prev.route,
-            routeMode: 'gpx',
-            gpxFileName: file.name,
-            radiusMeters: undefined,
-            origin: parsed.originLabel,
-            destination: parsed.destLabel,
-            distanceKm: parsed.distanceKm,
-            elevationGainM: parsed.elevationGainM,
-            elevationLossM: parsed.elevationLossM,
-            coordinates: parsed.coordinates,
-            elevationProfile: parsed.elevationProfile,
-            terrainSummary: parsed.terrainSummary,
-          },
-          weather: {
-            ...prev.weather,
-            windDirectionDegrees: Math.round(bearing),
-          },
-        };
-      });
+      const parsed = await parseRouteFile(file);
+      applyParsedRouteToConfigurator(parsed, file.name);
     } catch (err: any) {
-      setRouteError(err?.message || (isFr ? 'Fichier GPX invalide.' : 'Invalid GPX trace file.'));
+      setRouteError(err?.message || (isFr ? 'Fichier de trace invalide (.gpx / .tcx / .fit).' : 'Invalid route file (.gpx / .tcx / .fit).'));
+    }
+  };
+
+  const handleRouteUrlImport = async () => {
+    const trimmed = routeUrlInput.trim();
+    if (!trimmed || isImportingUrl) return;
+    setRouteError(null);
+    setRouteSuccess(false);
+    setIsImportingUrl(true);
+    try {
+      const outcome = await importRouteFromUrl(trimmed);
+      if (outcome.ok && outcome.parsed) {
+        applyParsedRouteToConfigurator(outcome.parsed, outcome.fileName || 'imported-route.gpx');
+        setRouteUrlInput('');
+      } else {
+        setRouteError(
+          (isFr ? outcome.guidanceFr : outcome.guidanceEn) ||
+            (isFr ? 'Impossible d’importer ce lien.' : 'Could not import this route link.')
+        );
+      }
+    } catch (err: any) {
+      setRouteError(err?.message || (isFr ? 'Impossible d’importer ce lien.' : 'Could not import this route link.'));
+    } finally {
+      setIsImportingUrl(false);
     }
   };
 
@@ -1896,7 +1932,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
             <input
               ref={gpxConfigInputRef}
               type="file"
-              accept=".gpx,application/gpx+xml,text/xml"
+              accept=".gpx,.tcx,.fit,application/gpx+xml,text/xml,application/xml,application/octet-stream"
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];
@@ -2340,8 +2376,45 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                       : t('gpxUploadBtn')}
                   </div>
                   <p className="text-[11px] text-ink-muted mt-0.5">
-                    {t('gpxDropPrompt')}
+                    {isFr
+                      ? 'Supporte .GPX, .TCX et Garmin .FIT (ou glissez-déposez)'
+                      : 'Supports .GPX, .TCX & Garmin .FIT (or drag & drop)'}
                   </p>
+                </div>
+
+                {/* Komoot / Bikemap / RideWithGPS / GPX URL import */}
+                <div className="mt-2.5 flex items-center gap-2">
+                  <input
+                    type="url"
+                    value={routeUrlInput}
+                    onChange={(e) => setRouteUrlInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleRouteUrlImport();
+                      }
+                    }}
+                    placeholder={
+                      isFr
+                        ? 'Coller un lien Komoot, Bikemap, RideWithGPS ou .GPX/.TCX/.FIT...'
+                        : 'Paste Komoot, Bikemap, RideWithGPS or .GPX/.TCX/.FIT link...'
+                    }
+                    className="flex-1 min-w-0 h-9 px-3 rounded-xl bg-pod/60 dark:bg-white/[0.04] border border-ink/10 dark:border-white/10 text-xs text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={!routeUrlInput.trim() || isImportingUrl}
+                    onClick={handleRouteUrlImport}
+                    className="h-9 px-3.5 rounded-xl text-xs font-bold shrink-0 cursor-pointer"
+                  >
+                    {isImportingUrl ? (
+                      <SpinnerGap className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <span>{isFr ? 'Importer' : 'Import'}</span>
+                    )}
+                  </Button>
                 </div>
               </div>
             )}

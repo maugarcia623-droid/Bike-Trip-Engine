@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, ArrowRight } from '@/components/icons';
 import { Button } from '@/components/arc';
-import { TripProfile, RouteWaypoint } from '../types/trip';
+import { TripProfile, RouteWaypoint, ElevationProfilePoint } from '../types/trip';
 import { generateTripChecklist } from '../types/trip';
 import { useTranslation } from '../context/LanguageContext';
 import { OnboardingHeader } from './onboarding/OnboardingHeader';
@@ -90,6 +90,9 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   const [distanceKm, setDistanceKm] = useState<number>(6.0);
   const [coordinates, setCoordinates] = useState<[number, number][]>(DEFAULT_NANTES_ROUTE_COORDS);
   const [waypoints, setWaypoints] = useState<RouteWaypoint[]>([]);
+  const [elevationGainM, setElevationGainM] = useState<number | undefined>();
+  const [elevationLossM, setElevationLossM] = useState<number | undefined>();
+  const [elevationProfile, setElevationProfile] = useState<ElevationProfilePoint[] | undefined>();
   const [gpxFileName, setGpxFileName] = useState<string | undefined>();
   const [isRouteReady, setIsRouteReady] = useState<boolean>(true);
 
@@ -168,6 +171,9 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
         setDistanceKm(def.defaultDistanceKm);
         setCoordinates([]);
         setWaypoints([]);
+        setElevationGainM(undefined);
+        setElevationLossM(undefined);
+        setElevationProfile(undefined);
         setIsRouteReady(false);
       } else {
         setOrigin('Trentemoult, Rezé');
@@ -175,6 +181,9 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
         setDistanceKm(6.0);
         setCoordinates(DEFAULT_NANTES_ROUTE_COORDS);
         setWaypoints([]);
+        setElevationGainM(undefined);
+        setElevationLossM(undefined);
+        setElevationProfile(undefined);
         setIsRouteReady(true);
       }
     }
@@ -276,6 +285,9 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
         origin,
         destination,
         distanceKm,
+        elevationGainM,
+        elevationLossM,
+        elevationProfile,
         targetSpeedKmH: speedKmH,
         pacingMode: 'speed',
         urbanTrafficDelayMinutes: 0,
@@ -467,6 +479,11 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 onUpdateDistance={setDistanceKm}
                 onUpdateCoordinates={setCoordinates}
                 onUpdateWaypoints={setWaypoints}
+                onUpdateElevation={(dem) => {
+                  setElevationGainM(dem.elevationGainM);
+                  setElevationLossM(dem.elevationLossM);
+                  setElevationProfile(dem.elevationProfile);
+                }}
                 onGpxLoaded={(parsed) => {
                   setOrigin(parsed.name);
                   setDistanceKm(parsed.distanceKm);

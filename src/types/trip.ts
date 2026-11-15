@@ -84,6 +84,9 @@ export interface GravelSuitabilityAssessment {
   isTubeless: boolean;
   recommendedFrontBar: number;
   recommendedRearBar: number;
+  frontLoadPct?: number;
+  rearLoadPct?: number;
+  hooklessCapped?: boolean;
   headlineEn: string;
   headlineFr: string;
   summaryEn: string;

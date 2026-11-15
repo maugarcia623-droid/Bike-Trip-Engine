@@ -31,6 +31,7 @@ import {
   LoaderCircle,
 } from '@/components/icons';
 import { downloadTripGpx } from '../../utils/gpxExporter';
+import { downloadTripFit } from '../../utils/fitExporter';
 import { TripProfile, PhysicsCalculationResult, SurfaceSegment, SurfaceType } from '../../types/trip';
 import { StageAmenity } from '../../types/amenities';
 import { ResupplyRadarOverlay } from './ResupplyRadarOverlay';
@@ -1125,6 +1126,10 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
           ? '🪦'
           : amenity.category === 'food'
           ? '🥖'
+          : amenity.category === 'essentials'
+          ? '🚻'
+          : amenity.category === 'bailout'
+          ? '🚆'
           : '🔧';
 
       const catBg =
@@ -1134,6 +1139,10 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
           ? '#7c3aed'
           : amenity.category === 'food'
           ? '#d97706'
+          : amenity.category === 'essentials'
+          ? '#4f46e5'
+          : amenity.category === 'bailout'
+          ? '#475569'
           : '#0d9488';
 
       const catLabel =
@@ -1143,6 +1152,10 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
           ? (isFr ? 'Cimetière' : 'Cemetery')
           : amenity.category === 'food'
           ? (isFr ? 'Ravitaillement' : 'Food')
+          : amenity.category === 'essentials'
+          ? (isFr ? 'WC / Pharm. / Station' : 'Toilet / Med / Fuel')
+          : amenity.category === 'bailout'
+          ? (isFr ? 'Gare (Repli)' : 'Train Bailout')
           : (isFr ? 'Atelier vélo' : 'Bike Repair');
 
       const html = isPinned
@@ -1655,7 +1668,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                       <input
                         ref={gpxInputRef}
                         type="file"
-                        accept=".gpx,application/gpx+xml,text/xml"
+                        accept=".gpx,.tcx,.fit,application/gpx+xml,text/xml,application/xml,application/octet-stream"
                         className="hidden"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
@@ -1679,19 +1692,32 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                         </span>
                       </Button>
 
-                      <Button variant="primary"
-                        type="button"
-                        onClick={() => {
-                          downloadTripGpx(trip);
-                          setActivePopover(null);
-                        }}
-                        className={`w-full h-8 mt-2 px-3.5 rounded-full bg-volt text-[#4d5200] ring-1 ring-inset ring-[#a3b300] text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer shadow-xs`}
-                      >
-                        <Download className="w-3.5 h-3.5 shrink-0" />
-                        <span className="break-words leading-tight">
-                          {t('exportGpxBtn')} (Garmin / Wahoo)
-                        </span>
-                      </Button>
+                      <div className="flex items-center gap-1.5 mt-2">
+                        <Button variant="primary"
+                          type="button"
+                          onClick={() => {
+                            downloadTripGpx(trip);
+                            setActivePopover(null);
+                          }}
+                          className={`flex-1 h-8 px-3 rounded-full bg-volt text-[#4d5200] ring-1 ring-inset ring-[#a3b300] text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer shadow-xs`}
+                        >
+                          <Download className="w-3.5 h-3.5 shrink-0" />
+                          <span className="break-words leading-tight">
+                            {t('exportGpxBtn')}
+                          </span>
+                        </Button>
+                        <Button variant="ghost"
+                          type="button"
+                          onClick={() => {
+                            downloadTripFit(trip);
+                            setActivePopover(null);
+                          }}
+                          className={`h-8 px-3 rounded-full bg-pod hover:bg-chip text-xs font-bold text-ink flex items-center justify-center gap-1 transition-colors cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                        >
+                          <Download className={`w-3.5 h-3.5 shrink-0 ${CHIP_TOKENS.amber.primary}`} />
+                          <span>.FIT</span>
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </div>
