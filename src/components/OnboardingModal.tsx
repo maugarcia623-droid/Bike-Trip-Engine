@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, ArrowRight } from '@/components/icons';
+import { Button } from '@/components/arc';
 import { TripProfile, RouteWaypoint } from '../types/trip';
 import { generateTripChecklist } from '../types/trip';
 import { useTranslation } from '../context/LanguageContext';
@@ -582,83 +583,90 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 {isFr ? 'Sans profil. Sans inscription. Juste votre sortie.' : 'No profile. No signup. Just a ride.'}
               </span>
               <div className="flex items-center gap-3 w-full sm:w-auto justify-end order-1 sm:order-2">
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
                   onClick={handleTryExampleInstant}
                   className="flex-1 sm:flex-none min-h-[44px] px-4 py-2 rounded-full border border-black/15 dark:border-white/20 bg-pod hover:bg-surface-active text-ink text-xs font-rounded font-bold transition-all active:scale-[0.98] cursor-pointer"
                 >
                   {isFr ? 'Explorer l’exemple' : 'Try an example'}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="primary"
                   onClick={() => setCurrentStep(1)}
                   className="flex-1 sm:flex-none min-h-[44px] px-5 py-2 rounded-full bg-volt text-[#4d5200] ring-2 ring-inset ring-[#a3b300] text-xs font-rounded font-bold hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
                 >
                   <span>{isFr ? 'Commencer' : 'Start planning'}</span>
                   <ArrowRight size={14} className="stroke-[2.5]" />
-                </button>
+                </Button>
               </div>
             </>
           )}
 
           {currentStep === 1 && (
             <>
-              <button
+              <Button
                 type="button"
+                variant="secondary"
                 onClick={() => setCurrentStep(0)}
                 className="min-h-[44px] px-4 py-2 rounded-full border border-black/15 dark:border-white/20 bg-card hover:bg-pod text-ink text-xs font-rounded font-bold transition-all active:scale-[0.98] cursor-pointer flex items-center gap-1.5 w-full sm:w-auto justify-center"
               >
                 <ArrowLeft size={14} />
                 <span>{isFr ? 'Accueil' : 'Welcome'}</span>
-              </button>
+              </Button>
               <span className="hidden sm:inline text-xs text-ink-muted font-body text-center">
                 {isFr ? 'Vous pourrez modifier cela plus tard.' : 'You can change this later.'}
               </span>
-              <button
+              <Button
                 type="button"
+                variant="primary"
                 onClick={() => setCurrentStep(2)}
                 className="min-h-[44px] px-5 py-2 rounded-full bg-volt text-[#4d5200] ring-2 ring-inset ring-[#a3b300] text-xs font-rounded font-bold hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer flex items-center gap-1.5 shadow-sm w-full sm:w-auto justify-center"
               >
                 <span>{isFr ? 'Continuer vers le parcours' : 'Continue to route'}</span>
                 <ArrowRight size={14} className="stroke-[2.5]" />
-              </button>
+              </Button>
             </>
           )}
 
           {currentStep === 2 && (
             <>
-              <button
+              <Button
                 type="button"
+                variant="secondary"
                 onClick={() => setCurrentStep(1)}
                 className="min-h-[44px] px-4 py-2 rounded-full border border-black/15 dark:border-white/20 bg-card hover:bg-pod text-ink text-xs font-rounded font-bold transition-all active:scale-[0.98] cursor-pointer flex items-center gap-1.5 w-full sm:w-auto justify-center"
               >
                 <ArrowLeft size={14} />
                 <span>{isFr ? 'Retour' : 'Back'}</span>
-              </button>
+              </Button>
               <span className="hidden sm:inline text-xs text-ink-muted font-body font-medium text-center tnum">
                 {isFr ? `Parcours · ${distanceKm.toFixed(1)} km` : `Route · ${distanceKm.toFixed(1)} km`}
               </span>
-              <button
+              <Button
                 type="button"
+                variant="primary"
                 onClick={() => setCurrentStep(3)}
                 className="min-h-[44px] px-5 py-2 rounded-full bg-volt text-[#4d5200] ring-2 ring-inset ring-[#a3b300] text-xs font-rounded font-bold hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer flex items-center gap-1.5 shadow-sm w-full sm:w-auto justify-center"
               >
                 <span>{isFr ? 'Utiliser cet itinéraire' : 'Use this route'}</span>
                 <ArrowRight size={14} className="stroke-[2.5]" />
-              </button>
+              </Button>
             </>
           )}
 
           {currentStep === 3 && (
             <>
-              <button
+              <Button
                 type="button"
+                variant="secondary"
                 onClick={() => setCurrentStep(2)}
                 className="min-h-[44px] px-4 py-2 rounded-full border border-black/15 dark:border-white/20 bg-card hover:bg-pod text-ink text-xs font-rounded font-bold transition-all active:scale-[0.98] cursor-pointer flex items-center gap-1.5 w-full sm:w-auto justify-center"
               >
                 <ArrowLeft size={14} />
                 <span>{isFr ? 'Retour' : 'Back'}</span>
-              </button>
+              </Button>
               <span className="hidden sm:inline text-xs text-ink-muted font-body tnum">
                 {targetMode === 'arrive'
                   ? isFr
@@ -668,104 +676,113 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                   ? `Arrivée calculée : ${arriveTimeFormatted}`
                   : `Calculated arrival: ${arriveTimeFormatted}`}
               </span>
-              <button
+              <Button
                 type="button"
+                variant="primary"
                 onClick={() => setCurrentStep(4)}
                 className="min-h-[44px] px-5 py-2 rounded-full bg-volt text-[#4d5200] ring-2 ring-inset ring-[#a3b300] text-xs font-rounded font-bold hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer flex items-center gap-1.5 shadow-sm w-full sm:w-auto justify-center"
               >
                 <span>{isFr ? 'Continuer vers le vélo' : 'Continue to rider & bike'}</span>
                 <ArrowRight size={14} className="stroke-[2.5]" />
-              </button>
+              </Button>
             </>
           )}
 
           {currentStep === 4 && (
             <>
-              <button
+              <Button
                 type="button"
+                variant="secondary"
                 onClick={() => setCurrentStep(3)}
                 className="min-h-[44px] px-4 py-2 rounded-full border border-black/15 dark:border-white/20 bg-card hover:bg-pod text-ink text-xs font-rounded font-bold transition-all active:scale-[0.98] cursor-pointer flex items-center gap-1.5 w-full sm:w-auto justify-center"
               >
                 <ArrowLeft size={14} />
                 <span>{isFr ? 'Retour' : 'Back'}</span>
-              </button>
+              </Button>
               <span className="hidden sm:inline text-xs text-ink-muted font-body text-center">
                 {isFr ? 'Optionnel · modifiable à tout moment' : 'Optional · editable any time'}
               </span>
               <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
                   onClick={() => setCurrentStep(5)}
                   className="flex-1 sm:flex-none min-h-[44px] px-4 py-2 rounded-full border border-black/15 dark:border-white/20 bg-pod hover:bg-surface-active text-ink text-xs font-rounded font-bold transition-all active:scale-[0.98] cursor-pointer"
                 >
                   {isFr ? 'Passer' : 'Skip'}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="primary"
                   onClick={() => setCurrentStep(5)}
                   className="flex-1 sm:flex-none min-h-[44px] px-5 py-2 rounded-full bg-volt text-[#4d5200] ring-2 ring-inset ring-[#a3b300] text-xs font-rounded font-bold hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
                 >
                   <span>{isFr ? 'Voir l’aperçu' : 'View preview'}</span>
                   <ArrowRight size={14} className="stroke-[2.5]" />
-                </button>
+                </Button>
               </div>
             </>
           )}
 
           {currentStep === 5 && (
             <>
-              <button
+              <Button
                 type="button"
+                variant="secondary"
                 onClick={() => setCurrentStep(4)}
                 className="min-h-[44px] px-4 py-2 rounded-full border border-black/15 dark:border-white/20 bg-card hover:bg-pod text-ink text-xs font-rounded font-bold transition-all active:scale-[0.98] cursor-pointer flex items-center gap-1.5 w-full sm:w-auto justify-center"
               >
                 <ArrowLeft size={14} />
                 <span>{isFr ? 'Modifier la config' : 'Edit setup'}</span>
-              </button>
+              </Button>
               <span className="hidden sm:inline text-xs text-ink-muted font-body text-center">
                 {isFr ? 'Votre sortie est prête · aucune inscription requise' : 'Your ride is ready · no signup required'}
               </span>
               <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
                   onClick={handleLaunchDirect}
                   className="flex-1 sm:flex-none min-h-[44px] px-4 py-2 rounded-full border border-black/15 dark:border-white/20 bg-pod hover:bg-surface-active text-ink text-xs font-rounded font-bold transition-all active:scale-[0.98] cursor-pointer"
                 >
                   {isFr ? 'Ouvrir le plan' : 'View ride plan'}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="primary"
                   onClick={() => setCurrentStep(6)}
                   className="flex-1 sm:flex-none min-h-[44px] px-5 py-2 rounded-full bg-volt text-[#4d5200] ring-2 ring-inset ring-[#a3b300] text-xs font-rounded font-bold hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
                 >
                   <span>{isFr ? 'Enregistrer & synchroniser' : 'Save & sync'}</span>
                   <ArrowRight size={14} className="stroke-[2.5]" />
-                </button>
+                </Button>
               </div>
             </>
           )}
 
           {currentStep === 6 && (
             <>
-              <button
+              <Button
                 type="button"
+                variant="secondary"
                 onClick={() => setCurrentStep(5)}
                 className="min-h-[44px] px-4 py-2 rounded-full border border-black/15 dark:border-white/20 bg-card hover:bg-pod text-ink text-xs font-rounded font-bold transition-all active:scale-[0.98] cursor-pointer flex items-center gap-1.5 w-full sm:w-auto justify-center"
               >
                 <ArrowLeft size={14} />
                 <span>{isFr ? 'Retour à l’aperçu' : 'Back to ride preview'}</span>
-              </button>
+              </Button>
               <span className="hidden sm:inline text-xs text-ink-muted font-body text-center">
                 {isFr ? 'Aucun compte requis pour utiliser votre plan de route' : 'No account required to use your ride plan'}
               </span>
-              <button
+              <Button
                 type="button"
+                variant="primary"
                 onClick={handleLaunchDirect}
                 className="min-h-[44px] px-5 py-2 rounded-full bg-volt text-[#4d5200] ring-2 ring-inset ring-[#a3b300] text-xs font-rounded font-bold hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer flex items-center gap-1.5 shadow-sm w-full sm:w-auto justify-center"
               >
                 <span>{isFr ? 'Continuer sans compte' : 'Continue without account'}</span>
                 <ArrowRight size={14} className="stroke-[2.5]" />
-              </button>
+              </Button>
             </>
           )}
         </footer>

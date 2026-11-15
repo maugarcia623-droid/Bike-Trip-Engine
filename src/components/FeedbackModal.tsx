@@ -1,5 +1,6 @@
 import React, { useState, useId } from 'react';
 import { ModalPortal } from './common/ModalPortal';
+import { Button } from '@/components/arc';
 import {
   X,
   Bug,
@@ -191,14 +192,15 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
             </div>
           </div>
 
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={handleClose}
-            className="relative before:content-[''] before:absolute before:-inset-1.5 w-8 h-8 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-surface-active transition-all duration-150 active:scale-95 cursor-pointer shrink-0"
+            className="relative before:content-[''] before:absolute before:-inset-1.5 w-8 h-8 p-0 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-surface-active transition-all duration-150 active:scale-95 cursor-pointer shrink-0"
             aria-label={t('menuClose')}
           >
             <X className="w-4 h-4" />
-          </button>
+          </Button>
         </div>
 
         {/* ── Modal Body ── */}
@@ -217,20 +219,22 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
             </p>
 
             <div className="flex items-center justify-center gap-3 w-full max-w-xs">
-              <button
-                type="button"
+              <Button
+                variant="primary"
+                size="md"
                 onClick={handleClose}
                 className="flex-1 px-5 py-2.5 rounded-full bg-volt text-[#4d5200] ring-2 ring-inset ring-[#a3b300] font-rounded font-bold text-xs sm:text-sm cursor-pointer hover:brightness-105 active:scale-[0.98] transition-all shadow-xs"
               >
                 {t('feedbackDoneBtn')}
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant="secondary"
+                size="md"
                 onClick={handleResetForm}
                 className="px-4 py-2.5 rounded-full bg-pod hover:bg-chip text-ink-secondary hover:text-ink font-rounded font-semibold text-xs sm:text-sm transition-colors cursor-pointer"
               >
                 {t('feedbackSendAnotherBtn')}
-              </button>
+              </Button>
             </div>
           </div>
         ) : (
@@ -246,11 +250,12 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                   const tokens = CHIP_TOKENS[cat.theme];
                   const Icon = cat.icon;
                   return (
-                    <button
+                    <Button
                       key={cat.id}
-                      type="button"
+                      variant="ghost"
+                      size="sm"
                       onClick={() => setCategory(cat.id)}
-                      className={`flex flex-col items-start gap-1 p-2.5 sm:p-3 rounded-pod text-left transition-all duration-150 cursor-pointer ${CHIP_RING_BASE} ${
+                      className={`flex flex-col items-start justify-start gap-1 p-2.5 sm:p-3 rounded-pod text-left whitespace-normal transition-all duration-150 cursor-pointer ${CHIP_RING_BASE} ${
                         isSelected
                           ? `${tokens.surface} ${tokens.primary} ${tokens.selectedRing} shadow-xs font-semibold`
                           : `${CHIP_RING_UNSELECTED} bg-pod hover:bg-chip text-ink-secondary hover:text-ink`
@@ -265,7 +270,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                       <span className="text-[10px] leading-tight opacity-75 hidden sm:block">
                         {cat.description}
                       </span>
-                    </button>
+                    </Button>
                   );
                 })}
               </div>
@@ -340,17 +345,20 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
 
             {/* Action Buttons */}
             <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-ink/5 dark:border-white/10">
-              <button
-                type="button"
+              <Button
+                variant="secondary"
+                size="md"
                 onClick={handleClose}
                 disabled={isSubmitting}
                 className="min-h-[44px] px-4 py-2 rounded-full bg-pod hover:bg-surface-active text-ink-secondary hover:text-ink font-rounded text-xs sm:text-sm font-semibold transition-colors cursor-pointer disabled:opacity-50"
               >
                 {t('feedbackCancelBtn')}
-              </button>
+              </Button>
 
-              <button
+              <Button
                 type="submit"
+                variant="primary"
+                size="md"
                 disabled={isSubmitting}
                 className="min-h-[44px] inline-flex items-center justify-center gap-2 px-5 py-2 rounded-full bg-volt text-[#4d5200] ring-2 ring-inset ring-[#a3b300] font-rounded font-bold text-xs sm:text-sm cursor-pointer hover:brightness-105 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
               >
@@ -365,7 +373,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                     <span>{t('feedbackSubmitBtn')}</span>
                   </>
                 )}
-              </button>
+              </Button>
             </div>
           </form>
         )}

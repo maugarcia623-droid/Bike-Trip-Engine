@@ -1,4 +1,5 @@
 import React from 'react';
+import { Button } from '@/components/arc';
 import { Bicycle, Plus, Sparkle, Lightning, Clock, ForkKnife } from '@/components/icons';
 import { useTranslation } from '../../context/LanguageContext';
 import { CHIP_TOKENS, CHIP_RING_BASE, CHIP_DUOTONE_ISOLATION_CLASSES } from '../../tokens/chipTokens';
@@ -77,24 +78,24 @@ export const DashboardEmptyState: React.FC<DashboardEmptyStateProps> = ({
           {/* Action Buttons: Primary & Secondary */}
           <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3.5">
             {/* Primary Button: Create Your First Trip */}
-            <button
+            <Button variant="ghost"
               type="button"
               onClick={onCreateFirstTrip}
               className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 py-3 px-6 rounded-full ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} font-bold text-sm transition-all shadow-md hover:brightness-[0.98] dark:hover:brightness-110 cursor-pointer active:scale-95`}
             >
               <Plus className="w-4 h-4 stroke-[2.5]" />
               <span>{isFr ? 'Créer votre premier trajet' : 'Create Your First Trip'}</span>
-            </button>
+            </Button>
 
             {/* Secondary Button: Load Sample Trip (Demo) */}
-            <button
+            <Button variant="ghost"
               type="button"
               onClick={onLoadDemoTrip}
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 py-3 px-6 rounded-full bg-pod hover:bg-chip text-ink border border-black/10 dark:border-white/15 font-semibold text-sm transition-all shadow-xs cursor-pointer active:scale-95"
             >
               <Sparkle className="w-4 h-4 text-volt-dim dark:text-volt" />
               <span>{isFr ? 'Charger un trajet exemple (Démo)' : 'Load Sample Trip (Demo)'}</span>
-            </button>
+            </Button>
           </div>
         </div>
       </div>

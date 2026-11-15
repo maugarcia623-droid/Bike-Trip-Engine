@@ -563,7 +563,8 @@ export async function rerouteTripThroughAmenity(
   } else {
     const originCoord = trip.route.originCoords || currentCoords[0];
     const destCoord =
-      currentCoords.length >= 2 ? currentCoords[currentCoords.length - 1] : originCoord;
+      trip.route.destCoords ||
+      (currentCoords.length >= 2 ? currentCoords[currentCoords.length - 1] : originCoord);
 
     try {
       const routed = await calculateAutoBikeRoute(
@@ -676,7 +677,8 @@ export async function removeAmenityFromRoute(
   } else {
     const originCoord = trip.route.originCoords || currentCoords[0];
     const destCoord =
-      currentCoords.length >= 2 ? currentCoords[currentCoords.length - 1] : originCoord;
+      trip.route.destCoords ||
+      (currentCoords.length >= 2 ? currentCoords[currentCoords.length - 1] : originCoord);
 
     try {
       const routed = await calculateAutoBikeRoute(

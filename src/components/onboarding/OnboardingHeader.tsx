@@ -1,5 +1,6 @@
 import React from 'react';
 import { Check, X, Sun, Moon } from '@/components/icons';
+import { Button, ThemeSwitch } from '@/components/arc';
 import { useTranslation } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { CHIP_TOKENS, CHIP_RING_BASE } from '../../tokens/chipTokens';
@@ -57,8 +58,9 @@ export const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({
             aria-label={isFr ? 'Sélecteur de langue' : 'Language selector'}
             className="flex items-center rounded-full bg-pod p-0.5 border border-black/5 dark:border-white/10 text-xs font-bold"
           >
-            <button
+            <Button
               type="button"
+              variant="ghost"
               onClick={() => setLang('en')}
               className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
                 lang === 'en'
@@ -69,9 +71,10 @@ export const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({
               aria-pressed={lang === 'en'}
             >
               EN
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="ghost"
               onClick={() => setLang('fr')}
               className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
                 lang === 'fr'
@@ -82,34 +85,29 @@ export const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({
               aria-pressed={lang === 'fr'}
             >
               FR
-            </button>
+            </Button>
           </div>
 
           {/* Theme Toggle Button */}
-          <button
-            type="button"
-            onClick={toggleTheme}
+          <ThemeSwitch
+            theme={isDark ? 'dark' : 'light'}
+            onThemeChange={() => toggleTheme()}
+            iconOnly
+            label={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             className="relative before:content-[''] before:absolute before:-inset-1.5 w-8 h-8 rounded-full bg-pod hover:bg-surface-active flex items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer border border-black/5 dark:border-white/10 text-ink"
-            title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            aria-label={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          >
-            {isDark ? (
-              <Sun size={15} className="shrink-0 text-current" />
-            ) : (
-              <Moon size={15} className="shrink-0 text-current" />
-            )}
-          </button>
+          />
 
           {/* Dismiss Modal Button */}
-          <button
+          <Button
             type="button"
+            variant="ghost"
             onClick={onClose}
             className="relative before:content-[''] before:absolute before:-inset-1.5 w-8 h-8 rounded-full bg-pod hover:bg-surface-active flex items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer border border-black/5 dark:border-white/10 text-ink-muted hover:text-ink"
             title={isFr ? 'Fermer l’assistant' : 'Close and dismiss'}
             aria-label={isFr ? 'Fermer l’assistant' : 'Close and dismiss'}
           >
             <X size={16} className="shrink-0 text-current" />
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -139,9 +137,10 @@ export const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({
               const isPastOrCurrent = currentStep >= stepNum;
 
               return (
-                <button
+                <Button
                   key={stepNum}
                   type="button"
+                  variant="ghost"
                   onClick={() => onStepClick && isCompleted && onStepClick(stepNum)}
                   disabled={!isCompleted && !isCurrent}
                   className={`inline-flex items-center gap-1.5 transition-all ${
@@ -171,7 +170,7 @@ export const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({
                   <span className="hidden sm:inline">
                     {isFr ? item.labelFr : item.label}
                   </span>
-                </button>
+                </Button>
               );
             })}
           </nav>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Button } from '@/components/arc';
 import {
   ForkKnife,
   Compass,
@@ -531,7 +532,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
             )}
           </div>
 
-          <button
+          <Button variant="ghost"
             type="button"
             onClick={() => setShowLogisticsForm((v) => !v)}
             aria-expanded={showLogisticsForm}
@@ -547,7 +548,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
                 : 'Adjust meal & timing'}
             </span>
             <DisclosureChevron open={showLogisticsForm} />
-          </button>
+          </Button>
         </div>
 
         <Collapsible open={showLogisticsForm} innerClassName="pt-3 space-y-2.5">
@@ -556,7 +557,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2 flex-wrap">
               <div className="inline-flex items-center rounded-full bg-chip/70 p-1 gap-1 text-xs font-rounded font-semibold">
-                <button
+                <Button variant="ghost"
                   type="button"
                   aria-pressed={isArriveBy}
                   onClick={() =>
@@ -572,8 +573,8 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
                   }`}
                 >
                   {t('logisticsArriveBy')}
-                </button>
-                <button
+                </Button>
+                <Button variant="ghost"
                   type="button"
                   aria-pressed={!isArriveBy}
                   onClick={() =>
@@ -589,7 +590,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
                   }`}
                 >
                   {t('logisticsDepartAt')}
-                </button>
+                </Button>
               </div>
 
               <div className="flex items-center gap-1.5 min-h-[44px] sm:min-h-[34px] bg-card px-3 py-1 rounded-full ring-1 ring-inset ring-ink/10 dark:ring-white/10">
@@ -641,7 +642,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
               ).map((opt) => {
                 const isSelected = activeRollout === opt.id;
                 return (
-                  <button
+                  <Button variant="ghost"
                     key={opt.id}
                     type="button"
                     aria-pressed={isSelected}
@@ -653,7 +654,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
                     }`}
                   >
                     {opt.label}
-                  </button>
+                  </Button>
                 );
               })}
             </div>
@@ -670,7 +671,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2 flex-wrap">
               {/* Fridge Toggle */}
-              <button
+              <Button variant="ghost"
                 type="button"
                 aria-pressed={localLogistics.hasDestinationFridge}
                 onClick={() => updateLogistics({ hasDestinationFridge: !localLogistics.hasDestinationFridge })}
@@ -682,11 +683,11 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
               >
                 <span>{t('logisticsFridgeOnSite')}</span>
                 {localLogistics.hasDestinationFridge && <Check className="w-3 h-3 text-current" />}
-              </button>
+              </Button>
 
               {/* Split Recovery vs Single Meal Toggle (Commute / Workplace routine) */}
               {isCommuteMode && (
-                <button
+                <Button variant="ghost"
                   type="button"
                   aria-pressed={localLogistics.splitPostRideRecovery}
                   onClick={() => updateLogistics({ splitPostRideRecovery: !localLogistics.splitPostRideRecovery })}
@@ -706,7 +707,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
                       ? t('logistics2StageLocker')
                       : t('logisticsSingleArrival')}
                   </span>
-                </button>
+                </Button>
               )}
             </div>
 
@@ -797,7 +798,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
 
     return (
       <div className="rounded-pod bg-pod mb-3 overflow-hidden transition-colors">
-        <button
+        <Button variant="ghost"
           type="button"
           onClick={toggleManifest}
           aria-expanded={manifestOpen}
@@ -825,7 +826,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
             </Badge>
             <DisclosureChevron open={manifestOpen} />
           </div>
-        </button>
+        </Button>
 
         <Collapsible
           open={manifestOpen}
@@ -948,7 +949,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
             className="rounded-pod bg-pod overflow-hidden transition-colors"
           >
             {/* Collapsible Phase Header */}
-            <button
+            <Button variant="ghost"
               type="button"
               onClick={() => togglePhase(phase.id)}
               aria-expanded={isOpen}
@@ -993,7 +994,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
 
                 <DisclosureChevron open={isOpen} />
               </div>
-            </button>
+            </Button>
 
             {/* Expandable Bullet Protocol Details */}
             <Collapsible
@@ -1339,13 +1340,13 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         {renderPhaseAccordion(shortPhases)}
 
         <div className="mt-3 flex justify-end">
-          <button
+          <Button variant="ghost"
             type="button"
             onClick={() => setShowFullProtocol(true)}
             className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} hover:brightness-[0.97] dark:hover:brightness-110`}
           >
             {t('nutriShowFullBtn')}
-          </button>
+          </Button>
         </div>
       </Card>
     );
@@ -1353,13 +1354,13 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
 
   const compactReturnBtn =
     isShortRide && showFullProtocol ? (
-      <button
+      <Button variant="ghost"
         type="button"
         onClick={() => setShowFullProtocol(false)}
         className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} hover:brightness-[0.97] dark:hover:brightness-110`}
       >
         {t('nutriShowCompactBtn', { min: movingMinutes })}
-      </button>
+      </Button>
     ) : null;
 
   // 1. SPORT / GRAN FONDO PROTOCOL

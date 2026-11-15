@@ -11,6 +11,7 @@ import {
   Plus,
 } from '@/components/icons';
 import { useTranslation } from '../../context/LanguageContext';
+import { Button } from '@/components/arc';
 import { RouteWaypoint } from '../../types/trip';
 import { SchematicRouteMap } from './SchematicRouteMap';
 import { parseGpxFileContent } from '../../utils/gpxParser';
@@ -26,6 +27,7 @@ interface RouteLocationInputProps {
   value: string;
   badgeLetter: 'A' | 'B';
   placeholder: string;
+  biasCoords?: [number, number];
   onChange: (val: string) => void;
   onSelectSuggestion: (suggestion: LocationSuggestion) => void;
 }
@@ -89,6 +91,7 @@ const RouteLocationInput: React.FC<RouteLocationInputProps> = ({
   value,
   badgeLetter,
   placeholder,
+  biasCoords,
   onChange,
   onSelectSuggestion,
 }) => {
@@ -120,6 +123,9 @@ const RouteLocationInput: React.FC<RouteLocationInputProps> = ({
     };
   }, []);
 
+  const biasLat = biasCoords?.[0];
+  const biasLon = biasCoords?.[1];
+
   // Debounced search
   useEffect(() => {
     const trimmed = value.trim();
@@ -140,8 +146,11 @@ const RouteLocationInput: React.FC<RouteLocationInputProps> = ({
       abortControllerRef.current = controller;
 
       try {
+        const stableBias: [number, number] | undefined =
+          biasLat !== undefined && biasLon !== undefined ? [biasLat, biasLon] : undefined;
         const results = await searchLocationSuggestions(trimmed, {
           lang: isFr ? 'fr' : 'en',
+          biasCoords: stableBias,
           signal: controller.signal,
           limit: 6,
         });
@@ -160,17 +169,16 @@ const RouteLocationInput: React.FC<RouteLocationInputProps> = ({
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       if (abortControllerRef.current) abortControllerRef.current.abort();
     };
-  }, [value, isFr]);
+  }, [value, isFr, biasLat, biasLon]);
 
   const handleSelect = useCallback(
     (suggestion: LocationSuggestion) => {
-      onChange(suggestion.name);
       onSelectSuggestion(suggestion);
       setIsOpen(false);
       setHighlightedIndex(-1);
       inputRef.current?.blur();
     },
-    [onChange, onSelectSuggestion]
+    [onSelectSuggestion]
   );
 
   const activeList = value.trim().length >= 2 ? suggestions : EXTENDED_CYCLING_HUBS;
@@ -243,8 +251,9 @@ const RouteLocationInput: React.FC<RouteLocationInputProps> = ({
           )}
 
           {value.length > 0 && !isLoading && (
-            <button
+            <Button
               type="button"
+              variant="ghost"
               onClick={() => {
                 onChange('');
                 setIsOpen(true);
@@ -254,7 +263,7 @@ const RouteLocationInput: React.FC<RouteLocationInputProps> = ({
               title={isFr ? 'Effacer' : 'Clear'}
             >
               <X size={13} />
-            </button>
+            </Button>
           )}
 
           <span className="w-6 h-6 rounded-full bg-pod flex items-center justify-center text-xs font-rounded font-bold text-ink-muted border border-black/5 dark:border-white/10 pointer-events-none shrink-0">
@@ -439,7 +448,9 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
   const handleFetchDistance = async (
     originText = origin,
     destText = destination,
-    stops = intermediateStops
+    stops = intermediateStops,
+    originCoordsOverride: [number, number] | null = originCoords,
+    destCoordsOverride: [number, number] | null = destCoords
   ) => {
     if (!originText.trim() || !destText.trim()) {
       setFetchError(
@@ -456,14 +467,16 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
       const result = await calculateAutoBikeRoute(
         originText.trim(),
         destText.trim(),
-        originCoords,
-        destCoords,
+        originCoordsOverride,
+        destCoordsOverride,
         stops.map((s) => ({ id: s.id, name: s.name, coordinates: s.coords }))
       );
       if (result) {
         onUpdateDistance(Number(result.distanceKm.toFixed(1)));
         if (result.coordinates && result.coordinates.length > 1) {
           onUpdateCoordinates(result.coordinates);
+          if (!originCoordsOverride) setOriginCoords(result.coordinates[0]);
+          if (!destCoordsOverride) setDestCoords(result.coordinates[result.coordinates.length - 1]);
         }
         setFetchSuccessMessage(
           isFr
@@ -529,8 +542,9 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
             aria-label={isFr ? 'Modes de planification' : 'Route planning modes'}
             className="grid grid-cols-3 p-1 gap-1 rounded-full bg-pod border border-black/5 dark:border-white/10 mb-5 text-xs font-rounded font-bold"
           >
-            <button
+            <Button
               type="button"
+              variant="ghost"
               role="tab"
               aria-selected={routeMode === 'from-to'}
               onClick={() => onChangeRouteMode('from-to')}
@@ -541,9 +555,10 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
               }`}
             >
               {isFr ? 'Départ / Arrivée' : 'From / to'}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="ghost"
               role="tab"
               aria-selected={routeMode === 'distance'}
               onClick={() => onChangeRouteMode('distance')}
@@ -554,9 +569,10 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
               }`}
             >
               {isFr ? 'Départ + distance' : 'Start + distance'}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="ghost"
               role="tab"
               aria-selected={routeMode === 'gpx'}
               onClick={() => onChangeRouteMode('gpx')}
@@ -567,7 +583,7 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
               }`}
             >
               {isFr ? 'Importer un GPX' : 'Import GPX'}
-            </button>
+            </Button>
           </div>
 
           {/* Mode 1: From / To Inputs with Auto-Fill Suggestions Dropdown */}
@@ -578,10 +594,19 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
                 label={isFr ? 'Départ' : 'From'}
                 value={origin}
                 badgeLetter="A"
+                biasCoords={destCoords || undefined}
                 placeholder={isFr ? 'Ex: Trentemoult, Rezé ou tapez une ville' : 'e.g. Trentemoult, Rezé or type city'}
-                onChange={onUpdateOrigin}
+                onChange={(val) => {
+                  onUpdateOrigin(val);
+                  setOriginCoords(null);
+                }}
                 onSelectSuggestion={(s) => {
-                  if (s.coordinates) setOriginCoords(s.coordinates);
+                  onUpdateOrigin(s.name);
+                  const nextCoords = s.coordinates || null;
+                  setOriginCoords(nextCoords);
+                  if (destination.trim()) {
+                    handleFetchDistance(s.name, destination, intermediateStops, nextCoords, destCoords);
+                  }
                 }}
               />
 
@@ -593,6 +618,7 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
                       label={isFr ? `Étape intermédiaire ${idx + 1}` : `Via Stop ${idx + 1}`}
                       value={stop.name}
                       badgeLetter={String(idx + 1) as any}
+                      biasCoords={originCoords || destCoords || undefined}
                       placeholder={isFr ? 'Ex: Rougiers, Mazaugues...' : 'e.g. Rougiers, Mazaugues...'}
                       onChange={(val) => {
                         setIntermediateStops((prev) =>
@@ -612,8 +638,9 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
                       }}
                     />
                   </div>
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
                     onClick={() => {
                       const next = intermediateStops.filter((s) => s.id !== stop.id);
                       setIntermediateStops(next);
@@ -625,13 +652,14 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
                     title={isFr ? 'Supprimer cet arrêt' : 'Remove stop'}
                   >
                     <X size={14} />
-                  </button>
+                  </Button>
                 </div>
               ))}
 
               <div className="flex items-center justify-between">
-                <button
+                <Button
                   type="button"
+                  variant="primary"
                   onClick={() => {
                     const newId = `stop-${Date.now()}`;
                     setIntermediateStops((prev) => [...prev, { id: newId, name: '', coords: null }]);
@@ -640,7 +668,7 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
                 >
                   <Plus size={13} className="stroke-[2.5]" />
                   <span>{isFr ? 'Ajouter un arrêt intermédiaire' : 'Add intermediate stop'}</span>
-                </button>
+                </Button>
               </div>
 
               {/* Destination Auto-Fill Input */}
@@ -648,10 +676,19 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
                 label={isFr ? 'Arrivée' : 'To'}
                 value={destination}
                 badgeLetter="B"
+                biasCoords={originCoords || undefined}
                 placeholder={isFr ? 'Ex: Nantes gare, Nantes ou gare' : 'e.g. Nantes gare, Nantes or station'}
-                onChange={onUpdateDestination}
+                onChange={(val) => {
+                  onUpdateDestination(val);
+                  setDestCoords(null);
+                }}
                 onSelectSuggestion={(s) => {
-                  if (s.coordinates) setDestCoords(s.coordinates);
+                  onUpdateDestination(s.name);
+                  const nextCoords = s.coordinates || null;
+                  setDestCoords(nextCoords);
+                  if (origin.trim()) {
+                    handleFetchDistance(origin, s.name, intermediateStops, originCoords, nextCoords);
+                  }
                 }}
               />
 
@@ -662,9 +699,10 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {QUICK_HUBS.map((hub) => (
-                    <button
+                    <Button
                       key={hub.label}
                       type="button"
+                      variant="ghost"
                       onClick={() => {
                         onUpdateOrigin(hub.origin);
                         onUpdateDestination(hub.destination);
@@ -672,20 +710,27 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
                           setOriginCoords(hub.coords[0]);
                           setDestCoords(hub.coords[1]);
                         }
-                        handleFetchDistance(hub.origin, hub.destination);
+                        handleFetchDistance(
+                          hub.origin,
+                          hub.destination,
+                          intermediateStops,
+                          hub.coords?.[0] || null,
+                          hub.coords?.[1] || null
+                        );
                       }}
                       className="px-2.5 py-1 rounded-full text-[11px] font-rounded font-semibold bg-pod hover:bg-chip text-ink-secondary border border-black/5 dark:border-white/10 transition-colors cursor-pointer"
                     >
                       {hub.label}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               </div>
 
               {/* Fetch Distance Button */}
               <div className="pt-1">
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
                   onClick={() => handleFetchDistance()}
                   disabled={isFetchingDistance || !origin.trim() || !destination.trim()}
                   className="w-full sm:w-auto min-h-[42px] px-4 py-2 rounded-full border border-black/15 dark:border-white/20 bg-card hover:bg-pod text-ink text-xs font-rounded font-bold transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2 shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
@@ -696,7 +741,7 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
                     <Compass size={14} className="text-current" />
                   )}
                   <span>{isFr ? 'Calculer l’itinéraire & la distance' : 'Fetch distance & route'}</span>
-                </button>
+                </Button>
               </div>
 
               {/* Feedback messages */}
@@ -723,8 +768,12 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
                 value={origin}
                 badgeLetter="A"
                 placeholder={isFr ? 'Lieu de départ' : 'Starting location'}
-                onChange={onUpdateOrigin}
+                onChange={(val) => {
+                  onUpdateOrigin(val);
+                  setOriginCoords(null);
+                }}
                 onSelectSuggestion={(s) => {
+                  onUpdateOrigin(s.name);
                   if (s.coordinates) setOriginCoords(s.coordinates);
                 }}
               />
@@ -824,8 +873,9 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
           {/* Alternative Link */}
           {routeMode === 'from-to' && (
             <div className="pt-2">
-              <button
+              <Button
                 type="button"
+                variant="ghost"
                 onClick={() => onChangeRouteMode('distance')}
                 className="text-xs font-rounded font-bold text-ink hover:underline text-left cursor-pointer flex items-center gap-1 mb-1"
               >
@@ -834,7 +884,7 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
                     ? 'Utiliser une simple estimation de distance →'
                     : 'Use a distance-only estimate instead →'}
                 </span>
-              </button>
+              </Button>
               <p className="text-xs text-ink-muted font-body leading-relaxed">
                 {isFr
                   ? 'Entrez les kilomètres sans tracer de carte. Vous obtiendrez l’estimation de temps sans tracé.'

@@ -19,6 +19,7 @@ import { UpcomingTripCard } from './UpcomingTripCard';
 import { WeatherWidget } from './WeatherWidget';
 import { Badge } from '../common/Badge';
 import { IconBadge } from '../common/IconBadge';
+import { Button } from '@/components/arc';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
   CHIP_RING_BASE,
@@ -214,45 +215,49 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
           {/* Action Controls Bar (All 4 Preserved, spanning left 3 columns under greeting) */}
           <div className="flex items-center gap-2.5 flex-wrap">
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              size="md"
               onClick={onOpenFeedback || (() => setIsFeedbackOpen(true))}
               title={t('sendFeedbackBtn')}
               className={`flex items-center gap-2 h-10 px-4 text-[13px] font-semibold rounded-full transition-all duration-150 cursor-pointer ${CHIP_TOKENS.purple.surface} ${CHIP_TOKENS.purple.primary} hover:brightness-[0.98] dark:hover:brightness-110 active:scale-[0.98] ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
               <Send size={16} className="w-4 h-4 text-current shrink-0" />
               <span>{t('sendFeedbackBtn')}</span>
-            </button>
+            </Button>
 
             {onOpenOnboarding && (
-              <button
-                type="button"
+              <Button
+                variant="secondary"
+                size="md"
                 onClick={onOpenOnboarding}
                 className={`flex items-center gap-2 h-10 px-4 text-[13px] font-semibold rounded-full transition-all duration-150 cursor-pointer active:scale-[0.98] ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} hover:brightness-[0.98] dark:hover:brightness-110 ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
               >
                 <BookOpen2 className="w-4 h-4 text-current shrink-0" />
                 <span>{t('calibrationWizardBtn')}</span>
-              </button>
+              </Button>
             )}
 
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              size="md"
               onClick={onResetDefaults}
               title={t('resetDefaultsTitle')}
               className={`flex items-center gap-2 h-10 px-4 text-[13px] font-medium bg-card hover:bg-pod rounded-full transition-all duration-150 cursor-pointer active:scale-[0.98] ${GREYSCALE_TOKENS.primary} hover:text-ink ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
               <ArrowCounterClockwise className="w-4 h-4 text-current" />
               <span>{t('resetDefaultsBtn')}</span>
-            </button>
+            </Button>
 
-            <button
-              type="button"
+            <Button
+              variant="primary"
+              size="md"
               onClick={onCreateNewTrip}
               className={`flex items-center gap-1.5 h-10 px-5 bg-[#111111] hover:bg-[#262626] text-white dark:bg-[#F5F5F7] dark:hover:bg-white dark:text-[#111111] font-medium text-[13px] rounded-full transition-all duration-150 cursor-pointer active:scale-[0.98] sm:ml-auto ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
               <Plus className="w-4 h-4 text-current stroke-[2.2]" />
               <span>{t('createNewTripBtn')}</span>
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -301,9 +306,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     const isSelected = selectedArchetype === tab.id;
                     const IconComponent = tab.icon;
                     return (
-                      <button
+                      <Button
                         key={tab.id}
-                        type="button"
+                        variant="ghost"
+                        size="sm"
                         onClick={() => setSelectedArchetype(tab.id)}
                         className={`h-9 px-4 rounded-full text-xs font-semibold flex items-center gap-2 transition-all duration-150 active:scale-[0.98] cursor-pointer shrink-0 ${
                           isSelected
@@ -326,7 +332,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                         >
                           {tab.count}
                         </span>
-                      </button>
+                      </Button>
                     );
                   })}
                 </div>
@@ -363,13 +369,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 <p className="text-xs text-ink-muted max-w-sm mx-auto">
                   {t('noFilteredProfilesDesc')}
                 </p>
-                <button
-                  type="button"
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={() => setSelectedArchetype('all')}
                   className="mt-2 px-4 py-2 rounded-full bg-pod hover:bg-chip text-ink text-xs font-semibold transition-all cursor-pointer"
                 >
                   {t('clearFilterBtn')}
-                </button>
+                </Button>
               </div>
             ) : (
               /* Global Empty State (No trips at all) */
@@ -388,23 +395,25 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   </p>
                 </div>
                 <div className="flex items-center justify-center gap-3 pt-2 flex-wrap">
-                  <button
-                    type="button"
+                  <Button
+                    variant="primary"
+                    size="md"
                     onClick={onCreateNewTrip}
                     className={`flex items-center gap-1.5 h-10 px-5 ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} font-semibold text-xs rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer`}
                   >
                     <Plus className="w-4 h-4 text-current stroke-[2.2]" />
                     <span>{t('createNewTripBtn')}</span>
-                  </button>
+                  </Button>
                   {onLoadDemoTrip && (
-                    <button
-                      type="button"
+                    <Button
+                      variant="secondary"
+                      size="md"
                       onClick={onLoadDemoTrip}
                       className="flex items-center gap-1.5 h-10 px-5 bg-pod hover:bg-chip text-ink border border-black/10 dark:border-white/15 font-semibold text-xs rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer"
                     >
                       <Sparkle className="w-4 h-4 text-volt-dim dark:text-volt" />
                       <span>{lang === 'fr' ? 'Charger un trajet démo' : 'Load Sample Trip (Demo)'}</span>
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>
@@ -440,23 +449,25 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <div className="flex items-center gap-2 flex-wrap justify-between pt-2 border-t border-ink/5 dark:border-white/5">
               <div className="flex items-center gap-2 flex-wrap">
                 {!user && (
-                  <button
-                    type="button"
+                  <Button
+                    variant="primary"
+                    size="sm"
                     onClick={() => openAuthModal('login')}
                     className="py-1 px-3 rounded-full bg-volt text-[#111111] text-xs font-semibold hover:brightness-105 transition-all cursor-pointer shadow-xs"
                   >
                     {t('logInOrSignUp')}
-                  </button>
+                  </Button>
                 )}
                 {onOpenOnboarding && (
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={onOpenOnboarding}
                     className="inline-flex items-center gap-1.5 min-h-[44px] px-3 py-1.5 rounded-full text-xs font-medium text-ink-secondary hover:text-ink hover:bg-pod transition-colors cursor-pointer"
                   >
                     <BookOpen2 className="w-3.5 h-3.5 text-current shrink-0" />
                     <span>{lang === 'fr' ? 'Ouvrir l’assistant de démarrage' : 'Run guided setup'}</span>
-                  </button>
+                  </Button>
                 )}
               </div>
               <span className="px-3 py-1 rounded-full bg-pod text-ink-muted tnum shrink-0 whitespace-nowrap">

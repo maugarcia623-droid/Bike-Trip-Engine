@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Check, ChevronRight, SlidersHorizontal, Lightning } from '@/components/icons';
+import { Button } from '@/components/arc';
 import { useTranslation } from '../../context/LanguageContext';
 import { BIKE_OPTIONS } from './constants';
 
@@ -175,8 +176,9 @@ export const Screen5RiderBike: React.FC<Screen5RiderBikeProps> = ({
               {isFr ? 'Type de vélo' : 'Bike'}
             </label>
             <div className="relative">
-              <button
+              <Button
                 type="button"
+                variant="ghost"
                 aria-haspopup="listbox"
                 aria-expanded={isBikeMenuOpen}
                 onClick={() => setIsBikeMenuOpen((prev) => !prev)}
@@ -190,7 +192,7 @@ export const Screen5RiderBike: React.FC<Screen5RiderBikeProps> = ({
                     isBikeMenuOpen ? '-rotate-90' : 'rotate-90'
                   }`}
                 />
-              </button>
+              </Button>
 
               {isBikeMenuOpen && (
                 <div
@@ -201,9 +203,10 @@ export const Screen5RiderBike: React.FC<Screen5RiderBikeProps> = ({
                   {BIKE_OPTIONS.map((bike) => {
                     const isSelected = bike.id === selectedBikeId;
                     return (
-                      <button
+                      <Button
                         key={bike.id}
                         type="button"
+                        variant="ghost"
                         role="option"
                         aria-selected={isSelected}
                         onClick={() => {
@@ -232,7 +235,7 @@ export const Screen5RiderBike: React.FC<Screen5RiderBikeProps> = ({
                         {isSelected && (
                           <Check className="w-4 h-4 text-ink shrink-0 stroke-[2.5]" />
                         )}
-                      </button>
+                      </Button>
                     );
                   })}
                 </div>
@@ -264,8 +267,9 @@ export const Screen5RiderBike: React.FC<Screen5RiderBikeProps> = ({
                 </div>
               </div>
 
-              <button
+              <Button
                 type="button"
+                variant="ghost"
                 role="switch"
                 aria-checked={usePowerWatts}
                 onClick={() => onChangeUsePowerWatts(!usePowerWatts)}
@@ -277,7 +281,7 @@ export const Screen5RiderBike: React.FC<Screen5RiderBikeProps> = ({
                 aria-label={isFr ? 'Activer le suivi en Watts' : 'Enable power and Watts'}
               >
                 <span className="w-5 h-5 rounded-full bg-white dark:bg-[#111111] shadow-xs transition-transform" />
-              </button>
+              </Button>
             </div>
 
             {usePowerWatts && (
@@ -314,8 +318,9 @@ export const Screen5RiderBike: React.FC<Screen5RiderBikeProps> = ({
 
           {/* Collapsible Technical Bike Details / Fine-Tuning */}
           <div className="pt-2 border-t border-black/5 dark:border-white/10">
-            <button
+            <Button
               type="button"
+              variant="ghost"
               onClick={() => setIsTechOpen(!isTechOpen)}
               className="text-xs font-rounded font-bold text-ink hover:underline flex items-center gap-1.5 py-1.5 cursor-pointer"
             >
@@ -330,7 +335,7 @@ export const Screen5RiderBike: React.FC<Screen5RiderBikeProps> = ({
                   isTechOpen ? 'rotate-90' : ''
                 }`}
               />
-            </button>
+            </Button>
 
             {isTechOpen && (
               <div className="mt-3 p-4 rounded-pod bg-pod border border-black/5 dark:border-white/10 space-y-4 animate-apple-step-in text-xs">
@@ -365,8 +370,9 @@ export const Screen5RiderBike: React.FC<Screen5RiderBikeProps> = ({
                       {isFr ? 'Réduit la résistance au roulement Crr' : 'Lowers rolling resistance Crr'}
                     </span>
                   </div>
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
                     onClick={() => onChangeIsTubeless(!isTubeless)}
                     className={`min-h-[34px] px-3 py-1 rounded-full text-xs font-rounded font-bold transition-all cursor-pointer ${
                       isTubeless
@@ -375,7 +381,7 @@ export const Screen5RiderBike: React.FC<Screen5RiderBikeProps> = ({
                     }`}
                   >
                     {isTubeless ? (isFr ? 'Tubeless Actif' : 'Tubeless Active') : (isFr ? 'Chambre à air' : 'Inner Tube')}
-                  </button>
+                  </Button>
                 </div>
 
                 {/* Aerodynamic Drag Slider */}

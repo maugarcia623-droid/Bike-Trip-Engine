@@ -1,4 +1,5 @@
 import React from 'react';
+import { Button } from '@/components/arc';
 import { Path, Check, X, SpinnerGap } from '@/components/icons';
 import { useTranslation } from '../../context/LanguageContext';
 
@@ -19,7 +20,7 @@ export const AmenityInRouteBadge: React.FC<AmenityInRouteBadgeProps> = ({
   const { t } = useTranslation();
 
   return (
-    <button
+    <Button variant="ghost"
       type="button"
       onClick={onRemove}
       disabled={disabled}
@@ -37,7 +38,7 @@ export const AmenityInRouteBadge: React.FC<AmenityInRouteBadgeProps> = ({
       )}
       <span>{t('rerouteAddedBadge')}</span>
       <X className="w-2.5 h-2.5 text-current opacity-65" />
-    </button>
+    </Button>
   );
 };
 
@@ -69,7 +70,7 @@ export const AmenityRouteSubAction: React.FC<AmenityRouteSubActionProps> = ({
 
   if (inRoute) {
     return (
-      <button
+      <Button variant="ghost"
         type="button"
         onClick={onRemove}
         disabled={disabled}
@@ -86,13 +87,13 @@ export const AmenityRouteSubAction: React.FC<AmenityRouteSubActionProps> = ({
             <span>{t('rerouteRemoveBtn')}</span>
           </>
         )}
-      </button>
+      </Button>
     );
   }
 
   if (isPinned && !isPromptOpen) {
     return (
-      <button
+      <Button variant="ghost"
         type="button"
         onClick={onAdd}
         disabled={disabled}
@@ -100,7 +101,7 @@ export const AmenityRouteSubAction: React.FC<AmenityRouteSubActionProps> = ({
       >
         <Path className="w-3 h-3 text-current" />
         <span>{reroutePromptText}</span>
-      </button>
+      </Button>
     );
   }
 
@@ -144,7 +145,7 @@ export const AmenityReroutePrompt: React.FC<AmenityReroutePromptProps> = ({
             <span className="break-words leading-snug">{promptText}</span>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            <button
+            <Button variant="primary"
               type="button"
               onClick={onConfirm}
               disabled={disabled}
@@ -158,15 +159,15 @@ export const AmenityReroutePrompt: React.FC<AmenityReroutePromptProps> = ({
               ) : (
                 <span>{t('rerouteConfirmBtn')}</span>
               )}
-            </button>
-            <button
+            </Button>
+            <Button variant="ghost"
               type="button"
               onClick={onDismiss}
               aria-label={t('closeRadarModal')}
               className="relative before:content-[''] before:absolute before:-inset-1.5 w-8 h-8 rounded-full hover:bg-ink/10 dark:hover:bg-white/10 flex items-center justify-center text-ink-muted hover:text-ink cursor-pointer"
             >
               <X className="w-3.5 h-3.5" />
-            </button>
+            </Button>
           </div>
         </div>
       )}

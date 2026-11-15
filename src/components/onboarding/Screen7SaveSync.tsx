@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Check, Eye, EyeOff, SpinnerGap, Mail } from '@/components/icons';
+import { Button } from '@/components/arc';
 import { useTranslation } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 
@@ -136,8 +137,9 @@ export const Screen7SaveSync: React.FC<Screen7SaveSyncProps> = ({
               aria-label={isFr ? "Mode d'authentification" : 'Authentication mode'}
               className="grid grid-cols-3 p-1 gap-1 rounded-full bg-pod border border-black/5 dark:border-white/10 mb-5 text-xs font-rounded font-bold"
             >
-              <button
+              <Button
                 type="button"
+                variant="ghost"
                 role="tab"
                 aria-selected={authMode === 'signup'}
                 onClick={() => {
@@ -151,9 +153,10 @@ export const Screen7SaveSync: React.FC<Screen7SaveSyncProps> = ({
                 }`}
               >
                 {isFr ? 'Créer un compte' : 'Create account'}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="ghost"
                 role="tab"
                 aria-selected={authMode === 'login'}
                 onClick={() => {
@@ -167,9 +170,10 @@ export const Screen7SaveSync: React.FC<Screen7SaveSyncProps> = ({
                 }`}
               >
                 {isFr ? 'Se connecter' : 'Sign in'}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="ghost"
                 role="tab"
                 aria-selected={authMode === 'magic'}
                 onClick={() => {
@@ -183,7 +187,7 @@ export const Screen7SaveSync: React.FC<Screen7SaveSyncProps> = ({
                 }`}
               >
                 {isFr ? 'Lien e-mail' : 'Email link'}
-              </button>
+              </Button>
             </div>
 
             {/* Direct In-Window Auth Form */}
@@ -219,13 +223,14 @@ export const Screen7SaveSync: React.FC<Screen7SaveSyncProps> = ({
                       placeholder="••••••••"
                       className="w-full min-h-[44px] px-3.5 pr-10 rounded-pod bg-pod border border-black/10 dark:border-white/15 text-ink text-base sm:text-sm font-body focus:outline-none focus:ring-2 focus:ring-inset focus:ring-ink dark:focus:ring-white shadow-xs"
                     />
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
                       onClick={() => setShowPassword(!showPassword)}
                       className="relative before:content-[''] before:absolute before:-inset-2 absolute right-3 text-ink-muted hover:text-ink cursor-pointer"
                     >
                       {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-                    </button>
+                    </Button>
                   </div>
                 </div>
               )}
@@ -243,8 +248,9 @@ export const Screen7SaveSync: React.FC<Screen7SaveSyncProps> = ({
                 </div>
               )}
 
-              <button
+              <Button
                 type="submit"
+                variant="primary"
                 disabled={isLoading}
                 className="w-full min-h-[44px] px-4 py-2 mt-2 rounded-full bg-volt text-[#4d5200] ring-2 ring-inset ring-[#a3b300] text-xs font-rounded font-bold hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-50"
               >
@@ -256,7 +262,7 @@ export const Screen7SaveSync: React.FC<Screen7SaveSyncProps> = ({
                     ? isFr ? 'Se connecter & lancer' : 'Sign in & launch'
                     : isFr ? 'Envoyer le lien par e-mail' : 'Send sign-in link'}
                 </span>
-              </button>
+              </Button>
             </form>
           </div>
 

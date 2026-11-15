@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Button } from '@/components/arc';
 import {
   WarningCircle,
   CheckCircle,
@@ -407,7 +408,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
-          <button
+          <Button variant="ghost"
             type="button"
             onClick={handleSyncForecast}
             disabled={isSyncing}
@@ -416,9 +417,9 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
           >
             <ArrowsClockwise className={`w-4 h-4 text-current ${isSyncing ? 'animate-spin' : ''}`} />
             <span className="hidden sm:inline">{isSyncing ? t('syncingBtn') : t('syncBtn')}</span>
-          </button>
+          </Button>
 
-          <button
+          <Button variant="ghost"
             type="button"
             onClick={toggleCardExpanded}
             aria-expanded={isCardExpanded}
@@ -426,7 +427,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
             className="rounded-full bg-pod hover:bg-chip p-0.5 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
           >
             <DisclosureChevron open={isCardExpanded} />
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -448,7 +449,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
       <Collapsible open={isCardExpanded} innerClassName="pt-3">
       {/* ── 2. ELEGANT CONCENTRIC TAB SWITCHER: [ WIND & AERO ] / [ LIGHT & VISIBILITY ] ── */}
       <div className="grid grid-cols-2 sm:inline-flex items-center gap-1 p-1 rounded-2xl sm:rounded-full bg-pod mb-4 w-full sm:w-auto self-stretch sm:self-start">
-        <button
+        <Button variant="ghost"
           type="button"
           onClick={() => setActiveTab('wind')}
           className={`px-2.5 sm:px-3.5 py-2 sm:py-1.5 rounded-xl sm:rounded-full text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
@@ -459,9 +460,9 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
         >
           <Wind className="w-4 h-4 shrink-0 text-current" />
           <span className="break-words">{t('weatherTabWind')}</span>
-        </button>
+        </Button>
 
-        <button
+        <Button variant="ghost"
           type="button"
           onClick={() => setActiveTab('visibility')}
           className={`px-2.5 sm:px-3.5 py-2 sm:py-1.5 rounded-xl sm:rounded-full text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
@@ -475,7 +476,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
           {isCriticalOptical && (
             <span className={`w-1.5 h-1.5 rounded-full shrink-0 animate-beacon-pulse ${CHIP_TOKENS.rose.dot}`} />
           )}
-        </button>
+        </Button>
       </div>
 
       {/* ════════════════════════════════════════════════════════════════════════════
@@ -541,13 +542,13 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
                 </p>
               </div>
               {isHeadwind && windSpeed >= 12 && pacingMode === 'speed' && (
-                <button
+                <Button variant="ghost"
                   type="button"
                   onClick={() => handlePacingModeChange('effort')}
                   className={`shrink-0 min-h-[44px] sm:min-h-[34px] px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-colors ${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary}`}
                 >
                   {t('weatherSwitchToEffortCapBtn')}
-                </button>
+                </Button>
               )}
             </div>
           )}
@@ -678,7 +679,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
             </div>
 
             <div className="grid grid-cols-3 gap-2 text-xs mt-3">
-              <button
+              <Button variant="ghost"
                 type="button"
                 onClick={() => handleWindSpeedChange(0)}
                 className={`py-1.5 px-3 rounded-full transition-all cursor-pointer font-semibold tnum ${CHIP_RING_BASE} ${
@@ -688,8 +689,8 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
                 }`}
               >
                 {t('presetCalm')}
-              </button>
-              <button
+              </Button>
+              <Button variant="ghost"
                 type="button"
                 onClick={() => handleWindSpeedChange(15)}
                 className={`py-1.5 px-3 rounded-full transition-all cursor-pointer font-semibold tnum ${CHIP_RING_BASE} ${
@@ -699,8 +700,8 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
                 }`}
               >
                 {t('presetModerate')}
-              </button>
-              <button
+              </Button>
+              <Button variant="ghost"
                 type="button"
                 onClick={() => handleWindSpeedChange(35)}
                 className={`py-1.5 px-3 rounded-full transition-all cursor-pointer font-semibold tnum ${CHIP_RING_BASE} ${
@@ -710,7 +711,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
                 }`}
               >
                 {t('presetGale')}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -942,7 +943,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
       {/* ── 5. WEATHER-DRIVEN KIT & LAYERING DIRECTIVE (COLLAPSIBLE POD) ── */}
       <div className="mt-4">
         <div className="rounded-pod bg-pod overflow-hidden">
-          <button
+          <Button variant="ghost"
             type="button"
             onClick={toggleKitOpen}
             aria-expanded={isKitOpen}
@@ -963,7 +964,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
               </span>
               <DisclosureChevron open={isKitOpen} />
             </div>
-          </button>
+          </Button>
 
           <Collapsible
             open={isKitOpen}

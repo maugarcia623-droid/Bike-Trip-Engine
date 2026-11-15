@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { Button } from '@/components/arc';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useTheme } from '../../context/ThemeContext';
@@ -414,7 +415,7 @@ export const InteractiveRouteMap: React.FC<InteractiveRouteMapProps> = ({
         </div>
 
         {/* Fit Bounds Quick Button */}
-        <button
+        <Button variant="ghost"
           type="button"
           onClick={handleResetFit}
           className="pointer-events-auto bg-card/90 dark:bg-card/90 backdrop-blur-md min-h-[40px] px-3 py-1.5 rounded-full shadow-md text-[11px] font-semibold text-ink-secondary hover:text-ink hover:bg-card transition-all cursor-pointer flex items-center gap-1 shrink-0"
@@ -422,7 +423,7 @@ export const InteractiveRouteMap: React.FC<InteractiveRouteMapProps> = ({
         >
           <Compass className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">{isFr ? 'Recentrer' : 'Recenter'}</span>
-        </button>
+        </Button>
       </div>
 
       {/* Bottom-Left Surface Color Legend Pill */}

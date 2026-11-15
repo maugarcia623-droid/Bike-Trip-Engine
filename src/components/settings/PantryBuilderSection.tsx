@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { Button } from '@/components/arc';
 import {
   Check,
   Plus,
@@ -427,7 +428,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
 
     return (
       <div key={item.id} className="flex items-stretch gap-1.5">
-        <button
+        <Button variant="ghost"
           type="button"
           role={isMultiSelect ? 'checkbox' : 'radio'}
           aria-checked={isSelected}
@@ -486,17 +487,17 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
               </span>
             )}
           </div>
-        </button>
+        </Button>
 
         {item.isCustom && (
-          <button
+          <Button variant="ghost"
             type="button"
             onClick={() => handleDeleteCustomItem(item.id)}
             aria-label={`${isFr ? 'Supprimer' : 'Delete'} ${isFr ? item.nameFr : item.nameEn}`}
             className="min-w-[44px] min-h-[44px] text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 px-2.5 rounded-pod transition-colors cursor-pointer shrink-0 flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
           >
             <Trash className="w-4 h-4" />
-          </button>
+          </Button>
         )}
       </div>
     );
@@ -530,7 +531,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                   !effectiveActiveIds.includes('sol-salted-baby-potatoes');
 
               return (
-                <button
+                <Button variant="ghost"
                   key={preset.key}
                   type="button"
                   onClick={() => handleSelectStyle(preset.key)}
@@ -554,7 +555,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                       <span>{isFr ? 'Actif' : 'Active'}</span>
                     </div>
                   )}
-                </button>
+                </Button>
               );
             })}
           </div>
@@ -580,7 +581,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
               {DIETARY_FILTERS_CONFIG.map((filter) => {
                 const active = activeFilters.includes(filter.id);
                 return (
-                  <button
+                  <Button variant="ghost"
                     key={filter.id}
                     type="button"
                     aria-pressed={active}
@@ -593,7 +594,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                   >
                     <span>{t(filter.labelKey)}</span>
                     {active && <Check className="w-3 h-3 text-current" />}
-                  </button>
+                  </Button>
                 );
               })}
             </div>
@@ -659,7 +660,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                     {t('autoModulateLiquidHint')}
                   </div>
                 </div>
-                <button
+                <Button variant="ghost"
                   type="button"
                   role="switch"
                   aria-checked={specs.autoModulateLiquidInHeatOrEffort !== false}
@@ -678,7 +679,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                       specs.autoModulateLiquidInHeatOrEffort !== false ? 'translate-x-4' : 'translate-x-0'
                     }`}
                   />
-                </button>
+                </Button>
               </div>
 
               {/* Savory Palate Resets Toggle */}
@@ -691,7 +692,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                     {t('savoryResetHint')}
                   </div>
                 </div>
-                <button
+                <Button variant="ghost"
                   type="button"
                   role="switch"
                   aria-checked={specs.enableSavoryPalateResets !== false}
@@ -710,7 +711,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                       specs.enableSavoryPalateResets !== false ? 'translate-x-4' : 'translate-x-0'
                     }`}
                   />
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -731,7 +732,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
             const token = CHIP_TOKENS[tab.theme];
 
             return (
-              <button
+              <Button variant="ghost"
                 key={tab.slot}
                 type="button"
                 role="tab"
@@ -758,7 +759,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                 <div className="text-[11px] font-rounded opacity-85 line-clamp-1 w-full">
                   {tab.activeSummary}
                 </div>
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -810,7 +811,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                 ).map((flt) => {
                   const isFltActive = solidFlavorFilter === flt.id;
                   return (
-                    <button
+                    <Button variant="ghost"
                       key={flt.id}
                       type="button"
                       onClick={() => setSolidFlavorFilter(flt.id)}
@@ -821,14 +822,14 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                       }`}
                     >
                       {flt.label}
-                    </button>
+                    </Button>
                   );
                 })}
               </div>
             )}
 
             {!showCustomForm && (
-              <button
+              <Button variant="ghost"
                 type="button"
                 onClick={() => {
                   setCustomSlot(activeSlot);
@@ -838,7 +839,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
               >
                 <Plus className="w-3.5 h-3.5 text-current shrink-0" />
                 <span>{t('addCustomItem')}</span>
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -876,14 +877,14 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                 </div>
               </div>
             </div>
-            <button
+            <Button variant="ghost"
               type="button"
               onClick={() => setShowCustomForm(false)}
               aria-label={t('customItemCancel')}
               className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer hover:bg-chip ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary}`}
             >
               <X className="w-4 h-4 text-current" />
-            </button>
+            </Button>
           </div>
 
           {/* Slot Pill Selector */}
@@ -897,7 +898,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                 const SlotIcon = slotOpt.icon;
                 const token = CHIP_TOKENS[slotOpt.theme];
                 return (
-                  <button
+                  <Button variant="ghost"
                     key={slotOpt.slot}
                     type="button"
                     onClick={() => setCustomSlot(slotOpt.slot)}
@@ -909,7 +910,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                   >
                     <SlotIcon className="w-3.5 h-3.5 text-current shrink-0" />
                     <span className="truncate">{t(slotOpt.titleKey)}</span>
-                  </button>
+                  </Button>
                 );
               })}
             </div>
@@ -1032,7 +1033,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                     const currentBucket = customCarbsG <= 25 ? 20 : customCarbsG <= 45 ? 40 : 60;
                     const active = currentBucket === uOpt.carbs;
                     return (
-                      <button
+                      <Button variant="ghost"
                         key={uOpt.carbs}
                         type="button"
                         onClick={() => {
@@ -1047,7 +1048,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                       >
                         <div className="text-xs font-rounded font-bold">{uOpt.label}</div>
                         <div className="text-[10px] opacity-80">{uOpt.sub}</div>
-                      </button>
+                      </Button>
                     );
                   })}
                 </div>
@@ -1070,7 +1071,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                   const active = customFlavor === flav.id;
                   const token = CHIP_TOKENS[flav.theme];
                   return (
-                    <button
+                    <Button variant="ghost"
                       key={flav.id}
                       type="button"
                       onClick={() => setCustomFlavor(flav.id)}
@@ -1081,7 +1082,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                       }`}
                     >
                       {flav.label}
-                    </button>
+                    </Button>
                   );
                 })}
               </div>
@@ -1097,7 +1098,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
               {DIETARY_FILTERS_CONFIG.map((f) => {
                 const checked = customCompliance[f.id];
                 return (
-                  <button
+                  <Button variant="ghost"
                     key={f.id}
                     type="button"
                     aria-pressed={checked}
@@ -1115,7 +1116,7 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
                   >
                     <span>{t(f.labelKey)}</span>
                     {checked && <Check className="w-3 h-3 text-current" />}
-                  </button>
+                  </Button>
                 );
               })}
             </div>
@@ -1124,19 +1125,19 @@ export const PantryBuilderSection: React.FC<PantryBuilderSectionProps> = ({
           {/* Form Action Footer */}
           <div className="lane-divider my-2.5" aria-hidden="true" />
 <div className="flex items-center justify-end gap-2">
-            <button
+            <Button variant="ghost"
               type="button"
               onClick={() => setShowCustomForm(false)}
               className="min-h-[44px] sm:min-h-[36px] px-4 py-2 rounded-full text-xs font-rounded font-semibold bg-pod hover:bg-chip text-ink-secondary hover:text-ink transition-all cursor-pointer"
             >
               {t('customItemCancel')}
-            </button>
-            <button
+            </Button>
+            <Button variant="ghost"
               type="submit"
               className={`min-h-[44px] sm:min-h-[36px] px-5 py-2 rounded-full text-xs font-rounded font-bold transition-all cursor-pointer hover:brightness-[0.97] active:scale-[0.98] ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`}
             >
               {t('customItemSave')}
-            </button>
+            </Button>
           </div>
         </form>
       )}

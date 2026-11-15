@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Button } from '@/components/arc';
 import { Check, ArrowCounterClockwise, EyeSlash, Eye } from '@/components/icons';
 import { Card } from '../common/Card';
 import { Badge } from '../common/Badge';
@@ -209,7 +210,7 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
               : 'Standard tubes'}
           </Badge>
 
-          <button
+          <Button variant="ghost"
             type="button"
             onClick={handleRegenerate}
             title={t('resetChecklistTitle')}
@@ -217,7 +218,7 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
           >
             <ArrowCounterClockwise className="w-4 h-4 text-current" />
             <span>{t('resetBtn')}</span>
-          </button>
+          </Button>
 
           <Badge
             variant={isAllReady ? 'emerald' : 'yellow-vest'}
@@ -257,7 +258,7 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
             const isSelected = activeFilter === pill.id;
             const isCriticalPill = pill.id === 'critical';
             return (
-              <button
+              <Button variant="ghost"
                 key={pill.id}
                 type="button"
                 role="tab"
@@ -272,12 +273,12 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
                 }`}
               >
                 {pill.label}
-              </button>
+              </Button>
             );
           })}
         </div>
 
-        <button
+        <Button variant="ghost"
           type="button"
           onClick={() => setHideChecked((prev) => !prev)}
           aria-pressed={hideChecked}
@@ -296,7 +297,7 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
           {hideChecked && completedCount > 0 && (
             <span className="font-rounded font-medium text-[11px] opacity-80">({completedCount})</span>
           )}
-        </button>
+        </Button>
       </div>
 
       {/* Checklist Capsules */}
@@ -309,13 +310,13 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
                 : t('checklistEmptyAllPacked', { count: hiddenInCategoryCount })}
             </p>
             {categoryFilteredItems.length > 0 && hideChecked && (
-              <button
+              <Button variant="ghost"
                 type="button"
                 onClick={() => setHideChecked(false)}
                 className="px-3 py-1 rounded-full text-xs font-rounded font-semibold bg-card hover:bg-chip text-ink transition-colors cursor-pointer tnum"
               >
                 {t('checklistShowChecked', { count: hiddenInCategoryCount })}
-              </button>
+              </Button>
             )}
           </div>
         ) : (

@@ -1,4 +1,5 @@
 import React, { useId, useMemo, useState } from 'react';
+import { Button } from '@/components/arc';
 import {
   EffortTracePoint,
   PowerZoneCode,
@@ -329,7 +330,7 @@ export const TerrainEffortStory: React.FC<TerrainEffortStoryProps> = ({
         {tabs.map((tb) => {
           const sel = tab === tb.key;
           return (
-            <button
+            <Button variant="ghost"
               key={tb.key}
               type="button"
               role="tab"
@@ -348,7 +349,7 @@ export const TerrainEffortStory: React.FC<TerrainEffortStoryProps> = ({
                   sel ? 'bg-ink' : 'bg-transparent'
                 }`}
               />
-            </button>
+            </Button>
           );
         })}
       </div>

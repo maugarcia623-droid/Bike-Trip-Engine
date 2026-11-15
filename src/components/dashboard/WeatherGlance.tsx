@@ -1,4 +1,5 @@
 import React from 'react';
+import { Button } from '@/components/arc';
 import {
   Sun,
   Moon,
@@ -160,7 +161,7 @@ export const WeatherGlance: React.FC<WeatherGlanceProps> = ({
       : t('feasibilitySevere');
 
   return (
-    <button
+    <Button variant="ghost"
       type="button"
       onClick={onExpand}
       title={t('weatherGlanceExpandAria')}
@@ -293,6 +294,6 @@ export const WeatherGlance: React.FC<WeatherGlanceProps> = ({
           <ChevronRight className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
         </span>
       </span>
-    </button>
+    </Button>
   );
 };

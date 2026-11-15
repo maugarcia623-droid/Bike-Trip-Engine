@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { Button, TimePicker } from '@/components/arc';
 import { ArrowDown, ArrowUp, CaretDown, Check, Lightning, Pen } from '@/components/icons';
 import { CHIP_DUOTONE_ISOLATION_CLASSES, CHIP_RING_BASE, CHIP_TOKENS } from '../../tokens/chipTokens';
 import {
@@ -150,7 +151,7 @@ const StepperButtons: React.FC<StepperPairProps> = ({
   disableDec = false,
 }) => (
   <div className="flex flex-col gap-1 shrink-0">
-    <button
+    <Button variant="ghost"
       type="button"
       onClick={onIncrement}
       disabled={disableInc}
@@ -162,8 +163,8 @@ const StepperButtons: React.FC<StepperPairProps> = ({
       }`}
     >
       <ArrowUp className="w-3.5 h-3.5 text-current [&_path]:[stroke-width:2.3]" aria-hidden="true" />
-    </button>
-    <button
+    </Button>
+    <Button variant="ghost"
       type="button"
       onClick={onDecrement}
       disabled={disableDec}
@@ -175,7 +176,7 @@ const StepperButtons: React.FC<StepperPairProps> = ({
       }`}
     >
       <ArrowDown className="w-3.5 h-3.5 text-current [&_path]:[stroke-width:2.3]" aria-hidden="true" />
-    </button>
+    </Button>
   </div>
 );
 
@@ -303,7 +304,6 @@ const TimeRuleField: React.FC<TimeRuleFieldProps> = ({
   value,
   isFr,
   accent,
-  sizeVariant,
   onChange,
 }) => {
   const label = isFr ? field.labelFr : field.labelEn;
@@ -312,38 +312,24 @@ const TimeRuleField: React.FC<TimeRuleFieldProps> = ({
       ? value
       : String(field.defaultValue || '18:00');
 
-  const timeTextClasses =
-    sizeVariant === 'hero'
-      ? 'text-[26px] sm:text-[32px]'
-      : 'text-[22px] sm:text-[26px]';
-
   return (
-    <div>
-      <div className="flex items-center justify-between gap-2.5">
-        <input
-          type="time"
-          value={safeTime}
-          aria-label={label}
-          onChange={(e) => {
-            if (e.target.value) {
-              onChange(e.target.value);
-            }
-          }}
-          className={`min-h-[44px] bg-transparent border-0 p-0 font-rounded font-bold ${timeTextClasses} leading-tight tracking-[-0.02em] tnum text-current cursor-pointer focus:outline-none focus:ring-2 focus:ring-inset focus:ring-current/30 rounded-lg`}
-        />
+    <div className="flex items-end justify-between gap-2.5">
+      <TimePicker
+        label={label}
+        value={safeTime}
+        onChange={onChange}
+        minuteStep={15}
+        format="24h"
+        className="flex-1 min-w-0"
+      />
 
-        <StepperButtons
-          onIncrement={() => onChange(addMinutesToTime(safeTime, 15))}
-          onDecrement={() => onChange(subtractMinutesFromTime(safeTime, 15))}
-          accent={accent}
-          incLabel={isFr ? `+15 min (${label})` : `+15 min (${label})`}
-          decLabel={isFr ? `-15 min (${label})` : `-15 min (${label})`}
-        />
-      </div>
-
-      <span className="text-[11px] sm:text-xs text-ink-muted block mt-1 leading-snug">
-        {label}
-      </span>
+      <StepperButtons
+        onIncrement={() => onChange(addMinutesToTime(safeTime, 15))}
+        onDecrement={() => onChange(subtractMinutesFromTime(safeTime, 15))}
+        accent={accent}
+        incLabel={isFr ? `+15 min (${label})` : `+15 min (${label})`}
+        decLabel={isFr ? `-15 min (${label})` : `-15 min (${label})`}
+      />
     </div>
   );
 };
@@ -450,7 +436,7 @@ const BooleanRuleField: React.FC<BooleanRuleFieldProps> = ({
   return (
     <div>
       <div className="flex items-center justify-between gap-2.5">
-        <button
+        <Button variant="ghost"
           type="button"
           onClick={() => onChange(!value)}
           className="text-left focus:outline-none cursor-pointer group min-w-0"
@@ -464,9 +450,9 @@ const BooleanRuleField: React.FC<BooleanRuleFieldProps> = ({
           >
             {stateLabel}
           </span>
-        </button>
+        </Button>
 
-        <button
+        <Button variant="ghost"
           type="button"
           role="switch"
           aria-checked={Boolean(value)}
@@ -483,7 +469,7 @@ const BooleanRuleField: React.FC<BooleanRuleFieldProps> = ({
           >
             {value && <Check className="w-3 h-3 text-current" aria-hidden="true" />}
           </span>
-        </button>
+        </Button>
       </div>
 
       <span className="text-[11px] sm:text-xs text-ink-muted block mt-1 leading-snug">
@@ -522,7 +508,7 @@ const TextRuleField: React.FC<TextRuleFieldProps> = ({
           onChange={(e) => onChange(e.target.value)}
           className="w-full min-w-0 min-h-[44px] bg-transparent border-0 p-0 font-rounded font-bold text-base sm:text-[14px] leading-snug tracking-tight text-current focus:outline-none focus:underline focus:decoration-2 focus:underline-offset-4"
         />
-        <button
+        <Button variant="ghost"
           type="button"
           onClick={() => {
             inputRef.current?.focus();
@@ -532,7 +518,7 @@ const TextRuleField: React.FC<TextRuleFieldProps> = ({
           className={`relative before:content-[''] before:absolute before:-inset-1 w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-all duration-150 cursor-pointer active:scale-90 text-current ${accent.interactive}`}
         >
           <Pen className="w-3 h-3 text-current" aria-hidden="true" />
-        </button>
+        </Button>
       </div>
 
       <span className="text-[11px] sm:text-xs text-ink-muted block mt-1 leading-snug">
@@ -571,7 +557,7 @@ export const PresetRuleCard: React.FC<PresetRuleCardProps> = ({
 
   return (
     <div
-      className={`${tokens.surface} ${tokens.primary} ${CHIP_RING_BASE} ${tokens.selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} rounded-pod p-3.5 sm:p-4 flex flex-col justify-between gap-3 sm:gap-3.5 transition-colors animate-fade-in`}
+      className={`${tokens.surface} ${tokens.primary} ${CHIP_RING_BASE} ${tokens.selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} relative focus-within:z-30 [&:has([aria-expanded='true'])]:z-30 rounded-pod p-3.5 sm:p-4 flex flex-col justify-between gap-3 sm:gap-3.5 transition-colors animate-fade-in`}
     >
       {/* Top Section: Twin Tonal Header Capsules + Rounded Protocol Heading & Description */}
       <div>

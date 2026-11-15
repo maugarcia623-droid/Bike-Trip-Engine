@@ -1,4 +1,5 @@
 import React from 'react';
+import { Button } from '@/components/arc';
 import {
   Lightning,
   Backpack,
@@ -250,7 +251,7 @@ export const TimelineContextualBanner: React.FC<TimelineContextualBannerProps> =
   return (
     <div className="rounded-pod bg-pod overflow-hidden transition-colors">
       {/* Compact 1-line Mandate Header: icon · title · key metric pills · chevron */}
-      <button
+      <Button variant="ghost"
         type="button"
         onClick={toggleExpanded}
         aria-expanded={isExpanded}
@@ -290,7 +291,7 @@ export const TimelineContextualBanner: React.FC<TimelineContextualBannerProps> =
         </span>
 
         <DisclosureChevron open={isExpanded} />
-      </button>
+      </Button>
 
       {/* Expandable Mandate Drawer */}
       <Collapsible

@@ -9,6 +9,7 @@ import {
   Check,
 } from '@/components/icons';
 import { TripProfile } from '../../types/trip';
+import { Button } from '@/components/arc';
 import { useTranslation, getLocalizedTripMeta } from '../../context/LanguageContext';
 import { loadRiderBikeSpecs } from '../../utils/specsStorage';
 import { calculatePhysics } from '../../utils/physics';
@@ -132,8 +133,9 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
           aria-label={t('navPrimaryViewsAria')}
         >
           {/* View 1: Trips (Home) */}
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => onNavigate('home')}
             title={t('navHome')}
             aria-label={t('navHome')}
@@ -142,11 +144,12 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
           >
             <HomeSmile className="w-4 h-4 shrink-0 text-current" />
             <span className="hidden sm:inline whitespace-nowrap">{t('navHome')}</span>
-          </button>
+          </Button>
 
           {/* View 2: Configurator */}
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => onNavigate('configurator')}
             title={t('navConfigurator')}
             aria-label={t('navConfigurator')}
@@ -157,11 +160,12 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
           >
             <SlidersHorizontal className="w-4 h-4 shrink-0 text-current" />
             <span className="hidden sm:inline whitespace-nowrap">{t('navConfigurator')}</span>
-          </button>
+          </Button>
 
           {/* View 3: Cockpit */}
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => onNavigate('dashboard')}
             title={t('navFlightDeck')}
             aria-label={t('navFlightDeck')}
@@ -172,7 +176,7 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
           >
             <Compass className="w-4 h-4 shrink-0 text-current" />
             <span className="hidden sm:inline whitespace-nowrap">{t('navFlightDeck')}</span>
-          </button>
+          </Button>
         </nav>
 
         {/* Divider */}
@@ -181,8 +185,9 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
         {/* ── PROJECT TITLE BUTTON & DEDICATED TRIP SELECTOR DROPDOWN ── */}
         <div className="min-w-0 flex-1 sm:flex-initial sm:relative z-50">
           {activeTrip && activeMeta ? (
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={(e) => {
                 e.stopPropagation();
                 setIsSwitcherOpen((prev) => !prev);
@@ -229,16 +234,17 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
               ) : (
                 <CircleChevronDown className="w-4 h-4 shrink-0 text-zinc-500 dark:text-zinc-400" />
               )}
-            </button>
+            </Button>
           ) : (
-            <button
-              type="button"
+            <Button
+              variant="primary"
+              size="sm"
               onClick={onCreateNew}
               className={`inline-flex items-center gap-1.5 h-9 sm:h-10 px-3 sm:px-4 rounded-full text-xs font-semibold ${yellowVest.surface} ${yellowVest.primary} ${CHIP_RING_BASE} ${yellowVest.selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} cursor-pointer`}
             >
               <Plus className="w-3.5 h-3.5" />
               <span>{t('createNewTripBtn')}</span>
-            </button>
+            </Button>
           )}
 
           {/* ── TRIP SWITCHER / SELECTOR (CENTERED ABOVE PILL ON MOBILE, ANCHORED ABOVE BUTTON ON SM+) ── */}
@@ -256,8 +262,9 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
                   <span className="text-xs font-rounded text-ink-muted dark:text-zinc-400 font-semibold">
                     {t('activeTripAria')} ({allTrips.length})
                   </span>
-                  <button
-                    type="button"
+                  <Button
+                    variant="primary"
+                    size="sm"
                     onClick={(e) => {
                       e.stopPropagation();
                       onCreateNew();
@@ -267,7 +274,7 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
                   >
                     <Plus className="w-3.5 h-3.5 text-current stroke-[2.5] shrink-0" />
                     <span>{t('newTripButton')}</span>
-                  </button>
+                  </Button>
                 </div>
 
                 {/* Active Trip Feasibility Insight Capsule */}
@@ -324,9 +331,10 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
                     const itemIsCaution = itemPhysics.goStatus === 'CAUTION';
 
                     return (
-                      <button
+                      <Button
                         key={tripItem.id}
-                        type="button"
+                        variant="ghost"
+                        size="sm"
                         role="option"
                         aria-selected={isSelected}
                         onClick={(e) => {
@@ -371,7 +379,7 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
                             <Check className="w-4 h-4 text-current stroke-[2.5]" />
                           </div>
                         )}
-                      </button>
+                      </Button>
                     );
                   })}
                 </div>

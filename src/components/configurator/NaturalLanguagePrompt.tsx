@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Button } from '@/components/arc';
 import {
   Sparkle,
   ArrowRight,
@@ -110,14 +111,14 @@ export const NaturalLanguagePrompt: React.FC<NaturalLanguagePromptProps> = ({
           {t('nlpTemplatesLabel')}
         </span>
         {presetPrompts.map((p, idx) => (
-          <button
+          <Button variant="ghost"
             key={idx}
             type="button"
             onClick={() => handleApplyPreset(p.text)}
             className="px-3.5 py-1.5 rounded-full bg-pod hover:bg-chip text-xs font-medium text-ink-secondary hover:text-ink transition-colors whitespace-nowrap cursor-pointer"
           >
             {p.label}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -138,14 +139,14 @@ export const NaturalLanguagePrompt: React.FC<NaturalLanguagePromptProps> = ({
             className="flex-1 min-w-0 bg-transparent px-2 sm:px-0 py-1.5 sm:py-2 text-sm text-ink placeholder:text-ink-muted focus:outline-none"
           />
 
-          <button
+          <Button variant="ghost"
             type="button"
             onClick={() => handleParse()}
             className="w-full sm:w-auto shrink-0 flex items-center justify-center gap-2 h-10 px-5 text-[13px] font-medium rounded-xl sm:rounded-full bg-[#111111] hover:bg-[#262626] text-white dark:bg-chip dark:hover:bg-chip-hover dark:text-ink transition-all cursor-pointer"
           >
             <span>{t('nlpParseApplyBtn')}</span>
             <ArrowRight className="w-4 h-4 dark:text-volt" />
-          </button>
+          </Button>
         </div>
 
         <span className="text-xs text-ink-muted px-2">

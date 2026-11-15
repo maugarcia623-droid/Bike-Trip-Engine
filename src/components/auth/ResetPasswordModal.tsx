@@ -2,6 +2,7 @@ import React, { useState, useEffect, useId } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../context/LanguageContext';
 import { ModalPortal } from '../common/ModalPortal';
+import { Button } from '@/components/arc';
 import { KeyRound, Eye, EyeOff, Loader2, X, CheckCircle2, AlertCircle } from '@/components/icons';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
@@ -77,14 +78,15 @@ export const ResetPasswordModal: React.FC = () => {
       panelClassName="bg-card text-ink border border-black/10 dark:border-white/10 rounded-card p-6 sm:p-8 max-w-md w-full shadow-2xl relative my-auto overflow-y-auto animate-apple-modal"
     >
       {/* Dismiss Button */}
-      <button
-        type="button"
+      <Button
+        variant="secondary"
+        size="sm"
         onClick={() => setIsPasswordRecoveryOpen(false)}
-        className="relative before:content-[''] before:absolute before:-inset-1.5 w-9 h-9 rounded-full bg-pod dark:bg-canvas hover:bg-surface-active flex items-center justify-center text-ink-muted hover:text-ink transition-all duration-150 active:scale-95 cursor-pointer focus:outline-none ml-auto float-right"
+        className="relative before:content-[''] before:absolute before:-inset-1.5 w-9 h-9 p-0 rounded-full bg-pod dark:bg-canvas hover:bg-surface-active flex items-center justify-center text-ink-muted hover:text-ink transition-all duration-150 active:scale-95 cursor-pointer focus:outline-none ml-auto float-right"
         aria-label={isFr ? 'Fermer' : 'Close'}
       >
         <X className="w-4.5 h-4.5" />
-      </button>
+      </Button>
 
       {/* Brand Icon Header */}
       <div className="flex items-center gap-3 mb-5 animate-apple-in stagger-1">
@@ -140,14 +142,15 @@ export const ResetPasswordModal: React.FC = () => {
                 placeholder={t('passwordPlaceholder')}
                 className="w-full min-h-[44px] pl-4 pr-11 py-2.5 rounded-pod bg-pod dark:bg-canvas border border-black/10 dark:border-white/10 focus:border-transparent focus:ring-2 focus:ring-inset focus:ring-volt outline-none text-base sm:text-sm text-ink placeholder:text-ink-muted transition-colors font-body"
               />
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setShowPassword(!showPassword)}
-                className="relative before:content-[''] before:absolute before:-inset-2 absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink focus:outline-none cursor-pointer"
+                className="relative before:content-[''] before:absolute before:-inset-2 absolute right-3.5 top-1/2 -translate-y-1/2 p-0 h-auto hover:bg-transparent text-ink-muted hover:text-ink focus:outline-none cursor-pointer"
                 aria-label={showPassword ? (isFr ? 'Masquer' : 'Hide password') : (isFr ? 'Afficher' : 'Show password')}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -169,8 +172,10 @@ export const ResetPasswordModal: React.FC = () => {
             </div>
           </div>
 
-          <button
+          <Button
             type="submit"
+            variant="primary"
+            size="lg"
             disabled={isLoading || isSuccess}
             className="w-full min-h-[46px] mt-2 py-3 px-4 rounded-pod font-rounded font-bold text-sm bg-volt text-[#111111] hover:brightness-105 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer flex items-center justify-center gap-2 shadow-sm"
           >
@@ -182,7 +187,7 @@ export const ResetPasswordModal: React.FC = () => {
             ) : (
               <span>{t('saveNewPasswordBtn')}</span>
             )}
-          </button>
+          </Button>
         </form>
     </ModalPortal>
   );

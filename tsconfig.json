@@ -19,7 +19,8 @@
     "baseUrl": ".",
     "paths": {
       "@phosphor-icons/react": ["./src/components/icons"],
-      "@/components/icons": ["./src/components/icons"]
+      "@/components/icons": ["./src/components/icons"],
+      "@/*": ["./src/*"]
     },
 
     /* Linting */

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Check, AlertCircle } from '@/components/icons';
+import { Button } from '@/components/arc';
 import { useTranslation } from '../../context/LanguageContext';
 import { RouteWaypoint } from '../../types/trip';
 import { SchematicRouteMap } from './SchematicRouteMap';
@@ -91,13 +92,14 @@ export const Screen6RideReady: React.FC<Screen6RideReadyProps> = ({
                 </span>
               )}
             </div>
-            <button
+            <Button
               type="button"
+              variant="ghost"
               onClick={onEditRoute}
               className="text-xs font-rounded font-bold text-ink underline hover:text-ink-secondary cursor-pointer"
             >
               {isFr ? 'Modifier le parcours' : 'Edit route'}
-            </button>
+            </Button>
           </div>
 
           {/* Route Map Preview */}
@@ -158,13 +160,14 @@ export const Screen6RideReady: React.FC<Screen6RideReadyProps> = ({
               <span className="text-xs sm:text-sm font-rounded font-bold text-ink">
                 {rideDateFormatted} {isFr ? '· estimation' : '· estimated'}
               </span>
-              <button
+              <Button
                 type="button"
+                variant="ghost"
                 onClick={onEditTiming}
                 className="text-xs font-rounded font-bold text-ink underline hover:text-ink-secondary cursor-pointer"
               >
                 {isFr ? 'Modifier l’horaire' : 'Edit timing'}
-              </button>
+              </Button>
             </div>
 
             {/* Timeline Steps */}
@@ -239,15 +242,16 @@ export const Screen6RideReady: React.FC<Screen6RideReadyProps> = ({
               <span className="text-ink-secondary">
                 {isFr ? 'Cycliste & vélo' : 'Rider & bike'}
               </span>
-              <button
+              <Button
                 type="button"
+                variant="ghost"
                 onClick={onEditSetup}
                 className="font-medium text-ink underline hover:text-ink-secondary cursor-pointer"
               >
                 {selectedBikeName
                   ? `${selectedBikeName} · ${isFr ? 'Modifier' : 'Edit setup'}`
                   : (isFr ? 'Défauts · Modifier' : 'Defaults · Edit setup')}
-              </button>
+              </Button>
             </div>
 
             <div className="pt-2 border-t border-black/5 dark:border-white/10">

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Button } from '@/components/arc';
 import {
   X,
   User,
@@ -234,14 +235,14 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
           </div>
         </div>
 
-        <button
+        <Button variant="ghost"
           type="button"
           onClick={onClose}
           aria-label={t('closeModalAria')}
           className={`relative w-9 h-9 shrink-0 rounded-full hover:text-ink hover:bg-chip flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer before:content-[''] before:absolute before:-inset-1.5 sm:before:inset-0 ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
         >
           <X className="w-4 h-4 text-current" />
-        </button>
+        </Button>
       </div>
 
       {/* 3-Tab Segmented Navigation: Rider & View / Bikes / Snacks & Drinks */}
@@ -250,7 +251,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
         aria-label={isFr ? 'Sections des réglages' : 'Settings sections'}
         className="grid grid-cols-3 gap-1.5 p-1.5 rounded-full bg-pod mb-4 shrink-0"
       >
-        <button
+        <Button variant="ghost"
           type="button"
           role="tab"
           aria-selected={activeTab === 'rider'}
@@ -263,8 +264,8 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
         >
           <User className="w-4 h-4 text-current shrink-0" />
           <span className="truncate">{isFr ? 'Cycliste & Vue' : 'Rider & View'}</span>
-        </button>
-        <button
+        </Button>
+        <Button variant="ghost"
           type="button"
           role="tab"
           aria-selected={activeTab === 'bike'}
@@ -277,8 +278,8 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
         >
           <Bicycle className="w-4 h-4 text-current shrink-0" />
           <span className="truncate">{isFr ? `Vélos (${localSpecs.bikes.length})` : `Bikes (${localSpecs.bikes.length})`}</span>
-        </button>
-        <button
+        </Button>
+        <Button variant="ghost"
           type="button"
           role="tab"
           aria-selected={activeTab === 'pantry'}
@@ -291,7 +292,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
         >
           <ForkKnife className="w-4 h-4 text-current shrink-0" />
           <span className="truncate">{isFr ? 'Ravitaillement' : 'Snacks & Drinks'}</span>
-        </button>
+        </Button>
       </div>
 
       {/* Segmented Tabbed Workspace */}
@@ -344,7 +345,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                       </label>
                     </div>
                     <div className="grid grid-cols-2 gap-1.5 p-1 rounded-sub-pod bg-pod">
-                      <button
+                      <Button variant="ghost"
                         type="button"
                         onClick={() =>
                           setLocalSpecs((prev) => ({ ...prev, cockpitViewMode: 'essential' }))
@@ -356,8 +357,8 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                         }`}
                       >
                         {isFr ? 'Guidé (Calme)' : 'Guided (Calm)'}
-                      </button>
-                      <button
+                      </Button>
+                      <Button variant="ghost"
                         type="button"
                         onClick={() =>
                           setLocalSpecs((prev) => ({ ...prev, cockpitViewMode: 'pro' }))
@@ -369,7 +370,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                         }`}
                       >
                         {isFr ? 'Pro (Technique)' : 'Pro (Data)'}
-                      </button>
+                      </Button>
                     </div>
                   </div>
 
@@ -379,7 +380,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                       {isFr ? 'Mesure de l’effort' : 'How you pace your effort'}
                     </label>
                     <div className="grid grid-cols-2 gap-1.5 p-1 rounded-sub-pod bg-pod">
-                      <button
+                      <Button variant="ghost"
                         type="button"
                         onClick={() =>
                           setLocalSpecs((prev) => ({ ...prev, pacingInputMode: 'feel' }))
@@ -391,8 +392,8 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                         }`}
                       >
                         {isFr ? 'Aux sensations' : 'By effort feel'}
-                      </button>
-                      <button
+                      </Button>
+                      <Button variant="ghost"
                         type="button"
                         onClick={() =>
                           setLocalSpecs((prev) => ({ ...prev, pacingInputMode: 'power' }))
@@ -404,7 +405,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                         }`}
                       >
                         {isFr ? 'Puissance (Watts / FTP)' : 'Power / Watts (FTP)'}
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -485,7 +486,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                     ] as const).map((tier) => {
                       const isSelected = (localSpecs.riderLevel || 'regular') === tier.id;
                       return (
-                        <button
+                        <Button variant="ghost"
                           key={tier.id}
                           type="button"
                           onClick={() => handleSelectRiderLevel(tier.id)}
@@ -497,7 +498,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                         >
                           <div className="text-xs font-rounded font-bold break-words leading-tight">{tier.label}</div>
                           <div className="text-[10px] opacity-80 mt-0.5 break-words leading-tight tnum">{tier.sub}</div>
-                        </button>
+                        </Button>
                       );
                     })}
                   </div>
@@ -583,14 +584,14 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                             ? 'Pas de capteur de puissance ? Estimez votre FTP :'
                             : "Don't know your FTP? Estimate from your weight:"}
                         </span>
-                        <button
+                        <Button variant="ghost"
                           type="button"
                           onClick={() => setShowFtpEstimator((v) => !v)}
                           className={`inline-flex items-center gap-1 px-3 min-h-[44px] sm:min-h-[32px] rounded-full text-xs font-rounded font-semibold cursor-pointer transition-colors shrink-0 ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary}`}
                         >
                           <Sparkle className="w-3 h-3 text-current" />
                           <span>{showFtpEstimator ? (isFr ? 'Masquer' : 'Hide') : isFr ? 'Estimer FTP' : 'Estimate FTP'}</span>
-                        </button>
+                        </Button>
                       </div>
                       {showFtpEstimator && (
                         <>
@@ -622,7 +623,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                               const valW =
                                 Math.round(((localSpecs.riderWeightKg || 68) * est.wkg) / 5) * 5;
                               return (
-                                <button
+                                <Button variant="ghost"
                                   key={est.wkg}
                                   type="button"
                                   onClick={() => handleApplyEstimatedFtp(est.wkg, est.lvl)}
@@ -630,7 +631,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                                 >
                                   <div className="text-xs font-rounded font-bold text-ink tnum">{valW} W</div>
                                   <div className="text-[10px] text-ink-muted break-words leading-tight">{est.label}</div>
-                                </button>
+                                </Button>
                               );
                             })}
                           </div>
@@ -695,7 +696,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                       const isSelected = (localSpecs.telemetryMode || 'fuel-first') === modeOpt.id;
                       const ModeIcon = modeOpt.icon;
                       return (
-                        <button
+                        <Button variant="ghost"
                           key={modeOpt.id}
                           type="button"
                           onClick={() => {
@@ -718,7 +719,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                           <span className="text-[10px] leading-tight opacity-75 mt-1 line-clamp-2">
                             {modeOpt.sub}
                           </span>
-                        </button>
+                        </Button>
                       );
                     })}
                   </div>
@@ -778,7 +779,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                       ].map((opt) => {
                         const active = Math.abs((localSpecs.carbTargetGPerHr ?? 60) - opt.val) <= 3;
                         return (
-                          <button
+                          <Button variant="ghost"
                             key={opt.val}
                             type="button"
                             onClick={() =>
@@ -791,7 +792,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                             }`}
                           >
                             {opt.label}
-                          </button>
+                          </Button>
                         );
                       })}
                     </div>
@@ -849,7 +850,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                             ? carbVal > 50 && carbVal <= 72
                             : carbVal > 72;
                         return (
-                          <button
+                          <Button variant="ghost"
                             key={tierOpt.tier}
                             type="button"
                             onClick={() =>
@@ -866,7 +867,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                           >
                             <div className="text-xs font-rounded font-semibold break-words leading-tight">{tierOpt.label}</div>
                             <div className="text-[10px] opacity-80 mt-0.5 break-words leading-tight tnum">{tierOpt.sub}</div>
-                          </button>
+                          </Button>
                         );
                       })}
                     </div>
@@ -901,7 +902,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                 )}
 
                 {/* Quick button into Snacks & Drinks tab */}
-                <button
+                <Button variant="ghost"
                   type="button"
                   onClick={() => setActiveTab('pantry')}
                   className="w-full min-h-[44px] px-3.5 py-2.5 rounded-pod bg-card hover:bg-chip flex items-center justify-between text-xs font-rounded font-semibold text-ink-secondary hover:text-ink transition-colors cursor-pointer"
@@ -911,7 +912,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                     <span>{isFr ? 'Personnaliser vos collations & boissons' : 'Customize snacks, bottles & diet preferences'}</span>
                   </span>
                   <span className="text-[11px] text-ink-muted">→</span>
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -938,14 +939,14 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                 </div>
               </div>
 
-              <button
+              <Button variant="ghost"
                 type="button"
                 onClick={handleAddBike}
                 className={`inline-flex items-center gap-1.5 px-3.5 min-h-[44px] sm:min-h-[34px] rounded-full text-xs font-rounded font-semibold bg-card hover:bg-chip text-ink-secondary hover:text-ink transition-colors cursor-pointer shrink-0 whitespace-nowrap ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
               >
                 <Plus className="w-3.5 h-3.5 text-current shrink-0" />
                 <span>{t('addBikeBtn')}</span>
-              </button>
+              </Button>
             </div>
 
             {/* Bike Garage Selector Pods */}
@@ -975,7 +976,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                         {bike.name}
                       </span>
                       {localSpecs.bikes.length > 1 && (
-                        <button
+                        <Button variant="ghost"
                           type="button"
                           onClick={(e) => handleRemoveBike(bike.id, e)}
                           title={t('removeBikeTitle')}
@@ -983,7 +984,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                           className={`absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center opacity-70 hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10 transition-opacity cursor-pointer before:content-[''] before:absolute before:-inset-2 ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
                         >
                           <Trash className="w-3.5 h-3.5 text-current" />
-                        </button>
+                        </Button>
                       )}
                     </div>
                     <div className="flex items-center justify-between gap-1 mt-1.5 text-[11px] font-rounded tnum opacity-85">
@@ -1042,7 +1043,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                     ].map((opt) => {
                       const active = Boolean(activeBike.isTubeless) === opt.val;
                       return (
-                        <button
+                        <Button variant="ghost"
                           key={String(opt.val)}
                           type="button"
                           onClick={() => handleToggleTubeless(opt.val)}
@@ -1057,7 +1058,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                             <span className="break-words leading-tight">{opt.title}</span>
                           </div>
                           <div className="text-[10px] opacity-80 mt-0.5 break-words leading-tight">{opt.sub}</div>
-                        </button>
+                        </Button>
                       );
                     })}
                   </div>
@@ -1102,7 +1103,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                       {([500, 550, 650, 750, 950] as BidonSizeMl[]).map((sz) => {
                         const active = (localSpecs.bidonSizeMl ?? 650) === sz;
                         return (
-                          <button
+                          <Button variant="ghost"
                             key={sz}
                             type="button"
                             onClick={() =>
@@ -1115,7 +1116,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                             }`}
                           >
                             {sz} ml
-                          </button>
+                          </Button>
                         );
                       })}
                     </div>
@@ -1134,7 +1135,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                       {([1, 2, 3] as FrameBottleSlots[]).map((slots) => {
                         const active = (localSpecs.frameBottleSlots ?? 2) === slots;
                         return (
-                          <button
+                          <Button variant="ghost"
                             key={slots}
                             type="button"
                             onClick={() =>
@@ -1150,7 +1151,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                             }`}
                           >
                             {slots}×
-                          </button>
+                          </Button>
                         );
                       })}
                     </div>
@@ -1159,7 +1160,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
 
                 {/* Collapsible Advanced Bike Settings (Crr / CdA tucked neatly away) */}
                 <div className="rounded-pod bg-card p-3.5">
-                  <button
+                  <Button variant="ghost"
                     type="button"
                     aria-expanded={showAdvancedBike}
                     onClick={() => setShowAdvancedBike((v) => !v)}
@@ -1171,7 +1172,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                         showAdvancedBike ? 'rotate-180' : ''
                       }`}
                     />
-                  </button>
+                  </Button>
 
                   {showAdvancedBike && (
                     <>
@@ -1198,7 +1199,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                           ].map((p) => {
                             const active = Math.abs(activeBike.crr - p.val) < 0.0006;
                             return (
-                              <button
+                              <Button variant="ghost"
                                 key={p.val}
                                 type="button"
                                 onClick={() => handleUpdateActiveBike('crr', p.val)}
@@ -1209,7 +1210,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                                 }`}
                               >
                                 {p.short}
-                              </button>
+                              </Button>
                             );
                           })}
                         </div>
@@ -1236,7 +1237,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                           ].map((p) => {
                             const active = Math.abs(activeBike.cda - p.val) < 0.015;
                             return (
-                              <button
+                              <Button variant="ghost"
                                 key={p.val}
                                 type="button"
                                 onClick={() => handleUpdateActiveBike('cda', p.val)}
@@ -1247,7 +1248,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                                 }`}
                               >
                                 {p.short}
-                              </button>
+                              </Button>
                             );
                           })}
                         </div>
@@ -1283,14 +1284,14 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
         </span>
 
         <div className="flex items-center justify-end gap-2 w-full sm:w-auto">
-          <button
+          <Button variant="ghost"
             type="button"
             onClick={onClose}
             className="flex-1 sm:flex-initial min-h-[44px] px-5 text-[13px] font-medium rounded-full text-ink-secondary bg-pod hover:bg-chip transition-all duration-150 active:scale-[0.98] cursor-pointer"
           >
             {t('cancelBtn')}
-          </button>
-          <button
+          </Button>
+          <Button variant="ghost"
             type="button"
             onClick={handleSave}
             className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 min-h-[44px] px-5 text-[13px] font-medium rounded-full bg-[#111111] hover:bg-[#262626] text-white dark:bg-[#F5F5F7] dark:hover:bg-white dark:text-[#111111] transition-all duration-150 active:scale-[0.98] cursor-pointer"
@@ -1303,7 +1304,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
             ) : (
               <span>{t('saveSpecsBtn')}</span>
             )}
-          </button>
+          </Button>
         </div>
       </div>
     </ModalPortal>

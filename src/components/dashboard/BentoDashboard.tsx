@@ -1,4 +1,5 @@
 import React from 'react';
+import { Button } from '@/components/arc';
 import { TripProfile } from '../../types/trip';
 import { RiderBikeSpecs, CockpitViewMode } from '../../types/specs';
 import { loadRiderBikeSpecs } from '../../utils/specsStorage';
@@ -241,7 +242,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
                 const dist = stage.route?.distanceKm || 0;
 
                 return (
-                  <button
+                  <Button variant="ghost"
                     key={stage.id || `stage-${idx}`}
                     type="button"
                     onClick={() => {
@@ -276,11 +277,11 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
                     >
                       {dist} km
                     </span>
-                  </button>
+                  </Button>
                 );
               })}
 
-                <button
+                <Button variant="ghost"
                   type="button"
                   onClick={() => setShowTourOverview((prev) => !prev)}
                   className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-150 shrink-0 cursor-pointer ${
@@ -293,9 +294,9 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
                   <span>
                     {showTourOverview ? t('tourToggleDetailsHide') : t('tourToggleDetailsShow')}
                   </span>
-                </button>
+                </Button>
 
-                <button
+                <Button variant="primary"
                   type="button"
                   onClick={() => downloadEntireTourGpx(trip)}
                   title={t('exportEntireTourGpxBtn')}
@@ -303,7 +304,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
                 >
                   <Download className="w-3.5 h-3.5 shrink-0" />
                   <span>{t('exportEntireTourGpxBtn')}</span>
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -483,7 +484,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
           <span className="w-2 h-2 rounded-full bg-volt-lime animate-pulse" />
           <span className="font-rounded font-medium text-xs">{t('feedbackFooterDock')}</span>
         </div>
-        <button
+        <Button variant="ghost"
           type="button"
           onClick={onOpenFeedback || (() => setIsFeedbackModalOpen(true))}
           className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-rounded font-semibold transition-all cursor-pointer ${CHIP_TOKENS.purple.surface} ${CHIP_TOKENS.purple.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.purple.selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} hover:brightness-[0.98] dark:hover:brightness-110 shadow-xs hover:shadow-sm`}
@@ -491,7 +492,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
         >
           <BadgeInfo size={15} className="w-4 h-4 shrink-0 text-current" />
           <span>{t('sendFeedbackBtn')}</span>
-        </button>
+        </Button>
       </div>
 
       {/* ── Sortie Telemetry Share Receipt Modal ── */}

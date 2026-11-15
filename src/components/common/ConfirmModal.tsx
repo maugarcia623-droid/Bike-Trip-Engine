@@ -1,5 +1,6 @@
 import React, { useId } from 'react';
 import { X } from '@/components/icons';
+import { Button } from '@/components/arc';
 import { ModalPortal } from './ModalPortal';
 import { useTranslation } from '../../context/LanguageContext';
 
@@ -59,14 +60,15 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
         >
           {title}
         </h2>
-        <button
-          type="button"
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={onClose}
           aria-label={isFr ? 'Fermer' : 'Close'}
-          className="relative before:content-[''] before:absolute before:-inset-1.5 w-9 h-9 rounded-full bg-surface-active text-ink-muted hover:text-ink flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+          className="relative before:content-[''] before:absolute before:-inset-1.5 w-9 h-9 p-0 rounded-full bg-surface-active text-ink-muted hover:text-ink flex items-center justify-center transition-colors shrink-0 cursor-pointer"
         >
           <X size={16} />
-        </button>
+        </Button>
       </div>
 
       <p className="mt-2.5 text-sm text-ink-secondary font-body leading-relaxed">
@@ -75,16 +77,18 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
 
       <div className="mt-6 flex flex-col-reverse sm:flex-row sm:justify-end gap-2.5">
         {!isAlertOnly && (
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            size="md"
             onClick={onClose}
             className="min-h-[44px] px-4 rounded-full bg-pod hover:bg-surface-active text-sm font-rounded font-semibold text-ink-secondary hover:text-ink transition-colors cursor-pointer"
           >
             {resolvedCancelLabel}
-          </button>
+          </Button>
         )}
-        <button
-          type="button"
+        <Button
+          variant={tone === 'danger' ? 'danger' : 'primary'}
+          size="md"
           onClick={() => {
             onConfirm?.();
             onClose();
@@ -92,7 +96,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
           className={`min-h-[44px] px-5 rounded-full text-sm font-rounded font-bold transition-colors cursor-pointer ${confirmButtonClasses}`}
         >
           {resolvedConfirmLabel}
-        </button>
+        </Button>
       </div>
     </ModalPortal>
   );

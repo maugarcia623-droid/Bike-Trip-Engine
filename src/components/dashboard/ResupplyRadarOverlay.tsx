@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Button } from '@/components/arc';
 import { createPortal } from 'react-dom';
 import {
   Radar,
@@ -487,7 +488,7 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
             <div className="flex items-center gap-2 shrink-0">
               {/* 1:1 Map Dots Visibility Toggle */}
               {onToggleShowMapDots && (
-                <button
+                <Button variant="ghost"
                   type="button"
                   onClick={onToggleShowMapDots}
                   aria-pressed={showMapDots}
@@ -500,12 +501,12 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
                   } ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
                 >
                   {showMapDots ? <Eye size={18} /> : <EyeOff size={18} />}
-                </button>
+                </Button>
               )}
 
               {/* Re-scan button: ONLY shown after scanned */}
               {hasScanned && (
-                <button
+                <Button variant="ghost"
                   type="button"
                   onClick={() => handleScanCorridor(true)}
                   disabled={isScanning}
@@ -518,18 +519,18 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
                   ) : (
                     <ArrowsClockwise className="w-4 h-4 text-current" />
                   )}
-                </button>
+                </Button>
               )}
 
               {/* 1:1 Close button */}
-              <button
+              <Button variant="ghost"
                 type="button"
                 onClick={onClose}
                 className="relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 w-10 h-10 rounded-full bg-pod dark:bg-white/[0.06] hover:bg-chip text-ink-secondary hover:text-ink flex items-center justify-center cursor-pointer transition-colors shrink-0 select-none"
                 aria-label={t('closeRadarModal')}
               >
                 <X size={18} />
-              </button>
+              </Button>
             </div>
           </div>
           <div className="lane-divider mt-2.5" aria-hidden="true" />
@@ -604,7 +605,7 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
 
               return (
                 <div key={cat.id} className="relative inline-flex items-center shrink-0">
-                  <button
+                  <Button variant="ghost"
                     type="button"
                     onClick={() => toggleCategory(cat.id)}
                     aria-pressed={isSelected}
@@ -622,7 +623,7 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
                       <IconComponent className="w-3.5 h-3.5 text-current shrink-0" />
                     </span>
                     <span>{cat.label}</span>
-                  </button>
+                  </Button>
                   {cat.tooltip && (
                     <div className="ml-0.5">
                       <InfoTooltip content={cat.tooltip} size="sm" />
@@ -633,7 +634,7 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
             })}
 
             {/* Quick toggle pill: < 250m detour only */}
-            <button
+            <Button variant="ghost"
               type="button"
               onClick={() => setDetourOnly250m((prev) => !prev)}
               aria-pressed={detourOnly250m}
@@ -645,7 +646,7 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
               }`}
             >
               <span>{t('radarDetourOnly')}</span>
-            </button>
+            </Button>
           </div>
 
           {/* 3. CORRIDOR HORIZON BAR */}
@@ -682,7 +683,7 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
 
                 if (isPinned) {
                   return (
-                    <button
+                    <Button variant="primary"
                       key={amenity.id}
                       type="button"
                       onClick={() => onSelectAmenity?.(amenity)}
@@ -694,7 +695,7 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
                 }
 
                 return (
-                  <button
+                  <Button variant="ghost"
                     key={amenity.id}
                     type="button"
                     onClick={() => onSelectAmenity?.(amenity)}
@@ -726,13 +727,13 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
           {scanError ? (
             <div className="rounded-[22px] p-4 text-center bg-rose-500/[0.1] text-rose-700 dark:text-rose-300 text-xs font-medium space-y-2 shrink-0">
               <p>{scanError}</p>
-              <button
+              <Button variant="ghost"
                 type="button"
                 onClick={() => handleScanCorridor(true)}
                 className="px-4 py-1.5 rounded-full bg-rose-600 text-white font-bold hover:brightness-105 cursor-pointer text-xs"
               >
                 {isFr ? 'Réessayer le scan' : 'Retry Scan'}
-              </button>
+              </Button>
             </div>
           ) : !hasScanned ? (
             /* Empty state card designed like the "Sync your rides" card in Settings sheet */
@@ -743,7 +744,7 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
               <p className="text-[13px] text-ink-muted max-w-sm leading-relaxed">
                 {t('emptyRadarState')}
               </p>
-              <button
+              <Button variant="primary"
                 type="button"
                 onClick={() => handleScanCorridor(false)}
                 disabled={isScanning}
@@ -760,7 +761,7 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
                     <span>{t('scanCorridor')}</span>
                   </>
                 )}
-              </button>
+              </Button>
             </div>
           ) : filteredAmenities.length === 0 ? (
             <div className="rounded-[22px] p-5 text-center text-xs text-ink-muted bg-pod/70 dark:bg-white/[0.045] shrink-0">
@@ -886,7 +887,7 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
                         </div>
 
                         {/* View on Map Button (1:1 aspect-ratio, centers map and closes sheet) */}
-                        <button
+                        <Button variant="ghost"
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -898,10 +899,10 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
                           aria-label={t('viewOnMap')}
                         >
                           <MapPin className="w-3.5 h-3.5 text-current" />
-                        </button>
+                        </Button>
 
                         {/* Pin to Ride Plan Button */}
-                        <button
+                        <Button variant="primary"
                           type="button"
                           onClick={(e) => handleTogglePin(amenity, e)}
                           aria-pressed={isPinned}
@@ -922,7 +923,7 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
                           <span className="hidden min-[480px]:inline">
                             {isPinned ? t('pinnedStop') : t('pinToPlan')}
                           </span>
-                        </button>
+                        </Button>
                       </div>
                     </div>
 
@@ -951,7 +952,7 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
               <span className="text-[11px] font-rounded text-ink-secondary leading-snug">
                 {t('gpxExportReadyNote')}
               </span>
-              <button
+              <Button variant="primary"
                 type="button"
                 onClick={() =>
                   trip.stages && trip.stages.length > 1
@@ -964,7 +965,7 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
                 <span>
                   {trip.stages && trip.stages.length > 1 ? 'Tour .gpx' : 'Download .gpx'}
                 </span>
-              </button>
+              </Button>
             </div>
           )}
         </div>

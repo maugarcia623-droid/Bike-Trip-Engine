@@ -3,6 +3,7 @@ import { SurfaceBreakdown, SurfaceSegment } from '../../types/trip';
 import { SURFACE_VISUAL_META } from '../../utils/surfaceProfile';
 import { useTranslation } from '../../context/LanguageContext';
 import { Badge } from './Badge';
+import { Button } from '@/components/arc';
 import { CheckCircle2, TriangleAlert, Info, ShieldCheck, RefreshCw, LoaderCircle } from '../icons';
 
 /* ──────────────────────────────────────────────────────────────────────────────
@@ -124,16 +125,17 @@ export const SurfaceProfileBar: React.FC<SurfaceProfileBarProps> = ({
             const widthPct = Math.max(3, seg.endPct - seg.startPct);
             const isSelected = highlighted?.id === seg.id;
             return (
-              <button
+              <Button
                 key={seg.id}
-                type="button"
+                variant="ghost"
+                size="sm"
                 style={{ width: `${widthPct}%` }}
                 onMouseEnter={() => handleSegmentInteract(seg)}
                 onClick={() => handleSegmentInteract(effectiveSegmentId === seg.id ? null : seg)}
                 title={`${isFr ? seg.nameFr : seg.nameEn} (km ${seg.startKm}–${seg.endKm})`}
                 aria-label={`${isFr ? meta.shortLabelFr : meta.shortLabelEn} · km ${seg.startKm}–${seg.endKm}`}
                 aria-pressed={isSelected}
-                className={`relative h-full min-w-[6px] rounded-full cursor-pointer ring-2 ring-inset transition-shadow ${
+                className={`relative h-full min-w-[6px] p-0 rounded-full cursor-pointer ring-2 ring-inset transition-shadow ${
                   meta.barBgClass
                 } ${seg.type !== 'paved' ? 'paint-hatch' : ''} ${isSelected ? 'ring-ink' : 'ring-transparent'}`}
               />
@@ -262,15 +264,16 @@ export const SurfaceProfileBar: React.FC<SurfaceProfileBarProps> = ({
           </>
         )}
         {onRefreshOsm && !breakdown.isLoadingOsm && (
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={onRefreshOsm}
-            className="ml-auto inline-flex items-center gap-1 min-h-[28px] px-1.5 rounded-full text-ink-secondary hover:text-ink cursor-pointer transition-colors"
+            className="ml-auto inline-flex items-center gap-1 min-h-[28px] px-1.5 py-0.5 rounded-full text-[10px] text-ink-secondary hover:text-ink cursor-pointer transition-colors"
             title={isFr ? 'Actualiser les surfaces de la carte' : 'Refresh road surface details'}
           >
             <RefreshCw className="w-3 h-3" />
             {isFr ? 'Actualiser' : 'Refresh'}
-          </button>
+          </Button>
         )}
       </div>
     </div>

@@ -1,0 +1,97 @@
+/* Arc SplitButton — Themed with Cadence Design System Tokens */
+
+:where(.root) {
+  display: inline-flex;
+  align-items: stretch;
+  border-radius: var(--radius-control, 9999px);
+  overflow: hidden;
+  font-family: var(--font-body);
+  font-size: var(--text-xs, 0.75rem);
+  font-weight: 700;
+  user-select: none;
+}
+
+:where(.primary) {
+  background-color: var(--arc-btn-primary-bg, #F2F455);
+  color: var(--arc-btn-primary-fg, #4D5200);
+  box-shadow: inset 0 0 0 2px var(--arc-btn-primary-ring, #A3B300), var(--shadow-resting);
+}
+
+:where(.secondary) {
+  background-color: var(--arc-btn-secondary-bg, rgb(var(--ds-pod)));
+  color: var(--arc-btn-secondary-fg, rgb(var(--ds-ink)));
+  box-shadow: inset 0 0 0 1px var(--arc-btn-secondary-ring, rgba(17, 17, 17, 0.08));
+}
+
+.mainBtn,
+.menuBtn {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: var(--control-height-md, 40px);
+  cursor: pointer;
+  transition: background-color 150ms ease, transform 150ms ease;
+}
+
+.mainBtn {
+  padding: 0.5rem 0.9rem 0.5rem 1.1rem;
+}
+
+.mainBtn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.divider {
+  width: 1px;
+  align-self: stretch;
+  background-color: currentColor;
+  opacity: 0.2;
+}
+
+.menuBtn {
+  padding: 0 0.75rem;
+}
+
+.menu {
+  z-index: 1100;
+  min-width: 180px;
+  padding: 0.375rem;
+  border-radius: var(--radius-panel, 1rem);
+  background-color: var(--surface, rgb(var(--ds-card)));
+  color: var(--foreground, rgb(var(--ds-ink)));
+  border: 1px solid var(--border, rgba(17, 17, 17, 0.1));
+  box-shadow: var(--shadow-floating);
+  font-family: var(--font-body);
+  font-size: var(--text-xs, 0.75rem);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sub, 0.5rem);
+  color: var(--foreground, rgb(var(--ds-ink)));
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+}
+
+.item[data-highlighted] {
+  background-color: var(--surface-raised, rgb(var(--ds-pod)));
+}
+
+.item[data-destructive="true"] {
+  color: var(--danger, #FF3B30);
+}
+
+.item[data-disabled] {
+  opacity: 0.45;
+  pointer-events: none;
+}

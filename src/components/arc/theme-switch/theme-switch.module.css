@@ -1,0 +1,8 @@
+/* Arc ThemeSwitch — Themed with Cadence Design System Tokens */
+
+:where(.iconOnly) {
+  width: 38px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0;
+}

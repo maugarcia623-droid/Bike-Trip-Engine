@@ -180,6 +180,11 @@ export function addNextStage(trip: TripProfile): TripProfile {
   }
 
   const previousStage = stages[stages.length - 1];
+  const prevDestCoords =
+    previousStage.route.destCoords ??
+    (previousStage.route.coordinates && previousStage.route.coordinates.length > 1
+      ? previousStage.route.coordinates[previousStage.route.coordinates.length - 1]
+      : undefined);
   const nextDayNumber = stages.length + 1;
   const nextDepartureDate = addDaysToIso(
     previousStage.departureDate || trip.departureDate || new Date().toISOString().slice(0, 10),
@@ -196,6 +201,8 @@ export function addNextStage(trip: TripProfile): TripProfile {
       ...previousStage.route,
       origin: previousStage.route.destination || '',
       destination: '',
+      originCoords: prevDestCoords,
+      destCoords: undefined,
       distanceKm: 45,
       elevationGainM: 200,
       coordinates: undefined,

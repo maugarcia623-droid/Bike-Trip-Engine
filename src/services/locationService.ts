@@ -151,6 +151,20 @@ export const POPULAR_CYCLING_HUBS: LocationSuggestion[] = [
 ];
 
 /**
+ * Appends city context to a street/place label when missing so autocomplete selections
+ * remain geographically unambiguous if re-geocoded later.
+ */
+function appendCityIfMissing(baseName: string, city?: string): string {
+  const trimmedBase = baseName.trim();
+  const trimmedCity = (city || '').trim();
+  if (!trimmedCity) return trimmedBase;
+  if (trimmedBase.toLowerCase().includes(trimmedCity.toLowerCase())) {
+    return trimmedBase;
+  }
+  return `${trimmedBase}, ${trimmedCity}`;
+}
+
+/**
  * Formats a BAN (Base Adresse Nationale) GeoJSON feature
  */
 function formatBanFeature(feature: any): LocationSuggestion | null {
@@ -159,7 +173,8 @@ function formatBanFeature(feature: any): LocationSuggestion | null {
   const [lon, lat] = feature.geometry.coordinates;
   if (Number.isNaN(lat) || Number.isNaN(lon)) return null;
 
-  const name = p.name || p.label || 'Lieu';
+  const rawName = p.name || p.label || 'Lieu';
+  const name = appendCityIfMissing(rawName, p.city);
   const secondaryParts: string[] = [];
   if (p.postcode && p.city) {
     secondaryParts.push(`${p.postcode} ${p.city}`);
@@ -193,22 +208,23 @@ function formatPhotonFeature(feature: any): LocationSuggestion | null {
   const [lon, lat] = feature.geometry.coordinates;
   if (Number.isNaN(lat) || Number.isNaN(lon)) return null;
 
-  const name = p.name || (p.housenumber ? `${p.housenumber} ${p.street || ''}`.trim() : p.street) || p.city || 'Lieu';
+  const rawName = p.name || (p.housenumber ? `${p.housenumber} ${p.street || ''}`.trim() : p.street) || p.city || 'Lieu';
+  const name = appendCityIfMissing(rawName, p.city);
   const secondaryParts: string[] = [];
 
-  if (p.housenumber && p.street && name !== `${p.housenumber} ${p.street}`) {
+  if (p.housenumber && p.street && rawName !== `${p.housenumber} ${p.street}`) {
     secondaryParts.push(`${p.housenumber} ${p.street}`);
-  } else if (p.street && name !== p.street) {
+  } else if (p.street && rawName !== p.street) {
     secondaryParts.push(p.street);
   }
 
   if (p.postcode && p.city) {
     secondaryParts.push(`${p.postcode} ${p.city}`);
-  } else if (p.city && p.city !== name) {
+  } else if (p.city && p.city !== rawName) {
     secondaryParts.push(p.city);
   }
 
-  if (p.county && p.county !== p.city && p.county !== name) {
+  if (p.county && p.county !== p.city && p.county !== rawName) {
     secondaryParts.push(p.county);
   }
   if (p.state && p.state !== p.county && p.state !== p.city) {
@@ -242,7 +258,12 @@ function formatNominatimItem(item: any): LocationSuggestion | null {
   if (Number.isNaN(lat) || Number.isNaN(lon)) return null;
 
   const parts = (item.display_name || '').split(',').map((s: string) => s.trim());
-  const name = item.name || parts[0] || 'Lieu';
+  const city = item.address?.city || item.address?.town || item.address?.village || item.address?.municipality;
+  const rawName =
+    item.address?.road && parts[0] && /^\d+[a-zA-Z]?$/.test(parts[0])
+      ? `${parts[0]} ${item.address.road}`
+      : item.name || parts[0] || 'Lieu';
+  const name = appendCityIfMissing(rawName, city);
   const secondaryParts = parts.slice(1, 4);
   const secondaryText = secondaryParts.join(' · ');
 
@@ -348,8 +369,16 @@ export async function searchLocationSuggestions(
     return suggestionCache.get(cacheKey)!;
   }
 
+  const hasBiasCoords =
+    Boolean(options?.biasCoords && options.biasCoords.length === 2) &&
+    Number.isFinite(options!.biasCoords![0]) &&
+    Number.isFinite(options!.biasCoords![1]);
+
   // 1. BAN API via IGN Geoplateforme (replaces deprecated api-adresse.data.gouv.fr)
-  const banUrl = `https://data.geopf.fr/geocodage/search/?q=${encodeURIComponent(query)}&limit=${limit}`;
+  let banUrl = `https://data.geopf.fr/geocodage/search/?q=${encodeURIComponent(query)}&limit=${limit}`;
+  if (hasBiasCoords) {
+    banUrl += `&lat=${options!.biasCoords![0]}&lon=${options!.biasCoords![1]}`;
+  }
   const banPromise = fetchJsonWithTimeout(banUrl, {
     signal: options?.signal,
     timeoutMs: 3000,
@@ -358,8 +387,8 @@ export async function searchLocationSuggestions(
   // 2. Komoot Photon API (Global OpenStreetMap POIs, stations, mountains, cities)
   let photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=${limit}&lang=${lang}`;
   // Only apply bias if coordinates were explicitly supplied by the caller
-  if (options?.biasCoords && options.biasCoords.length === 2) {
-    photonUrl += `&lat=${options.biasCoords[0]}&lon=${options.biasCoords[1]}`;
+  if (hasBiasCoords) {
+    photonUrl += `&lat=${options!.biasCoords![0]}&lon=${options!.biasCoords![1]}`;
   }
 
   const photonPromise = fetchJsonWithTimeout(photonUrl, {

@@ -183,6 +183,7 @@ export interface RouteParams {
   coordinates?: [number, number][];
   routeMode?: 'corridor' | 'manual-radius' | 'gpx';
   originCoords?: [number, number];
+  destCoords?: [number, number];
   radiusMeters?: number;
   gpxFileName?: string;
   elevationProfile?: ElevationProfilePoint[];

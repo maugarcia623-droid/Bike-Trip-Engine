@@ -27,6 +27,7 @@ import {
 } from '@/components/icons';
 import { downloadTripGpx, downloadTripTcx } from '../../utils/gpxExporter';
 import { IconBadge } from '../common/IconBadge';
+import { Button, ActionButton } from '@/components/arc';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
   CHIP_RING_BASE,
@@ -287,18 +288,19 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
       const base = `w-full flex items-center gap-3 px-3.5 ${rowH} py-2.5`;
 
       return onClick ? (
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="md"
           role="menuitem"
           onClick={onClick}
-          className={`${base} cursor-pointer transition-colors active:scale-[0.99] ${
+          className={`${base} justify-start font-normal rounded-none cursor-pointer transition-colors active:scale-[0.99] ${
             danger
               ? 'hover:bg-rose-500/[0.07] active:bg-rose-500/10'
               : 'hover:bg-ink/[0.035] dark:hover:bg-white/[0.04] active:bg-ink/[0.06] dark:active:bg-white/[0.07]'
           } focus:outline-none focus-visible:bg-ink/[0.05] dark:focus-visible:bg-white/[0.06]`}
         >
           {content}
-        </button>
+        </Button>
       ) : (
         <div className={base}>{content}</div>
       );
@@ -324,9 +326,10 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
           const active = opt.value === value;
           const OptIcon = opt.icon;
           return (
-            <button
+            <Button
               key={opt.value}
-              type="button"
+              variant="ghost"
+              size="sm"
               role="radio"
               aria-checked={active}
               onClick={() => onChange(opt.value)}
@@ -340,7 +343,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
             >
               {OptIcon && <OptIcon className="w-3.5 h-3.5 shrink-0 text-current" aria-hidden="true" />}
               <span>{opt.label}</span>
-            </button>
+            </Button>
           );
         })}
       </div>
@@ -371,14 +374,15 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
             </div>
           </div>
           {m && (
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => setIsMenuOpen(false)}
-              className="w-10 h-10 rounded-full bg-pod dark:bg-white/[0.06] hover:bg-chip text-ink-secondary hover:text-ink flex items-center justify-center cursor-pointer transition-colors shrink-0"
+              className="w-10 h-10 p-0 rounded-full bg-pod dark:bg-white/[0.06] hover:bg-chip text-ink-secondary hover:text-ink flex items-center justify-center cursor-pointer transition-colors shrink-0"
               aria-label={t('menuCloseAria')}
             >
               <X size={18} />
-            </button>
+            </Button>
           )}
         </div>
 
@@ -392,21 +396,23 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
                 label={syncStatusLabel}
                 sub={t('autoSaveActive')}
                 trailing={
-                  <button
-                    type="button"
-                    onClick={async () => {
+                  <ActionButton
+                    label={t('syncNowBtn')}
+                    pendingLabel={t('syncStatusSaving')}
+                    successLabel={t('cloudSynced')}
+                    onAction={async () => {
                       await forceSyncNow();
                     }}
+                    icon={
+                      <RefreshCw
+                        className={`w-3.5 h-3.5 ${syncStatus === 'saving' ? 'animate-spin' : ''}`}
+                        aria-hidden="true"
+                      />
+                    }
                     className={`inline-flex items-center gap-1.5 rounded-full font-semibold cursor-pointer transition-colors shrink-0 bg-card dark:bg-white/[0.08] hover:bg-chip text-ink ${
                       m ? 'h-9 px-3.5 text-[13px]' : 'h-8 px-3 text-xs'
                     }`}
-                  >
-                    <RefreshCw
-                      className={`w-3.5 h-3.5 ${syncStatus === 'saving' ? 'animate-spin' : ''}`}
-                      aria-hidden="true"
-                    />
-                    {t('syncNowBtn')}
-                  </button>
+                  />
                 }
               />
             </Group>
@@ -425,8 +431,9 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
                   </div>
                 </div>
               </div>
-              <button
-                type="button"
+              <Button
+                variant="primary"
+                size={m ? 'lg' : 'md'}
                 onClick={() => {
                   setIsMenuOpen(false);
                   openAuthModal('login');
@@ -436,7 +443,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
                 }`}
               >
                 {t('logInOrSignUp')}
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -607,10 +614,11 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
     <header className="w-full transition-colors duration-200 select-none no-print relative z-40">
       <div className="w-full max-w-[1720px] mx-auto px-3.5 sm:px-5 lg:px-7 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-3 sm:pt-[calc(env(safe-area-inset-top,0px)+1rem)] sm:pb-4 flex items-center justify-between lg:grid lg:grid-cols-5 gap-3.5 sm:gap-4 lg:gap-5">
         {/* Left: Chain-Link Brand Identifier */}
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="md"
           onClick={() => onNavigate('home')}
-          className="lg:col-span-1 lg:justify-self-start flex items-center gap-2.5 sm:gap-3.5 min-w-0 cursor-pointer group text-left focus:outline-none"
+          className="lg:col-span-1 lg:justify-self-start flex items-center gap-2.5 sm:gap-3.5 p-0 hover:bg-transparent min-w-0 cursor-pointer group text-left focus:outline-none"
         >
           <div
             className={`w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center group-hover:scale-105 transition-transform shrink-0 shadow-xs ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
@@ -640,13 +648,14 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
               {t('headerTagline')}
             </p>
           </div>
-        </button>
+        </Button>
 
         {/* Center: Live Operational Breadcrumb (Desktop) */}
         <div className="hidden lg:flex lg:col-span-3 lg:justify-self-center min-w-0 max-w-full">
           {activeTrip && activeMeta && (
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              size="md"
               onClick={() => onNavigate(breadcrumbTargetView)}
               title={`${isFr ? 'Conditions de sortie' : 'Ride outlook'}: ${physics?.goStatus === 'GO' ? t('feasibilityOptimal') : physics?.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')} — ${physics?.goStatusReason || ''} (${currentView === 'dashboard' ? t('editParamsTitle') : t('openFlightDeckBtn')})`}
               className="flex items-center gap-2.5 px-4 py-2 bg-card dark:bg-pod hover:bg-pod dark:hover:bg-chip rounded-full font-rounded text-[13px] sm:text-sm shadow-xs min-w-0 max-w-xl transition-colors cursor-pointer focus:outline-none"
@@ -675,7 +684,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
               >
                 {physics?.goStatus === 'GO' ? t('feasibilityOptimal') : physics?.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')}
               </span>
-            </button>
+            </Button>
           )}
         </div>
 
@@ -687,13 +696,14 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
           </div>
 
           {/* Unified Profile & Utility Trigger Button */}
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => setIsMenuOpen((prev) => !prev)}
             aria-expanded={isMenuOpen}
             aria-label={t('menuOpenAria')}
             title={user ? `${user.email} (${t('cloudSynced')})` : t('savedOnDeviceClickToSync')}
-            className={`relative w-10 h-10 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-xs select-none focus:outline-none ring-2 ${
+            className={`relative w-10 h-10 p-0 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-xs select-none focus:outline-none ring-2 ${
               isMenuOpen
                 ? 'ring-volt bg-pod dark:bg-chip text-ink'
                 : 'ring-ink/10 dark:ring-white/15 bg-card dark:bg-pod text-ink hover:ring-volt/60'
@@ -709,7 +719,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
             <span
               className={`absolute bottom-0.5 right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-canvas ${syncBeaconClass}`}
             />
-          </button>
+          </Button>
 
 
           {/* ══════════════════════════════════════════════════════════════════

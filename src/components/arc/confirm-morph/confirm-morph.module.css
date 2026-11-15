@@ -1,0 +1,113 @@
+/* Arc ConfirmMorph — Themed with Cadence Design System Tokens */
+
+:where(.root) {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height-sm, 34px);
+  border-radius: var(--radius-control, 9999px);
+  font-family: var(--font-body);
+  font-size: var(--text-xs, 0.75rem);
+  font-weight: 700;
+  user-select: none;
+}
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: var(--control-height-sm, 34px);
+  padding: 0.375rem 0.875rem;
+  border: 0;
+  border-radius: var(--radius-control, 9999px);
+  background-color: var(--arc-btn-secondary-bg, rgb(var(--ds-pod)));
+  color: var(--arc-btn-secondary-fg, rgb(var(--ds-ink)));
+  box-shadow: inset 0 0 0 1px var(--arc-btn-secondary-ring, rgba(17, 17, 17, 0.08));
+  font: inherit;
+  cursor: pointer;
+  transition: transform 150ms ease, background-color 150ms ease, color 150ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .trigger:hover:not(:disabled) {
+    background-color: var(--danger-subtle, rgba(255, 59, 48, 0.12));
+    color: var(--danger, #FF3B30);
+  }
+}
+
+.trigger:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: var(--control-height-sm, 34px);
+  padding: 0.25rem 0.35rem 0.25rem 0.75rem;
+  border-radius: var(--radius-control, 9999px);
+  background-color: var(--surface, rgb(var(--ds-card)));
+  color: var(--foreground, rgb(var(--ds-ink)));
+  box-shadow: inset 0 0 0 1.5px var(--border-strong, rgba(17, 17, 17, 0.2)), var(--shadow-resting);
+}
+
+.prompt {
+  white-space: nowrap;
+  color: var(--foreground, rgb(var(--ds-ink)));
+}
+
+.confirmBtn,
+.cancelBtn {
+  border: 0;
+  border-radius: var(--radius-control, 9999px);
+  padding: 0.25rem 0.65rem;
+  font: inherit;
+  cursor: pointer;
+  transition: transform 120ms ease, filter 120ms ease;
+}
+
+.confirmDanger {
+  background-color: var(--danger, #FF3B30);
+  color: var(--danger-foreground, #FFFFFF);
+}
+
+.confirmNeutral {
+  background-color: var(--arc-btn-primary-bg, #F2F455);
+  color: var(--arc-btn-primary-fg, #4D5200);
+}
+
+.cancelBtn {
+  background-color: var(--surface-raised, rgb(var(--ds-pod)));
+  color: var(--text-secondary, rgb(var(--ds-ink-secondary)));
+}
+
+.spinner {
+  width: 13px;
+  height: 13px;
+  border-radius: 9999px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: arcConfirmMorphSpin 0.65s linear infinite;
+}
+
+@keyframes arcConfirmMorphSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

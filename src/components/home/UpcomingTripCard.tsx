@@ -25,6 +25,7 @@ import { calculateRideVisibility } from '../../utils/solarVisibility';
 import { calculateDynamicCarbTarget } from '../../utils/nutrition';
 import { Collapsible } from '../common/Collapsible';
 import { Badge } from '../common/Badge';
+import { Button } from '@/components/arc';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
   CHIP_RING_BASE,
@@ -314,8 +315,9 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
                 ref={switcherRef}
                 className={`relative inline-block text-left ${isSwitcherOpen ? 'z-40' : ''}`}
               >
-                <button
-                  type="button"
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={() => setIsSwitcherOpen(!isSwitcherOpen)}
                   aria-expanded={isSwitcherOpen}
                   aria-haspopup="true"
@@ -324,7 +326,7 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
                 >
                   <span>{t('switchActiveProfile')}</span>
                   <CaretDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isSwitcherOpen ? 'rotate-180' : ''}`} />
-                </button>
+                </Button>
 
                 {isSwitcherOpen && (
                   <>
@@ -346,15 +348,16 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
                         const pIsGo = pPhysics.goStatus === 'GO';
                         const pIsCaution = pPhysics.goStatus === 'CAUTION';
                         return (
-                          <button
+                          <Button
                             key={p.id}
-                            type="button"
+                            variant="ghost"
+                            size="sm"
                             onClick={() => {
                               onSelectTrip(p.id);
                               setIsSwitcherOpen(false);
                             }}
                             title={`${pMeta.name} — ${pIsGo ? t('feasibilityOptimal') : pIsCaution ? t('feasibilityCaution') : t('feasibilitySevere')}: ${pPhysics.goStatusReason}`}
-                            className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between gap-2 hover:bg-pod transition-colors cursor-pointer ${
+                            className={`w-full text-left px-3 py-2 rounded-none text-xs flex items-center justify-between gap-2 hover:bg-pod transition-colors cursor-pointer ${
                               isCurrent ? 'font-semibold text-ink bg-pod/60' : 'text-ink-secondary'
                             }`}
                           >
@@ -381,7 +384,7 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
                             {isCurrent && (
                               <span className="w-1.5 h-1.5 rounded-full bg-volt shrink-0" />
                             )}
-                          </button>
+                          </Button>
                         );
                       })}
                     </div>
@@ -424,39 +427,42 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
           )}
 
           {onEditTrip && (
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              size="md"
               onClick={() => onEditTrip(trip)}
               className="inline-flex items-center gap-1.5 min-h-[44px] h-10 px-4 rounded-full bg-pod hover:bg-chip text-ink-secondary hover:text-ink font-medium text-xs transition-all duration-150 active:scale-[0.98] cursor-pointer"
             >
               <span>{lang === 'fr' ? 'Modifier' : 'Edit'}</span>
-            </button>
+            </Button>
           )}
 
-          <button
-            type="button"
+          <Button
+            variant="primary"
+            size="md"
             onClick={() => onLaunchDashboard(trip.id)}
             className={`flex items-center gap-1.5 min-h-[44px] h-10 px-5 rounded-full font-semibold text-xs transition-all duration-150 active:scale-[0.98] cursor-pointer shadow-xs ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing} hover:brightness-95 dark:hover:brightness-110`}
           >
             <span>{t('launchCockpitBtn')}</span>
             <ArrowUpRight className="w-4 h-4 text-current stroke-[2.2]" />
-          </button>
+          </Button>
 
           {/* Collapsible Accordion Toggle */}
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={toggleExpanded}
             aria-expanded={isExpanded}
             aria-label={isExpanded ? t('collapseUpcomingCard') : t('expandUpcomingCard')}
             title={isExpanded ? t('collapseUpcomingCard') : t('expandUpcomingCard')}
-            className="min-w-[44px] min-h-[44px] w-11 h-11 rounded-full bg-pod hover:bg-chip text-ink-secondary hover:text-ink flex items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer"
+            className="min-w-[44px] min-h-[44px] w-11 h-11 p-0 rounded-full bg-pod hover:bg-chip text-ink-secondary hover:text-ink flex items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer"
           >
             <ChevronDown
               className={`w-4 h-4 text-current transition-transform duration-300 ease-out ${
                 isExpanded ? 'rotate-180' : ''
               }`}
             />
-          </button>
+          </Button>
         </div>
       </div>
 

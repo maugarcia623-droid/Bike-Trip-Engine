@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Button } from '@/components/arc';
 import {
   Gauge,
   Path,
@@ -190,7 +191,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
             const Icon = tab.icon;
             const isActive = effectiveActiveTab === tab.id;
             return (
-              <button
+              <Button variant="ghost"
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
@@ -202,7 +203,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
               >
                 <Icon className="w-4 h-4 shrink-0 text-current" />
                 <span className="max-w-full break-words text-center">{tab.label}</span>
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -292,7 +293,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
             {/* Advanced Bike Physics Disclosure (CdA / Crr / Efficiency tucked cleanly) */}
             <div className="pt-2 space-y-3">
               <div className="flex items-center justify-between gap-2 flex-wrap">
-                <button
+                <Button variant="ghost"
                   type="button"
                   aria-expanded={showAdvancedPhysics}
                   onClick={() => setShowAdvancedPhysics((v) => !v)}
@@ -309,8 +310,8 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                       showAdvancedPhysics ? 'rotate-180' : ''
                     }`}
                   />
-                </button>
-                <button
+                </Button>
+                <Button variant="ghost"
                   type="button"
                   onClick={handleAutofillSpecs}
                   className={`inline-flex items-center gap-1.5 min-h-[44px] px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
@@ -331,7 +332,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                       <span>{t('autofillBtn')}</span>
                     </>
                   )}
-                </button>
+                </Button>
               </div>
 
               {showAdvancedPhysics && (
@@ -355,7 +356,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                         ].map((preset) => {
                           const active = Math.abs(trip.physics.cda - preset.val) < 0.015;
                           return (
-                            <button
+                            <Button variant="ghost"
                               key={preset.val}
                               type="button"
                               onClick={() => updatePhysics('cda', preset.val)}
@@ -366,7 +367,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                               }`}
                             >
                               {preset.label}
-                            </button>
+                            </Button>
                           );
                         })}
                       </div>
@@ -398,7 +399,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                         ].map((preset) => {
                           const active = Math.abs(trip.physics.crr - preset.val) < 0.0006;
                           return (
-                            <button
+                            <Button variant="ghost"
                               key={preset.val}
                               type="button"
                               onClick={() => updatePhysics('crr', preset.val)}
@@ -409,7 +410,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                               }`}
                             >
                               {preset.label}
-                            </button>
+                            </Button>
                           );
                         })}
                       </div>
@@ -484,7 +485,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
               </div>
 
               <div className="grid grid-cols-2 gap-2">
-                <button
+                <Button variant="ghost"
                   type="button"
                   onClick={() => handleSelectPacingMode('speed')}
                   className={`py-2 px-3 rounded-full text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
@@ -495,8 +496,8 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                 >
                   <Gauge className="w-4 h-4 shrink-0 text-current" />
                   <span>{t('pacingHoldSpeed')}</span>
-                </button>
-                <button
+                </Button>
+                <Button variant="ghost"
                   type="button"
                   onClick={() => handleSelectPacingMode('effort')}
                   className={`py-2 px-3 rounded-full text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
@@ -507,7 +508,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                 >
                   <Lightning className="w-4 h-4 shrink-0 text-current" />
                   <span>{t('pacingHoldEffort')}</span>
-                </button>
+                </Button>
               </div>
 
               {currentPacingMode === 'effort' && (
@@ -520,7 +521,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                     ].map((preset) => {
                       const active = Math.abs((trip.route.targetEffortWatts || calmPresetWatts) - preset.watts) <= 3;
                       return (
-                        <button
+                        <Button variant="ghost"
                           key={preset.label}
                           type="button"
                           onClick={() => updateRoute('targetEffortWatts', preset.watts)}
@@ -531,7 +532,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                           }`}
                         >
                           {preset.label}
-                        </button>
+                        </Button>
                       );
                     })}
                   </div>
@@ -663,7 +664,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                   <span className="text-sm font-semibold text-ink">
                     {t('opposingHeadwindTitle')}
                   </span>
-                  <button
+                  <Button variant="ghost"
                     type="button"
                     onClick={() => updateWeather('isHeadwindActive', !trip.weather.isHeadwindActive)}
                     className={`px-3.5 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${CHIP_RING_BASE} ${
@@ -673,7 +674,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                     }`}
                   >
                     {trip.weather.isHeadwindActive ? t('headwindActiveBtn') : t('headwindCalmBtn')}
-                  </button>
+                  </Button>
                 </div>
                 <p className="text-xs text-ink-secondary">
                   {t('opposingHeadwindDesc')}

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Info } from '@/components/icons';
+import { Button } from '@/components/arc';
 
 const useIsomorphicLayoutEffect =
   typeof window !== 'undefined' ? useLayoutEffect : useEffect;
@@ -170,9 +171,10 @@ export const InfoTooltip: React.FC<InfoTooltipProps> = ({
 
   return (
     <>
-      <button
+      <Button
         ref={triggerRef}
-        type="button"
+        variant="ghost"
+        size="sm"
         onClick={handleClick}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
@@ -183,7 +185,7 @@ export const InfoTooltip: React.FC<InfoTooltipProps> = ({
         className={`relative before:content-[''] before:absolute before:-inset-3 inline-flex items-center justify-center p-0.5 rounded-full text-zinc-400 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-200 [--icon-secondary:currentColor] [--icon-secondary-opacity:0.3] focus:outline-none focus-visible:ring-2 focus-visible:ring-ink/40 dark:focus-visible:ring-white/40 transition-colors cursor-help shrink-0 align-middle ${className}`}
       >
         <Info className={`${iconSizeClass} text-current ${iconClassName}`} />
-      </button>
+      </Button>
 
       {isOpen &&
         typeof document !== 'undefined' &&

@@ -16,6 +16,7 @@ import {
   Utensils,
 } from '@/components/icons';
 import { useTranslation } from '../../context/LanguageContext';
+import { Button } from '@/components/arc';
 import { PACE_TIERS } from './constants';
 import { Chip } from '../common/Chip';
 import { fetchHourlyWeather, degreesToCompassCardinal } from '../../services/weatherService';
@@ -335,8 +336,9 @@ export const Screen4TimingPace: React.FC<Screen4TimingPaceProps> = ({
 
           {/* Fetch Weather Button Row */}
           <div className="mb-5">
-            <button
+            <Button
               type="button"
+              variant="secondary"
               onClick={handleFetchWeather}
               disabled={isFetchingWeather}
               className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-black/15 dark:border-white/20 bg-card hover:bg-pod text-ink text-xs font-rounded font-bold transition-all active:scale-[0.98] cursor-pointer shadow-xs disabled:opacity-50"
@@ -347,7 +349,7 @@ export const Screen4TimingPace: React.FC<Screen4TimingPaceProps> = ({
                 <Cloud size={13} className="text-current" />
               )}
               <span>{isFr ? 'Synchroniser la météo en direct' : 'Fetch live weather forecast'}</span>
-            </button>
+            </Button>
 
             {weatherNotice && (
               <div className="mt-2 text-xs font-medium text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/30 p-2.5 rounded-pod border border-emerald-500/20 flex items-center gap-2">
@@ -480,8 +482,9 @@ export const Screen4TimingPace: React.FC<Screen4TimingPaceProps> = ({
 
           {/* Collapsible Advanced Physics Region */}
           <div className="pt-2 border-t border-black/5 dark:border-white/10">
-            <button
+            <Button
               type="button"
+              variant="ghost"
               onClick={() => setIsPhysicsOpen(!isPhysicsOpen)}
               className="text-xs font-rounded font-bold text-ink hover:underline flex items-center gap-1.5 py-1 cursor-pointer"
             >
@@ -489,7 +492,7 @@ export const Screen4TimingPace: React.FC<Screen4TimingPaceProps> = ({
               <span>
                 {isFr ? 'Physique avancée · optionnel' : 'Advanced physics · optional'}
               </span>
-            </button>
+            </Button>
 
             {isPhysicsOpen && (
               <div className="mt-3 p-4 rounded-pod bg-pod border border-black/5 dark:border-white/10 space-y-3 animate-apple-step-in">

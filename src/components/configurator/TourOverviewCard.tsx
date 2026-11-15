@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { Button } from '@/components/arc';
 import {
   Route,
   Mountain,
@@ -82,14 +83,14 @@ export const TourOverviewCard: React.FC<TourOverviewCardProps> = ({
           </div>
         </div>
 
-        <button
+        <Button variant="ghost"
           type="button"
           onClick={() => downloadEntireTourGpx(trip)}
           className={`inline-flex items-center justify-center gap-1.5 min-h-[40px] px-3.5 py-2 rounded-full text-xs font-rounded font-semibold transition-all duration-150 cursor-pointer shrink-0 shadow-xs active:scale-[0.98] ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} hover:brightness-95`}
         >
           <Download className="w-3.5 h-3.5 text-current shrink-0" />
           <span>{t('exportEntireTourGpxBtn')}</span>
-        </button>
+        </Button>
       </div>
 
       {/* Cumulative Tour Summary Grid */}

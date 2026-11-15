@@ -23,6 +23,7 @@ import {
 import { useTranslation } from '../context/LanguageContext';
 import { Badge } from './common/Badge';
 import { ModalPortal } from './common/ModalPortal';
+import { Button } from '@/components/arc';
 import {
   CHIP_TOKENS,
   GREYSCALE_TOKENS,
@@ -292,14 +293,15 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
           </div>
         </div>
 
-        <button
-          type="button"
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={onClose}
           aria-label={t('closeModalAria')}
-          className={`relative w-9 h-9 shrink-0 rounded-full hover:text-ink hover:bg-chip flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer before:content-[''] before:absolute before:-inset-1.5 sm:before:inset-0 ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+          className={`relative w-9 h-9 p-0 shrink-0 rounded-full hover:text-ink hover:bg-chip flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer before:content-[''] before:absolute before:-inset-1.5 sm:before:inset-0 ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
         >
           <X className="w-4 h-4 text-current" />
-        </button>
+        </Button>
       </div>
       <div className="lane-divider mb-3 shrink-0" aria-hidden="true" />
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain touch-pan-y no-scrollbar py-1 w-full">
@@ -393,10 +395,11 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
 
             <div className="grid grid-cols-2 gap-2 p-1.5 rounded-pod bg-pod min-w-0">
               {/* Option 1: Solid Mode */}
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setMode('solid')}
-                className={`flex flex-col text-left p-3 min-h-[44px] rounded-sub-pod transition-all duration-150 active:scale-[0.98] cursor-pointer relative select-none min-w-0 ${
+                className={`flex flex-col items-stretch text-left whitespace-normal p-3 min-h-[44px] rounded-sub-pod transition-all duration-150 active:scale-[0.98] cursor-pointer relative select-none min-w-0 ${
                   mode === 'solid'
                     ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} shadow-xs`
                     : `bg-card text-ink-secondary hover:text-ink hover:bg-chip ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
@@ -418,13 +421,14 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
                 <p className="text-[11px] opacity-80 leading-snug">
                   {t('shareModeManifestDesc')}
                 </p>
-              </button>
+              </Button>
 
               {/* Option 2: Transparent Mode */}
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setMode('transparent')}
-                className={`flex flex-col text-left p-3 min-h-[44px] rounded-sub-pod transition-all duration-150 active:scale-[0.98] cursor-pointer relative select-none min-w-0 ${
+                className={`flex flex-col items-stretch text-left whitespace-normal p-3 min-h-[44px] rounded-sub-pod transition-all duration-150 active:scale-[0.98] cursor-pointer relative select-none min-w-0 ${
                   mode === 'transparent'
                     ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} shadow-xs`
                     : `bg-card text-ink-secondary hover:text-ink hover:bg-chip ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
@@ -446,7 +450,7 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
                 <p className="text-[11px] opacity-80 leading-snug">
                   {t('shareModeStickerDesc')}
                 </p>
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -540,20 +544,22 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
           {/* 3. Action Buttons */}
           <div className="flex flex-col gap-2.5 pt-1 min-w-0 animate-apple-in stagger-4">
             {/* Primary Export / Share Button */}
-            <button
-              type="button"
+            <Button
+              variant="primary"
+              size="lg"
               onClick={handleExportOrShare}
               disabled={isGenerating || !blob}
               className={`w-full min-h-[46px] py-3 px-5 rounded-pod ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} hover:brightness-[0.98] dark:hover:brightness-110 font-rounded font-bold text-sm flex items-center justify-center gap-2.5 transition-all duration-150 shadow-sm hover:shadow-md disabled:opacity-50 cursor-pointer select-none active:scale-[0.98]`}
             >
               <Receipt className="w-4 h-4 shrink-0 text-current" />
               <span>{t('shareExportBtn')}</span>
-            </button>
+            </Button>
 
             <div className="grid grid-cols-2 gap-2 min-w-0">
               {/* Copy Image Button */}
-              <button
-                type="button"
+              <Button
+                variant="secondary"
+                size="md"
                 onClick={handleCopyImage}
                 disabled={isGenerating || !blob}
                 className={`min-h-[44px] py-2.5 px-3 rounded-sub-pod ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES} hover:bg-chip hover:text-ink text-xs font-semibold font-rounded flex items-center justify-center gap-2 transition-all duration-150 active:scale-[0.97] cursor-pointer disabled:opacity-50 min-w-0`}
@@ -569,18 +575,19 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
                     <span>{t('shareCopyBtn')}</span>
                   </>
                 )}
-              </button>
+              </Button>
 
               {/* Direct Save PNG Button */}
-              <button
-                type="button"
+              <Button
+                variant="secondary"
+                size="md"
                 onClick={() => blob && triggerFileDownload(blob, 'cadence-ride-card.png')}
                 disabled={isGenerating || !blob}
                 className={`min-h-[44px] py-2.5 px-3 rounded-sub-pod ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES} hover:bg-chip hover:text-ink text-xs font-semibold font-rounded flex items-center justify-center gap-2 transition-all duration-150 active:scale-[0.97] cursor-pointer disabled:opacity-50 min-w-0`}
               >
                 <Download className="w-4 h-4 shrink-0 text-current" />
                 <span>{t('shareSavePngBtn')}</span>
-              </button>
+              </Button>
             </div>
           </div>
         </div>

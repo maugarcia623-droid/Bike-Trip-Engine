@@ -1,6 +1,7 @@
 import React from 'react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { Button } from '@/components/arc';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
   CHIP_ICON_ROOT_CLASSES,
@@ -55,8 +56,9 @@ export const Chip: React.FC<ChipProps> = ({
   const tokens = CHIP_TOKENS[theme] ?? CHIP_TOKENS.amber;
 
   return (
-    <button
-      type="button"
+    <Button
+      variant="ghost"
+      size="sm"
       aria-pressed={isSelected}
       disabled={disabled}
       title={title}
@@ -90,7 +92,7 @@ export const Chip: React.FC<ChipProps> = ({
         aria-hidden="true"
       />
       <span>{label}</span>
-    </button>
+    </Button>
   );
 };
 

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Button } from '@/components/arc';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
@@ -1267,7 +1268,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
           {/* ── MINI DYNAMIC ISLAND PILL (1:1 ICON BUTTONS: ROUTE, RESUPPLY RADAR, BIKE SPECS) ── */}
           <div className="relative inline-flex items-center gap-1 sm:gap-1.5 p-1 sm:p-1.5 rounded-full bg-card/95 dark:bg-[#161618]/95 backdrop-blur-md text-ink dark:text-white shadow-sm sm:shadow-md pointer-events-auto select-none transition-colors">
             {/* 1. Route Direction / Flip Button (1:1 format, icon only) */}
-            <button
+            <Button variant="ghost"
               type="button"
               disabled={!isInteractive}
               onClick={
@@ -1301,10 +1302,10 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
               ) : (
                 <ArrowsLeftRight className="w-4 h-4 text-current transition-transform duration-200 active:-rotate-180" />
               )}
-            </button>
+            </Button>
 
             {/* 2. Corridor Resupply Radar Button (1:1 format, icon only) */}
-            <button
+            <Button variant="ghost"
               type="button"
               onClick={() => setIsRadarOpen((prev) => !prev)}
               aria-expanded={isRadarOpen}
@@ -1326,10 +1327,10 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   {trip.pinnedAmenities.length}
                 </span>
               )}
-            </button>
+            </Button>
 
             {/* 3. Rider Bike Garage Button (1:1 format, icon only) */}
-            <button
+            <Button variant="ghost"
               type="button"
               onClick={() => {
                 if (effectiveSpecs && activeBike) {
@@ -1352,7 +1353,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
               } ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
               <Bicycle className="w-4 h-4 text-current shrink-0" />
-            </button>
+            </Button>
 
             {/* ── Bike Garage Popover (anchored to the mini dynamic island pill, above all lower content) ── */}
             {activePopover === 'bike' && effectiveSpecs && activeBike && (
@@ -1368,21 +1369,21 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     <span className="text-xs font-bold text-ink-muted">
                       {t('bikeGarageHeading', { count: effectiveSpecs.bikes.length })}
                     </span>
-                    <button
+                    <Button variant="ghost"
                       type="button"
                       onClick={() => setActivePopover(null)}
                       aria-label={t('closeModalAria')}
                       className="relative before:content-[''] before:absolute before:-inset-1.5 w-8 h-8 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-pod cursor-pointer"
                     >
                       <X className="w-3.5 h-3.5" />
-                    </button>
+                    </Button>
                   </div>
 
                   <div className="space-y-1.5">
                     {effectiveSpecs.bikes.map((bike) => {
                       const selected = bike.id === activeBike.id;
                       return (
-                        <button
+                        <Button variant="ghost"
                           key={bike.id}
                           type="button"
                           onClick={() => {
@@ -1402,13 +1403,13 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                             </div>
                           </div>
                           {selected && <Check className="w-3.5 h-3.5 shrink-0 text-current" />}
-                        </button>
+                        </Button>
                       );
                     })}
                   </div>
 
                   {onOpenSpecs && (
-                    <button
+                    <Button variant="ghost"
                       type="button"
                       onClick={() => {
                         setActivePopover(null);
@@ -1418,7 +1419,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     >
                       <SlidersHorizontal className="w-3.5 h-3.5 text-current" />
                       <span>{t('heroManageGarageBtn')}</span>
-                    </button>
+                    </Button>
                   )}
                 </div>
               </>
@@ -1476,7 +1477,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                       {isDepartAtMode ? t('rolloutTimeLabel') : t('heroQuickTargetTitle')}
                     </span>
                     <div className="flex items-center gap-1">
-                      <button
+                      <Button variant="ghost"
                         type="button"
                         onClick={handleToggleChronometryMode}
                         className="px-2.5 py-1 rounded-full bg-pod hover:bg-chip text-[11px] font-semibold text-ink-secondary hover:text-ink transition-colors cursor-pointer"
@@ -1488,15 +1489,15 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                           : isFr
                           ? 'Mode Départ'
                           : 'Depart mode'}
-                      </button>
-                      <button
+                      </Button>
+                      <Button variant="ghost"
                         type="button"
                         onClick={() => setActivePopover(null)}
                         aria-label={t('closeModalAria')}
                         className="relative before:content-[''] before:absolute before:-inset-1.5 w-8 h-8 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-pod cursor-pointer"
                       >
                         <X className="w-3.5 h-3.5" />
-                      </button>
+                      </Button>
                     </div>
                   </div>
 
@@ -1511,14 +1512,14 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
 
                   <div className="grid grid-cols-4 gap-1.5 mb-2">
                     {[-30, -15, 15, 30].map((delta) => (
-                      <button
+                      <Button variant="ghost"
                         key={delta}
                         type="button"
                         onClick={() => handleNudgeTargetTime(delta)}
                         className="min-h-[44px] sm:min-h-[34px] rounded-full bg-pod hover:bg-chip text-xs font-semibold text-ink tnum transition-colors cursor-pointer"
                       >
                         {delta > 0 ? `+${delta} min` : `${delta} min`}
-                      </button>
+                      </Button>
                     ))}
                   </div>
 
@@ -1591,14 +1592,14 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                       <MapIcon className={`w-3.5 h-3.5 shrink-0 text-beacon-red dark:text-rose-400 dual-tone-rose ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
                       {t('heroQuickRouteTitle')}
                     </span>
-                    <button
+                    <Button variant="ghost"
                       type="button"
                       onClick={() => setActivePopover(null)}
                       aria-label={t('closeModalAria')}
                       className="relative before:content-[''] before:absolute before:-inset-1.5 w-8 h-8 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-pod cursor-pointer"
                     >
                       <X className="w-3.5 h-3.5" />
-                    </button>
+                    </Button>
                   </div>
 
                   {isRadiusMode ? (
@@ -1614,7 +1615,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                       </div>
                     </div>
                   ) : (
-                    <button
+                    <Button variant="ghost"
                       type="button"
                       onClick={handleFlipRouteDirection}
                       className={`w-full min-h-[44px] rounded-full px-4 py-2.5 mb-2.5 text-left flex items-center gap-2.5 transition-all cursor-pointer ${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.emerald.selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
@@ -1624,19 +1625,19 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                         <div className="text-xs font-bold leading-tight">{t('heroFlipReturnBtn')}</div>
                         <div className="text-[11px] opacity-80 leading-snug mt-0.5">{t('heroFlipReturnSub')}</div>
                       </div>
-                    </button>
+                    </Button>
                   )}
 
                   <div className="flex items-center gap-1.5">
                     {[-5, -1].map((d) => (
-                      <button
+                      <Button variant="ghost"
                         key={d}
                         type="button"
                         onClick={() => handleSetDistanceKm((trip.route.distanceKm || 10) + d)}
                         className="min-h-[44px] sm:min-h-[36px] px-3 rounded-full bg-pod hover:bg-chip text-xs font-semibold text-ink tnum cursor-pointer"
                       >
                         {d}
-                      </button>
+                      </Button>
                     ))}
                     <div className="flex-1 flex items-center justify-center gap-1 min-h-[44px] sm:min-h-[36px] px-3 rounded-full bg-pod focus-within:ring-2 focus-within:ring-ink dark:focus-within:ring-white">
                       <input
@@ -1651,14 +1652,14 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                       <span className="text-[11px] text-ink-muted">km</span>
                     </div>
                     {[1, 5].map((d) => (
-                      <button
+                      <Button variant="ghost"
                         key={d}
                         type="button"
                         onClick={() => handleSetDistanceKm((trip.route.distanceKm || 10) + d)}
                         className="min-h-[44px] sm:min-h-[36px] px-3 rounded-full bg-pod hover:bg-chip text-xs font-semibold text-ink tnum cursor-pointer"
                       >
                         +{d}
-                      </button>
+                      </Button>
                     ))}
                   </div>
 
@@ -1678,7 +1679,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                           e.target.value = '';
                         }}
                       />
-                      <button
+                      <Button variant="ghost"
                         type="button"
                         onClick={() => gpxInputRef.current?.click()}
                         className={`w-full h-8 px-3.5 rounded-full bg-pod hover:bg-chip text-xs font-semibold text-ink flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
@@ -1689,9 +1690,9 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                             ? `${t('gpxLoadedBadge')} · ${trip.route.gpxFileName}`
                             : t('gpxUploadBtn')}
                         </span>
-                      </button>
+                      </Button>
 
-                      <button
+                      <Button variant="primary"
                         type="button"
                         onClick={() => {
                           downloadTripGpx(trip);
@@ -1703,7 +1704,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                         <span className="break-words leading-tight">
                           {t('exportGpxBtn')} (Garmin / Wahoo)
                         </span>
-                      </button>
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -1771,14 +1772,14 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                 <div className="absolute right-0 lg:left-0 lg:right-auto bottom-full mb-2.5 w-[min(21.5rem,calc(100vw-3rem))] z-40 rounded-pod p-3.5 bg-card dark:bg-[#161618] ring-1 ring-inset ring-ink/10 dark:ring-white/15 shadow-2xl animate-apple-popover">
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <span className="text-xs font-bold text-ink">{t('heroQuickPaceTitle')}</span>
-                    <button
+                    <Button variant="ghost"
                       type="button"
                       onClick={() => setActivePopover(null)}
                       aria-label={t('closeModalAria')}
                       className="relative before:content-[''] before:absolute before:-inset-1.5 w-8 h-8 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-pod cursor-pointer"
                     >
                       <X className="w-3.5 h-3.5" />
-                    </button>
+                    </Button>
                   </div>
 
                   {/* Explicit Moving vs Buffer Time Breakdown Box */}
@@ -1800,7 +1801,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
 
                   {/* Hold Speed vs Hold Effort Toggle */}
                   <div className="grid grid-cols-2 gap-1 p-1 rounded-full bg-pod mb-3">
-                    <button
+                    <Button variant="ghost"
                       type="button"
                       onClick={() => handleUpdatePacing({ pacingMode: 'speed' })}
                       className={`min-h-[44px] sm:min-h-[34px] py-1.5 px-3 rounded-full text-[11px] font-semibold transition-all cursor-pointer ${
@@ -1810,8 +1811,8 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                       }`}
                     >
                       {t('pacingHoldSpeed')}
-                    </button>
-                    <button
+                    </Button>
+                    <Button variant="ghost"
                       type="button"
                       onClick={() =>
                         handleUpdatePacing({
@@ -1827,7 +1828,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                       }`}
                     >
                       {t('pacingHoldEffort')}
-                    </button>
+                    </Button>
                   </div>
 
                   {trip.route.pacingMode === 'effort' ? (
@@ -1853,7 +1854,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                       />
                       <div className="flex items-center justify-between gap-1.5">
                         {[-15, -5, 5, 15].map((dw) => (
-                          <button
+                          <Button variant="ghost"
                             key={dw}
                             type="button"
                             onClick={() =>
@@ -1867,7 +1868,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                             className="flex-1 min-h-[44px] sm:min-h-[34px] rounded-full bg-pod hover:bg-chip text-[11px] font-semibold text-ink tnum cursor-pointer"
                           >
                             {dw > 0 ? `+${dw} W` : `${dw} W`}
-                          </button>
+                          </Button>
                         ))}
                       </div>
                     </div>
@@ -1894,7 +1895,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                       />
                       <div className="flex items-center justify-between gap-1.5">
                         {[-2, -1, 1, 2].map((dv) => (
-                          <button
+                          <Button variant="ghost"
                             key={dv}
                             type="button"
                             onClick={() =>
@@ -1908,7 +1909,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                             className="flex-1 min-h-[44px] sm:min-h-[34px] rounded-full bg-pod hover:bg-chip text-[11px] font-semibold text-ink tnum cursor-pointer"
                           >
                             {dv > 0 ? `+${dv}` : `${dv}`} km/h
-                          </button>
+                          </Button>
                         ))}
                       </div>
                     </div>
@@ -1921,7 +1922,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   </p>
 
                   {onOpenConfigurator && (
-                    <button
+                    <Button variant="ghost"
                       type="button"
                       onClick={() => {
                         setActivePopover(null);
@@ -1931,7 +1932,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     >
                       <SlidersHorizontal className="w-3.5 h-3.5 text-current" />
                       <span>{t('heroOpenFullConfigBtn')}</span>
-                    </button>
+                    </Button>
                   )}
                 </div>
               )}
@@ -2131,7 +2132,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                           </p>
                         </div>
                         {canQueryOsmSurface && (
-                          <button
+                          <Button variant="ghost"
                             type="button"
                             onClick={refreshOsmSurface}
                             disabled={surfaceBreakdown.isLoadingOsm}
@@ -2140,7 +2141,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                             className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center bg-[#4D5200]/10 dark:bg-[#DFFF00]/10 hover:bg-[#4D5200]/15 dark:hover:bg-[#DFFF00]/15 active:scale-[0.97] transition-all cursor-pointer disabled:cursor-wait"
                           >
                             <RefreshCw className={`w-4 h-4 ${surfaceBreakdown.isLoadingOsm ? 'animate-spin' : ''}`} />
-                          </button>
+                          </Button>
                         )}
                       </div>
 
@@ -2236,7 +2237,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                           const meta = SURFACE_VISUAL_META[seg.type];
                           const isActive = activeSurfaceSegmentId === seg.id;
                           return (
-                            <button
+                            <Button variant="ghost"
                               key={seg.id}
                               type="button"
                               style={{ flexGrow: Math.max(0.5, seg.endPct - seg.startPct), flexBasis: 0 }}

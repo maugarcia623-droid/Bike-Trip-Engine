@@ -1,5 +1,6 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useId } from 'react';
 import { Mountains, Upload, Route } from '@/components/icons';
+import { Button } from '@/components/arc';
 import { RouteParams, PhysicsCalculationResult, SurfaceSegment } from '../../types/trip';
 import { synthesizeRouteElevationProfile } from '../../utils/gpxParser';
 import { computeSurfaceBreakdown, SURFACE_VISUAL_META } from '../../utils/surfaceProfile';
@@ -7,6 +8,7 @@ import { useOsmSurface } from '../../services/osmSurfaceService';
 import { getPowerZone } from '../../utils/physics';
 import { useTranslation } from '../../context/LanguageContext';
 import { Badge } from './Badge';
+import { Collapsible, DisclosureChevron } from './Collapsible';
 import { IconBadge } from './IconBadge';
 import { SurfaceProfileBar } from './SurfaceProfileBar';
 import {
@@ -23,6 +25,7 @@ interface ElevationTerrainStripProps {
   activeSegmentId?: string | null;
   onSelectSurfaceSegment?: (segment: SurfaceSegment | null) => void;
   compact?: boolean;
+  defaultOpen?: boolean;
   onUploadGpxFile?: (file: File) => void;
 }
 
@@ -34,12 +37,15 @@ export const ElevationTerrainStrip: React.FC<ElevationTerrainStripProps> = ({
   activeSegmentId,
   onSelectSurfaceSegment,
   compact = false,
+  defaultOpen = false,
   onUploadGpxFile,
 }) => {
   const { lang, t } = useTranslation();
   const isFr = lang === 'fr';
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+  const panelId = useId();
 
   const isGpx = Boolean(route.elevationProfile && route.elevationProfile.length >= 3);
   const { elevationProfile, terrainSummary } = useMemo(
@@ -173,30 +179,51 @@ export const ElevationTerrainStrip: React.FC<ElevationTerrainStripProps> = ({
   }, [hoverIdx, surfaceBreakdown]);
 
   return (
-    <div className="rounded-card bg-card text-ink p-3.5 sm:p-4 transition-colors">
-      {/* Header Row */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3">
-        <div className="flex items-center gap-2.5 min-w-0">
+    <div className="rounded-card bg-card text-ink border border-ink/5 dark:border-white/5 overflow-hidden transition-colors">
+      {/* Collapsible Header Toggle */}
+      <button
+        type="button"
+        onClick={() => setIsOpen((v) => !v)}
+        aria-expanded={isOpen}
+        aria-controls={panelId}
+        className="w-full min-h-[44px] p-3.5 sm:p-4 flex items-center justify-between gap-2.5 hover:bg-chip/40 transition-colors cursor-pointer text-left select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
+      >
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
           <IconBadge theme="emerald" icon={Mountains} size="sm" solidBacker />
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-xs sm:text-sm font-semibold text-ink tracking-tight">
-                {t('terrainOverviewTitle')}
-              </h3>
-              <Badge variant={difficultyLabel.variant} size="xs" dot>
-                {difficultyLabel.text}
+          <div className="min-w-0 flex items-center gap-2 flex-wrap">
+            <h3 className="text-xs sm:text-sm font-semibold text-ink tracking-tight">
+              {t('terrainOverviewTitle')}
+            </h3>
+            <Badge variant={difficultyLabel.variant} size="xs" dot>
+              {difficultyLabel.text}
+            </Badge>
+            <Badge variant="zinc" size="xs" icon={Route}>
+              {surfaceInfo}
+            </Badge>
+            <Badge variant="zinc" size="xs" className="tnum">
+              +{elevGain} m D+
+            </Badge>
+            {isGpx && (
+              <Badge variant="emerald" size="xs" className="tnum">
+                {route.gpxFileName ? `GPX · ${route.gpxFileName}` : t('gpxLoadedBadge')}
               </Badge>
-              <Badge variant="zinc" size="xs" icon={Route}>
-                {surfaceInfo}
-              </Badge>
-              {isGpx && (
-                <Badge variant="emerald" size="xs" className="tnum">
-                  {route.gpxFileName ? `GPX · ${route.gpxFileName}` : t('gpxLoadedBadge')}
-                </Badge>
-              )}
-            </div>
-            {!compact && (
-              <p className="text-[11px] text-ink-muted mt-0.5 break-words leading-relaxed">
+            )}
+          </div>
+        </div>
+
+        <DisclosureChevron open={isOpen} />
+      </button>
+
+      {/* Expandable Terrain Overview Body */}
+      <Collapsible
+        open={isOpen}
+        id={panelId}
+        innerClassName="px-3.5 sm:px-4 pb-3.5 sm:pb-4 pt-0.5"
+      >
+        {(!compact || onUploadGpxFile) && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3">
+            {!compact ? (
+              <p className="text-[11px] text-ink-muted break-words leading-relaxed">
                 {isGpx
                   ? isFr
                     ? `Profil réel extrait de votre trace GPX (+${elevGain} m D+ · pente max ${terrainSummary.maxGradePct}%)`
@@ -205,36 +232,38 @@ export const ElevationTerrainStrip: React.FC<ElevationTerrainStripProps> = ({
                   ? `Aperçu topographique (+${elevGain} m D+) — importez un fichier .GPX pour le relief exact mètre par mètre`
                   : `Topographic preview (+${elevGain} m D+) — upload a .GPX file for exact meter-by-meter slope`}
               </p>
+            ) : (
+              <span />
+            )}
+
+            {onUploadGpxFile && (
+              <div className="shrink-0">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".gpx,application/gpx+xml,text/xml,application/xml"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) {
+                      onUploadGpxFile(f);
+                      e.target.value = '';
+                    }
+                  }}
+                />
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[34px] px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} hover:brightness-[0.97] dark:hover:brightness-110 ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                >
+                  <Upload className="w-3.5 h-3.5 text-current" />
+                  <span>{t('gpxUploadBtn')}</span>
+                </Button>
+              </div>
             )}
           </div>
-        </div>
-
-        {onUploadGpxFile && (
-          <div className="shrink-0">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".gpx,application/gpx+xml,text/xml,application/xml"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) {
-                  onUploadGpxFile(f);
-                  e.target.value = '';
-                }
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[34px] px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} hover:brightness-[0.97] dark:hover:brightness-110 ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
-            >
-              <Upload className="w-3.5 h-3.5 text-current" />
-              <span>{t('gpxUploadBtn')}</span>
-            </button>
-          </div>
         )}
-      </div>
 
       {/* Interactive Elevation Area Chart */}
       <div className="relative rounded-pod bg-pod px-3 pt-2.5 pb-2 mb-2.5 overflow-hidden select-none">
@@ -369,6 +398,7 @@ export const ElevationTerrainStrip: React.FC<ElevationTerrainStripProps> = ({
         onRefreshOsm={canQueryOsm ? refreshOsm : undefined}
         compact={compact}
       />
+      </Collapsible>
     </div>
   );
 };

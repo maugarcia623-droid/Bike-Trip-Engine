@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useId } from 'react';
+import { Button } from '@/components/arc';
 import {
   Lightning,
   Info,
@@ -203,7 +204,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
           <Badge variant={zoneTheme} size="md" dot className="tnum">
             {zoneLabel}
           </Badge>
-          <button
+          <Button variant="ghost"
             type="button"
             onClick={() => setShowDidactics((v) => !v)}
             aria-expanded={showDidactics}
@@ -218,14 +219,14 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
             <span>
               {showDidactics ? t('didacticWattsToggleHide') : t('didacticWattsToggleShow')}
             </span>
-          </button>
+          </Button>
         </div>
       }
     >
       {/* ── CONCENTRIC TELEMETRY VIEW SWITCHER: [ GUIDED VIEW ] / [ PRO TELEMETRY ] ── */}
       {onToggleViewMode && (
         <div className="grid grid-cols-2 sm:inline-flex items-center gap-1 p-1 rounded-full bg-pod mb-3.5 w-full sm:w-auto">
-          <button
+          <Button variant="ghost"
             type="button"
             onClick={() => {
               setShowDidactics(false);
@@ -242,9 +243,9 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
           >
             <Eye className="w-3.5 h-3.5 shrink-0 text-current" />
             <span>{t('cockpitViewEssential')}</span>
-          </button>
+          </Button>
 
-          <button
+          <Button variant="ghost"
             type="button"
             onClick={() => {
               setShowDidactics(false);
@@ -261,7 +262,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
           >
             <Gauge className="w-3.5 h-3.5 shrink-0 text-current" />
             <span>{t('cockpitViewPro')}</span>
-          </button>
+          </Button>
         </div>
       )}
 
@@ -513,7 +514,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
 
       {/* ── VARIABLE SECTIONAL ENERGY & MULTI-ZONE PROFILE (COLLAPSIBLE POD) ── */}
       <div className="bg-pod rounded-pod mb-3 overflow-hidden">
-        <button
+        <Button variant="ghost"
           type="button"
           onClick={() => setShowSectional((v) => !v)}
           aria-expanded={showSectional}
@@ -548,7 +549,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
           </div>
 
           <DisclosureChevron open={showSectional} />
-        </button>
+        </Button>
 
         <Collapsible
           open={showSectional}
@@ -577,7 +578,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
       {/* ── COLLAPSIBLE DEEP TELEMETRY DRAWER (PRO VIEW ONLY): P_aero, P_rolling, P_gravity, CdA, Crr, Mass & Efficiency ── */}
       {!isEssential && (
       <div className="rounded-pod bg-pod overflow-hidden">
-        <button
+        <Button variant="ghost"
           type="button"
           onClick={() => setShowTelemetryDrawer((v) => !v)}
           aria-expanded={showTelemetryDrawer}
@@ -608,7 +609,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
             </Badge>
             <DisclosureChevron open={showTelemetryDrawer} />
           </div>
-        </button>
+        </Button>
 
         <Collapsible
           open={showTelemetryDrawer}

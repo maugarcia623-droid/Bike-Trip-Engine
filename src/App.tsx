@@ -1,4 +1,5 @@
 import { RiderBikeSpecsModal } from "./components/settings/RiderBikeSpecsModal";
+import { Button } from "@/components/arc";
 import {
   loadRiderBikeSpecs,
   saveRiderBikeSpecs,
@@ -110,16 +111,17 @@ class CockpitErrorBoundary extends React.Component<
               {this.state.error.message}
             </p>
             <div className="pt-2 flex items-center justify-center gap-3">
-              <button
-                type="button"
+              <Button
+                variant="primary"
+                size="md"
                 onClick={() => {
                   this.setState({ error: null });
                   this.props.onResetCockpit();
                 }}
-                className="min-h-[44px] px-4 py-2 rounded-full bg-volt text-[#111111] text-xs font-bold cursor-pointer"
+                className="min-h-[44px] px-4 py-2 rounded-full text-xs font-bold cursor-pointer"
               >
                 Reload Cadence
-              </button>
+              </Button>
             </div>
           </div>
         </div>

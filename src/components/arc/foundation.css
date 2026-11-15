@@ -1,0 +1,253 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Arc Foundation Tokens — Themed for Cadence Design System (v3.0)
+   Mapped to Peloton & Tarmac surfaces, Yellow-Vest / Volt brand accents,
+   concentric corner geometry, and Dual-Voice Typography (Light & Dark Modes).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root,
+:root[data-theme="light"],
+.light {
+  /* ── Page & Surface Hierarchy (Daytime Peloton Shell & Warm Stone Tarmac) ── */
+  --background: rgb(var(--ds-canvas, 229 227 221));        /* #E5E3DD */
+  --surface: rgb(var(--ds-card, 255 255 255));             /* #FFFFFF */
+  --surface-raised: rgb(var(--ds-pod, 244 243 239));       /* #F4F3EF */
+  --surface-muted: rgb(var(--ds-chip, 235 233 227));       /* #EBE9E3 */
+  --surface-hover: rgb(var(--ds-chip-hover, 224 221 213)); /* #E0DDD5 */
+  --surface-elevated: rgb(var(--ds-elevated, 17 17 17));   /* #111111 */
+
+  /* ── Ink & Typography Hierarchy (WCAG AAA/AA) ── */
+  --foreground: rgb(var(--ds-ink, 17 17 17));              /* #111111 */
+  --text-secondary: rgb(var(--ds-ink-secondary, 61 60 56));/* #3D3C38 */
+  --text-muted: rgb(var(--ds-ink-muted, 102 100 94));      /* #66645E */
+  --text-inverse: rgb(var(--ds-ink-inverse, 255 255 255)); /* #FFFFFF */
+
+  /* ── Hairline Borders & Concentric Rings ── */
+  --border: rgba(17, 17, 17, 0.11);
+  --border-subtle: rgba(17, 17, 17, 0.06);
+  --border-strong: rgba(17, 17, 17, 0.22);
+
+  /* ── Brand Accent: Cadence Volt & High-Visibility Yellow-Vest ── */
+  --accent: #F2F455;
+  --accent-strong: #A3B300;
+  --accent-subtle: #FAFFCB;
+  --accent-foreground: #4D5200;
+
+  /* ── Primary Button Tokens (Yellow-Vest Brand CTA) ── */
+  --arc-btn-primary-bg: #F2F455;
+  --arc-btn-primary-bg-hover: #E9EC43;
+  --arc-btn-primary-fg: #4D5200;
+  --arc-btn-primary-ring: #A3B300;
+
+  /* ── Secondary & Ghost Button Tokens ── */
+  --arc-btn-secondary-bg: rgb(var(--ds-pod, 244 243 239));
+  --arc-btn-secondary-bg-hover: rgb(var(--ds-chip, 235 233 227));
+  --arc-btn-secondary-fg: rgb(var(--ds-ink, 17 17 17));
+  --arc-btn-secondary-ring: rgba(17, 17, 17, 0.08);
+
+  --arc-btn-ghost-bg-hover: rgb(var(--ds-pod, 244 243 239));
+  --arc-btn-ghost-fg: rgb(var(--ds-ink-secondary, 61 60 56));
+  --arc-btn-ghost-fg-hover: rgb(var(--ds-ink, 17 17 17));
+
+  /* ── Status & Beacon Palette ── */
+  --success: #3D9A00;
+  --success-subtle: rgba(61, 154, 0, 0.12);
+  --success-foreground: #FFFFFF;
+
+  --warning: #F59E0B;
+  --warning-subtle: rgba(245, 158, 11, 0.14);
+  --warning-foreground: #451A03;
+
+  --danger: #FF3B30;
+  --danger-subtle: rgba(255, 59, 48, 0.10);
+  --danger-ring: rgba(255, 59, 48, 0.35);
+  --danger-foreground: #FFFFFF;
+
+  /* ── Selection Controls ── */
+  --control-on: #111111;
+  --control-glyph: #FFFFFF;
+  --control-track: rgb(var(--ds-chip, 235 233 227));
+  --control-thumb: #FFFFFF;
+  --control-thumb-on: #FFFFFF;
+
+  /* ── Chart Series ── */
+  --series-1: #F2F455;
+  --series-2: #10B981;
+  --series-3: #F59E0B;
+  --series-4: #FF3B30;
+
+  /* ── Shadows ── */
+  --shadow-resting: 0 1px 2px rgba(17, 17, 17, 0.05);
+  --shadow-raised: 0 6px 16px -2px rgba(17, 17, 17, 0.08), 0 2px 6px -1px rgba(17, 17, 17, 0.04);
+  --shadow-floating: 0 20px 48px -8px rgba(17, 17, 17, 0.16), 0 4px 12px -2px rgba(17, 17, 17, 0.06);
+
+  /* ── Focus Ring ── */
+  --focus-outline: #A3B300;
+  --focus-outline-offset: 2px;
+
+  /* ── Typography ── */
+  --font-geist: ui-rounded, -apple-system-rounded, "SF Pro Rounded", Nunito, Inter, sans-serif;
+  --font-inter: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  --font-display: var(--font-geist);
+  --font-body: var(--font-geist);
+
+  --text-xs: 0.75rem;     /* 12px */
+  --text-sm: 0.8125rem;   /* 13px */
+  --text-field: 0.875rem; /* 14px (16px on <640px) */
+  --text-base: 0.9375rem; /* 15px */
+  --text-lg: 1.0625rem;   /* 17px */
+  --text-xl: 1.25rem;     /* 20px */
+  --text-2xl: 1.375rem;   /* 22px */
+  --text-3xl: 1.75rem;    /* 28px */
+  --text-4xl: 2.125rem;   /* 34px */
+  --text-5xl: 2.5rem;     /* 40px */
+
+  --tracking-display: -0.02em;
+  --tracking-body: -0.01em;
+  --leading-display: 1.1;
+  --leading-body: 1.4;
+
+  /* ── Concentric Radii (Design System Section 2) ── */
+  --radius-control: 9999px; /* Full pill for buttons & interactive controls */
+  --radius-sub: 0.5rem;     /* 8px — rounded-sub-pod */
+  --radius-panel: 1rem;     /* 16px — rounded-pod */
+  --radius-surface: 2rem;   /* 32px — rounded-card */
+  --radius-pill: 9999px;
+
+  /* ── Control Sizing ── */
+  --control-height-sm: 34px;
+  --control-height-md: 44px;
+  --control-height-lg: 46px;
+
+  /* ── 4px Grid Spacing Scale ── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+
+  /* ── Motion Curves & Durations ── */
+  --duration-instant: 120ms;
+  --duration-fast: 160ms;
+  --duration-standard: 240ms;
+  --duration-considered: 480ms;
+  --duration-spring: 350ms;
+
+  --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.2, 0.9, 0.3, 1);
+  --ease-snappy: cubic-bezier(0.25, 1, 0.5, 1);
+
+  /* ── Arc Component Token Aliases ── */
+  --arc-bg-subtle: var(--surface-raised);
+  --arc-bg-muted: var(--surface-muted);
+  --arc-bg-elevated: var(--surface);
+  --arc-border-default: var(--border);
+  --arc-border-subtle: var(--border-subtle);
+  --arc-text-primary: var(--foreground);
+  --arc-text-secondary: var(--text-secondary);
+  --arc-accent-primary: var(--accent-strong);
+  --arc-accent-subtle: var(--accent-subtle);
+  --arc-accent-subtle-fg: var(--accent-foreground);
+  --arc-accent-subtle-border: var(--accent-strong);
+  --arc-radius-md: 10px;
+  --arc-radius-lg: 14px;
+  --arc-radius-full: 9999px;
+  --arc-font-rounded: var(--font-geist);
+  --arc-shadow-sm: var(--shadow-resting);
+  --arc-shadow-md: var(--shadow-raised);
+}
+
+:root[data-theme="dark"],
+.dark {
+  /* ── Page & Surface Hierarchy (Layered Neutral Carbon Grey Nightwear) ── */
+  --background: rgb(var(--ds-canvas, 0 0 0));              /* #000000 */
+  --surface: rgb(var(--ds-card, 22 22 24));                /* #161618 */
+  --surface-raised: rgb(var(--ds-pod, 32 32 35));          /* #202023 */
+  --surface-muted: rgb(var(--ds-chip, 44 44 48));          /* #2C2C30 */
+  --surface-hover: rgb(var(--ds-chip-hover, 56 56 61));    /* #38383D */
+  --surface-elevated: rgb(var(--ds-elevated, 48 48 52));   /* #303034 */
+
+  /* ── Night Ink Hierarchy (WCAG AAA/AA) ── */
+  --foreground: rgb(var(--ds-ink, 245 245 247));           /* #F5F5F7 */
+  --text-secondary: rgb(var(--ds-ink-secondary, 168 168 174)); /* #A8A8AE */
+  --text-muted: rgb(var(--ds-ink-muted, 132 132 140));     /* #84848C */
+  --text-inverse: rgb(var(--ds-ink-inverse, 12 12 14));    /* #0C0C0E */
+
+  /* ── Night Hairline Borders ── */
+  --border: rgba(255, 255, 255, 0.11);
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.22);
+
+  /* ── Night Brand Accent: Volt & Yellow-Vest Dark Matrix ── */
+  --accent: #F2F455;
+  --accent-strong: #DFFF00;
+  --accent-subtle: rgba(31, 34, 3, 0.78);
+  --accent-foreground: #DFFF00;
+
+  /* ── Primary Button Tokens (High-Contrast Volt / Yellow-Vest CTA) ── */
+  --arc-btn-primary-bg: #F2F455;
+  --arc-btn-primary-bg-hover: #F7F96B;
+  --arc-btn-primary-fg: #111111;
+  --arc-btn-primary-ring: #DFFF00;
+
+  /* ── Secondary & Ghost Button Tokens (Dark Carbon Hierarchy) ── */
+  --arc-btn-secondary-bg: rgb(var(--ds-pod, 32 32 35));
+  --arc-btn-secondary-bg-hover: rgb(var(--ds-chip, 44 44 48));
+  --arc-btn-secondary-fg: rgb(var(--ds-ink, 245 245 247));
+  --arc-btn-secondary-ring: rgba(255, 255, 255, 0.10);
+
+  --arc-btn-ghost-bg-hover: rgb(var(--ds-pod, 32 32 35));
+  --arc-btn-ghost-fg: rgb(var(--ds-ink-secondary, 168 168 174));
+  --arc-btn-ghost-fg-hover: rgb(var(--ds-ink, 245 245 247));
+
+  /* ── Status & Beacon Palette (Dark) ── */
+  --success: #10B981;
+  --success-subtle: rgba(16, 185, 129, 0.18);
+  --success-foreground: #052E16;
+
+  --warning: #F59E0B;
+  --warning-subtle: rgba(245, 158, 11, 0.18);
+  --warning-foreground: #FEF3C7;
+
+  --danger: #FF3B30;
+  --danger-subtle: rgba(255, 59, 48, 0.16);
+  --danger-ring: rgba(255, 59, 48, 0.45);
+  --danger-foreground: #FFFFFF;
+
+  /* ── Selection Controls (Dark) ── */
+  --control-on: #F2F455;
+  --control-glyph: #111111;
+  --control-track: rgb(var(--ds-chip, 44 44 48));
+  --control-thumb: #F5F5F7;
+  --control-thumb-on: #111111;
+
+  /* ── Shadows (Dark) ── */
+  --shadow-resting: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-raised: 0 8px 20px -2px rgba(0, 0, 0, 0.5), 0 2px 8px -1px rgba(0, 0, 0, 0.35);
+  --shadow-floating: 0 24px 56px -8px rgba(0, 0, 0, 0.72), 0 6px 16px -2px rgba(0, 0, 0, 0.45);
+
+  /* ── Focus Ring (Dark) ── */
+  --focus-outline: #F2F455;
+}
+
+@media (max-width: 639px) {
+  :root {
+    --text-field: 1rem; /* 16px on mobile to prevent iOS Safari zoom */
+  }
+}
+
+/* Shared Arc keyboard focus treatment: no ring on pointer focus, subtle ring on :focus-visible */
+:where([data-arc-control]):focus {
+  outline: none;
+}
+
+:where([data-arc-control]):focus-visible {
+  outline: 2px solid var(--focus-outline);
+  outline-offset: var(--focus-outline-offset, 2px);
+}

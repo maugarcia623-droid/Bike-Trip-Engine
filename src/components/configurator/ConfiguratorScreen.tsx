@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Button, DatePicker, TimePicker } from '@/components/arc';
 import {
   ArrowLeft,
   ArrowUp,
@@ -92,6 +93,26 @@ const GripDotsIcon: React.FC<{ className?: string }> = ({ className = 'w-3.5 h-3
   </svg>
 );
 
+/** Parses a `YYYY-MM-DD` string into a local midnight `Date` without UTC offset shifts. */
+function isoToLocalDate(isoStr?: string): Date | undefined {
+  if (!isoStr || !/^\d{4}-\d{2}-\d{2}$/.test(isoStr)) return undefined;
+  const [y, m, d] = isoStr.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d) {
+    return undefined;
+  }
+  return date;
+}
+
+/** Formats a local `Date` into `YYYY-MM-DD` without UTC conversion. */
+function localDateToIso(date?: Date): string {
+  if (!date || Number.isNaN(date.getTime())) return '';
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 interface ConfiguratorScreenProps {
   initialTrip: TripProfile;
   isNew: boolean;
@@ -176,12 +197,18 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
   const [destInput, setDestInput] = useState(isInitialDestRadius ? 'Saint-Nazaire' : initialDest);
   const lastCorridorDestRef = useRef<string>(isInitialDestRadius ? 'Saint-Nazaire' : initialDest);
   const [originCoords, setOriginCoords] = useState<[number, number] | null>(() => {
+    if (initialTrip.route?.originCoords) {
+      return initialTrip.route.originCoords;
+    }
     if (initialTrip.route?.coordinates && initialTrip.route.coordinates.length > 0) {
       return initialTrip.route.coordinates[0];
     }
     return null;
   });
   const [destCoords, setDestCoords] = useState<[number, number] | null>(() => {
+    if (initialTrip.route?.destCoords) {
+      return initialTrip.route.destCoords;
+    }
     if (initialTrip.route?.coordinates && initialTrip.route.coordinates.length > 1) {
       return initialTrip.route.coordinates[initialTrip.route.coordinates.length - 1];
     }
@@ -208,6 +235,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
   const [isRouting, setIsRouting] = useState(false);
   const [routeSuccess, setRouteSuccess] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
+  const routeRequestIdRef = useRef(0);
   const [isUpdatingWeather, setIsUpdatingWeather] = useState(false);
   const [weatherFeedback, setWeatherFeedback] = useState<{
     message: string;
@@ -288,11 +316,19 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
           setRouteGenMode('corridor');
         }
         if (initialTrip.route?.coordinates && initialTrip.route.coordinates.length > 1) {
-          setOriginCoords(initialTrip.route.coordinates[0]);
-          setDestCoords(initialTrip.route.coordinates[initialTrip.route.coordinates.length - 1]);
+          setOriginCoords(initialTrip.route.originCoords || initialTrip.route.coordinates[0]);
+          setDestCoords(
+            initialTrip.route.destCoords ||
+              initialTrip.route.coordinates[initialTrip.route.coordinates.length - 1]
+          );
         } else {
-          setOriginCoords(initialTrip.route?.originCoords || null);
-          setDestCoords(null);
+          setOriginCoords(
+            initialTrip.route?.originCoords ||
+              (initialTrip.route?.coordinates && initialTrip.route.coordinates.length > 0
+                ? initialTrip.route.coordinates[0]
+                : null)
+          );
+          setDestCoords(initialTrip.route?.destCoords || null);
         }
         if (initialTrip.route?.waypoints) {
           setWaypoints(
@@ -345,6 +381,8 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
           ...prev.route,
           origin: prevDest,
           destination: prevOrigin,
+          originCoords: prevDestCoords || undefined,
+          destCoords: prevOriginCoords || undefined,
           coordinates: reversedCoords,
           waypoints: reversedWaypoints,
         },
@@ -396,27 +434,50 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
       ? (lang === 'fr' ? `Dans ${daysOffset} jours` : `In ${daysOffset} days`)
       : (lang === 'fr' ? `Passé (${Math.abs(daysOffset)} j)` : `${Math.abs(daysOffset)} days ago`);
 
-  const handleCalculateRoute = async (customWaypoints?: typeof waypoints) => {
-    if (!originInput.trim() || !destInput.trim()) return;
-    if (destInput.match(/loop radius|rayon boucle/i)) {
+  const handleCalculateRoute = async (
+    customWaypoints?: typeof waypoints,
+    overrides?: {
+      originText?: string;
+      destText?: string;
+      originCoords?: [number, number] | null;
+      destCoords?: [number, number] | null;
+    }
+  ) => {
+    const effectiveOrigin = (overrides?.originText !== undefined ? overrides.originText : originInput).trim();
+    const effectiveDest = (overrides?.destText !== undefined ? overrides.destText : destInput).trim();
+    if (!effectiveOrigin || !effectiveDest) return;
+    if (effectiveDest.match(/loop radius|rayon boucle/i)) {
       setRouteError(isFr ? 'Veuillez saisir une destination valide pour le corridor.' : 'Please enter a valid destination for corridor routing.');
       return;
     }
+    const effectiveOriginCoords = overrides?.originCoords !== undefined ? overrides.originCoords : originCoords;
+    const effectiveDestCoords = overrides?.destCoords !== undefined ? overrides.destCoords : destCoords;
+    const activeWps = customWaypoints !== undefined ? customWaypoints : waypoints;
+
+    const reqId = ++routeRequestIdRef.current;
     setIsRouting(true);
     setRouteError(null);
     setRouteSuccess(false);
 
-    const activeWps = customWaypoints !== undefined ? customWaypoints : waypoints;
-
     try {
       const result = await calculateAutoBikeRoute(
-        originInput,
-        destInput,
-        originCoords,
-        destCoords,
+        effectiveOrigin,
+        effectiveDest,
+        effectiveOriginCoords,
+        effectiveDestCoords,
         activeWps
       );
+      if (reqId !== routeRequestIdRef.current) return;
       if (result) {
+        const resolvedOriginCoords =
+          effectiveOriginCoords ||
+          (result.coordinates && result.coordinates.length > 0 ? result.coordinates[0] : null);
+        const resolvedDestCoords =
+          effectiveDestCoords ||
+          (result.coordinates && result.coordinates.length > 1
+            ? result.coordinates[result.coordinates.length - 1]
+            : null);
+
         if (result.resolvedWaypoints) {
           setWaypoints(result.resolvedWaypoints);
         }
@@ -431,8 +492,8 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                 ? ` (via ${(result.resolvedWaypoints || activeWps).map((w) => w.name.split(',')[0].trim()).join(', ')})`
                 : '';
               newName = lang === 'fr'
-                ? `${originInput.split(',')[0].trim()} → ${destInput.split(',')[0].trim()}${viaSummary}`
-                : `${originInput.split(',')[0].trim()} → ${destInput.split(',')[0].trim()}${viaSummary} Tour`;
+                ? `${effectiveOrigin.split(',')[0].trim()} → ${effectiveDest.split(',')[0].trim()}${viaSummary}`
+                : `${effectiveOrigin.split(',')[0].trim()} → ${effectiveDest.split(',')[0].trim()}${viaSummary} Tour`;
             }
           } else {
             const isSingleStagePattern = isTitleBlank;
@@ -441,8 +502,10 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                 ...prev,
                 route: {
                   ...prev.route,
-                  origin: originInput,
-                  destination: destInput,
+                  origin: effectiveOrigin,
+                  destination: effectiveDest,
+                  originCoords: resolvedOriginCoords || undefined,
+                  destCoords: resolvedDestCoords || undefined,
                   distanceKm: result.distanceKm,
                   elevationGainM: Math.round(result.distanceKm * 6.5),
                   coordinates: result.coordinates,
@@ -451,7 +514,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
               });
               const dayCount = prev.stages!.length;
               const daysLabel = lang === 'fr' ? `${dayCount} Jours` : `${dayCount} Days`;
-              newName = `${totals.originCity || originInput} → ${totals.finalDestinationCity || destInput} (${daysLabel})`;
+              newName = `${totals.originCity || effectiveOrigin} → ${totals.finalDestinationCity || effectiveDest} (${daysLabel})`;
             }
           }
 
@@ -465,8 +528,10 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
               gpxFileName: undefined,
               elevationProfile: undefined,
               terrainSummary: undefined,
-              origin: originInput,
-              destination: destInput,
+              origin: effectiveOrigin,
+              destination: effectiveDest,
+              originCoords: resolvedOriginCoords || undefined,
+              destCoords: resolvedDestCoords || undefined,
               distanceKm: result.distanceKm,
               elevationGainM: Math.round(result.distanceKm * 6.5),
               coordinates: result.coordinates,
@@ -475,16 +540,18 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
             },
           };
         });
-        if (result.coordinates && result.coordinates.length > 1) {
-          setOriginCoords(result.coordinates[0]);
-          setDestCoords(result.coordinates[result.coordinates.length - 1]);
-        }
+        setOriginCoords(resolvedOriginCoords);
+        setDestCoords(resolvedDestCoords);
         setRouteSuccess(true);
       }
     } catch (err: any) {
-      setRouteError(err.message || t('routeErrorDefault'));
+      if (reqId === routeRequestIdRef.current) {
+        setRouteError(err.message || t('routeErrorDefault'));
+      }
     } finally {
-      setIsRouting(false);
+      if (reqId === routeRequestIdRef.current) {
+        setIsRouting(false);
+      }
     }
   };
 
@@ -1049,11 +1116,14 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
     setHasModified(false);
     setOriginInput(snap.route.origin || '');
     setDestInput(snap.route.destination || snap.office.gateName || '');
-    setOriginCoords(snap.route.coordinates?.[0] ?? null);
+    setOriginCoords(
+      snap.route.originCoords ?? snap.route.coordinates?.[0] ?? null
+    );
     setDestCoords(
-      snap.route.coordinates && snap.route.coordinates.length > 1
-        ? snap.route.coordinates[snap.route.coordinates.length - 1]
-        : null
+      snap.route.destCoords ??
+        (snap.route.coordinates && snap.route.coordinates.length > 1
+          ? snap.route.coordinates[snap.route.coordinates.length - 1]
+          : null)
     );
     setWaypoints(
       (snap.route.waypoints || []).map((w, idx) => ({
@@ -1110,13 +1180,18 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
       distanceFromStartKm: w.distanceFromStartKm,
     }));
     setWaypoints(nextWps);
-    if (updated.route.coordinates && updated.route.coordinates.length > 1) {
-      setOriginCoords(updated.route.coordinates[0]);
-      setDestCoords(updated.route.coordinates[updated.route.coordinates.length - 1]);
-    } else {
-      setOriginCoords(null);
-      setDestCoords(null);
-    }
+    setOriginCoords(
+      updated.route.originCoords ??
+        (updated.route.coordinates && updated.route.coordinates.length > 0
+          ? updated.route.coordinates[0]
+          : null)
+    );
+    setDestCoords(
+      updated.route.destCoords ??
+        (updated.route.coordinates && updated.route.coordinates.length > 1
+          ? updated.route.coordinates[updated.route.coordinates.length - 1]
+          : null)
+    );
     setIsArriveAtMode(updated.arriveAtMode !== false);
     setRouteSuccess(false);
     setRouteError(null);
@@ -1129,8 +1204,8 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
     setOriginInput(nextOrigin);
     setDestInput('');
     setWaypoints([]);
-    setOriginCoords(null);
-    setDestCoords(null);
+    setOriginCoords(updated.route.originCoords ?? null);
+    setDestCoords(updated.route.destCoords ?? null);
     setRouteSuccess(false);
     setRouteError(null);
     setIsArriveAtMode(true);
@@ -1158,13 +1233,18 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
       distanceFromStartKm: w.distanceFromStartKm,
     }));
     setWaypoints(nextWps);
-    if (updated.route.coordinates && updated.route.coordinates.length > 1) {
-      setOriginCoords(updated.route.coordinates[0]);
-      setDestCoords(updated.route.coordinates[updated.route.coordinates.length - 1]);
-    } else {
-      setOriginCoords(null);
-      setDestCoords(null);
-    }
+    setOriginCoords(
+      updated.route.originCoords ??
+        (updated.route.coordinates && updated.route.coordinates.length > 0
+          ? updated.route.coordinates[0]
+          : null)
+    );
+    setDestCoords(
+      updated.route.destCoords ??
+        (updated.route.coordinates && updated.route.coordinates.length > 1
+          ? updated.route.coordinates[updated.route.coordinates.length - 1]
+          : null)
+    );
     setIsArriveAtMode(updated.arriveAtMode !== false);
     setRouteSuccess(false);
     setRouteError(null);
@@ -1226,7 +1306,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
             const StepIcon = step.icon;
             const isStepActive = activeStep === step.id;
             return (
-              <button
+              <Button variant="ghost"
                 key={step.id}
                 type="button"
                 role="tab"
@@ -1240,7 +1320,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
               >
                 <StepIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 text-current" />
                 <span className="truncate sm:overflow-visible">{step.label}</span>
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -1249,7 +1329,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
       {/* ── Section Header Bar (Left: Back + Editable Trip Title | Right: Live Auto-Save & Done) ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 animate-apple-in stagger-2">
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <button
+          <Button variant="ghost"
             type="button"
             onClick={onCancel}
             title={isFr ? 'Retour à la sortie' : 'Back to ride plan'}
@@ -1257,7 +1337,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
             className="inline-flex items-center justify-center w-11 h-11 sm:w-9 sm:h-9 rounded-full text-ink-secondary hover:text-ink bg-card hover:bg-pod transition-all duration-150 active:scale-[0.98] cursor-pointer shrink-0"
           >
             <ArrowLeft className="w-4 h-4" />
-          </button>
+          </Button>
 
           <div className="flex items-baseline gap-2.5 min-w-0 flex-wrap">
             <h1 className="text-2xl sm:text-[28px] font-semibold text-ink tracking-tight leading-tight font-rounded shrink-0">
@@ -1290,24 +1370,24 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
           </span>
 
           {hasModified && (
-            <button
+            <Button variant="ghost"
               type="button"
               onClick={handleRevertChanges}
               className="inline-flex items-center justify-center gap-1.5 min-h-[44px] h-9 sm:h-10 px-3.5 text-xs sm:text-[13px] font-medium text-ink-secondary hover:text-ink bg-card hover:bg-pod rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer whitespace-nowrap"
             >
               <ArrowsClockwise className="w-3.5 h-3.5 shrink-0" />
               <span>{isFr ? 'Rétablir' : 'Revert'}</span>
-            </button>
+            </Button>
           )}
 
-          <button
+          <Button variant="ghost"
             type="button"
             onClick={handleLaunchDirect}
             className="inline-flex items-center justify-center gap-1.5 min-h-[44px] h-10 px-4 sm:px-5 text-xs sm:text-[13px] font-medium bg-[#111111] hover:bg-[#262626] text-white dark:bg-[#F5F5F7] dark:hover:bg-white dark:text-[#111111] rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer whitespace-nowrap shadow-xs"
           >
             <span>{isFr ? 'Terminé · Voir la sortie' : 'Done · Back to ride plan'}</span>
             <ArrowUpRight className="w-4 h-4 shrink-0" />
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -1317,7 +1397,209 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
         <div className="lg:col-span-3 flex flex-col gap-3.5 sm:gap-4 lg:gap-5 min-w-0">
           {activeStep === 'date-time' && (
             <>
-              {/* Card 1: Route Generator (Elevated Stacking Context so Autocomplete Floats Cleanly Over Card 2) */}
+              {/* Card 1: Schedule & Weather Sync */}
+              <div className="rounded-card bg-card text-ink p-4 sm:p-5 border border-ink/5 dark:border-white/5 shadow-xs flex flex-col justify-between transition-colors animate-apple-step-in relative z-10 focus-within:z-30 [&:has([aria-expanded='true'])]:z-30">
+                <div>
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <div>
+                      <h2 className="text-base sm:text-[17px] font-semibold tracking-tight text-ink">
+                        {t('scheduleWeatherHeading')}
+                      </h2>
+                      <p className="text-[13px] text-ink-muted mt-0.5">
+                        {t('scheduleWeatherSub')}
+                      </p>
+                    </div>
+                    <Badge
+                      variant={!forecastHorizon.isAvailable ? 'zinc' : daysOffset === 0 ? 'emerald' : 'sky'}
+                      size="md"
+                      className="tnum shrink-0"
+                    >
+                      {!forecastHorizon.isAvailable
+                        ? t('horizonBaseline', { offset: formattedDaysOffset })
+                        : daysOffset === 0
+                        ? t('horizonLiveToday')
+                        : t('horizonPlanned', { offset: formattedDaysOffset })}
+                    </Badge>
+                  </div>
+
+                  {/* Arrive At / Depart At Toggle Pill Button */}
+                  <div className="mb-3.5">
+                    <Button variant="ghost"
+                      type="button"
+                      onClick={() => {
+                        const nextMode = !isArriveAtMode;
+                        setIsArriveAtMode(nextMode);
+                        commitTrip((prev) => ({
+                          ...prev,
+                          arriveAtMode: nextMode,
+                          departureTime: nextMode
+                            ? prev.departureTime
+                            : prev.departureTime || timelineResult.hardDepartureTime,
+                          office: nextMode
+                            ? {
+                                ...prev.office,
+                                targetGateArrivalTime: timelineResult.gateArrivalTime,
+                              }
+                            : prev.office,
+                        }));
+                      }}
+                      className="inline-flex items-center gap-1.5 min-h-[44px] px-3.5 py-2 rounded-full bg-pod hover:bg-chip text-xs font-semibold text-ink-secondary hover:text-ink transition-all duration-150 cursor-pointer active:scale-95"
+                      title={isFr ? 'Basculer entre calcul heure d’arrivée et heure de départ' : 'Toggle between target arrival and departure time calculation'}
+                    >
+                      <ArrowsClockwise className={`w-4 h-4 text-ink-muted transition-transform duration-300 ${isArriveAtMode ? 'rotate-0' : 'rotate-180'}`} />
+                      <span>
+                        {isArriveAtMode
+                          ? isMultiDayBikepacking
+                            ? t('stageCutoffLabel')
+                            : isFr
+                            ? 'Arrivée à :'
+                            : 'Arrive at:'
+                          : isFr
+                          ? 'Départ à :'
+                          : 'Depart at:'}
+                      </span>
+                    </Button>
+                  </div>
+
+                  {/* Inputs: Departure Date + Rollout/Arrival Time + Sync Weather Button */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <DatePicker
+                      label={t('departureDateLabel')}
+                      value={isoToLocalDate(trip.departureDate)}
+                      onChange={(date) => commitTrip((prev) => ({ ...prev, departureDate: localDateToIso(date) }))}
+                      locale={isFr ? 'fr-FR' : 'en-US'}
+                      showToday
+                    />
+
+                    <TimePicker
+                      label={
+                        isArriveAtMode
+                          ? isMultiDayBikepacking
+                            ? t('stageCutoffInputLabel')
+                            : t('targetArrivalInputLabel')
+                          : t('rolloutTimeLabel')
+                      }
+                      value={isArriveAtMode ? (trip.office.targetGateArrivalTime || '08:30') : (trip.departureTime || timelineResult.hardDepartureTime || '07:24')}
+                      onChange={(val) => {
+                        if (isArriveAtMode) {
+                          updateOffice('targetGateArrivalTime', val);
+                        } else {
+                          commitTrip((prev) => ({
+                            ...prev,
+                            arriveAtMode: false,
+                            departureTime: val,
+                          }));
+                        }
+                      }}
+                      minuteStep={5}
+                      format="24h"
+                    />
+
+                    <div className="flex items-end">
+                      <Button variant="ghost"
+                        type="button"
+                        disabled={isUpdatingWeather}
+                        onClick={async () => {
+                          const targetDate = trip.departureDate || getLocalTodayIso();
+                          const targetTime = timelineResult.hardDepartureTime || trip.departureTime || '08:00';
+                          const midIdx = Math.floor((trip.route?.coordinates?.length || 1) / 2);
+                          const coords = trip.route?.coordinates?.[midIdx] || [47.2184, -1.5536];
+                          const bearing = computeRouteBearing(trip.route?.coordinates);
+
+                          setIsUpdatingWeather(true);
+                          setWeatherFeedback(null);
+                          try {
+                            const w = await fetchHourlyWeather(coords[0], coords[1], targetDate, targetTime, bearing);
+                            commitTrip((prev) => ({
+                              ...prev,
+                              departureDate: prev.departureDate || targetDate,
+                              departureTime: prev.departureTime || targetTime,
+                              weather: {
+                                ...prev.weather,
+                                source: w.source,
+                                temperatureC: w.temperatureC,
+                                baseWindSpeedKmH: w.windSpeedKmH,
+                                effectiveHeadwindKmH: w.effectiveHeadwindKmH,
+                                windDirectionDegrees: w.windDirectionDegrees,
+                                windDirection:
+                                  w.effectiveHeadwindKmH > 2
+                                    ? 'headwind'
+                                    : w.effectiveHeadwindKmH < -2
+                                    ? 'tailwind'
+                                    : 'calm',
+                                estuaryGustKmH: w.windGustsKmH,
+                                airDensityRho: w.airDensityRho,
+                                isHeadwindActive: w.isHeadwindActive,
+                                isBeyondForecastWindow: w.isBeyondForecastWindow,
+                                targetTimestampFormatted: w.timestamp,
+                                visibilityKm: w.visibilityKm,
+                                weatherCode: w.weatherCode,
+                                isDay: w.isDay,
+                                sunrise: w.sunriseIso,
+                                sunset: w.sunsetIso,
+                              },
+                              physics: {
+                                ...prev.physics,
+                                rho: w.airDensityRho,
+                              },
+                            }));
+                            setWeatherFeedback({
+                              message: w.isBeyondForecastWindow
+                                ? t('weatherBaselineApplied', { offset: formattedDaysOffset })
+                                : t('weatherSyncedMsg', { date: targetDate, time: targetTime }),
+                              status: !w.isBeyondForecastWindow,
+                            });
+                          } catch {
+                            setWeatherFeedback({
+                              message: t('weatherSyncUnavailable'),
+                              status: false,
+                              isError: true,
+                            });
+                          } finally {
+                            setIsUpdatingWeather(false);
+                          }
+                        }}
+                        className="w-full h-11 flex items-center justify-center gap-1.5 px-4 bg-pod hover:bg-chip disabled:opacity-60 rounded-full text-xs font-medium text-ink transition-all cursor-pointer disabled:cursor-not-allowed"
+                      >
+                        <ArrowsClockwise className={`w-4 h-4 ${isUpdatingWeather ? 'animate-spin' : 'text-ink-muted'}`} />
+                        <span>{isUpdatingWeather ? t('syncingBtn') : t('syncWeatherBtn')}</span>
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Status line with dashed separator */}
+                  <div className="mt-4 pt-3 border-t border-dashed border-ink/10 dark:border-white/10 transition-colors">
+                    {weatherFeedback ? (
+                      <div
+                        className={`flex items-center gap-1.5 text-xs font-medium animate-apple-fade-in ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                          weatherFeedback.isError
+                            ? CHIP_TOKENS.rose.primary
+                            : weatherFeedback.status
+                            ? CHIP_TOKENS.emerald.primary
+                            : CHIP_TOKENS.amber.primary
+                        }`}
+                      >
+                        {weatherFeedback.status ? (
+                          <CheckCircle className="w-4 h-4 shrink-0 text-current" />
+                        ) : (
+                          <WarningCircle className="w-4 h-4 shrink-0 text-current" />
+                        )}
+                        <span>{weatherFeedback.message}</span>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-ink-muted tnum animate-apple-fade-in">
+                        {t('currentConditionsSummary', {
+                          temp: trip.weather.temperatureC,
+                          wind: trip.weather.baseWindSpeedKmH,
+                          rho: trip.physics.rho,
+                        })}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 2: Route Generator (Elevated Stacking Context so Autocomplete Floats Cleanly) */}
               <div className="rounded-card bg-card text-ink p-4 sm:p-5 border border-ink/5 dark:border-white/5 shadow-xs flex flex-col justify-between transition-colors animate-apple-step-in relative z-20 focus-within:z-30">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2.5 mb-4">
             <div>
@@ -1330,7 +1612,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
             </div>
             <div className="flex items-center gap-2 flex-wrap shrink-0">
               {isBikepacking ? (
-                <button
+                <Button variant="ghost"
                   type="button"
                   onClick={() => gpxConfigInputRef.current?.click()}
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold bg-pod hover:bg-chip text-ink-secondary hover:text-ink transition-all cursor-pointer whitespace-nowrap border border-ink/5 dark:border-white/10 ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
@@ -1341,7 +1623,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                       ? `${t('gpxLoadedBadge')} · ${trip.route.gpxFileName}`
                       : t('routeModeGpx')}
                   </span>
-                </button>
+                </Button>
               ) : (
                 <div className="inline-flex items-center p-1 rounded-full bg-pod border border-ink/5 dark:border-white/10">
                   {(
@@ -1353,7 +1635,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                   ).map((modeOpt) => {
                     const active = routeGenMode === modeOpt.id;
                     return (
-                      <button
+                      <Button variant="ghost"
                         key={modeOpt.id}
                         type="button"
                         onClick={() => {
@@ -1391,7 +1673,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                         }`}
                       >
                         {modeOpt.label}
-                      </button>
+                      </Button>
                     );
                   })}
                 </div>
@@ -1408,7 +1690,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
               <span className="text-xs font-semibold text-ink-muted mr-1 font-body">
                 {t('tripFormatHeading')} :
               </span>
-              <button
+              <Button variant="ghost"
                 type="button"
                 onClick={() => handleSetTripFormat('single')}
                 className={`px-3 py-1.5 rounded-full text-xs font-rounded font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
@@ -1419,8 +1701,8 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
               >
                 <Bicycle className="w-4 h-4 shrink-0 text-current" />
                 <span>{t('tripFormatSingleDay')}</span>
-              </button>
-              <button
+              </Button>
+              <Button variant="primary"
                 type="button"
                 onClick={() => handleSetTripFormat('multi')}
                 className={`px-3 py-1.5 rounded-full text-xs font-rounded font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
@@ -1431,7 +1713,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
               >
                 <Mountain className="w-4 h-4 shrink-0 text-current" />
                 <span>{t('tripFormatMultiDay')}</span>
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -1536,7 +1818,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
 
                       {/* Delete button (only if stages > 1) */}
                       {displayStages.length > 1 && (
-                        <button
+                        <Button variant="ghost"
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1550,21 +1832,21 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                           }`}
                         >
                           <X className="w-3.5 h-3.5" />
-                        </button>
+                        </Button>
                       )}
                     </div>
                   );
                 })}
 
                 {/* + Add Day button */}
-                <button
+                <Button variant="primary"
                   type="button"
                   onClick={handleAddDay}
                   className="inline-flex items-center gap-1.5 p-2 rounded-full bg-volt hover:bg-volt-lime text-[#111111] text-xs font-bold tracking-tight transition-all duration-150 shrink-0 cursor-pointer shadow-xs active:scale-95 font-rounded whitespace-nowrap ring-1 ring-inset ring-black/10 dark:ring-white/10"
                 >
                   <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
                   <span>{t('addDayBtn')}</span>
-                </button>
+                </Button>
               </div>
 
               {/* Tours & Stages Cumulative Summary, Daily Timeline & Full Tour GPX Export */}
@@ -1607,6 +1889,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                         id="origin-input"
                         label={t('stopOrigin')}
                         value={originInput}
+                        biasCoords={destCoords || undefined}
                         dropdownAlign="left"
                         onChange={(val) => {
                           setOriginInput(val);
@@ -1618,6 +1901,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                             route: {
                               ...prev.route,
                               origin: val,
+                              originCoords: undefined,
                               coordinates: undefined,
                               elevationGainM: 0,
                             },
@@ -1630,10 +1914,17 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                           setRouteError(null);
                           commitTrip((prev) => ({
                             ...prev,
-                            route: { ...prev.route, origin: loc.name },
+                            route: {
+                              ...prev.route,
+                              origin: loc.name,
+                              originCoords: loc.coordinates,
+                            },
                           }));
                           if (destInput.trim()) {
-                            handleCalculateRoute();
+                            handleCalculateRoute(undefined, {
+                              originText: loc.name,
+                              originCoords: loc.coordinates,
+                            });
                           }
                         }}
                         onKeyDownEnter={() => handleCalculateRoute()}
@@ -1664,7 +1955,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
 
                       {/* Accessible Reorder Shift Buttons */}
                       <div className="flex flex-col gap-0.5 shrink-0">
-                        <button
+                        <Button variant="ghost"
                           type="button"
                           onClick={() => handleMoveWaypoint(idx, -1)}
                           disabled={idx === 0}
@@ -1672,8 +1963,8 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                           title={t('moveWaypointUp')}
                         >
                           <ArrowUp className="w-3 h-3" />
-                        </button>
-                        <button
+                        </Button>
+                        <Button variant="ghost"
                           type="button"
                           onClick={() => handleMoveWaypoint(idx, 1)}
                           disabled={idx === waypoints.length - 1}
@@ -1681,7 +1972,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                           title={t('moveWaypointDown')}
                         >
                           <ArrowDown className="w-3 h-3" />
-                        </button>
+                        </Button>
                       </div>
 
                       {/* Numbered Via Badge */}
@@ -1697,6 +1988,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                             wp.distanceFromStartKm ? ` · km ${wp.distanceFromStartKm}` : ''
                           }`}
                           value={wp.name}
+                          biasCoords={originCoords || destCoords || undefined}
                           dropdownAlign="left"
                           onChange={(val) => handleUpdateWaypointName(wp.id, val)}
                           onSelectLocation={(loc) => handleSelectWaypointLocation(wp.id, loc)}
@@ -1706,14 +1998,14 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                       </div>
 
                       {/* Delete Stop Button */}
-                      <button
+                      <Button variant="ghost"
                         type="button"
                         onClick={() => handleRemoveWaypoint(wp.id)}
                         className="p-1.5 text-ink-muted hover:text-rose-600 rounded-full hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer shrink-0"
                         title={t('removeWaypointTitle')}
                       >
                         <X className="w-4 h-4" />
-                      </button>
+                      </Button>
                     </div>
                   ))}
 
@@ -1727,6 +2019,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                         id="destination-input"
                         label={t('stopDestination')}
                         value={destInput}
+                        biasCoords={originCoords || undefined}
                         dropdownAlign="right"
                         onChange={(val) => {
                           setDestInput(val);
@@ -1741,6 +2034,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                             route: {
                               ...prev.route,
                               destination: val,
+                              destCoords: undefined,
                               coordinates: undefined,
                               elevationGainM: 0,
                             },
@@ -1754,10 +2048,17 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                           setRouteError(null);
                           commitTrip((prev) => ({
                             ...prev,
-                            route: { ...prev.route, destination: loc.name },
+                            route: {
+                              ...prev.route,
+                              destination: loc.name,
+                              destCoords: loc.coordinates,
+                            },
                           }));
                           if (originInput.trim()) {
-                            handleCalculateRoute();
+                            handleCalculateRoute(undefined, {
+                              destText: loc.name,
+                              destCoords: loc.coordinates,
+                            });
                           }
                         }}
                         onKeyDownEnter={() => handleCalculateRoute()}
@@ -1770,17 +2071,17 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                   <div className="flex items-center justify-between gap-2 pt-2.5 flex-wrap border-t border-dashed border-ink/10 dark:border-white/10">
                     <div className="flex items-center gap-2 flex-wrap">
                       {/* + Add Stop Button */}
-                      <button
+                      <Button variant="primary"
                         type="button"
                         onClick={handleAddWaypoint}
                         className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-volt hover:bg-volt-lime text-[#111111] text-xs font-rounded font-bold transition-all cursor-pointer shadow-xs active:scale-95"
                       >
                         <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
                         <span>{t('addIntermediateStopBtn')}</span>
-                      </button>
+                      </Button>
 
                       {/* Reverse Route Button */}
-                      <button
+                      <Button variant="ghost"
                         type="button"
                         onClick={handleSwapCorridor}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card hover:bg-chip text-ink text-xs font-semibold border border-ink/10 dark:border-white/10 transition-colors cursor-pointer"
@@ -1788,11 +2089,11 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                       >
                         <ArrowsLeftRight className="w-3.5 h-3.5" />
                         <span className="hidden sm:inline">{t('reverseRouteBtn')}</span>
-                      </button>
+                      </Button>
 
                       {/* Clear Stops Button */}
                       {waypoints.length > 0 && (
-                        <button
+                        <Button variant="ghost"
                           type="button"
                           onClick={() => {
                             setWaypoints([]);
@@ -1805,12 +2106,12 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                           className="px-2 py-1 text-xs text-ink-muted hover:text-ink cursor-pointer transition-colors"
                         >
                           {t('clearIntermediateStopsBtn')}
-                        </button>
+                        </Button>
                       )}
                     </div>
 
                     {/* Primary Calculate Route Button */}
-                    <button
+                    <Button variant="ghost"
                       type="button"
                       onClick={() => handleCalculateRoute()}
                       disabled={isRouting}
@@ -1818,7 +2119,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                     >
                       {isRouting ? <SpinnerGap className="w-4 h-4 animate-spin" /> : <Compass className="w-4 h-4" />}
                       <span>{t('fetchRouteBtn')}</span>
-                    </button>
+                    </Button>
                   </div>
                 </div>
 
@@ -1833,13 +2134,13 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                       <span className="text-[11px] text-ink-muted font-normal hidden sm:inline">
                         {t('clickMapToAddWaypointPrompt')}
                       </span>
-                      <button
+                      <Button variant="ghost"
                         type="button"
                         onClick={() => setIsMapCollapsed((prev) => !prev)}
                         className="text-[11px] font-semibold text-ink-muted hover:text-ink cursor-pointer"
                       >
                         {isMapCollapsed ? t('showMapBtn') : t('hideMapBtn')}
-                      </button>
+                      </Button>
                     </div>
                   </div>
 
@@ -1940,7 +2241,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                     />
                     <div className="mt-1.5 flex items-center justify-between gap-1">
                       {[30, 60, 100, 150, 200].map((kmPreset) => (
-                        <button
+                        <Button variant="ghost"
                           key={kmPreset}
                           type="button"
                           onClick={() =>
@@ -1957,7 +2258,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                           }`}
                         >
                           {kmPreset} km
-                        </button>
+                        </Button>
                       ))}
                     </div>
                   </div>
@@ -2057,215 +2358,6 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
             </div>
           </div>
         </div>
-
-        {/* Card 2: Schedule & Weather Sync */}
-        <div className="rounded-card bg-card text-ink p-4 sm:p-5 border border-ink/5 dark:border-white/5 shadow-xs flex flex-col justify-between transition-colors animate-apple-step-in relative z-10">
-          <div>
-            <div className="flex items-start justify-between gap-2 mb-3">
-              <div>
-                <h2 className="text-base sm:text-[17px] font-semibold tracking-tight text-ink">
-                  {t('scheduleWeatherHeading')}
-                </h2>
-                <p className="text-[13px] text-ink-muted mt-0.5">
-                  {t('scheduleWeatherSub')}
-                </p>
-              </div>
-              <Badge
-                variant={!forecastHorizon.isAvailable ? 'zinc' : daysOffset === 0 ? 'emerald' : 'sky'}
-                size="md"
-                className="tnum shrink-0"
-              >
-                {!forecastHorizon.isAvailable
-                  ? t('horizonBaseline', { offset: formattedDaysOffset })
-                  : daysOffset === 0
-                  ? t('horizonLiveToday')
-                  : t('horizonPlanned', { offset: formattedDaysOffset })}
-              </Badge>
-            </div>
-
-            {/* Arrive At / Depart At Toggle Pill Button */}
-            <div className="mb-3.5">
-              <button
-                type="button"
-                onClick={() => {
-                  const nextMode = !isArriveAtMode;
-                  setIsArriveAtMode(nextMode);
-                  commitTrip((prev) => ({
-                    ...prev,
-                    arriveAtMode: nextMode,
-                    departureTime: nextMode
-                      ? prev.departureTime
-                      : prev.departureTime || timelineResult.hardDepartureTime,
-                    office: nextMode
-                      ? {
-                          ...prev.office,
-                          targetGateArrivalTime: timelineResult.gateArrivalTime,
-                        }
-                      : prev.office,
-                  }));
-                }}
-                className="inline-flex items-center gap-1.5 min-h-[44px] px-3.5 py-2 rounded-full bg-pod hover:bg-chip text-xs font-semibold text-ink-secondary hover:text-ink transition-all duration-150 cursor-pointer active:scale-95"
-                title={isFr ? 'Basculer entre calcul heure d’arrivée et heure de départ' : 'Toggle between target arrival and departure time calculation'}
-              >
-                <ArrowsClockwise className={`w-4 h-4 text-ink-muted transition-transform duration-300 ${isArriveAtMode ? 'rotate-0' : 'rotate-180'}`} />
-                <span>
-                  {isArriveAtMode
-                    ? isMultiDayBikepacking
-                      ? t('stageCutoffLabel')
-                      : isFr
-                      ? 'Arrivée à :'
-                      : 'Arrive at:'
-                    : isFr
-                    ? 'Départ à :'
-                    : 'Depart at:'}
-                </span>
-              </button>
-            </div>
-
-            {/* Inputs: Departure Date + Rollout/Arrival Time + Sync Weather Button */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-ink-secondary mb-1.5 px-1">
-                  {t('departureDateLabel')}
-                </label>
-                <input
-                  type="date"
-                  value={trip.departureDate || ''}
-                  onChange={(e) => commitTrip((prev) => ({ ...prev, departureDate: e.target.value }))}
-                  className="w-full h-11 bg-pod rounded-full px-4 text-sm font-medium text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-ink-secondary mb-1.5 px-1">
-                  {isArriveAtMode
-                    ? isMultiDayBikepacking
-                      ? t('stageCutoffInputLabel')
-                      : t('targetArrivalInputLabel')
-                    : t('rolloutTimeLabel')}
-                </label>
-                <input
-                  type="time"
-                  value={isArriveAtMode ? (trip.office.targetGateArrivalTime || '08:30') : (trip.departureTime || timelineResult.hardDepartureTime || '07:24')}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (isArriveAtMode) {
-                      updateOffice('targetGateArrivalTime', val);
-                    } else {
-                      commitTrip((prev) => ({
-                        ...prev,
-                        arriveAtMode: false,
-                        departureTime: val,
-                      }));
-                    }
-                  }}
-                  className="w-full h-11 bg-pod rounded-full px-4 text-sm font-medium text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
-                />
-              </div>
-
-              <div className="flex items-end">
-                <button
-                  type="button"
-                  disabled={isUpdatingWeather}
-                  onClick={async () => {
-                    const targetDate = trip.departureDate || getLocalTodayIso();
-                    const targetTime = timelineResult.hardDepartureTime || trip.departureTime || '08:00';
-                    const midIdx = Math.floor((trip.route?.coordinates?.length || 1) / 2);
-                    const coords = trip.route?.coordinates?.[midIdx] || [47.2184, -1.5536];
-                    const bearing = computeRouteBearing(trip.route?.coordinates);
-
-                    setIsUpdatingWeather(true);
-                    setWeatherFeedback(null);
-                    try {
-                      const w = await fetchHourlyWeather(coords[0], coords[1], targetDate, targetTime, bearing);
-                      commitTrip((prev) => ({
-                        ...prev,
-                        departureDate: prev.departureDate || targetDate,
-                        departureTime: prev.departureTime || targetTime,
-                        weather: {
-                          ...prev.weather,
-                          source: w.source,
-                          temperatureC: w.temperatureC,
-                          baseWindSpeedKmH: w.windSpeedKmH,
-                          effectiveHeadwindKmH: w.effectiveHeadwindKmH,
-                          windDirectionDegrees: w.windDirectionDegrees,
-                          windDirection:
-                            w.effectiveHeadwindKmH > 2
-                              ? 'headwind'
-                              : w.effectiveHeadwindKmH < -2
-                              ? 'tailwind'
-                              : 'calm',
-                          estuaryGustKmH: w.windGustsKmH,
-                          airDensityRho: w.airDensityRho,
-                          isHeadwindActive: w.isHeadwindActive,
-                          isBeyondForecastWindow: w.isBeyondForecastWindow,
-                          targetTimestampFormatted: w.timestamp,
-                          visibilityKm: w.visibilityKm,
-                          weatherCode: w.weatherCode,
-                          isDay: w.isDay,
-                          sunrise: w.sunriseIso,
-                          sunset: w.sunsetIso,
-                        },
-                        physics: {
-                          ...prev.physics,
-                          rho: w.airDensityRho,
-                        },
-                      }));
-                      setWeatherFeedback({
-                        message: w.isBeyondForecastWindow
-                          ? t('weatherBaselineApplied', { offset: formattedDaysOffset })
-                          : t('weatherSyncedMsg', { date: targetDate, time: targetTime }),
-                        status: !w.isBeyondForecastWindow,
-                      });
-                    } catch {
-                      setWeatherFeedback({
-                        message: t('weatherSyncUnavailable'),
-                        status: false,
-                        isError: true,
-                      });
-                    } finally {
-                      setIsUpdatingWeather(false);
-                    }
-                  }}
-                  className="w-full h-11 flex items-center justify-center gap-1.5 px-4 bg-pod hover:bg-chip disabled:opacity-60 rounded-full text-xs font-medium text-ink transition-all cursor-pointer disabled:cursor-not-allowed"
-                >
-                  <ArrowsClockwise className={`w-4 h-4 ${isUpdatingWeather ? 'animate-spin' : 'text-ink-muted'}`} />
-                  <span>{isUpdatingWeather ? t('syncingBtn') : t('syncWeatherBtn')}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Status line with dashed separator */}
-            <div className="mt-4 pt-3 border-t border-dashed border-ink/10 dark:border-white/10 transition-colors">
-              {weatherFeedback ? (
-                <div
-                  className={`flex items-center gap-1.5 text-xs font-medium animate-apple-fade-in ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
-                    weatherFeedback.isError
-                      ? CHIP_TOKENS.rose.primary
-                      : weatherFeedback.status
-                      ? CHIP_TOKENS.emerald.primary
-                      : CHIP_TOKENS.amber.primary
-                  }`}
-                >
-                  {weatherFeedback.status ? (
-                    <CheckCircle className="w-4 h-4 shrink-0 text-current" />
-                  ) : (
-                    <WarningCircle className="w-4 h-4 shrink-0 text-current" />
-                  )}
-                  <span>{weatherFeedback.message}</span>
-                </div>
-              ) : (
-                <p className="text-xs text-ink-muted tnum animate-apple-fade-in">
-                  {t('currentConditionsSummary', {
-                    temp: trip.weather.temperatureC,
-                    wind: trip.weather.baseWindSpeedKmH,
-                    rho: trip.physics.rho,
-                  })}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
       </>
     )}
 
@@ -2301,7 +2393,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
               const Icon = col.icon;
 
               return (
-                <button
+                <Button variant="ghost"
                   key={col.id}
                   type="button"
                   onClick={() => handleSelectArchetype(col.id)}
@@ -2327,7 +2419,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                       {col.desc}
                     </div>
                   </div>
-                </button>
+                </Button>
               );
             })}
           </div>
@@ -2372,7 +2464,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                   })}
 
                   {(hiddenCount > 0 || showAllChips) && (
-                    <button
+                    <Button variant="ghost"
                       type="button"
                       onClick={() => setShowAllChips((v) => !v)}
                       className="inline-flex items-center gap-1 h-9 px-3 rounded-full bg-pod hover:bg-chip text-xs font-medium text-ink-secondary hover:text-ink transition-colors cursor-pointer"
@@ -2382,7 +2474,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                           ? (isFr ? 'Moins d’options' : 'Fewer options')
                           : (isFr ? `Plus d’options (+${hiddenCount})` : `More ride options (+${hiddenCount})`)}
                       </span>
-                    </button>
+                    </Button>
                   )}
                 </div>
               );
@@ -2391,7 +2483,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
         </div>
 
         {/* Card 2: Constraints & Rules + Dynamic Preset Rules */}
-        <div className="rounded-card bg-card text-ink p-4 sm:p-5 shadow-xs transition-colors space-y-5 animate-apple-step-in relative z-10">
+        <div className="rounded-card bg-card text-ink p-4 sm:p-5 shadow-xs transition-colors space-y-5 animate-apple-step-in relative z-[15] focus-within:z-30 [&:has([aria-expanded='true'])]:z-30">
           <div className="space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -2433,7 +2525,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                       </span>
                     </div>
                   </div>
-                  <button
+                  <Button variant="ghost"
                     type="button"
                     onClick={() => updateOffice('strictNoFoodInOpenSpace', !trip.office?.strictNoFoodInOpenSpace)}
                     className={`px-3 py-1 rounded-full text-xs font-semibold shrink-0 transition-all cursor-pointer ${CHIP_RING_BASE} ${
@@ -2443,33 +2535,25 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                     }`}
                   >
                     {trip.office?.strictNoFoodInOpenSpace ? t('enforcedState') : t('advisoryState')}
-                  </button>
+                  </Button>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-ink-secondary mb-1.5 px-1">
-                      {t('shiftStartInputLabel')}
-                    </label>
-                    <input
-                      type="time"
-                      value={trip.office?.shiftStartTime || '09:00'}
-                      onChange={(e) => updateOffice('shiftStartTime', e.target.value)}
-                      className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
-                    />
-                  </div>
+                  <TimePicker
+                    label={t('shiftStartInputLabel')}
+                    value={trip.office?.shiftStartTime || '09:00'}
+                    onChange={(val) => updateOffice('shiftStartTime', val)}
+                    minuteStep={5}
+                    format="24h"
+                  />
 
-                  <div>
-                    <label className="block text-xs font-medium text-ink-secondary mb-1.5 px-1">
-                      {t('targetArrivalInputLabel')}
-                    </label>
-                    <input
-                      type="time"
-                      value={trip.office?.targetGateArrivalTime || '08:30'}
-                      onChange={(e) => updateOffice('targetGateArrivalTime', e.target.value)}
-                      className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
-                    />
-                  </div>
+                  <TimePicker
+                    label={t('targetArrivalInputLabel')}
+                    value={trip.office?.targetGateArrivalTime || '08:30'}
+                    onChange={(val) => updateOffice('targetGateArrivalTime', val)}
+                    minuteStep={5}
+                    format="24h"
+                  />
 
                   <div>
                     <label className="block text-xs font-medium text-ink-secondary mb-1.5 px-1">
@@ -2531,17 +2615,13 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
             {/* BIKEPACKING Baseline */}
             {activeArchetypeMode === 'BIKEPACKING' && (
               <div key="bikepacking-baseline" className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-apple-step-in">
-                <div>
-                  <label className="block text-xs font-medium text-ink-secondary mb-1.5 px-1">
-                    {isFr ? 'Couvre-feu camp / bivouac' : 'Camp pitch curfew'}
-                  </label>
-                  <input
-                    type="time"
-                    value={trip.office.targetGateArrivalTime || '18:00'}
-                    onChange={(e) => updateOffice('targetGateArrivalTime', e.target.value)}
-                    className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
-                  />
-                </div>
+                <TimePicker
+                  label={isFr ? 'Couvre-feu camp / bivouac' : 'Camp pitch curfew'}
+                  value={trip.office.targetGateArrivalTime || '18:00'}
+                  onChange={(val) => updateOffice('targetGateArrivalTime', val)}
+                  minuteStep={5}
+                  format="24h"
+                />
                 <div>
                   <label className="block text-xs font-medium text-ink-secondary mb-1.5 px-1">
                     {isFr ? 'Préparation camp & sacoches (min)' : 'Camp setup & bag prep (min)'}
@@ -2570,17 +2650,13 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
             {/* SPORT / FONDO Baseline */}
             {activeArchetypeMode === 'SPORT' && (
               <div key="sport-baseline" className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-apple-step-in">
-                <div>
-                  <label className="block text-xs font-medium text-ink-secondary mb-1.5 px-1">
-                    {isFr ? 'Arrivée d’étape / Barrière horaire' : 'Stage finish cutoff target'}
-                  </label>
-                  <input
-                    type="time"
-                    value={trip.office.targetGateArrivalTime || '11:00'}
-                    onChange={(e) => updateOffice('targetGateArrivalTime', e.target.value)}
-                    className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
-                  />
-                </div>
+                <TimePicker
+                  label={isFr ? 'Arrivée d’étape / Barrière horaire' : 'Stage finish cutoff target'}
+                  value={trip.office.targetGateArrivalTime || '11:00'}
+                  onChange={(val) => updateOffice('targetGateArrivalTime', val)}
+                  minuteStep={5}
+                  format="24h"
+                />
                 <div>
                   <label className="block text-xs font-medium text-ink-secondary mb-1.5 px-1">
                     {isFr ? 'Échauffement progressif (min)' : 'Progressive warmup spin (min)'}
@@ -2609,17 +2685,13 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
             {/* ESCAPADE Baseline */}
             {activeArchetypeMode === 'ESCAPADE' && (
               <div key="escapade-baseline" className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-apple-step-in">
-                <div>
-                  <label className="block text-xs font-medium text-ink-secondary mb-1.5 px-1">
-                    {isFr ? 'Heure limite Check-in Hôtel' : 'Hotel Check-in cutoff'}
-                  </label>
-                  <input
-                    type="time"
-                    value={trip.office.targetGateArrivalTime || '15:00'}
-                    onChange={(e) => updateOffice('targetGateArrivalTime', e.target.value)}
-                    className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
-                  />
-                </div>
+                <TimePicker
+                  label={isFr ? 'Heure limite Check-in Hôtel' : 'Hotel Check-in cutoff'}
+                  value={trip.office.targetGateArrivalTime || '15:00'}
+                  onChange={(val) => updateOffice('targetGateArrivalTime', val)}
+                  minuteStep={5}
+                  format="24h"
+                />
                 <div>
                   <label className="block text-xs font-medium text-ink-secondary mb-1.5 px-1">
                     {isFr ? 'Check-in hôtel, bagages & recharge (min)' : 'Hotel Check-in, luggage & charging (min)'}

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useId } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../context/LanguageContext';
 import { ModalPortal } from '../common/ModalPortal';
+import { Button } from '@/components/arc';
 import {
   Eye,
   EyeOff,
@@ -152,14 +153,15 @@ export const AuthModal: React.FC = () => {
       panelClassName="bg-card text-ink border border-black/10 dark:border-white/10 rounded-card p-6 sm:p-8 max-w-md w-full shadow-2xl relative my-auto overflow-y-auto animate-apple-modal"
     >
       {/* Dismiss Button */}
-      <button
-        type="button"
+      <Button
+        variant="secondary"
+        size="sm"
         onClick={closeAuthModal}
-        className="relative before:content-[''] before:absolute before:-inset-1.5 w-9 h-9 rounded-full bg-pod dark:bg-canvas hover:bg-surface-active flex items-center justify-center text-ink-muted hover:text-ink transition-all duration-150 active:scale-95 cursor-pointer focus:outline-none ml-auto float-right"
+        className="relative before:content-[''] before:absolute before:-inset-1.5 w-9 h-9 p-0 rounded-full bg-pod dark:bg-canvas hover:bg-surface-active flex items-center justify-center text-ink-muted hover:text-ink transition-all duration-150 active:scale-95 cursor-pointer focus:outline-none ml-auto float-right"
         aria-label={isFr ? 'Fermer' : 'Close'}
       >
         <X className="w-4.5 h-4.5" />
-      </button>
+      </Button>
 
       {/* Brand Icon Header */}
       <div className="flex items-center gap-3 mb-5 animate-apple-in stagger-1">
@@ -184,8 +186,9 @@ export const AuthModal: React.FC = () => {
 
         {/* Tab Switcher: Log In vs Sign Up */}
         <div className="flex rounded-full bg-pod p-1 mb-6 border border-ink/5">
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => {
               setAuthModalMode('login');
               setErrorMessage(null);
@@ -197,9 +200,10 @@ export const AuthModal: React.FC = () => {
             }`}
           >
             {t('logIn')}
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => {
               setAuthModalMode('signup');
               setErrorMessage(null);
@@ -211,7 +215,7 @@ export const AuthModal: React.FC = () => {
             }`}
           >
             {t('signUp')}
-          </button>
+          </Button>
         </div>
 
         {/* Status / Feedback Banners */}
@@ -253,8 +257,9 @@ export const AuthModal: React.FC = () => {
           {/* Magic Link (No Password) Trigger Button */}
           {authModalMode === 'login' && (
             <div className="pt-0.5">
-              <button
-                type="button"
+              <Button
+                variant="secondary"
+                size="md"
                 onClick={handleMagicLink}
                 disabled={isMagicLinkLoading || isLoading || isResetLoading}
                 className="w-full min-h-[44px] py-2.5 px-4 rounded-pod font-rounded font-semibold text-xs sm:text-[13px] bg-pod dark:bg-canvas hover:bg-surface-active text-ink border border-black/10 dark:border-white/10 hover:border-volt/60 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs group"
@@ -270,7 +275,7 @@ export const AuthModal: React.FC = () => {
                     <span>{t('sendMagicLinkBtn')}</span>
                   </>
                 )}
-              </button>
+              </Button>
             </div>
           )}
 
@@ -290,14 +295,15 @@ export const AuthModal: React.FC = () => {
                 {t('passwordLabel')}
               </label>
               {authModalMode === 'login' && (
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={handleForgotPassword}
                   disabled={isResetLoading || isMagicLinkLoading || isLoading}
-                  className="text-xs text-ink-muted hover:text-ink hover:underline decoration-ink/30 cursor-pointer focus:outline-none transition-colors"
+                  className="p-0 h-auto text-xs font-normal text-ink-muted hover:text-ink hover:bg-transparent hover:underline decoration-ink/30 cursor-pointer focus:outline-none transition-colors"
                 >
                   {isResetLoading ? t('sendingResetLink') : t('forgotPasswordBtn')}
-                </button>
+                </Button>
               )}
             </div>
             <div className="relative">
@@ -312,19 +318,22 @@ export const AuthModal: React.FC = () => {
                 placeholder={t('passwordPlaceholder')}
                 className="w-full min-h-[44px] pl-10 pr-11 py-2.5 rounded-pod bg-pod dark:bg-canvas border border-black/10 dark:border-white/10 focus:border-transparent focus:ring-2 focus:ring-inset focus:ring-volt outline-none text-base sm:text-sm text-ink placeholder:text-ink-muted transition-colors font-body"
               />
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setShowPassword(!showPassword)}
-                className="relative before:content-[''] before:absolute before:-inset-2 absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink focus:outline-none cursor-pointer"
+                className="relative before:content-[''] before:absolute before:-inset-2 absolute right-3.5 top-1/2 -translate-y-1/2 p-0 h-auto hover:bg-transparent text-ink-muted hover:text-ink focus:outline-none cursor-pointer"
                 aria-label={showPassword ? (isFr ? 'Masquer' : 'Hide password') : (isFr ? 'Afficher' : 'Show password')}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
+              </Button>
             </div>
           </div>
 
-          <button
+          <Button
             type="submit"
+            variant="primary"
+            size="lg"
             disabled={isLoading}
             className="w-full min-h-[46px] mt-2 py-3 px-4 rounded-pod font-rounded font-bold text-sm bg-volt text-[#111111] hover:brightness-105 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer flex items-center justify-center gap-2 shadow-sm"
           >
@@ -336,21 +345,22 @@ export const AuthModal: React.FC = () => {
             ) : (
               <span>{authModalMode === 'login' ? t('logInBtn') : t('createAccountBtn')}</span>
             )}
-          </button>
+          </Button>
         </form>
 
         {/* Footer Toggle */}
         <div className="mt-5 text-center">
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => {
               setAuthModalMode(authModalMode === 'login' ? 'signup' : 'login');
               setErrorMessage(null);
             }}
-            className="text-xs text-ink-secondary hover:text-ink underline decoration-ink/30 underline-offset-4 cursor-pointer focus:outline-none transition-colors"
+            className="p-0 h-auto text-xs font-normal text-ink-secondary hover:text-ink hover:bg-transparent underline decoration-ink/30 underline-offset-4 cursor-pointer focus:outline-none transition-colors"
           >
             {authModalMode === 'login' ? t('dontHaveAccount') : t('alreadyHaveAccount')}
-          </button>
+          </Button>
         </div>
 
         {/* Subtitle helper note */}

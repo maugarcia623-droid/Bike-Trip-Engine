@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Button } from '@/components/arc';
 import {
   MapPin,
   X,
@@ -128,13 +129,12 @@ export const LocationAutocompleteInput: React.FC<LocationAutocompleteInputProps>
 
   const handleSelect = useCallback(
     (suggestion: LocationSuggestion) => {
-      onChange(suggestion.name);
       onSelectLocation(suggestion);
       setIsOpen(false);
       setHighlightedIndex(-1);
       inputRef.current?.blur();
     },
-    [onChange, onSelectLocation]
+    [onSelectLocation]
   );
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -242,7 +242,7 @@ export const LocationAutocompleteInput: React.FC<LocationAutocompleteInputProps>
           {isLoading ? (
             <SpinnerGap className="w-4 h-4 animate-spin text-ink-muted mr-1" />
           ) : value.length > 0 ? (
-            <button
+            <Button variant="ghost"
               type="button"
               onClick={handleClear}
               title={t('autocompleteClear')}
@@ -250,7 +250,7 @@ export const LocationAutocompleteInput: React.FC<LocationAutocompleteInputProps>
               className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-ink-muted hover:text-ink hover:bg-card/70 transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
-            </button>
+            </Button>
           ) : null}
         </div>
       </div>
@@ -283,7 +283,7 @@ export const LocationAutocompleteInput: React.FC<LocationAutocompleteInputProps>
                 const isHighlighted = highlightedIndex === index;
                 const badgeSpec = getSuggestionBadgeSpec(suggestion.type);
                 return (
-                  <button
+                  <Button variant="ghost"
                     key={suggestion.id}
                     type="button"
                     onClick={() => handleSelect(suggestion)}
@@ -320,7 +320,7 @@ export const LocationAutocompleteInput: React.FC<LocationAutocompleteInputProps>
                         {formatTypeBadge(suggestion.type, lang)}
                       </Badge>
                     )}
-                  </button>
+                  </Button>
                 );
               })}
             </div>
