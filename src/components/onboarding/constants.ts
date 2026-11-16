@@ -16,9 +16,9 @@ export const PURPOSES: PurposeDefinition[] = [
     tag: 'Commute',
     defaultPaceTier: 'steady',
     defaultBufferMin: 5,
-    defaultOrigin: 'Trentemoult, Rezé',
-    defaultDestination: 'Nantes gare, Nantes',
-    defaultDistanceKm: 6.0,
+    defaultOrigin: 'City Center',
+    defaultDestination: 'Central Station',
+    defaultDistanceKm: 8.0,
   },
   {
     id: 'sport',
@@ -35,9 +35,9 @@ export const PURPOSES: PurposeDefinition[] = [
     tag: 'Sport',
     defaultPaceTier: 'brisk',
     defaultBufferMin: 0,
-    defaultOrigin: 'Nantes Quai de la Fosse',
-    defaultDestination: 'Pornic Château',
-    defaultDistanceKm: 48.0,
+    defaultOrigin: 'Valley Overlook',
+    defaultDestination: 'Ridge Summit',
+    defaultDistanceKm: 60.0,
   },
   {
     id: 'bikepacking',
@@ -54,8 +54,8 @@ export const PURPOSES: PurposeDefinition[] = [
     tag: 'Bikepacking',
     defaultPaceTier: 'steady',
     defaultBufferMin: 15,
-    defaultOrigin: 'Saint-Brevin Trailhead',
-    defaultDestination: 'Pornic Bivouac Cove',
+    defaultOrigin: 'River Trailhead',
+    defaultDestination: 'Lakeside Camp',
     defaultDistanceKm: 65.0,
   },
   {
@@ -71,13 +71,18 @@ export const PURPOSES: PurposeDefinition[] = [
     contextBodyFr:
       'Gardez le rythme léger avec des voies douces, des pauses régulières et zéro pression horaire.',
     tag: 'Leisure',
-    defaultPaceTier: 'easy',
+    defaultPaceTier: 'steady',
     defaultBufferMin: 10,
-    defaultOrigin: 'Nantes Île de Versailles',
-    defaultDestination: 'Sucé-sur-Erdre Port',
-    defaultDistanceKm: 22.0,
+    defaultOrigin: 'Old Town Square',
+    defaultDestination: 'Riverside Cafe',
+    defaultDistanceKm: 25.0,
   },
 ];
+
+export const ONBOARDING_SPEED_BOUNDS = {
+  minKmH: 8,
+  maxKmH: 45,
+};
 
 export const PACE_TIERS: PaceTier[] = [
   {

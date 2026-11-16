@@ -5,6 +5,7 @@ import {
   fetchOverpassWithFailover,
   haversineDistanceMeters,
 } from './overpassCorridor';
+import { loadOsmSurfaceFromIdb, saveOsmSurfaceToIdb } from './offlineIdb';
 
 export interface OsmWayTags {
   highway?: string;
@@ -255,6 +256,15 @@ export async function fetchOsmSurfaceForRoute(params: {
 
   const runPromise = (async (): Promise<OsmSurfaceRouteData> => {
     try {
+      if (!forceFresh) {
+        const idbCached = await loadOsmSurfaceFromIdb<OsmSurfaceRouteData>(routeKey);
+        if (idbCached && Array.isArray(idbCached.ways)) {
+          osmSurfaceStore.set(routeKey, { status: 'ready', data: idbCached });
+          notifyOsmListeners(routeKey);
+          return idbCached;
+        }
+      }
+
       const cumMeters = computeCumulativeDistances(coordinates);
       const bufferMeters = computeQueryBufferMeters(coordinates, cumMeters);
       const chunks = buildOverpassPolylineChunks(coordinates, cumMeters);
@@ -292,8 +302,15 @@ export async function fetchOsmSurfaceForRoute(params: {
 
       osmSurfaceStore.set(routeKey, { status: 'ready', data: result });
       notifyOsmListeners(routeKey);
+      void saveOsmSurfaceToIdb(routeKey, result);
       return result;
     } catch (err) {
+      const idbFallback = await loadOsmSurfaceFromIdb<OsmSurfaceRouteData>(routeKey);
+      if (idbFallback && Array.isArray(idbFallback.ways)) {
+        osmSurfaceStore.set(routeKey, { status: 'ready', data: idbFallback });
+        notifyOsmListeners(routeKey);
+        return idbFallback;
+      }
       const message =
         err instanceof Error ? err.message : 'OpenStreetMap surface query failed.';
       osmSurfaceStore.set(routeKey, {

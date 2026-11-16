@@ -119,6 +119,7 @@ export const InteractiveRouteMap: React.FC<InteractiveRouteMapProps> = ({
 
     const defaultCenter: [number, number] = originCoords || [43.35, 6.2]; // Defaults near Provence / Côte d'Azur
     const map = L.map(mapContainerRef.current, {
+      preferCanvas: true,
       zoomControl: true,
       attributionControl: false,
       scrollWheelZoom: true,
@@ -182,7 +183,33 @@ export const InteractiveRouteMap: React.FC<InteractiveRouteMapProps> = ({
     routeLayerGroupRef.current.clearLayers();
     markersLayerGroupRef.current.clearLayers();
 
-    const bounds = L.latLngBounds([]);
+    const buildMarkerTooltip = (titleText: string, subtitleText?: string): HTMLElement => {
+      const container = document.createElement('div');
+      const titleEl = document.createElement('div');
+      titleEl.style.cssText = 'font-weight:700;font-size:11.5px;';
+      titleEl.textContent = titleText;
+      container.appendChild(titleEl);
+      if (subtitleText) {
+        const subEl = document.createElement('div');
+        subEl.style.cssText = 'font-size:10px;color:#666;';
+        subEl.textContent = subtitleText;
+        container.appendChild(subEl);
+      }
+      return container;
+    };
+
+    const buildSegmentTooltip = (name: string, detail: string): HTMLElement => {
+      const container = document.createElement('div');
+      container.style.cssText = 'font-family:ui-rounded,Nunito,sans-serif;font-size:11px;';
+      const strong = document.createElement('strong');
+      strong.textContent = name;
+      container.appendChild(strong);
+      container.appendChild(document.createElement('br'));
+      const span = document.createElement('span');
+      span.textContent = detail;
+      container.appendChild(span);
+      return container;
+    };
 
     // 1. Draw Color-Coded Surface Polyline Segments
     if (coordinates && coordinates.length > 1) {
@@ -208,25 +235,19 @@ export const InteractiveRouteMap: React.FC<InteractiveRouteMapProps> = ({
         }).addTo(routeLayerGroupRef.current);
 
         segLine.bindTooltip(
-          `<div style="font-family:ui-rounded,Nunito,sans-serif;font-size:11px;">
-            <strong>${isFr ? seg.nameFr : seg.nameEn}</strong><br/>
-            <span>km ${seg.startKm}–${seg.endKm} (${seg.distanceKm} km) · ${
-              isFr ? meta.labelFr : meta.labelEn
-            }</span>
-          </div>`,
+          buildSegmentTooltip(
+            isFr ? seg.nameFr : seg.nameEn,
+            `km ${seg.startKm}–${seg.endKm} (${seg.distanceKm} km) · ${isFr ? meta.labelFr : meta.labelEn}`
+          ),
           { sticky: true, direction: 'top', offset: [0, -8] }
         );
 
         segLine.on('mouseover', () => onSelectSurfaceSegment?.(seg));
         segLine.on('mouseout', () => onSelectSurfaceSegment?.(null));
       }
-
-      for (const pt of coordinates) {
-        bounds.extend(pt);
-      }
     }
 
-    // Helper to build concentric styled Leaflet HTML marker
+    // Helper to build concentric styled Leaflet HTML marker safely via DOM
     const createMarkerIcon = (
       label: string,
       type: 'origin' | 'waypoint' | 'dest',
@@ -241,15 +262,14 @@ export const InteractiveRouteMap: React.FC<InteractiveRouteMapProps> = ({
           : 'background:#111111;color:#ffffff;border:2px solid #F2F455;'; // Finish Checkpoint
       }
 
-      const html = `
-        <div style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:9999px;${bg}font-family:ui-rounded,SF Pro Rounded,Nunito,sans-serif;font-weight:800;font-size:12px;box-shadow:0 3px 10px rgba(0,0,0,0.35);cursor:pointer;transition:transform 0.15s ease;" title="${title}">
-          ${label}
-        </div>
-      `;
+      const el = document.createElement('div');
+      el.style.cssText = `display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:9999px;${bg}font-family:ui-rounded,SF Pro Rounded,Nunito,sans-serif;font-weight:800;font-size:12px;box-shadow:0 3px 10px rgba(0,0,0,0.35);cursor:pointer;transition:transform 0.15s ease;`;
+      el.title = title;
+      el.textContent = label;
 
       return L.divIcon({
         className: 'cadence-map-marker',
-        html,
+        html: el,
         iconSize: [28, 28],
         iconAnchor: [14, 14],
         popupAnchor: [0, -14],
@@ -259,14 +279,14 @@ export const InteractiveRouteMap: React.FC<InteractiveRouteMapProps> = ({
     // 2. Start Marker (A)
     const effectiveOriginCoords = originCoords || (coordinates && coordinates.length > 0 ? coordinates[0] : null);
     if (effectiveOriginCoords) {
-      bounds.extend(effectiveOriginCoords);
+      const originLabel = originName || (isFr ? 'Départ' : 'Start');
       const startMarker = L.marker(effectiveOriginCoords, {
-        icon: createMarkerIcon('A', 'origin', originName || (isFr ? 'Départ' : 'Start')),
+        icon: createMarkerIcon('A', 'origin', originLabel),
         zIndexOffset: 500,
       }).addTo(markersLayerGroupRef.current);
 
       startMarker.bindTooltip(
-        `<div style="font-weight:700;font-size:11.5px;">${originName || (isFr ? 'Départ' : 'Start')}</div><div style="font-size:10px;color:#666;">${isFr ? 'Point de départ (A)' : 'Origin (A)'}</div>`,
+        buildMarkerTooltip(originLabel, isFr ? 'Point de départ (A)' : 'Origin (A)'),
         { direction: 'top', offset: [0, -14] }
       );
     }
@@ -274,43 +294,85 @@ export const InteractiveRouteMap: React.FC<InteractiveRouteMapProps> = ({
     // 3. Intermediate Waypoint Markers (1, 2, 3...)
     waypoints.forEach((wp, idx) => {
       if (wp.coordinates) {
-        bounds.extend(wp.coordinates);
         const markerLabel = String(idx + 1);
+        const wpLabel = wp.name || (isFr ? `Arrêt ${idx + 1}` : `Stop ${idx + 1}`);
         const marker = L.marker(wp.coordinates, {
           icon: createMarkerIcon(markerLabel, 'waypoint', wp.name || `Via ${markerLabel}`),
           zIndexOffset: 600 + idx,
         }).addTo(markersLayerGroupRef.current!);
 
-        // Popup with delete button
+        // Popup with delete button built via safe DOM nodes
         const popupDiv = document.createElement('div');
         popupDiv.className = 'p-1 text-xs font-body text-ink';
-        popupDiv.innerHTML = `
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
-            <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:9999px;background:#F2F455;color:#111;font-weight:800;font-size:10px;">${idx + 1}</span>
-            <span style="font-weight:700;font-size:12px;">${wp.name || (isFr ? `Arrêt ${idx + 1}` : `Stop ${idx + 1}`)}</span>
-          </div>
-          ${wp.distanceFromStartKm ? `<div style="font-size:11px;color:#888;margin-bottom:6px;">km ${wp.distanceFromStartKm}</div>` : ''}
-          <div style="padding-top:4px;border-top:1px dashed rgba(0,0,0,0.1);">
-            <button id="btn-del-wp-${wp.id}" style="background:#fee2e2;color:#991b1b;border:none;padding:4px 10px;border-radius:9999px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-              <span>${isFr ? 'Supprimer cet arrêt' : 'Remove stop'}</span>
-            </button>
-          </div>
-        `;
 
+        const headerRow = document.createElement('div');
+        headerRow.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:4px;';
+        const badgeSpan = document.createElement('span');
+        badgeSpan.style.cssText =
+          'display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:9999px;background:#F2F455;color:#111;font-weight:800;font-size:10px;';
+        badgeSpan.textContent = markerLabel;
+        const nameSpan = document.createElement('span');
+        nameSpan.style.cssText = 'font-weight:700;font-size:12px;';
+        nameSpan.textContent = wpLabel;
+        headerRow.appendChild(badgeSpan);
+        headerRow.appendChild(nameSpan);
+        popupDiv.appendChild(headerRow);
+
+        if (wp.distanceFromStartKm) {
+          const distDiv = document.createElement('div');
+          distDiv.style.cssText = 'font-size:11px;color:#888;margin-bottom:6px;';
+          distDiv.textContent = `km ${wp.distanceFromStartKm}`;
+          popupDiv.appendChild(distDiv);
+        }
+
+        const actionRow = document.createElement('div');
+        actionRow.style.cssText = 'padding-top:4px;border-top:1px dashed rgba(0,0,0,0.1);';
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.style.cssText =
+          'background:#fee2e2;color:#991b1b;border:none;padding:4px 10px;border-radius:9999px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;';
+
+        const svgNs = 'http://www.w3.org/2000/svg';
+        const svg = document.createElementNS(svgNs, 'svg');
+        svg.setAttribute('width', '10');
+        svg.setAttribute('height', '10');
+        svg.setAttribute('viewBox', '0 0 24 24');
+        svg.setAttribute('fill', 'none');
+        svg.setAttribute('stroke', 'currentColor');
+        svg.setAttribute('stroke-width', '2.5');
+        svg.setAttribute('stroke-linecap', 'round');
+        svg.setAttribute('stroke-linejoin', 'round');
+        const line1 = document.createElementNS(svgNs, 'line');
+        line1.setAttribute('x1', '18');
+        line1.setAttribute('y1', '6');
+        line1.setAttribute('x2', '6');
+        line1.setAttribute('y2', '18');
+        const line2 = document.createElementNS(svgNs, 'line');
+        line2.setAttribute('x1', '6');
+        line2.setAttribute('y1', '6');
+        line2.setAttribute('x2', '18');
+        line2.setAttribute('y2', '18');
+        svg.appendChild(line1);
+        svg.appendChild(line2);
+        delBtn.appendChild(svg);
+
+        const btnLabel = document.createElement('span');
+        btnLabel.textContent = isFr ? 'Supprimer cet arrêt' : 'Remove stop';
+        delBtn.appendChild(btnLabel);
+
+        if (onRemoveWaypoint) {
+          delBtn.onclick = () => {
+            marker.closePopup();
+            onRemoveWaypoint(wp.id);
+          };
+        }
+
+        actionRow.appendChild(delBtn);
+        popupDiv.appendChild(actionRow);
         marker.bindPopup(popupDiv);
-        marker.on('popupopen', () => {
-          const btn = document.getElementById(`btn-del-wp-${wp.id}`);
-          if (btn && onRemoveWaypoint) {
-            btn.onclick = () => {
-              marker.closePopup();
-              onRemoveWaypoint(wp.id);
-            };
-          }
-        });
 
         marker.bindTooltip(
-          `<div style="font-weight:700;font-size:11.5px;">${wp.name || (isFr ? `Arrêt ${idx + 1}` : `Stop ${idx + 1}`)}</div>${wp.distanceFromStartKm ? `<div style="font-size:10px;color:#555;">km ${wp.distanceFromStartKm}</div>` : ''}`,
+          buildMarkerTooltip(wpLabel, wp.distanceFromStartKm ? `km ${wp.distanceFromStartKm}` : undefined),
           { direction: 'top', offset: [0, -14] }
         );
       }
@@ -319,23 +381,62 @@ export const InteractiveRouteMap: React.FC<InteractiveRouteMapProps> = ({
     // 4. Finish Marker (B)
     const effectiveDestCoords = destCoords || (coordinates && coordinates.length > 1 ? coordinates[coordinates.length - 1] : null);
     if (effectiveDestCoords) {
-      bounds.extend(effectiveDestCoords);
+      const destLabel = destinationName || (isFr ? 'Arrivée' : 'Finish');
       const destMarker = L.marker(effectiveDestCoords, {
-        icon: createMarkerIcon('B', 'dest', destinationName || (isFr ? 'Arrivée' : 'Finish')),
+        icon: createMarkerIcon('B', 'dest', destLabel),
         zIndexOffset: 500,
       }).addTo(markersLayerGroupRef.current);
 
       destMarker.bindTooltip(
-        `<div style="font-weight:700;font-size:11.5px;">${destinationName || (isFr ? 'Arrivée' : 'Finish')}</div><div style="font-size:10px;color:#666;">${isFr ? 'Destination (B)' : 'Finish (B)'}</div>`,
+        buildMarkerTooltip(destLabel, isFr ? 'Destination (B)' : 'Finish (B)'),
         { direction: 'top', offset: [0, -14] }
       );
     }
+  }, [coordinates, originCoords, destCoords, waypoints, originName, destinationName, isDark, isFr, surfaceBreakdown]);
 
-    // Auto-fit bounds if we have points
+  // Decouple auto-fit bounds from theme (isDark), surfaceBreakdown, and label updates
+  const geometryKey = useMemo(() => {
+    const coordKey =
+      coordinates && coordinates.length > 0
+        ? `${coordinates.length}:${coordinates.map((c) => `${c[0].toFixed(5)},${c[1].toFixed(5)}`).join(';')}`
+        : '';
+    const origKey = originCoords ? `${originCoords[0].toFixed(5)},${originCoords[1].toFixed(5)}` : '';
+    const destKey = destCoords ? `${destCoords[0].toFixed(5)},${destCoords[1].toFixed(5)}` : '';
+    const wpKey = waypoints
+      .map((w) => (w.coordinates ? `${w.coordinates[0].toFixed(5)},${w.coordinates[1].toFixed(5)}` : ''))
+      .join('|');
+    return `${coordKey}#${origKey}#${destKey}#${wpKey}`;
+  }, [coordinates, originCoords, destCoords, waypoints]);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    const bounds = L.latLngBounds([]);
+    if (coordinates && coordinates.length > 0) {
+      for (const pt of coordinates) {
+        bounds.extend(pt);
+      }
+    }
+    const effectiveOriginCoords = originCoords || (coordinates && coordinates.length > 0 ? coordinates[0] : null);
+    if (effectiveOriginCoords) {
+      bounds.extend(effectiveOriginCoords);
+    }
+    for (const wp of waypoints) {
+      if (wp.coordinates) {
+        bounds.extend(wp.coordinates);
+      }
+    }
+    const effectiveDestCoords =
+      destCoords || (coordinates && coordinates.length > 1 ? coordinates[coordinates.length - 1] : null);
+    if (effectiveDestCoords) {
+      bounds.extend(effectiveDestCoords);
+    }
+
     if (bounds.isValid()) {
       map.fitBounds(bounds, { padding: [32, 32], maxZoom: 14 });
     }
-  }, [coordinates, originCoords, destCoords, waypoints, originName, destinationName, isDark, isFr, surfaceBreakdown]);
+  }, [geometryKey]);
 
   // Highlight active/hovered surface segment on map
   useEffect(() => {

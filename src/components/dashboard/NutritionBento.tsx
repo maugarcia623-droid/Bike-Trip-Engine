@@ -715,15 +715,15 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
     const manifestSub = isQuantitative
       ? isEmergencySurge
         ? isFr
-          ? `${recommendedGPerHr} g/h (Surrégime d’urgence) · ${prefBadgeLabel}`
-          : `${recommendedGPerHr} g/h (Surge) · ${prefBadgeLabel}`
+          ? `${recommendedGPerHr} g/h (Effort intense) · ${prefBadgeLabel}`
+          : `${recommendedGPerHr} g/h (High effort) · ${prefBadgeLabel}`
         : recommendedGPerHr === effectiveCeilingGPerHr
         ? isFr
-          ? `${recommendedGPerHr} g/h (Plafond max) · ${prefBadgeLabel}`
-          : `${recommendedGPerHr} g/h (Max gut cap) · ${prefBadgeLabel}`
+          ? `Max glucides/h (${recommendedGPerHr} g/h) · ${prefBadgeLabel}`
+          : `Max carbs/hr (${recommendedGPerHr} g/h) · ${prefBadgeLabel}`
         : isFr
         ? `${recommendedGPerHr} g/h (${powerZoneLabel} · max ${effectiveCeilingGPerHr} g/h) · ${prefBadgeLabel}`
-        : `${recommendedGPerHr} g/h target (${powerZoneLabel} pace · ${effectiveCeilingGPerHr} g/h gut cap) · ${prefBadgeLabel}`
+        : `${recommendedGPerHr} g/h target (${powerZoneLabel} pace · ${effectiveCeilingGPerHr} g/h max) · ${prefBadgeLabel}`
       : isFuelFirst
       ? `${fuelUnitsPerHour} ${isFr ? 'unités/h' : 'fuel units/h'} · ${prefBadgeLabel}`
       : `${isFr ? 'Rythme régulier' : 'Steady rhythm'} · ${prefBadgeLabel}`;
@@ -754,7 +754,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
               size="sm"
               className="hidden sm:inline-flex font-rounded"
             >
-              {isFr ? 'Manifeste expédition' : 'Expedition manifest'}
+              {isFr ? 'Liste de ravitaillement' : 'Tour packing list'}
             </Badge>
             <DisclosureChevron open={manifestOpen} />
           </div>
@@ -1210,7 +1210,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         id: 'short-1',
         icon: Droplets,
         theme: 'sky',
-        stageLabel: isFr ? 'En selle' : 'On-bike intake',
+        stageLabel: isFr ? 'Avant de partir' : 'Before you ride',
         timingLabel: isFr ? '20 min avant' : '20 min before',
         timingVariant: 'zinc',
         macroHeadline: isQuantitative
@@ -1305,7 +1305,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         id: 'sport-1',
         icon: Coffee,
         theme: 'amber',
-        stageLabel: isFr ? 'Avant de partir' : 'Pre-load carbs',
+        stageLabel: isFr ? 'Avant de partir' : 'Before you ride',
         timingLabel: solvedTimeline.preRideWindow,
         timingVariant: 'zinc',
         macroHeadline: p1MacroHeadline,
@@ -1319,7 +1319,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         id: 'sport-2',
         icon: isKom ? Trophy : Lightning,
         theme: isKom ? 'amber' : 'yellow-vest',
-        stageLabel: isFr ? 'Débit horaire en selle' : 'On-bike hourly rate',
+        stageLabel: isFr ? 'En selle' : 'On the bike',
         timingLabel: isKom
           ? isFr
             ? `Bosses · ${isQuantitative ? `${recommendedGPerHr} g/h` : `${fuelUnitsPerHour} un/h`}`
@@ -1336,8 +1336,8 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         title:
           nutPref === 'real-food'
             ? isFr
-              ? `Ravito naturel calibré (${isQuantitative ? `${recommendedGPerHr} g/h` : `${fuelUnitsPerHour} un/h`})`
-              : `Calibrated real-food fueling (${isQuantitative ? `${recommendedGPerHr} g/h` : `${fuelUnitsPerHour} un/h`})`
+              ? `Ravito naturel sur mesure (${isQuantitative ? `${recommendedGPerHr} g/h` : `${fuelUnitsPerHour} un/h`})`
+              : `Real-food fueling (${isQuantitative ? `${recommendedGPerHr} g/h` : `${fuelUnitsPerHour} un/h`})`
             : isHydration
             ? isFr
               ? 'Glucides & recharge électrolytes'
@@ -1355,8 +1355,8 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
             : isHydration
             ? isQuantitative
               ? isFr
-                ? `Apport régulier + ~${hydrationPlan.sodiumMgPerL} mg sodium/litre pour faciliter l’absorption sans inconfort digestif.`
-                : `Steady hydration + ~${hydrationPlan.sodiumMgPerL} mg sodium/liter to match your digestion rate comfortably.`
+                ? `Hydratation régulière + ~${hydrationPlan.sodiumMgPerL} mg sodium/litre pour garder le rythme avec un bon confort digestif.`
+                : `Steady hydration + ~${hydrationPlan.sodiumMgPerL} mg sodium/liter to keep energy flowing comfortably.`
               : isFr
               ? 'Buvez par petites gorgées régulières avec des électrolytes pour rester bien hydraté.'
               : 'Sip steadily with electrolytes to stay comfortably hydrated.'
@@ -1422,7 +1422,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         id: 'bp-1',
         icon: isMountain ? Mountains : Coffee,
         theme: isMountain ? 'sky' : 'amber',
-        stageLabel: isFr ? 'Charge matin' : 'Staging energy',
+        stageLabel: isFr ? 'Avant de partir' : 'Before you ride',
         timingLabel: isMountain ? (isFr ? 'Matin alpin' : 'Alpine morning') : solvedTimeline.preRideWindow,
         timingVariant: 'zinc',
         macroHeadline: p1MacroHeadline,
@@ -1450,7 +1450,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         id: 'bp-2',
         icon: AppleLogo,
         theme: 'lime',
-        stageLabel: isFr ? 'Cadence horaire' : 'Rolling intake',
+        stageLabel: isFr ? 'En route' : 'On the road',
         timingLabel: isMountain
           ? isFr
             ? 'Pentes fortes'
@@ -1466,21 +1466,21 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         liquidShiftPill,
         title: isMountain
           ? isFr
-            ? 'Rations roulantes & électrolytes en montée'
-            : 'Ascent grazing & electrolyte buffer'
+            ? 'Énergie & électrolytes en montée'
+            : 'Climbing fuel & electrolytes'
           : isResupply
           ? isFr
-            ? 'Ravitaillement boulangerie & produits frais'
-            : 'Village bakery & fresh resupply grazing'
+            ? 'Halte boulangerie & produits frais'
+            : 'Village bakery & fresh snacks'
           : t('nutriBp2Title'),
         body: isMountain
           ? isFr
             ? dietaryFilters.includes('nut-free')
-              ? 'Prise toutes les 20 min : dattes, pâtes de fruits artisanales et bidon électrolytes (garanti sans fruits à coque).'
-              : 'Prise toutes les 20 min : dattes, pâtes d’amandes et bidon électrolytes pour compenser la forte sudation en côte.'
+              ? 'Toutes les 20 min : dattes, pâtes de fruits et bidon électrolytes (100 % sans fruits à coque) pour soutenir la montée.'
+              : 'Toutes les 20 min : dattes, pâtes d’amandes et bidon électrolytes pour compenser la sueur en montée.'
             : dietaryFilters.includes('nut-free')
-            ? 'Intake every 20 min: dates, artisanal fruit chews, and sodium bottle (100% nut-free electrolyte buffer).'
-            : 'Intake every 20 min: dates, almond paste, and sodium bottle to offset heavy climbing sweat rates.'
+            ? 'Every 20 min: dates, fruit chews, and an electrolyte bottle (100% nut-free) to fuel the climb.'
+            : 'Every 20 min: dates, almond paste, and an electrolyte bottle to replace climbing sweat.'
           : isResupply
           ? isFr
             ? dietaryFilters.includes('gluten-free')
@@ -1573,7 +1573,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         id: 'esc-1',
         icon: Coffee,
         theme: 'amber',
-        stageLabel: isFr ? 'Départ' : 'Rollout base',
+        stageLabel: isFr ? 'Avant de partir' : 'Before you ride',
         timingLabel: solvedTimeline.preRideWindow,
         timingVariant: 'zinc',
         macroHeadline: p1MacroHeadline,
@@ -1587,7 +1587,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         id: 'esc-2',
         icon: isPicnic ? ForkKnife : Compass,
         theme: isPicnic ? 'orange' : 'teal',
-        stageLabel: isFr ? 'Hydratation' : 'Cruising fuel',
+        stageLabel: isFr ? 'En route' : 'On the road',
         timingLabel: isPicnic
           ? isFr
             ? 'Pique-nique · 45 min'
@@ -1598,7 +1598,9 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         timingVariant: isPicnic ? 'orange' : 'teal',
         macroHeadline:
           isPicnic && isQuantitative
-            ? '~650 kcal · Balanced feast'
+            ? isFr
+              ? '~650 kcal · Pique-nique équilibré'
+              : '~650 kcal · Balanced picnic'
             : isPicnic && !isQuantitative
             ? isFr
               ? 'Pique-nique du terroir'
@@ -1858,7 +1860,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           {compactReturnBtn}
           {isCoffee && (
             <Badge variant="amber" size="md" dot className="py-1.5 px-3 tnum">
-              {isFr ? 'Café Roaster' : 'Espresso reload'}
+              {isFr ? 'Pause café' : 'Coffee stop'}
             </Badge>
           )}
           {renderPacingBadge('yellow-vest')}

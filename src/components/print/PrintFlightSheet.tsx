@@ -5,10 +5,18 @@ import { loadRiderBikeSpecs, getActiveBike } from '../../utils/specsStorage';
 import { calculatePhysics } from '../../utils/physics';
 import { calculateReverseTimeline, solveTripTimeline } from '../../utils/timeline';
 import { getChipsExtraBufferMinutes, getArchetypeFromTag } from '../../utils/archetypeChips';
-import { getRealFoodNutritionPlan, addMinutesToTime } from '../../utils/nutrition';
+import { getRealFoodNutritionPlan, addMinutesToTime, calculateHydrationPlan } from '../../utils/nutrition';
 import { resolveCompliantPantry } from '../../data/pantryCatalog';
 import { getExpeditionTotals } from '../../utils/stageManager';
-import { calculateAmenityEta } from '../../services/overpassCorridor';
+import {
+  calculateAmenityEta,
+  calculateWaterGaps,
+  getCachedScan,
+  getRouteHashKey,
+} from '../../services/overpassCorridor';
+import { computeSurfaceBreakdown } from '../../utils/surfaceProfile';
+import { formatCriticalGapAdvice, formatGapDetail, formatKm } from '../../utils/waterGapCopy';
+import { TriangleAlert, Droplet, Bed } from '@/components/icons';
 import {
   useTranslation,
   getLocalizedTripMeta,
@@ -31,6 +39,25 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
   const arch = getArchetypeFromTag(trip.tag, trip.name);
   const hasMultipleStages = Boolean(trip.stages && trip.stages.length > 1);
   const expeditionTotals = getExpeditionTotals(trip);
+  const activeStage = trip.stages?.[trip.activeStageIndex ?? 0];
+  const activeAccommodationNote = activeStage?.accommodationNote;
+
+  const surfaceBreakdown =
+    trip.route.surfaceBreakdown ||
+    trip.route.terrainSummary?.surfaceBreakdown ||
+    computeSurfaceBreakdown(trip.route, {
+      crr: trip.physics.crr ?? activeBike?.crr,
+      tireWidthMm: activeBike?.tireWidthMm,
+      isTubeless: activeBike?.isTubeless ?? true,
+      riderWeightKg: trip.physics.riderWeightKg,
+      bikeWeightKg: trip.physics.bikeWeightKg,
+      luggageWeightKg: trip.physics.luggageWeightKg ?? trip.physics.gearWeightKg,
+      customChips: trip.customChips ?? [],
+    });
+
+  const technicalOrUnpavedSectors = surfaceBreakdown.segments.filter(
+    (s) => s.type !== 'paved' || s.technicality === 'technical' || s.technicality === 'moderate'
+  );
 
   const physicsResult = calculatePhysics(
     trip.physics,
@@ -91,6 +118,40 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
       logistics: trip.ruleSettings,
       solvedTimeline,
     }
+  );
+
+  const printHydration = calculateHydrationPlan({
+    rideHours: Math.max(0.6, physicsResult.movingTimeSeconds / 3600),
+    tempC: trip.weather.temperatureC,
+    legWatts: physicsResult.legWatts,
+    bidonSizeMl: effectiveSpecs.bidonSizeMl,
+    frameBottleSlots: effectiveSpecs.frameBottleSlots,
+    activeChips: trip.customChips || [],
+  });
+  const routeCoords = trip.route.coordinates;
+  const stageId = activeStage?.id || trip.id;
+  const cachedAmenities =
+    routeCoords && routeCoords.length >= 2
+      ? getCachedScan(getRouteHashKey(routeCoords, stageId, trip.route.distanceKm)) || []
+      : [];
+  const combinedWaterAmenities = [...cachedAmenities];
+  for (const pinned of trip.pinnedAmenities || []) {
+    if (!combinedWaterAmenities.some((a) => a.id === pinned.id)) {
+      combinedWaterAmenities.push(pinned);
+    }
+  }
+  const waterGapsSummary = calculateWaterGaps(
+    combinedWaterAmenities,
+    trip.route.distanceKm,
+    {
+      sectorSpeedKmH: physicsResult.effectiveSpeedKmH,
+      targetFluidMlPerHr: printHydration.targetFluidMlPerHr,
+      bidonSizeMl: effectiveSpecs.bidonSizeMl,
+      frameBottleSlots: effectiveSpecs.frameBottleSlots,
+    }
+  );
+  const flaggedWaterGaps = waterGapsSummary.gaps.filter(
+    (g) => g.severity === 'critical' || g.severity === 'caution'
   );
 
   return (
@@ -155,8 +216,9 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
                 <th className="border border-gray-300 px-2 py-1 text-left w-24">{isFr ? 'Date' : 'Date'}</th>
                 <th className="border border-gray-300 px-2 py-1 text-left">{isFr ? 'Itinéraire' : 'Route'}</th>
                 <th className="border border-gray-300 px-2 py-1 text-left w-36">{isFr ? 'Distance / Déniv.' : 'Distance / Elev'}</th>
-                <th className="border border-gray-300 px-2 py-1 text-left w-20">{isFr ? 'Allure' : 'Target pace'}</th>
-                <th className="border border-gray-300 px-2 py-1 text-left w-36">{isFr ? 'Arrivée souhaitée' : 'Target cutoff'}</th>
+                <th className="border border-gray-300 px-2 py-1 text-left w-16">{isFr ? 'Allure' : 'Pace'}</th>
+                <th className="border border-gray-300 px-2 py-1 text-left w-24">{isFr ? 'Arrivée' : 'Cutoff'}</th>
+                <th className="border border-gray-300 px-2 py-1 text-left">{isFr ? 'Hébergement' : 'Accommodation'}</th>
               </tr>
             </thead>
             <tbody>
@@ -183,6 +245,9 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
                     <td className="border border-gray-200 px-2 py-1 text-[10px]">{distanceKm} km (+{elevM} m)</td>
                     <td className="border border-gray-200 px-2 py-1 text-[10px]">{pace} km/h</td>
                     <td className="border border-gray-200 px-2 py-1 text-[10px]">{cutoff}</td>
+                    <td className="border border-gray-200 px-2 py-1 text-[10px] font-normal">
+                      {stage.accommodationNote ? stage.accommodationNote : '—'}
+                    </td>
                   </tr>
                 );
               })}
@@ -193,6 +258,16 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
               ? '(*) Étape active détaillée ci-dessous (horaires et check-list).'
               : '(*) Active stage detailed below in the schedule and checklist.'}
           </div>
+        </div>
+      )}
+
+      {!hasMultipleStages && activeAccommodationNote && (
+        <div className="mb-4 border border-gray-300 rounded px-2.5 py-1.5 text-[11px] flex items-center gap-2">
+          <Bed className="w-3.5 h-3.5 shrink-0 text-gray-700" />
+          <span>
+            <strong>{isFr ? 'Hébergement :' : 'Accommodation:'}</strong>{' '}
+            {activeAccommodationNote}
+          </span>
         </div>
       )}
 
@@ -378,6 +453,117 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Surface Mix, Unpaved / Technical Sectors & Water Gap Alerts */}
+        {(technicalOrUnpavedSectors.length > 0 || flaggedWaterGaps.length > 0) && (
+          <div className="mt-4 pt-3 border-t border-dashed border-gray-300 space-y-3 tnum">
+            {technicalOrUnpavedSectors.length > 0 && (
+              <div>
+                <div className="flex justify-between items-baseline mb-1.5">
+                  <span className="text-[11px] font-bold text-gray-800 inline-flex items-center gap-1">
+                    <TriangleAlert className="w-3.5 h-3.5" />
+                    {isFr
+                      ? 'Secteurs non asphaltés & techniques'
+                      : 'Unpaved & Technical Surface Sectors'}
+                  </span>
+                  <span className="text-[9px] text-gray-600">
+                    {isFr
+                      ? `${surfaceBreakdown.pavedPct}% bitume · ${surfaceBreakdown.gravelPct}% gravel · ${surfaceBreakdown.singletrackPct}% sentier (${surfaceBreakdown.suitability.tireWidthMm}mm · ${surfaceBreakdown.suitability.recommendedFrontBar}/${surfaceBreakdown.suitability.recommendedRearBar} bar)`
+                      : `${surfaceBreakdown.pavedPct}% paved · ${surfaceBreakdown.gravelPct}% gravel · ${surfaceBreakdown.singletrackPct}% trail (${surfaceBreakdown.suitability.tireWidthMm}mm · ${surfaceBreakdown.suitability.recommendedFrontBar}/${surfaceBreakdown.suitability.recommendedRearBar} bar)`}
+                  </span>
+                </div>
+                <table className="w-full text-xs border-collapse border border-gray-300">
+                  <thead>
+                    <tr className="bg-gray-100 text-[10px] text-gray-700 font-bold border-b border-gray-300">
+                      <th className="border border-gray-300 px-2 py-1 text-left w-24">
+                        {isFr ? 'Secteur km' : 'Sector km'}
+                      </th>
+                      <th className="border border-gray-300 px-2 py-1 text-left w-24">
+                        {isFr ? 'Revêtement' : 'Surface'}
+                      </th>
+                      <th className="border border-gray-300 px-2 py-1 text-left">
+                        {isFr ? 'Recommandation terrain' : 'Surface advisory'}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {technicalOrUnpavedSectors.slice(0, 8).map((seg) => (
+                      <tr key={seg.id} className="border-b border-gray-200">
+                        <td className="border border-gray-200 px-2 py-1 text-[10px] font-bold">
+                          {formatKm(seg.startKm, lang)}–{formatKm(seg.endKm, lang)} km
+                        </td>
+                        <td className="border border-gray-200 px-2 py-1 text-[10px] capitalize">
+                          {seg.type} ({seg.technicality})
+                        </td>
+                        <td className="border border-gray-200 px-2 py-1 text-[10px]">
+                          <strong>{isFr ? seg.nameFr : seg.nameEn} :</strong>{' '}
+                          {isFr ? seg.riderNoteFr : seg.riderNoteEn}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {flaggedWaterGaps.length > 0 && (
+              <div>
+                <div className="flex justify-between items-baseline mb-1.5">
+                  <span className="text-[11px] font-bold text-gray-800 inline-flex items-center gap-1">
+                    <Droplet className="w-3.5 h-3.5" />
+                    {isFr
+                      ? 'Alertes autonomie hydrique (zones sans eau)'
+                      : 'Water Gap & Hydration Depletion Alerts'}
+                  </span>
+                  <span className="text-[9px] text-gray-600">
+                    {isFr
+                      ? `Portage : ${effectiveSpecs.frameBottleSlots ?? 2}×${effectiveSpecs.bidonSizeMl ?? 650} mL`
+                      : `Onboard: ${effectiveSpecs.frameBottleSlots ?? 2}×${effectiveSpecs.bidonSizeMl ?? 650} mL`}
+                  </span>
+                </div>
+                <table className="w-full text-xs border-collapse border border-gray-300">
+                  <thead>
+                    <tr className="bg-gray-100 text-[10px] text-gray-700 font-bold border-b border-gray-300">
+                      <th className="border border-gray-300 px-2 py-1 text-left w-20">
+                        {isFr ? 'Niveau' : 'Alert'}
+                      </th>
+                      <th className="border border-gray-300 px-2 py-1 text-left w-28">
+                        {isFr ? 'Portion' : 'Span'}
+                      </th>
+                      <th className="border border-gray-300 px-2 py-1 text-left">
+                        {isFr ? 'Déplétion & Consigne' : 'Depletion & Advice'}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {flaggedWaterGaps.map((gap, idx) => (
+                      <tr key={`wg-${idx}`} className="border-b border-gray-200">
+                        <td className="border border-gray-200 px-2 py-1 text-[10px] font-bold uppercase">
+                          {gap.severity === 'critical'
+                            ? isFr
+                              ? 'CRITIQUE'
+                              : 'CRITICAL'
+                            : isFr
+                            ? 'VIGILANCE'
+                            : 'CAUTION'}
+                        </td>
+                        <td className="border border-gray-200 px-2 py-1 text-[10px] font-semibold">
+                          km {formatKm(gap.startKm, lang)} &rarr; {formatKm(gap.endKm, lang)}
+                        </td>
+                        <td className="border border-gray-200 px-2 py-1 text-[10px]">
+                          <div>{formatGapDetail(gap, lang)}</div>
+                          <div className="font-semibold text-gray-800">
+                            {formatCriticalGapAdvice(gap, lang)}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
       </div>

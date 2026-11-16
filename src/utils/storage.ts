@@ -39,15 +39,18 @@ export const DEFAULT_CHECKLIST: ChecklistItem[] = [
 ];
 
 /**
- * Full curated pool of 12 preset trip projects (3 per archetype) with pre-fetched OSRM routes,
- * DEM elevation profiles, and preloaded archetype chips + ruleSettings.
+ * Lazy accessor for the curated pool of 12 preset trip projects (avoids module-eval cost).
  */
-export const PRESET_TRIP_POOL: TripProfile[] = getAllPresetTrips();
+export function getPresetTripPool(): TripProfile[] {
+  return getAllPresetTrips();
+}
 
 /**
- * Default initial set of 3 randomized trip projects across distinct ride archetypes.
+ * Lazy accessor for an initial set of 3 randomized trip projects across distinct ride archetypes.
  */
-export const INITIAL_PROFILES: TripProfile[] = generateRandomPresetTrips(3);
+export function getInitialProfiles(): TripProfile[] {
+  return generateRandomPresetTrips(3);
+}
 
 export function loadTrips(): TripProfile[] {
   try {

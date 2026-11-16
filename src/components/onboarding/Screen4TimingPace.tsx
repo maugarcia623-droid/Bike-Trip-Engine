@@ -14,10 +14,11 @@ import {
   Bottle,
   Compass,
   Utensils,
+  Lightning,
 } from '@/components/icons';
 import { useTranslation } from '../../context/LanguageContext';
 import { Button } from '@/components/arc';
-import { PACE_TIERS } from './constants';
+import { ONBOARDING_SPEED_BOUNDS, PACE_TIERS } from './constants';
 import { Chip } from '../common/Chip';
 import { fetchHourlyWeather, degreesToCompassCardinal } from '../../services/weatherService';
 import { LayeredTokenTheme, CHIP_TOKENS, CHIP_RING_BASE } from '../../tokens/chipTokens';
@@ -66,6 +67,10 @@ interface Screen4TimingPaceProps {
   onChangeTargetTime: (time: string) => void;
   paceTier: 'easy' | 'steady' | 'brisk';
   onChangePaceTier: (pace: 'easy' | 'steady' | 'brisk') => void;
+  customSpeedKmH?: number | null;
+  onChangeCustomSpeedKmH?: (speed: number | null) => void;
+  targetEffortWatts?: number | null;
+  onChangeTargetEffortWatts?: (watts: number | null) => void;
   parkingBufferMin: number;
   onChangeParkingBuffer: (mins: number) => void;
   selectedChips: string[];
@@ -106,6 +111,10 @@ export const Screen4TimingPace: React.FC<Screen4TimingPaceProps> = ({
   onChangeTargetTime,
   paceTier,
   onChangePaceTier,
+  customSpeedKmH = null,
+  onChangeCustomSpeedKmH,
+  targetEffortWatts = null,
+  onChangeTargetEffortWatts,
   parkingBufferMin,
   onChangeParkingBuffer,
   selectedChips = [],
@@ -126,7 +135,10 @@ export const Screen4TimingPace: React.FC<Screen4TimingPaceProps> = ({
   const [weatherNotice, setWeatherNotice] = useState<string | null>(null);
 
   const selectedPaceDef = PACE_TIERS.find((p) => p.id === paceTier) || PACE_TIERS[1];
-  const speedKmH = selectedPaceDef.speedKmH;
+  const isCustomSpeedActive = typeof customSpeedKmH === 'number' && Number.isFinite(customSpeedKmH);
+  const speedKmH = isCustomSpeedActive
+    ? Math.min(ONBOARDING_SPEED_BOUNDS.maxKmH, Math.max(ONBOARDING_SPEED_BOUNDS.minKmH, Math.round(customSpeedKmH!)))
+    : selectedPaceDef.speedKmH;
 
   // Calculate dynamic buffer additions from active chips
   const activeArchetypeChips = ARCHETYPE_CHIPS_BY_PURPOSE[purposeId] || ARCHETYPE_CHIPS_BY_PURPOSE.commute;
@@ -359,27 +371,59 @@ export const Screen4TimingPace: React.FC<Screen4TimingPaceProps> = ({
             )}
           </div>
 
-          {/* Average Riding Pace Selector */}
+          {/* Average Riding Pace Selector (with Custom Speed up to 45 km/h & optional Sport Watts) */}
           <div className="mb-5">
-            <div className="text-xs font-medium text-ink-secondary mb-2 font-body">
-              {isFr ? 'Votre allure moyenne' : 'Your average riding pace'}
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="text-xs font-medium text-ink-secondary font-body">
+                {isFr ? 'Votre allure moyenne' : 'Your average riding pace'}
+              </div>
+              {onChangeCustomSpeedKmH && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isCustomSpeedActive) {
+                      onChangeCustomSpeedKmH(null);
+                    } else {
+                      const starter = purposeId === 'sport' ? 30 : Math.max(selectedPaceDef.speedKmH, 22);
+                      onChangeCustomSpeedKmH(starter);
+                    }
+                  }}
+                  className={`inline-flex items-center gap-1.5 min-h-[36px] px-3 rounded-full text-[11px] font-rounded font-bold border transition-colors cursor-pointer ${
+                    isCustomSpeedActive
+                      ? 'bg-ink text-card border-ink dark:bg-white dark:text-[#111111] dark:border-white'
+                      : 'bg-card hover:bg-pod border-black/10 dark:border-white/15 text-ink-secondary hover:text-ink'
+                  }`}
+                >
+                  <Gauge size={12} />
+                  <span>
+                    {isFr ? `Vitesse perso (jusqu’à ${ONBOARDING_SPEED_BOUNDS.maxKmH} km/h)` : `Custom speed (up to ${ONBOARDING_SPEED_BOUNDS.maxKmH} km/h)`}
+                  </span>
+                </button>
+              )}
             </div>
+
             <div
               role="radiogroup"
               aria-label="Pace Options"
               className="grid grid-cols-3 gap-3"
             >
               {PACE_TIERS.map((tier) => {
-                const isSelected = paceTier === tier.id;
+                const isSelected = !isCustomSpeedActive && paceTier === tier.id;
                 return (
                   <div
                     key={tier.id}
                     role="radio"
                     aria-checked={isSelected}
                     tabIndex={0}
-                    onClick={() => onChangePaceTier(tier.id)}
+                    onClick={() => {
+                      onChangeCustomSpeedKmH?.(null);
+                      onChangePaceTier(tier.id);
+                    }}
                     onKeyDown={(e) => {
-                      if (e.key === ' ' || e.key === 'Enter') onChangePaceTier(tier.id);
+                      if (e.key === ' ' || e.key === 'Enter') {
+                        onChangeCustomSpeedKmH?.(null);
+                        onChangePaceTier(tier.id);
+                      }
                     }}
                     className={`p-3 sm:p-3.5 rounded-pod flex flex-col justify-between cursor-pointer select-none transition-all active:scale-[0.98] min-h-[72px] ${
                       isSelected
@@ -410,8 +454,124 @@ export const Screen4TimingPace: React.FC<Screen4TimingPaceProps> = ({
                 );
               })}
             </div>
+
+            {isCustomSpeedActive && onChangeCustomSpeedKmH && (
+              <div className="mt-3 p-3.5 rounded-pod bg-card border border-black/10 dark:border-white/15 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <label
+                    htmlFor="onboarding-custom-speed"
+                    className="text-xs font-rounded font-bold text-ink"
+                  >
+                    {isFr ? 'Vitesse cible personnalisée' : 'Custom target speed'}
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      id="onboarding-custom-speed"
+                      type="number"
+                      min={ONBOARDING_SPEED_BOUNDS.minKmH}
+                      max={ONBOARDING_SPEED_BOUNDS.maxKmH}
+                      step={1}
+                      value={speedKmH}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        if (Number.isFinite(val)) {
+                          onChangeCustomSpeedKmH(
+                            Math.min(ONBOARDING_SPEED_BOUNDS.maxKmH, Math.max(ONBOARDING_SPEED_BOUNDS.minKmH, Math.round(val)))
+                          );
+                        }
+                      }}
+                      className="w-20 min-h-[38px] px-2.5 rounded-xl bg-pod border border-black/10 dark:border-white/15 text-sm font-rounded font-bold tnum text-ink text-right focus:outline-none focus:ring-2 focus:ring-ink dark:focus:ring-white"
+                    />
+                    <span className="text-xs font-medium text-ink-muted">km/h</span>
+                  </div>
+                </div>
+                <input
+                  type="range"
+                  aria-label={isFr ? 'Curseur de vitesse cible en km/h' : 'Custom target speed slider in km/h'}
+                  min={ONBOARDING_SPEED_BOUNDS.minKmH}
+                  max={ONBOARDING_SPEED_BOUNDS.maxKmH}
+                  step={1}
+                  value={speedKmH}
+                  onChange={(e) => onChangeCustomSpeedKmH(Number(e.target.value))}
+                  className="w-full accent-[#111111] dark:accent-volt cursor-pointer"
+                />
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {[26, 30, 34, 38, 42].map((presetSpd) => (
+                    <button
+                      key={presetSpd}
+                      type="button"
+                      onClick={() => onChangeCustomSpeedKmH(presetSpd)}
+                      className={`px-2.5 py-1 rounded-full text-[11px] font-rounded font-bold tnum border transition-colors cursor-pointer ${
+                        speedKmH === presetSpd
+                          ? 'bg-ink text-card border-ink dark:bg-white dark:text-[#111111]'
+                          : 'bg-pod border-black/10 dark:border-white/10 text-ink-secondary hover:text-ink'
+                      }`}
+                    >
+                      {presetSpd} km/h
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Optional Target Power (Watts) for Sport rides or custom high-speed pacing */}
+            {onChangeTargetEffortWatts && (purposeId === 'sport' || isCustomSpeedActive) && (
+              <div className="mt-3 p-3.5 rounded-pod bg-card border border-black/10 dark:border-white/15 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div className="flex items-start gap-2.5 min-w-0">
+                  <div className="w-7 h-7 rounded-full bg-pod flex items-center justify-center shrink-0 text-ink mt-0.5">
+                    <Lightning size={14} />
+                  </div>
+                  <div className="min-w-0">
+                    <label
+                      htmlFor="onboarding-target-watts"
+                      className="block text-xs font-rounded font-bold text-ink"
+                    >
+                      {isFr ? 'Puissance cible (optionnel · Watts)' : 'Target effort power (optional · Watts)'}
+                    </label>
+                    <p className="text-[11px] text-ink-muted font-body">
+                      {isFr
+                        ? 'Laissez vide pour viser la vitesse, ou entrez une cible en Watts.'
+                        : 'Leave blank to pace by speed, or enter normalized power watts.'}
+                    </p>
+                  </div>
+                </div>
+                <div className="relative flex items-center w-full sm:w-36 shrink-0">
+                  <input
+                    id="onboarding-target-watts"
+                    type="number"
+                    min={80}
+                    max={500}
+                    step={5}
+                    placeholder={isFr ? 'ex: 220' : 'e.g. 220'}
+                    value={targetEffortWatts ?? ''}
+                    onChange={(e) => {
+                      const raw = e.target.value.trim();
+                      if (!raw) {
+                        onChangeTargetEffortWatts(null);
+                        return;
+                      }
+                      const num = Number(raw);
+                      if (Number.isFinite(num)) {
+                        onChangeTargetEffortWatts(Math.min(500, Math.max(80, Math.round(num))));
+                      }
+                    }}
+                    className="w-full min-h-[42px] px-3 pr-9 rounded-xl bg-pod border border-black/10 dark:border-white/15 text-ink text-sm font-rounded font-bold tnum focus:outline-none focus:ring-2 focus:ring-ink dark:focus:ring-white"
+                  />
+                  <span className="absolute right-3 text-xs font-medium text-ink-muted pointer-events-none">
+                    W
+                  </span>
+                </div>
+              </div>
+            )}
+
             <p className="text-xs text-ink-muted font-body mt-2">
-              {isFr ? selectedPaceDef.descriptionFr : selectedPaceDef.description}
+              {isCustomSpeedActive
+                ? isFr
+                  ? `Allure personnalisée calibrée à ${speedKmH} km/h${targetEffortWatts ? ` · cible ${targetEffortWatts} W` : ''}.`
+                  : `Custom target speed set to ${speedKmH} km/h${targetEffortWatts ? ` · target ${targetEffortWatts} W` : ''}.`
+                : isFr
+                  ? selectedPaceDef.descriptionFr
+                  : selectedPaceDef.description}
             </p>
           </div>
 
@@ -547,9 +707,17 @@ export const Screen4TimingPace: React.FC<Screen4TimingPaceProps> = ({
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-ink-muted">{isFr ? 'Allure choisie' : `${selectedPaceDef.name} pace`}</span>
+                <span className="text-ink-muted">
+                  {isCustomSpeedActive
+                    ? isFr
+                      ? 'Allure perso'
+                      : 'Custom pace'
+                    : isFr
+                      ? 'Allure choisie'
+                      : `${selectedPaceDef.name} pace`}
+                </span>
                 <span className="font-rounded font-bold text-ink tnum text-sm">
-                  {speedKmH} km/h
+                  {speedKmH} km/h{targetEffortWatts ? ` · ${targetEffortWatts} W` : ''}
                 </span>
               </div>
               <div className="flex items-center justify-between">

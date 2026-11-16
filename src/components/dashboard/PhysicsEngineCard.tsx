@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useId } from 'react';
+import React, { useState, useMemo, useId, useEffect } from 'react';
 import { Button } from '@/components/arc';
 import {
   Lightning,
@@ -11,6 +11,9 @@ import {
   HandClosed,
   CircleArrowUpRight,
   Settings,
+  Flame,
+  Droplet,
+  Clock,
 } from '@/components/icons';
 import { TripProfile, PhysicsCalculationResult } from '../../types/trip';
 import { getArchetypeFromTag } from '../../utils/archetypeChips';
@@ -19,6 +22,10 @@ import {
   getWattsDidacticExplanation,
   PowerZoneCode,
 } from '../../utils/physics';
+import {
+  computeClimbSplitsAndFueling,
+  formatClimbCategoryLabel,
+} from '../../utils/climbSplits';
 import { Card } from '../common/Card';
 import { Badge } from '../common/Badge';
 import { IconBadge } from '../common/IconBadge';
@@ -78,12 +85,40 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
   const showWattsInGuided = specs.pacingInputMode === 'power';
   const didacticPanelId = useId();
   const sectionalPanelId = useId();
+  const climbSplitsPanelId = useId();
   const telemetryDrawerId = useId();
 
   // Collapsed summary view by default: 4 headline KPIs visible, deep drawers tucked until clicked
   const [showDidactics, setShowDidactics] = useState<boolean>(false);
   const [showSectional, setShowSectional] = useState<boolean>(false);
+  const [showClimbSplits, setShowClimbSplits] = useState<boolean>(false);
   const [showTelemetryDrawer, setShowTelemetryDrawer] = useState<boolean>(false);
+
+  const climbSplits = useMemo(
+    () =>
+      computeClimbSplitsAndFueling(trip, physicsResult, lang, {
+        ftpWatts: specs.ftpWatts,
+        carbTargetGPerHr: specs.carbTargetGPerHr,
+        nutritionPreference: specs.nutritionPreference,
+        departureTimeHHMM: trip.departureTime,
+        bidonSizeMl: specs.bidonSizeMl,
+        frameBottleSlots: specs.frameBottleSlots,
+      }),
+    [
+      trip,
+      physicsResult,
+      lang,
+      specs.ftpWatts,
+      specs.carbTargetGPerHr,
+      specs.nutritionPreference,
+    ]
+  );
+
+  useEffect(() => {
+    if (isEssential) {
+      setShowTelemetryDrawer(false);
+    }
+  }, [isEssential]);
 
   const cda = trip.physics.cda ?? 0.4;
   const crr = trip.physics.crr ?? 0.006;
@@ -575,41 +610,219 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
         </Collapsible>
       </div>
 
-      {/* ── COLLAPSIBLE DEEP TELEMETRY DRAWER (PRO VIEW ONLY): P_aero, P_rolling, P_gravity, CdA, Crr, Mass & Efficiency ── */}
-      {!isEssential && (
-      <div className="rounded-pod bg-pod overflow-hidden">
-        <Button variant="ghost"
+      {/* ── CLIMB-BY-CLIMB PACING & FUELING SPLITS (COLLAPSIBLE POD) ── */}
+      <div className="bg-pod rounded-pod mb-3 overflow-hidden">
+        <Button
+          variant="ghost"
           type="button"
-          onClick={() => setShowTelemetryDrawer((v) => !v)}
-          aria-expanded={showTelemetryDrawer}
-          aria-controls={telemetryDrawerId}
+          onClick={() => setShowClimbSplits((v) => !v)}
+          aria-expanded={showClimbSplits}
+          aria-controls={climbSplitsPanelId}
           className="w-full min-h-[44px] p-3 sm:p-3.5 flex items-center justify-between gap-2.5 hover:bg-chip/60 transition-colors cursor-pointer text-left select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
         >
-          <div className="flex items-center gap-2.5 min-w-0">
-            <IconBadge theme="yellow-vest" icon={Wind} size="sm" solidBacker />
-            <div className="min-w-0">
-              <h4 className="text-xs sm:text-[13px] font-bold font-rounded text-ink leading-snug break-words">
-                {t('physicsTelemetryDrawer')}
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <IconBadge theme="rose" icon={Flame} size="sm" solidBacker />
+            <div className="min-w-0 flex-1">
+              <h4 className="text-xs sm:text-[13px] font-bold font-rounded text-ink leading-snug">
+                {isFr ? 'Cols, Allures & Ravitaillement' : 'Climb Splits & Fueling'}
               </h4>
-              <p className="text-[11px] text-ink-muted break-words tnum leading-tight">
-                {t('physicsTelemetryDrawerSub')}
+              <p className="text-[11px] text-ink-muted break-words leading-relaxed tnum">
+                {climbSplits.climbs.length > 0
+                  ? isFr
+                    ? `${climbSplits.climbs.length} ascensions (+${climbSplits.totalClimbGainM} m) · ${climbSplits.checkpoints.length} points ravitaillement (${climbSplits.recommendedCarbsGPerHr} g/h)`
+                    : `${climbSplits.climbs.length} climbs (+${climbSplits.totalClimbGainM} m) · ${climbSplits.checkpoints.length} fuel stops (${climbSplits.recommendedCarbsGPerHr} g/h)`
+                  : isFr
+                  ? `Parcours roulant · ${climbSplits.checkpoints.length} rappels nutrition (${climbSplits.recommendedCarbsGPerHr} g/h · ${climbSplits.targetFluidMlPerHr} mL/h)`
+                  : `Rolling/flat course · ${climbSplits.checkpoints.length} fueling stops (${climbSplits.recommendedCarbsGPerHr} g/h · ${climbSplits.targetFluidMlPerHr} mL/h)`}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0">
-            <Badge variant="zinc" size="xs" className="hidden md:inline-flex tnum">
-              CdA {cda}
-            </Badge>
-            <Badge variant="zinc" size="xs" className="hidden md:inline-flex tnum">
-              Crr {formattedCrr}
-            </Badge>
-            <Badge variant="zinc" size="xs" className="hidden sm:inline-flex tnum">
-              {totalSystemMass} kg
-            </Badge>
-            <DisclosureChevron open={showTelemetryDrawer} />
-          </div>
+          <DisclosureChevron open={showClimbSplits} />
         </Button>
+
+        <Collapsible
+          open={showClimbSplits}
+          id={climbSplitsPanelId}
+          innerClassName="px-3 sm:px-3.5 pb-3.5 space-y-3"
+        >
+          {climbSplits.climbs.length > 0 ? (
+            <div className="overflow-x-auto rounded-sub-pod bg-card border border-ink/10">
+              <table className="w-full text-left border-collapse text-[11px] tnum">
+                <thead>
+                  <tr className="border-b border-ink/10 text-[10px] uppercase tracking-wider text-ink-muted">
+                    <th className="py-2 px-2.5 font-semibold">
+                      {isFr ? 'Ascension' : 'Climb'}
+                    </th>
+                    <th className="py-2 px-2 font-semibold text-right">
+                      {isFr ? 'Dist / Pente' : 'Dist / Grade'}
+                    </th>
+                    <th className="py-2 px-2 font-semibold text-right">
+                      {isFr ? 'Cible' : 'Target'}
+                    </th>
+                    <th className="py-2 px-2 font-semibold text-right">
+                      {isFr ? 'Durée' : 'Time'}
+                    </th>
+                    <th className="py-2 px-2.5 font-semibold">
+                      {isFr ? 'Ravitaillement' : 'Fueling'}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-ink/10">
+                  {climbSplits.climbs.map((climb) => (
+                    <tr key={`climb-${climb.index}`} className="align-top">
+                      <td className="py-2 px-2.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <Badge
+                            variant={climb.category === 'HC' || climb.category === '1' ? 'amber' : 'zinc'}
+                            size="xs"
+                          >
+                            {formatClimbCategoryLabel(climb.category, lang)}
+                          </Badge>
+                          <span className="font-semibold text-ink">{climb.name}</span>
+                        </div>
+                        <div className="text-[10px] text-ink-muted mt-0.5">
+                          Km {climb.startKm}–{climb.endKm} · {climb.startEleM}–{climb.summitEleM} m
+                        </div>
+                      </td>
+                      <td className="py-2 px-2 text-right whitespace-nowrap">
+                        <div className="font-semibold text-ink">
+                          {climb.lengthKm} km · +{climb.elevationGainM} m
+                        </div>
+                        <div className="text-[10px] text-ink-muted">
+                          {climb.avgGradePct}% {isFr ? 'moy' : 'avg'} (max {climb.maxGradePct}%)
+                        </div>
+                      </td>
+                      <td className="py-2 px-2 text-right whitespace-nowrap">
+                        <div className="font-semibold text-ink">
+                          {climb.targetWatts} W · {climb.wattsPerKg} W/kg
+                        </div>
+                        <div className="text-[10px] text-ink-muted">
+                          {climb.powerZone} · {climb.ftpPercent}% FTP · {climb.vamMetersPerHour} VAM
+                        </div>
+                      </td>
+                      <td className="py-2 px-2 text-right whitespace-nowrap">
+                        <div className="font-semibold text-ink">{climb.durationFormatted}</div>
+                        <div className="text-[10px] text-ink-muted">
+                          {climb.etaStartHHMM
+                            ? `${climb.etaStartHHMM} · ${climb.climbSpeedKmH} km/h`
+                            : `${climb.climbSpeedKmH} km/h`}
+                        </div>
+                      </td>
+                      <td className="py-2 px-2.5 text-ink-secondary leading-snug max-w-[180px]">
+                        {climb.fuelingCue}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="rounded-sub-pod bg-card border border-ink/10 p-2.5 text-[11px] text-ink-muted">
+              {isFr
+                ? 'Aucune ascension significative détectée (seuil ≥ 30 m D+ et ≥ 3 %). Maintenez une allure aérobie régulière.'
+                : 'No major climbs detected (threshold ≥ 30 m gain at ≥ 3% grade). Maintain steady aerobic cadence.'}
+            </div>
+          )}
+
+          {climbSplits.checkpoints.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+                  <Droplet className="w-3 h-3 text-ink-secondary" />
+                  {isFr
+                    ? 'Checkpoints ravitaillement km par km'
+                    : 'Km-by-Km Fueling & Hydration Checkpoints'}
+                </span>
+                <span className="text-[10px] text-ink-muted tnum">
+                  {climbSplits.recommendedCarbsGPerHr} g/h · {climbSplits.targetFluidMlPerHr} mL/h
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                {climbSplits.checkpoints.map((cp) => (
+                  <div
+                    key={cp.id}
+                    className="rounded-sub-pod bg-card border border-ink/10 px-2.5 py-2 flex items-start justify-between gap-2"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-[11px] font-semibold text-ink tnum">
+                        {cp.label}
+                      </div>
+                      <div className="text-[10px] text-ink-muted leading-snug mt-0.5">
+                        {cp.detail}
+                      </div>
+                    </div>
+                    <span className="inline-flex items-center gap-1 shrink-0 text-[10px] text-ink-muted tnum">
+                      <Clock className="w-3 h-3" />
+                      {cp.etaHHMM || `${cp.elapsedMinutes}m`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {climbSplits.isSynthesizedProfile && (
+            <p className="text-[10px] text-ink-muted leading-relaxed">
+              {isFr
+                ? 'Profil d’ascension synthétisé depuis le D+ total (importez un GPX pour la détection précise des rampes).'
+                : 'Climb splits synthesized from route elevation gain (import a GPX for exact gradient ramp detection).'}
+            </p>
+          )}
+        </Collapsible>
+      </div>
+
+      {/* ── COLLAPSIBLE PHYSICS MATH DRAWER (tucked behind "Show physics math" in Guided view) ── */}
+      <div className="rounded-pod bg-pod overflow-hidden">
+        {isEssential ? (
+          <Button
+            variant="ghost"
+            type="button"
+            onClick={() => setShowTelemetryDrawer((v) => !v)}
+            aria-expanded={showTelemetryDrawer}
+            aria-controls={telemetryDrawerId}
+            className="w-full min-h-[44px] px-3.5 py-2.5 flex items-center justify-between gap-2.5 hover:bg-chip/60 transition-colors cursor-pointer text-left select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
+          >
+            <span className="text-xs font-rounded font-semibold text-ink-secondary">
+              {showTelemetryDrawer ? t('hideDeepFormulasBtn') : t('showDeepFormulasBtn')}
+            </span>
+            <DisclosureChevron open={showTelemetryDrawer} />
+          </Button>
+        ) : (
+          <Button
+            variant="ghost"
+            type="button"
+            onClick={() => setShowTelemetryDrawer((v) => !v)}
+            aria-expanded={showTelemetryDrawer}
+            aria-controls={telemetryDrawerId}
+            className="w-full min-h-[44px] p-3 sm:p-3.5 flex items-center justify-between gap-2.5 hover:bg-chip/60 transition-colors cursor-pointer text-left select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <IconBadge theme="yellow-vest" icon={Wind} size="sm" solidBacker />
+              <div className="min-w-0">
+                <h4 className="text-xs sm:text-[13px] font-bold font-rounded text-ink leading-snug break-words">
+                  {t('physicsTelemetryDrawer')}
+                </h4>
+                <p className="text-[11px] text-ink-muted break-words tnum leading-tight">
+                  {t('physicsTelemetryDrawerSub')}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Badge variant="zinc" size="xs" className="hidden md:inline-flex tnum">
+                CdA {cda}
+              </Badge>
+              <Badge variant="zinc" size="xs" className="hidden md:inline-flex tnum">
+                Crr {formattedCrr}
+              </Badge>
+              <Badge variant="zinc" size="xs" className="hidden sm:inline-flex tnum">
+                {totalSystemMass} kg
+              </Badge>
+              <DisclosureChevron open={showTelemetryDrawer} />
+            </div>
+          </Button>
+        )}
 
         <Collapsible
           open={showTelemetryDrawer}
@@ -637,7 +850,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
                 />
               </span>
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-card text-ink-secondary tnum">
-                &rho; {rho} kg/m&sup3;
+                {isFr ? 'Densité air ρ' : 'Air density ρ'} {rho} kg/m&sup3;
               </span>
             </div>
 
@@ -905,7 +1118,6 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
           </div>
         </Collapsible>
       </div>
-      )}
     </Card>
   );
 };

@@ -8,11 +8,16 @@ export interface DemElevationResult {
 }
 
 const DEM_CACHE_PREFIX = 'cadence_dem_v1_';
+const MAX_DEM_CACHE_ENTRIES = 30;
 const MAX_SAMPLE_POINTS = 60;
 const MIN_SAMPLE_POINTS = 16;
 const ELEVATION_HYSTERESIS_M = 2.0;
 
 const memoryDemCache = new Map<string, DemElevationResult>();
+
+interface StoredDemEntry extends DemElevationResult {
+  _lruTs?: number;
+}
 
 function buildDemCacheKey(coordinates: [number, number][]): string {
   const first = coordinates[0];
@@ -24,16 +29,32 @@ function buildDemCacheKey(coordinates: [number, number][]): string {
 
 function readCachedDem(cacheKey: string): DemElevationResult | null {
   const mem = memoryDemCache.get(cacheKey);
-  if (mem) return mem;
+  if (mem) {
+    // Refresh LRU order in memory
+    memoryDemCache.delete(cacheKey);
+    memoryDemCache.set(cacheKey, mem);
+    return mem;
+  }
 
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
-      const raw = window.localStorage.getItem(`${DEM_CACHE_PREFIX}${cacheKey}`);
+      const fullKey = `${DEM_CACHE_PREFIX}${cacheKey}`;
+      const raw = window.localStorage.getItem(fullKey);
       if (raw) {
-        const parsed = JSON.parse(raw) as DemElevationResult;
+        const parsed = JSON.parse(raw) as StoredDemEntry;
         if (parsed && Array.isArray(parsed.elevationProfile) && parsed.elevationProfile.length >= 3) {
-          memoryDemCache.set(cacheKey, parsed);
-          return parsed;
+          const result: DemElevationResult = {
+            elevationProfile: parsed.elevationProfile,
+            elevationGainM: parsed.elevationGainM,
+            elevationLossM: parsed.elevationLossM,
+          };
+          memoryDemCache.set(cacheKey, result);
+          try {
+            window.localStorage.setItem(fullKey, JSON.stringify({ ...result, _lruTs: Date.now() }));
+          } catch {
+            // Ignore LRU timestamp touch errors
+          }
+          return result;
         }
       }
     }
@@ -43,11 +64,54 @@ function readCachedDem(cacheKey: string): DemElevationResult | null {
   return null;
 }
 
+function evictOldestDemEntries(storage: Storage, excludeFullKey: string, maxKeep: number): void {
+  const entries: Array<{ key: string; ts: number }> = [];
+  for (let i = 0; i < storage.length; i++) {
+    const k = storage.key(i);
+    if (!k || !k.startsWith(DEM_CACHE_PREFIX) || k === excludeFullKey) continue;
+    let ts = 0;
+    try {
+      const raw = storage.getItem(k);
+      if (raw) {
+        const parsed = JSON.parse(raw) as StoredDemEntry;
+        if (typeof parsed?._lruTs === 'number') ts = parsed._lruTs;
+      }
+    } catch {
+      ts = 0;
+    }
+    entries.push({ key: k, ts });
+  }
+
+  if (entries.length <= maxKeep) return;
+  entries.sort((a, b) => a.ts - b.ts);
+  const toRemove = entries.length - maxKeep;
+  for (let i = 0; i < toRemove; i++) {
+    storage.removeItem(entries[i].key);
+  }
+}
+
 function writeCachedDem(cacheKey: string, result: DemElevationResult): void {
+  memoryDemCache.delete(cacheKey);
   memoryDemCache.set(cacheKey, result);
+  while (memoryDemCache.size > MAX_DEM_CACHE_ENTRIES) {
+    const oldestKey = memoryDemCache.keys().next().value;
+    if (oldestKey === undefined) break;
+    memoryDemCache.delete(oldestKey);
+  }
+
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.setItem(`${DEM_CACHE_PREFIX}${cacheKey}`, JSON.stringify(result));
+      const storage = window.localStorage;
+      const fullKey = `${DEM_CACHE_PREFIX}${cacheKey}`;
+      evictOldestDemEntries(storage, fullKey, MAX_DEM_CACHE_ENTRIES - 1);
+      const payload = JSON.stringify({ ...result, _lruTs: Date.now() });
+      try {
+        storage.setItem(fullKey, payload);
+      } catch {
+        // Quota fallback: evict oldest half and retry once
+        evictOldestDemEntries(storage, fullKey, Math.floor(MAX_DEM_CACHE_ENTRIES / 2));
+        storage.setItem(fullKey, payload);
+      }
     }
   } catch {
     // Ignore storage quota errors

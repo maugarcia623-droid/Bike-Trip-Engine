@@ -254,7 +254,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
     isError?: boolean;
   } | null>(null);
   const [hasSaved, setHasSaved] = useState(false);
-  const [activeStep, setActiveStep] = useState<'date-time' | 'trip-style' | 'cycling-pace'>('date-time');
+  const [activeStep, setActiveStep] = useState<'route-map' | 'date-time' | 'trip-style' | 'cycling-pace'>('route-map');
   const [isArriveAtMode, setIsArriveAtMode] = useState<boolean>(trip.arriveAtMode !== false);
   const [routeGenMode, setRouteGenMode] = useState<'corridor' | 'manual-radius' | 'gpx'>(() => {
     const initialMode = getArchetypeFromTag(initialTrip.tag, initialTrip.name);
@@ -354,6 +354,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
           setWaypoints([]);
         }
         setIsMultiDayFormat(Boolean(initialTrip.stages && initialTrip.stages.length > 1));
+        setActiveStep('route-map');
       }
     }
   }, [initialTrip]);
@@ -1312,7 +1313,45 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
     { id: 'ESCAPADE', label: t('archEscapadeLabel'), icon: Compass, desc: t('archEscapadeDesc') },
   ];
 
+  const handleSetChronometryMode = (nextMode: boolean) => {
+    if (nextMode === isArriveAtMode) return;
+    setIsArriveAtMode(nextMode);
+    commitTrip((prev) => ({
+      ...prev,
+      arriveAtMode: nextMode,
+      departureTime: nextMode
+        ? prev.departureTime
+        : prev.departureTime || timelineResult.hardDepartureTime,
+      office: nextMode
+        ? {
+            ...prev.office,
+            targetGateArrivalTime: timelineResult.gateArrivalTime,
+          }
+        : prev.office,
+    }));
+  };
+
+  const handleDelayBufferChange = (
+    field: 'urbanTrafficDelayMinutes' | 'gateSecurityDelayMinutes',
+    rawValue: string
+  ) => {
+    const parsed = parseInt(rawValue, 10);
+    const nextValue = Number.isFinite(parsed) ? Math.max(0, Math.min(120, parsed)) : 0;
+    commitTrip((prev) => ({
+      ...prev,
+      route: {
+        ...prev.route,
+        [field]: nextValue,
+      },
+    }));
+  };
+
   const stepOptions = [
+    {
+      id: 'route-map' as const,
+      label: isFr ? 'Itinéraire & Carte' : 'Route & Map',
+      icon: MapIcon,
+    },
     {
       id: 'date-time' as const,
       label: isFr ? 'Date & Heure' : 'Date & Time',
@@ -1320,37 +1359,41 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
     },
     {
       id: 'trip-style' as const,
-      label: isFr ? 'Style de sortie' : 'Trip Style',
+      label: isFr ? 'Style & Arrêts' : 'Style & Stops',
       icon: Compass,
     },
     {
       id: 'cycling-pace' as const,
-      label: isFr ? 'Allure vélo' : 'Cycling Pace',
+      label: isFr ? 'Allure & Physique' : 'Pace & Physics',
       icon: Lightning,
     },
   ];
 
   const currentStepTitle =
-    activeStep === 'date-time'
+    activeStep === 'route-map'
       ? isFr
-        ? 'Où et quand ?'
-        : 'Where & when?'
+        ? 'Itinéraire & carte'
+        : 'Route & map'
+      : activeStep === 'date-time'
+      ? isFr
+        ? 'Date, heure & météo'
+        : 'Date, time & weather'
       : activeStep === 'trip-style'
       ? isFr
-        ? 'Style de sortie & règles'
-        : 'Trip style & rules'
+        ? 'Style & arrêts'
+        : 'Style & stops'
       : isFr
-      ? 'Allure vélo & physique'
-      : 'Cycling pace & physics';
+      ? 'Allure & physique'
+      : 'Pace & physics';
 
   return (
     <div className="w-full max-w-[1720px] min-w-0 mx-auto px-3.5 sm:px-5 lg:px-7 pt-2 pb-28 sm:pb-20 space-y-5">
-      {/* ── Centered Top Step Switcher Pill (Date & Time | Trip Style | Cycling Pace) ── */}
+      {/* ── Centered Top Step Switcher Pill (Route & Map | Date & Time | Style & Stops | Pace & Physics) ── */}
       <div className="flex justify-center w-full min-w-0 animate-apple-in stagger-1">
         <div
           role="tablist"
           aria-label={isFr ? 'Étapes de configuration' : 'Configuration steps'}
-          className="grid grid-cols-3 sm:inline-flex items-center p-1 sm:p-1.5 gap-1 sm:gap-1.5 rounded-2xl sm:rounded-full bg-card dark:bg-pod shadow-xs w-full sm:w-auto max-w-full"
+          className="grid grid-cols-2 sm:inline-flex items-center p-1 sm:p-1.5 gap-1 sm:gap-1.5 rounded-pod sm:rounded-full bg-card dark:bg-pod shadow-xs w-full sm:w-auto max-w-full"
         >
           {stepOptions.map((step) => {
             const StepIcon = step.icon;
@@ -1362,13 +1405,13 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                 role="tab"
                 aria-selected={isStepActive}
                 onClick={() => setActiveStep(step.id)}
-                className={`inline-flex items-center justify-center gap-1.5 sm:gap-2 min-h-[42px] sm:min-h-[40px] sm:h-9 px-2 py-1.5 sm:py-0 sm:px-4 rounded-xl sm:rounded-full text-[11px] sm:text-[13px] leading-tight text-center font-semibold transition-all duration-150 cursor-pointer min-w-0 whitespace-normal sm:whitespace-nowrap active:scale-[0.98] ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                className={`inline-flex items-center justify-center gap-1.5 sm:gap-2 min-h-[44px] sm:min-h-[40px] px-3 py-2 sm:py-0 sm:px-4 rounded-sub-pod sm:rounded-full text-xs sm:text-[13px] leading-tight text-center font-semibold transition-all duration-150 cursor-pointer min-w-0 whitespace-nowrap active:scale-[0.98] ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
                   isStepActive
                     ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing} shadow-xs`
                     : `${CHIP_RING_UNSELECTED} text-ink-secondary hover:text-ink hover:bg-pod/60`
                 }`}
               >
-                <StepIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 text-current" />
+                <StepIcon className="w-4 h-4 shrink-0 text-current" />
                 <span className="truncate sm:overflow-visible">{step.label}</span>
               </Button>
             );
@@ -1384,7 +1427,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
             onClick={onCancel}
             title={isFr ? 'Retour à la sortie' : 'Back to ride plan'}
             aria-label={isFr ? 'Retour à la sortie' : 'Back to ride plan'}
-            className="inline-flex items-center justify-center w-11 h-11 sm:w-9 sm:h-9 rounded-full text-ink-secondary hover:text-ink bg-card hover:bg-pod transition-all duration-150 active:scale-[0.98] cursor-pointer shrink-0"
+            className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] w-11 h-11 rounded-full text-ink-secondary hover:text-ink bg-card hover:bg-pod transition-all duration-150 active:scale-[0.98] cursor-pointer shrink-0"
           >
             <ArrowLeft className="w-4 h-4" />
           </Button>
@@ -1413,7 +1456,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
 
         <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 self-end sm:self-auto flex-wrap">
           <span
-            className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-full text-xs font-medium bg-card text-ink-secondary ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+            className={`inline-flex items-center gap-1.5 min-h-[36px] h-9 px-3 rounded-full text-xs font-medium bg-card text-ink-secondary ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
           >
             <CheckCircle className={`w-3.5 h-3.5 shrink-0 ${CHIP_TOKENS.emerald.primary}`} />
             <span>{isFr ? 'Enregistré auto' : 'Auto-saved'}</span>
@@ -1423,7 +1466,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
             <Button variant="ghost"
               type="button"
               onClick={handleRevertChanges}
-              className="inline-flex items-center justify-center gap-1.5 min-h-[44px] h-9 sm:h-10 px-3.5 text-xs sm:text-[13px] font-medium text-ink-secondary hover:text-ink bg-card hover:bg-pod rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer whitespace-nowrap"
+              className="inline-flex items-center justify-center gap-1.5 min-h-[44px] px-3.5 text-xs sm:text-[13px] font-medium text-ink-secondary hover:text-ink bg-card hover:bg-pod rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer whitespace-nowrap"
             >
               <ArrowsClockwise className="w-3.5 h-3.5 shrink-0" />
               <span>{isFr ? 'Rétablir' : 'Revert'}</span>
@@ -1433,7 +1476,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
           <Button variant="ghost"
             type="button"
             onClick={handleLaunchDirect}
-            className="inline-flex items-center justify-center gap-1.5 min-h-[44px] h-10 px-4 sm:px-5 text-xs sm:text-[13px] font-medium bg-[#111111] hover:bg-[#262626] text-white dark:bg-[#F5F5F7] dark:hover:bg-white dark:text-[#111111] rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer whitespace-nowrap shadow-xs"
+            className="inline-flex items-center justify-center gap-1.5 min-h-[44px] px-4 sm:px-5 text-xs sm:text-[13px] font-medium bg-[#111111] hover:bg-[#262626] text-white dark:bg-[#F5F5F7] dark:hover:bg-white dark:text-[#111111] rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer whitespace-nowrap shadow-xs"
           >
             <span>{isFr ? 'Terminé · Voir la sortie' : 'Done · Back to ride plan'}</span>
             <ArrowUpRight className="w-4 h-4 shrink-0" />
@@ -1445,508 +1488,306 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-3.5 sm:gap-4 lg:gap-5 items-start">
         {/* Left 3 Columns: Active Step 2-Card Stack */}
         <div className="lg:col-span-3 flex flex-col gap-3.5 sm:gap-4 lg:gap-5 min-w-0">
-          {activeStep === 'date-time' && (
+          {activeStep === 'route-map' && (
             <>
-              {/* Card 1: Schedule & Weather Sync */}
-              <div className="rounded-card bg-card text-ink p-4 sm:p-5 border border-ink/5 dark:border-white/5 shadow-xs flex flex-col justify-between transition-colors animate-apple-step-in relative z-10 focus-within:z-30 [&:has([aria-expanded='true'])]:z-30">
-                <div>
-                  <div className="flex items-start justify-between gap-2 mb-3">
-                    <div>
-                      <h2 className="text-base sm:text-[17px] font-semibold tracking-tight text-ink">
-                        {t('scheduleWeatherHeading')}
-                      </h2>
-                      <p className="text-[13px] text-ink-muted mt-0.5">
-                        {t('scheduleWeatherSub')}
-                      </p>
-                    </div>
-                    <Badge
-                      variant={!forecastHorizon.isAvailable ? 'zinc' : daysOffset === 0 ? 'emerald' : 'sky'}
-                      size="md"
-                      className="tnum shrink-0"
-                    >
-                      {!forecastHorizon.isAvailable
-                        ? t('horizonBaseline', { offset: formattedDaysOffset })
-                        : daysOffset === 0
-                        ? t('horizonLiveToday')
-                        : t('horizonPlanned', { offset: formattedDaysOffset })}
+              {/* Card 1: Route Generator & Stage Builder (Elevated Stacking Context so Autocomplete Floats Cleanly) */}
+              <div className="rounded-card bg-card text-ink p-4 sm:p-5 shadow-xs flex flex-col justify-between transition-colors animate-apple-step-in relative z-20 focus-within:z-30">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2.5 mb-4">
+                  <div>
+                    <h2 className="text-base sm:text-[17px] font-semibold tracking-tight text-ink font-rounded">
+                      {isFr ? 'Générateur d’itinéraire' : 'Route generator'}
+                    </h2>
+                    <p className="text-[13px] text-ink-muted mt-0.5">
+                      {t('corridorGeneratorSub')}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap shrink-0">
+                    {isBikepacking ? (
+                      <Button variant="ghost"
+                        type="button"
+                        onClick={() => gpxConfigInputRef.current?.click()}
+                        className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] px-3.5 py-2 sm:py-1.5 rounded-full text-xs font-semibold bg-pod hover:bg-chip text-ink-secondary hover:text-ink transition-all cursor-pointer whitespace-nowrap ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                      >
+                        <Upload className={`w-3.5 h-3.5 shrink-0 ${CHIP_TOKENS.sky.primary}`} />
+                        <span>
+                          {trip.route.gpxFileName
+                            ? `${t('gpxLoadedBadge')} · ${trip.route.gpxFileName}`
+                            : t('routeModeGpx')}
+                        </span>
+                      </Button>
+                    ) : (
+                      <div className="grid grid-cols-3 sm:inline-flex items-center p-1 gap-1 rounded-pod sm:rounded-full bg-pod w-full sm:w-auto">
+                        {(
+                          [
+                            { id: 'corridor', label: t('routeModeCorridor') },
+                            { id: 'manual-radius', label: t('routeModeRadius') },
+                            { id: 'gpx', label: t('routeModeGpx') },
+                          ] as const
+                        ).map((modeOpt) => {
+                          const active = routeGenMode === modeOpt.id;
+                          return (
+                            <Button variant="ghost"
+                              key={modeOpt.id}
+                              type="button"
+                              onClick={() => {
+                                setRouteGenMode(modeOpt.id);
+                                setRouteError(null);
+                                setRouteSuccess(false);
+                                if (modeOpt.id === 'manual-radius') {
+                                  handleUpdateRadiusRoute(
+                                    originInput || trip.route.origin || 'Nantes',
+                                    originCoords,
+                                    trip.route.distanceKm || 35
+                                  );
+                                } else if (modeOpt.id === 'corridor') {
+                                  const stashed = lastCorridorRouteRef.current;
+                                  let sanitized = destInput;
+                                  if (!sanitized || sanitized.match(/loop radius|rayon boucle/i)) {
+                                    sanitized =
+                                      stashed?.destination && !stashed.destination.match(/loop radius|rayon boucle/i)
+                                        ? stashed.destination
+                                        : lastCorridorDestRef.current && !lastCorridorDestRef.current.match(/loop radius|rayon boucle/i)
+                                        ? lastCorridorDestRef.current
+                                        : 'Saint-Nazaire';
+                                    setDestInput(sanitized);
+                                  }
+                                  commitTrip((prev) => {
+                                    if (stashed && stashed.coordinates && stashed.coordinates.length >= 2) {
+                                      return {
+                                        ...prev,
+                                        route: {
+                                          ...stashed,
+                                          routeMode: 'corridor',
+                                          destination: sanitized,
+                                          radiusMeters: undefined,
+                                        },
+                                      };
+                                    }
+                                    return {
+                                      ...prev,
+                                      route: {
+                                        ...prev.route,
+                                        routeMode: 'corridor',
+                                        destination: sanitized,
+                                        radiusMeters: undefined,
+                                      },
+                                    };
+                                  });
+                                }
+                              }}
+                              className={`min-h-[44px] sm:min-h-[34px] px-2.5 sm:px-3 py-1.5 sm:py-1 rounded-sub-pod sm:rounded-full text-[11px] sm:text-xs font-semibold transition-all cursor-pointer whitespace-nowrap text-center ${
+                                active
+                                  ? 'bg-card text-ink shadow-xs'
+                                  : 'text-ink-muted hover:text-ink'
+                              }`}
+                            >
+                              {modeOpt.label}
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <Badge variant="zinc" size="md" className="tnum shrink-0">
+                      {trip.route.distanceKm} km
                     </Badge>
                   </div>
+                </div>
 
-                  {/* Arrive At / Depart At Toggle Pill Button */}
-                  <div className="mb-3.5">
+                {/* Trip Format Switcher: Single Day vs Multi-Day Expedition (Evident & Upfront) */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-2 sm:p-2.5 rounded-pod bg-pod mb-4 transition-colors">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-xs font-semibold text-ink-muted mr-1 font-body">
+                      {t('tripFormatHeading')} :
+                    </span>
                     <Button variant="ghost"
                       type="button"
-                      onClick={() => {
-                        const nextMode = !isArriveAtMode;
-                        setIsArriveAtMode(nextMode);
-                        commitTrip((prev) => ({
-                          ...prev,
-                          arriveAtMode: nextMode,
-                          departureTime: nextMode
-                            ? prev.departureTime
-                            : prev.departureTime || timelineResult.hardDepartureTime,
-                          office: nextMode
-                            ? {
-                                ...prev.office,
-                                targetGateArrivalTime: timelineResult.gateArrivalTime,
-                              }
-                            : prev.office,
-                        }));
-                      }}
-                      className="inline-flex items-center gap-1.5 min-h-[44px] px-3.5 py-2 rounded-full bg-pod hover:bg-chip text-xs font-semibold text-ink-secondary hover:text-ink transition-all duration-150 cursor-pointer active:scale-95"
-                      title={isFr ? 'Basculer entre calcul heure d’arrivée et heure de départ' : 'Toggle between target arrival and departure time calculation'}
-                    >
-                      <ArrowsClockwise className={`w-4 h-4 text-ink-muted transition-transform duration-300 ${isArriveAtMode ? 'rotate-0' : 'rotate-180'}`} />
-                      <span>
-                        {isArriveAtMode
-                          ? isMultiDayBikepacking
-                            ? t('stageCutoffLabel')
-                            : isFr
-                            ? 'Arrivée à :'
-                            : 'Arrive at:'
-                          : isFr
-                          ? 'Départ à :'
-                          : 'Depart at:'}
-                      </span>
-                    </Button>
-                  </div>
-
-                  {/* Inputs: Departure Date + Rollout/Arrival Time + Sync Weather Button */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <DatePicker
-                      label={t('departureDateLabel')}
-                      value={isoToLocalDate(trip.departureDate)}
-                      onChange={(date) => commitTrip((prev) => ({ ...prev, departureDate: localDateToIso(date) }))}
-                      locale={isFr ? 'fr-FR' : 'en-US'}
-                      showToday
-                    />
-
-                    <TimePicker
-                      label={
-                        isArriveAtMode
-                          ? isMultiDayBikepacking
-                            ? t('stageCutoffInputLabel')
-                            : t('targetArrivalInputLabel')
-                          : t('rolloutTimeLabel')
-                      }
-                      value={isArriveAtMode ? (trip.office.targetGateArrivalTime || '08:30') : (trip.departureTime || timelineResult.hardDepartureTime || '07:24')}
-                      onChange={(val) => {
-                        if (isArriveAtMode) {
-                          updateOffice('targetGateArrivalTime', val);
-                        } else {
-                          commitTrip((prev) => ({
-                            ...prev,
-                            arriveAtMode: false,
-                            departureTime: val,
-                          }));
-                        }
-                      }}
-                      minuteStep={5}
-                      format="24h"
-                    />
-
-                    <div className="flex items-end">
-                      <Button variant="ghost"
-                        type="button"
-                        disabled={isUpdatingWeather}
-                        onClick={async () => {
-                          const targetDate = trip.departureDate || getLocalTodayIso();
-                          const targetTime = timelineResult.hardDepartureTime || trip.departureTime || '08:00';
-                          const midIdx = Math.floor((trip.route?.coordinates?.length || 1) / 2);
-                          const coords = trip.route?.coordinates?.[midIdx] || [47.2184, -1.5536];
-                          const bearing = computeRouteBearing(trip.route?.coordinates);
-
-                          setIsUpdatingWeather(true);
-                          setWeatherFeedback(null);
-                          try {
-                            const w = await fetchHourlyWeather(coords[0], coords[1], targetDate, targetTime, bearing);
-                            commitTrip((prev) => ({
-                              ...prev,
-                              departureDate: prev.departureDate || targetDate,
-                              departureTime: prev.departureTime || targetTime,
-                              weather: {
-                                ...prev.weather,
-                                source: w.source,
-                                temperatureC: w.temperatureC,
-                                baseWindSpeedKmH: w.windSpeedKmH,
-                                effectiveHeadwindKmH: w.effectiveHeadwindKmH,
-                                windDirectionDegrees: w.windDirectionDegrees,
-                                windDirection:
-                                  w.effectiveHeadwindKmH > 2
-                                    ? 'headwind'
-                                    : w.effectiveHeadwindKmH < -2
-                                    ? 'tailwind'
-                                    : 'calm',
-                                estuaryGustKmH: w.windGustsKmH,
-                                airDensityRho: w.airDensityRho,
-                                isHeadwindActive: w.isHeadwindActive,
-                                isBeyondForecastWindow: w.isBeyondForecastWindow,
-                                targetTimestampFormatted: w.timestamp,
-                                visibilityKm: w.visibilityKm,
-                                weatherCode: w.weatherCode,
-                                isDay: w.isDay,
-                                sunrise: w.sunriseIso,
-                                sunset: w.sunsetIso,
-                              },
-                              physics: {
-                                ...prev.physics,
-                                rho: w.airDensityRho,
-                              },
-                            }));
-                            setWeatherFeedback({
-                              message: w.isBeyondForecastWindow
-                                ? t('weatherBaselineApplied', { offset: formattedDaysOffset })
-                                : t('weatherSyncedMsg', { date: targetDate, time: targetTime }),
-                              status: !w.isBeyondForecastWindow,
-                            });
-                          } catch {
-                            setWeatherFeedback({
-                              message: t('weatherSyncUnavailable'),
-                              status: false,
-                              isError: true,
-                            });
-                          } finally {
-                            setIsUpdatingWeather(false);
-                          }
-                        }}
-                        className="w-full h-11 flex items-center justify-center gap-1.5 px-4 bg-pod hover:bg-chip disabled:opacity-60 rounded-full text-xs font-medium text-ink transition-all cursor-pointer disabled:cursor-not-allowed"
-                      >
-                        <ArrowsClockwise className={`w-4 h-4 ${isUpdatingWeather ? 'animate-spin' : 'text-ink-muted'}`} />
-                        <span>{isUpdatingWeather ? t('syncingBtn') : t('syncWeatherBtn')}</span>
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Status line with dashed separator */}
-                  <div className="mt-4 pt-3 border-t border-dashed border-ink/10 dark:border-white/10 transition-colors">
-                    {weatherFeedback ? (
-                      <div
-                        className={`flex items-center gap-1.5 text-xs font-medium animate-apple-fade-in ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
-                          weatherFeedback.isError
-                            ? CHIP_TOKENS.rose.primary
-                            : weatherFeedback.status
-                            ? CHIP_TOKENS.emerald.primary
-                            : CHIP_TOKENS.amber.primary
-                        }`}
-                      >
-                        {weatherFeedback.status ? (
-                          <CheckCircle className="w-4 h-4 shrink-0 text-current" />
-                        ) : (
-                          <WarningCircle className="w-4 h-4 shrink-0 text-current" />
-                        )}
-                        <span>{weatherFeedback.message}</span>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-ink-muted tnum animate-apple-fade-in">
-                        {t('currentConditionsSummary', {
-                          temp: trip.weather.temperatureC,
-                          wind: trip.weather.baseWindSpeedKmH,
-                          rho: trip.physics.rho,
-                        })}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Card 2: Route Generator (Elevated Stacking Context so Autocomplete Floats Cleanly) */}
-              <div className="rounded-card bg-card text-ink p-4 sm:p-5 border border-ink/5 dark:border-white/5 shadow-xs flex flex-col justify-between transition-colors animate-apple-step-in relative z-20 focus-within:z-30">
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2.5 mb-4">
-            <div>
-              <h2 className="text-base sm:text-[17px] font-semibold tracking-tight text-ink font-rounded">
-                {isFr ? 'Générateur d’itinéraire' : 'Route generator'}
-              </h2>
-              <p className="text-[13px] text-ink-muted mt-0.5">
-                {t('corridorGeneratorSub')}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap shrink-0">
-              {isBikepacking ? (
-                <Button variant="ghost"
-                  type="button"
-                  onClick={() => gpxConfigInputRef.current?.click()}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold bg-pod hover:bg-chip text-ink-secondary hover:text-ink transition-all cursor-pointer whitespace-nowrap border border-ink/5 dark:border-white/10 ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
-                >
-                  <Upload className={`w-3.5 h-3.5 shrink-0 ${CHIP_TOKENS.sky.primary}`} />
-                  <span>
-                    {trip.route.gpxFileName
-                      ? `${t('gpxLoadedBadge')} · ${trip.route.gpxFileName}`
-                      : t('routeModeGpx')}
-                  </span>
-                </Button>
-              ) : (
-                <div className="inline-flex items-center p-1 rounded-full bg-pod border border-ink/5 dark:border-white/10">
-                  {(
-                    [
-                      { id: 'corridor', label: t('routeModeCorridor') },
-                      { id: 'manual-radius', label: t('routeModeRadius') },
-                      { id: 'gpx', label: t('routeModeGpx') },
-                    ] as const
-                  ).map((modeOpt) => {
-                    const active = routeGenMode === modeOpt.id;
-                    return (
-                      <Button variant="ghost"
-                        key={modeOpt.id}
-                        type="button"
-                        onClick={() => {
-                          setRouteGenMode(modeOpt.id);
-                          setRouteError(null);
-                          setRouteSuccess(false);
-                          if (modeOpt.id === 'manual-radius') {
-                            handleUpdateRadiusRoute(
-                              originInput || trip.route.origin || 'Nantes',
-                              originCoords,
-                              trip.route.distanceKm || 35
-                            );
-                          } else if (modeOpt.id === 'corridor') {
-                            const stashed = lastCorridorRouteRef.current;
-                            let sanitized = destInput;
-                            if (!sanitized || sanitized.match(/loop radius|rayon boucle/i)) {
-                              sanitized =
-                                stashed?.destination && !stashed.destination.match(/loop radius|rayon boucle/i)
-                                  ? stashed.destination
-                                  : lastCorridorDestRef.current && !lastCorridorDestRef.current.match(/loop radius|rayon boucle/i)
-                                  ? lastCorridorDestRef.current
-                                  : 'Saint-Nazaire';
-                              setDestInput(sanitized);
-                            }
-                            commitTrip((prev) => {
-                              if (stashed && stashed.coordinates && stashed.coordinates.length >= 2) {
-                                return {
-                                  ...prev,
-                                  route: {
-                                    ...stashed,
-                                    routeMode: 'corridor',
-                                    destination: sanitized,
-                                    radiusMeters: undefined,
-                                  },
-                                };
-                              }
-                              return {
-                                ...prev,
-                                route: {
-                                  ...prev.route,
-                                  routeMode: 'corridor',
-                                  destination: sanitized,
-                                  radiusMeters: undefined,
-                                },
-                              };
-                            });
-                          }
-                        }}
-                        className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all cursor-pointer whitespace-nowrap ${
-                          active
-                            ? 'bg-card text-ink shadow-xs'
-                            : 'text-ink-muted hover:text-ink'
-                        }`}
-                      >
-                        {modeOpt.label}
-                      </Button>
-                    );
-                  })}
-                </div>
-              )}
-              <Badge variant="zinc" size="md" className="tnum shrink-0">
-                {trip.route.distanceKm} km
-              </Badge>
-            </div>
-          </div>
-
-          {/* Trip Format Switcher: Single Day vs Multi-Day Expedition (Evident & Upfront) */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-2 rounded-pod bg-pod border border-ink/5 dark:border-white/10 mb-4 transition-colors">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-xs font-semibold text-ink-muted mr-1 font-body">
-                {t('tripFormatHeading')} :
-              </span>
-              <Button variant="ghost"
-                type="button"
-                onClick={() => handleSetTripFormat('single')}
-                className={`px-3 py-1.5 rounded-full text-xs font-rounded font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                  !isMultiDayTrip
-                    ? 'bg-card text-ink shadow-xs ring-1 ring-black/5 dark:ring-white/10'
-                    : 'text-ink-muted hover:text-ink hover:bg-card/40'
-                }`}
-              >
-                <Bicycle className="w-4 h-4 shrink-0 text-current" />
-                <span>{t('tripFormatSingleDay')}</span>
-              </Button>
-              <Button variant="primary"
-                type="button"
-                onClick={() => handleSetTripFormat('multi')}
-                className={`px-3 py-1.5 rounded-full text-xs font-rounded font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                  isMultiDayTrip
-                    ? 'bg-volt text-[#111111] shadow-xs ring-1 ring-black/10'
-                    : 'text-ink-muted hover:text-ink hover:bg-card/40'
-                }`}
-              >
-                <Mountain className="w-4 h-4 shrink-0 text-current" />
-                <span>{t('tripFormatMultiDay')}</span>
-              </Button>
-            </div>
-          </div>
-
-          {/* Multi-Day Stage Sequencer Bar */}
-          {showStageSequencer && (
-            <div className="rounded-pod bg-pod p-3 sm:p-3.5 mb-4 space-y-2.5 transition-colors">
-              {/* Header & Expedition Summary Strip */}
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-volt ring-2 ring-volt/40 animate-pulse" />
-                  <span className="text-xs font-semibold text-ink tracking-tight font-rounded">
-                    {t('stageSequencerHeading')}
-                  </span>
-                  <span className="text-[11px] font-medium text-ink-muted p-1.5 rounded-full bg-card/60 tnum leading-none">
-                    {t('stageCounter', {
-                      cur: activeStageIdx + 1,
-                      total: displayStages.length,
-                    })}
-                  </span>
-                </div>
-
-                {/* Expedition Summary Strip when stages.length > 1 */}
-                {displayStages.length > 1 && (
-                  <div className="flex items-center gap-1.5 p-2 rounded-full bg-card text-[11px] font-semibold text-ink shadow-xs tnum border border-ink/5 dark:border-white/5">
-                    <span className="text-ink-muted font-medium">
-                      {t('totalExpeditionLabel')}
-                    </span>
-                    <span className="text-ink font-bold">
-                      {t('daysCountUnit', { count: expeditionTotals.totalDays })}
-                    </span>
-                    <span className="text-ink-muted">·</span>
-                    <span className="text-ink font-bold">
-                      {expeditionTotals.totalDistanceKm} km
-                    </span>
-                    <span className="text-ink-muted">·</span>
-                    <span className="text-ink font-bold">
-                      +{expeditionTotals.totalElevationM} m
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Horizontal scrollable stage pills strip */}
-              <div className="flex items-center gap-2 overflow-x-auto py-0.5 no-scrollbar">
-                {displayStages.map((stage, idx) => {
-                  const isActive = idx === activeStageIdx;
-                  const dayNum = stage.dayNumber;
-                  const originText = isActive
-                    ? trip.route.origin || originInput || '...'
-                    : stage.route.origin || '...';
-                  const destText = isActive
-                    ? trip.route.destination || destInput || '...'
-                    : stage.route.destination || '...';
-                  const distKm = isActive
-                    ? trip.route.distanceKm || 0
-                    : stage.route.distanceKm || 0;
-                  const viaCount = isActive
-                    ? waypoints.length
-                    : stage.route.waypoints?.length || 0;
-
-                  return (
-                    <div
-                      key={stage.id || `stage-${idx}`}
-                      onClick={() => handleSelectStage(idx)}
-                      className={`group relative flex items-center gap-2 p-1.5 rounded-full cursor-pointer transition-all duration-150 shrink-0 select-none ${
-                        isActive
-                          ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} shadow-xs`
-                          : 'bg-card hover:bg-chip text-ink-secondary hover:text-ink'
+                      onClick={() => handleSetTripFormat('single')}
+                      className={`min-h-[44px] sm:min-h-[36px] px-3.5 py-2 sm:py-1.5 rounded-full text-xs font-rounded font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                        !isMultiDayTrip
+                          ? 'bg-card text-ink shadow-xs ring-1 ring-black/5 dark:ring-white/10'
+                          : 'text-ink-muted hover:text-ink hover:bg-card/40'
                       }`}
                     >
-                      {/* Day Label Pill */}
-                      <span
-                        className={`p-1 rounded-full text-[10px] leading-none font-extrabold uppercase tracking-wider font-rounded shrink-0 shadow-xs ${
-                          isActive
-                            ? 'bg-volt text-[#111111]'
-                            : 'bg-pod text-ink-muted group-hover:text-ink'
-                        }`}
-                      >
-                        {t('stageDayPill', { day: dayNum })}
-                      </span>
+                      <Bicycle className="w-4 h-4 shrink-0 text-current" />
+                      <span>{t('tripFormatSingleDay')}</span>
+                    </Button>
+                    <Button variant="primary"
+                      type="button"
+                      onClick={() => handleSetTripFormat('multi')}
+                      className={`min-h-[44px] sm:min-h-[36px] px-3.5 py-2 sm:py-1.5 rounded-full text-xs font-rounded font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                        isMultiDayTrip
+                          ? 'bg-volt text-[#111111] shadow-xs ring-1 ring-black/10'
+                          : 'text-ink-muted hover:text-ink hover:bg-card/40'
+                      }`}
+                    >
+                      <Mountain className="w-4 h-4 shrink-0 text-current" />
+                      <span>{t('tripFormatMultiDay')}</span>
+                    </Button>
+                  </div>
+                </div>
 
-                      {/* Origin -> Destination text with via count */}
-                      <span className="text-xs font-semibold whitespace-nowrap min-w-0">
-                        {originText} → {destText || '...'}
-                        {viaCount > 0 && (
-                          <span className="ml-1 text-[10px] opacity-75 font-rounded tnum">
-                            (+{viaCount} via)
-                          </span>
-                        )}
-                      </span>
+                {/* Multi-Day Stage Sequencer Bar */}
+                {showStageSequencer && (
+                  <div className="rounded-pod bg-pod p-3 sm:p-3.5 mb-4 space-y-2.5 transition-colors">
+                    {/* Header & Expedition Summary Strip */}
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-volt ring-2 ring-volt/40 animate-pulse" />
+                        <span className="text-xs font-semibold text-ink tracking-tight font-rounded">
+                          {t('stageSequencerHeading')}
+                        </span>
+                        <span className="text-[11px] font-medium text-ink-muted px-2 py-1 rounded-full bg-card/60 tnum leading-none">
+                          {t('stageCounter', {
+                            cur: activeStageIdx + 1,
+                            total: displayStages.length,
+                          })}
+                        </span>
+                      </div>
 
-                      {/* Distance */}
-                      <span
-                        className={`text-[11px] font-bold tnum shrink-0 ${
-                          isActive
-                            ? 'text-[#4d5200] dark:text-[#dfff00]'
-                            : 'text-ink-muted group-hover:text-ink-secondary'
-                        }`}
-                      >
-                        {distKm} km
-                      </span>
-
-                      {/* Delete button (only if stages > 1) */}
+                      {/* Expedition Summary Strip when stages.length > 1 */}
                       {displayStages.length > 1 && (
-                        <Button variant="ghost"
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRemoveStage(idx);
-                          }}
-                          title={t('deleteStageTitle', { day: dayNum })}
-                          className={`p-1 rounded-full transition-all cursor-pointer shrink-0 ${
-                            isActive
-                              ? 'text-[#4d5200]/70 hover:text-[#4d5200] dark:text-[#dfff00]/70 dark:hover:text-[#dfff00] hover:bg-[#a3b300]/15 dark:hover:bg-white/10'
-                              : 'text-ink-muted hover:text-ink hover:bg-pod/80'
-                          }`}
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </Button>
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card text-[11px] font-semibold text-ink shadow-xs tnum">
+                          <span className="text-ink-muted font-medium">
+                            {t('totalExpeditionLabel')}
+                          </span>
+                          <span className="text-ink font-bold">
+                            {t('daysCountUnit', { count: expeditionTotals.totalDays })}
+                          </span>
+                          <span className="text-ink-muted">·</span>
+                          <span className="text-ink font-bold">
+                            {expeditionTotals.totalDistanceKm} km
+                          </span>
+                          <span className="text-ink-muted">·</span>
+                          <span className="text-ink font-bold">
+                            +{expeditionTotals.totalElevationM} m
+                          </span>
+                        </div>
                       )}
                     </div>
-                  );
-                })}
 
-                {/* + Add Day button */}
-                <Button variant="primary"
-                  type="button"
-                  onClick={handleAddDay}
-                  className="inline-flex items-center gap-1.5 p-2 rounded-full bg-volt hover:bg-volt-lime text-[#111111] text-xs font-bold tracking-tight transition-all duration-150 shrink-0 cursor-pointer shadow-xs active:scale-95 font-rounded whitespace-nowrap ring-1 ring-inset ring-black/10 dark:ring-white/10"
-                >
-                  <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                  <span>{t('addDayBtn')}</span>
-                </Button>
-              </div>
+                    {/* Horizontal scrollable stage pills strip */}
+                    <div className="flex items-center gap-2 overflow-x-auto py-0.5 no-scrollbar">
+                      {displayStages.map((stage, idx) => {
+                        const isActive = idx === activeStageIdx;
+                        const dayNum = stage.dayNumber;
+                        const originText = isActive
+                          ? trip.route.origin || originInput || '...'
+                          : stage.route.origin || '...';
+                        const destText = isActive
+                          ? trip.route.destination || destInput || '...'
+                          : stage.route.destination || '...';
+                        const distKm = isActive
+                          ? trip.route.distanceKm || 0
+                          : stage.route.distanceKm || 0;
+                        const viaCount = isActive
+                          ? waypoints.length
+                          : stage.route.waypoints?.length || 0;
 
-              {/* Tours & Stages Cumulative Summary, Daily Timeline & Full Tour GPX Export */}
-              <TourOverviewCard
-                trip={trip}
-                activeStageIdx={activeStageIdx}
-                onSelectStage={handleSelectStage}
-                ftpWatts={effectiveSpecs.ftpWatts}
-              />
-            </div>
-          )}
+                        return (
+                          <div
+                            key={stage.id || `stage-${idx}`}
+                            onClick={() => handleSelectStage(idx)}
+                            className={`group relative flex items-center gap-2 min-h-[44px] sm:min-h-[36px] pl-2 pr-2.5 py-1.5 rounded-full cursor-pointer transition-all duration-150 shrink-0 select-none ${
+                              isActive
+                                ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} shadow-xs`
+                                : 'bg-card hover:bg-chip text-ink-secondary hover:text-ink'
+                            }`}
+                          >
+                            {/* Day Label Pill */}
+                            <span
+                              className={`px-2 py-1 rounded-full text-[10px] leading-none font-extrabold uppercase tracking-wider font-rounded shrink-0 shadow-xs ${
+                                isActive
+                                  ? 'bg-volt text-[#111111]'
+                                  : 'bg-pod text-ink-muted group-hover:text-ink'
+                              }`}
+                            >
+                              {t('stageDayPill', { day: dayNum })}
+                            </span>
 
-          {/* Route Mode Body: Multi-Stop Corridor (OSRM) | Start + Radius | Import .GPX */}
-          <div className="space-y-4 mt-auto">
-            <input
-              ref={gpxConfigInputRef}
-              type="file"
-              accept=".gpx,.tcx,.fit,application/gpx+xml,text/xml,application/xml,application/octet-stream"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  handleConfigGpxUpload(file);
-                }
-                e.target.value = '';
-              }}
-            />
+                            {/* Origin -> Destination text with via count */}
+                            <span className="text-xs font-semibold whitespace-nowrap min-w-0">
+                              {originText} → {destText || '...'}
+                              {viaCount > 0 && (
+                                <span className="ml-1 text-[10px] opacity-75 font-rounded tnum">
+                                  (+{viaCount} via)
+                                </span>
+                              )}
+                            </span>
 
-            {(isBikepacking || routeGenMode === 'corridor') && (
-              <div className="space-y-4 animate-apple-step-in">
-                {/* Flexible Multi-Stop & Waypoint Builder */}
-                <div className="space-y-3 rounded-pod bg-pod p-3 sm:p-4 border border-ink/5 dark:border-white/10">
+                            {/* Distance */}
+                            <span
+                              className={`text-[11px] font-bold tnum shrink-0 ${
+                                isActive
+                                  ? 'text-[#4d5200] dark:text-[#dfff00]'
+                                  : 'text-ink-muted group-hover:text-ink-secondary'
+                              }`}
+                            >
+                              {distKm} km
+                            </span>
+
+                            {/* Delete button (only if stages > 1) */}
+                            {displayStages.length > 1 && (
+                              <Button variant="ghost"
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveStage(idx);
+                                }}
+                                title={t('deleteStageTitle', { day: dayNum })}
+                                className={`relative before:content-[''] before:absolute before:-inset-1.5 p-1.5 rounded-full transition-all cursor-pointer shrink-0 ${
+                                  isActive
+                                    ? 'text-[#4d5200]/70 hover:text-[#4d5200] dark:text-[#dfff00]/70 dark:hover:text-[#dfff00] hover:bg-[#a3b300]/15 dark:hover:bg-white/10'
+                                    : 'text-ink-muted hover:text-ink hover:bg-pod/80'
+                                }`}
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      {/* + Add Day button */}
+                      <Button variant="primary"
+                        type="button"
+                        onClick={handleAddDay}
+                        className="inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] px-3.5 py-2 sm:py-1.5 rounded-full bg-volt hover:bg-volt-lime text-[#111111] text-xs font-bold tracking-tight transition-all duration-150 shrink-0 cursor-pointer shadow-xs active:scale-95 font-rounded whitespace-nowrap ring-1 ring-inset ring-black/10 dark:ring-white/10"
+                      >
+                        <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                        <span>{t('addDayBtn')}</span>
+                      </Button>
+                    </div>
+
+                    {/* Tours & Stages Cumulative Summary, Daily Timeline & Full Tour GPX Export */}
+                    <TourOverviewCard
+                      trip={trip}
+                      activeStageIdx={activeStageIdx}
+                      onSelectStage={handleSelectStage}
+                      ftpWatts={effectiveSpecs.ftpWatts}
+                    />
+                  </div>
+                )}
+
+                {/* Route Mode Body: Multi-Stop Corridor (OSRM) | Start + Radius | Import .GPX */}
+                <div className="space-y-4 mt-auto">
+                  <input
+                    ref={gpxConfigInputRef}
+                    type="file"
+                    accept=".gpx,.tcx,.fit,application/gpx+xml,text/xml,application/xml,application/octet-stream"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        handleConfigGpxUpload(file);
+                      }
+                      e.target.value = '';
+                    }}
+                  />
+
+                  {(isBikepacking || routeGenMode === 'corridor') && (
+                    <div className="space-y-4 animate-apple-step-in">
+                      {/* Flexible Multi-Stop & Waypoint Builder */}
+                      <div className="space-y-3 rounded-pod bg-pod p-3 sm:p-4">
                   {/* Stop A: Start / Origin */}
                   <div className="flex items-center gap-2">
                     <span className="w-7 h-7 rounded-full bg-emerald-500 text-white font-rounded font-extrabold text-xs flex items-center justify-center shrink-0 shadow-xs ring-2 ring-white dark:ring-black">
@@ -2069,7 +1910,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                       <Button variant="ghost"
                         type="button"
                         onClick={() => handleRemoveWaypoint(wp.id)}
-                        className="p-1.5 text-ink-muted hover:text-rose-600 rounded-full hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer shrink-0"
+                        className="min-w-[44px] min-h-[44px] sm:min-w-[36px] sm:min-h-[36px] p-2 text-ink-muted hover:text-rose-600 rounded-full hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer shrink-0 flex items-center justify-center"
                         title={t('removeWaypointTitle')}
                       >
                         <X className="w-4 h-4" />
@@ -2142,7 +1983,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                       <Button variant="primary"
                         type="button"
                         onClick={handleAddWaypoint}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-volt hover:bg-volt-lime text-[#111111] text-xs font-rounded font-bold transition-all cursor-pointer shadow-xs active:scale-95"
+                        className="inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] px-3.5 py-2 sm:py-1.5 rounded-full bg-volt hover:bg-volt-lime text-[#111111] text-xs font-rounded font-bold transition-all cursor-pointer shadow-xs active:scale-95"
                       >
                         <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
                         <span>{t('addIntermediateStopBtn')}</span>
@@ -2152,7 +1993,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                       <Button variant="ghost"
                         type="button"
                         onClick={handleSwapCorridor}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card hover:bg-chip text-ink text-xs font-semibold border border-ink/10 dark:border-white/10 transition-colors cursor-pointer"
+                        className="inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] px-3.5 py-2 sm:py-1.5 rounded-full bg-card hover:bg-chip text-ink text-xs font-semibold transition-colors cursor-pointer"
                         title={t('reverseRouteBtn')}
                       >
                         <ArrowsLeftRight className="w-3.5 h-3.5" />
@@ -2171,7 +2012,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                             }));
                             handleCalculateRoute([]);
                           }}
-                          className="px-2 py-1 text-xs text-ink-muted hover:text-ink cursor-pointer transition-colors"
+                          className="min-h-[44px] sm:min-h-[36px] px-3 py-2 sm:py-1.5 rounded-full text-xs text-ink-muted hover:text-ink cursor-pointer transition-colors"
                         >
                           {t('clearIntermediateStopsBtn')}
                         </Button>
@@ -2183,67 +2024,12 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                       type="button"
                       onClick={() => handleCalculateRoute()}
                       disabled={isRouting}
-                      className="px-4 py-2 bg-[#111111] hover:bg-[#262626] text-white dark:bg-chip dark:hover:bg-chip-hover dark:text-ink disabled:opacity-50 rounded-full text-xs font-rounded font-bold tracking-wide transition-all cursor-pointer disabled:cursor-not-allowed flex items-center gap-1.5 shrink-0 shadow-xs active:scale-95"
+                      className="min-h-[44px] sm:min-h-[36px] px-4 py-2 bg-[#111111] hover:bg-[#262626] text-white dark:bg-chip dark:hover:bg-chip-hover dark:text-ink disabled:opacity-50 rounded-full text-xs font-rounded font-bold tracking-wide transition-all cursor-pointer disabled:cursor-not-allowed flex items-center gap-1.5 shrink-0 shadow-xs active:scale-95"
                     >
                       {isRouting ? <SpinnerGap className="w-4 h-4 animate-spin" /> : <Compass className="w-4 h-4" />}
                       <span>{t('fetchRouteBtn')}</span>
                     </Button>
                   </div>
-                </div>
-
-                {/* Integrated Interactive Route Map with Click-to-Add Waypoint */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs font-semibold text-ink px-1">
-                    <span className="flex items-center gap-1.5">
-                      <MapPin className="w-3.5 h-3.5 text-volt-dim" />
-                      <span>{t('interactiveMapToggle')}</span>
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] text-ink-muted font-normal hidden sm:inline">
-                        {t('clickMapToAddWaypointPrompt')}
-                      </span>
-                      <Button variant="ghost"
-                        type="button"
-                        onClick={() => setIsMapCollapsed((prev) => !prev)}
-                        className="text-[11px] font-semibold text-ink-muted hover:text-ink cursor-pointer"
-                      >
-                        {isMapCollapsed ? t('showMapBtn') : t('hideMapBtn')}
-                      </Button>
-                    </div>
-                  </div>
-
-                  {!isMapCollapsed && (
-                    <div className="space-y-3">
-                      <InteractiveRouteMap
-                        originName={originInput}
-                        originCoords={originCoords}
-                        destinationName={destInput}
-                        destCoords={destCoords}
-                        waypoints={waypoints}
-                        coordinates={trip.route.coordinates}
-                        distanceKm={trip.route.distanceKm}
-                        surfaceBreakdown={surfaceBreakdown}
-                        activeSurfaceSegmentId={activeSurfaceSegmentId}
-                        onSelectSurfaceSegment={(seg) =>
-                          setActiveSurfaceSegmentId(seg ? seg.id : null)
-                        }
-                        onMapClickAddWaypoint={handleMapClickAddWaypoint}
-                        onRemoveWaypoint={handleRemoveWaypoint}
-                        isRouting={isRouting}
-                      />
-
-                      <ElevationTerrainStrip
-                        route={trip.route}
-                        physicsResult={physicsResult}
-                        crr={trip.physics.crr}
-                        customChips={trip.customChips}
-                        activeSegmentId={activeSurfaceSegmentId}
-                        onSelectSurfaceSegment={(seg) =>
-                          setActiveSurfaceSegmentId(seg ? seg.id : null)
-                        }
-                      />
-                    </div>
-                  )}
                 </div>
               </div>
             )}
@@ -2267,7 +2053,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                     />
                   </div>
 
-                  <div className="rounded-pod bg-pod p-3 border border-ink/5 dark:border-white/5">
+                  <div className="rounded-pod bg-pod p-3.5">
                     <div className="flex items-center justify-between text-xs font-semibold text-ink mb-1.5">
                       <span className="flex items-center gap-1.5">
                         <MapIcon className={`w-3.5 h-3.5 text-beacon-red dark:text-rose-400 dual-tone-rose shrink-0 ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
@@ -2287,7 +2073,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                               parseFloat(e.target.value) || 30
                             )
                           }
-                          className="w-16 px-2 py-1 rounded-lg bg-card text-ink font-rounded font-bold text-base sm:text-xs text-right tnum ring-1 ring-inset ring-black/10 dark:ring-white/10 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          className="w-16 min-h-[38px] px-2.5 py-1.5 rounded-sub-pod bg-card text-ink font-rounded font-bold text-base sm:text-xs text-right tnum ring-1 ring-inset ring-black/10 dark:ring-white/10 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                         />
                         <span className="font-rounded font-bold tnum">km</span>
                       </div>
@@ -2307,7 +2093,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                       }
                       className="w-full accent-[#10b981] cursor-pointer"
                     />
-                    <div className="mt-1.5 flex items-center justify-between gap-1">
+                    <div className="mt-2 flex items-center justify-between gap-1.5 flex-wrap">
                       {[30, 60, 100, 150, 200].map((kmPreset) => (
                         <Button variant="ghost"
                           key={kmPreset}
@@ -2319,7 +2105,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                               kmPreset
                             )
                           }
-                          className={`relative before:content-[''] before:absolute before:-inset-1.5 px-2.5 py-1 rounded-full text-[10px] font-rounded font-semibold tnum cursor-pointer transition-colors ${
+                          className={`min-h-[44px] sm:min-h-[32px] px-2.5 py-1.5 sm:py-1 rounded-full text-[11px] font-rounded font-semibold tnum cursor-pointer transition-colors ${
                             Math.round(trip.route.distanceKm) === kmPreset
                               ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary}`
                               : 'bg-card hover:bg-chip text-ink-muted hover:text-ink'
@@ -2383,7 +2169,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                 </div>
 
                 {/* Komoot / Bikemap / RideWithGPS / GPX URL import */}
-                <div className="mt-2.5 flex items-center gap-2">
+                <div className="mt-3 flex items-center gap-2">
                   <input
                     type="url"
                     value={routeUrlInput}
@@ -2399,7 +2185,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                         ? 'Coller un lien Komoot, Bikemap, RideWithGPS ou .GPX/.TCX/.FIT...'
                         : 'Paste Komoot, Bikemap, RideWithGPS or .GPX/.TCX/.FIT link...'
                     }
-                    className="flex-1 min-w-0 h-9 px-3 rounded-xl bg-pod/60 dark:bg-white/[0.04] border border-ink/10 dark:border-white/10 text-xs text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+                    className="flex-1 min-w-0 min-h-[44px] sm:h-10 px-4 rounded-full bg-pod/60 dark:bg-white/[0.04] border border-ink/10 dark:border-white/10 text-sm sm:text-xs text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-sky-500/40"
                   />
                   <Button
                     type="button"
@@ -2407,7 +2193,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                     size="sm"
                     disabled={!routeUrlInput.trim() || isImportingUrl}
                     onClick={handleRouteUrlImport}
-                    className="h-9 px-3.5 rounded-xl text-xs font-bold shrink-0 cursor-pointer"
+                    className="min-h-[44px] sm:h-10 px-4 rounded-full text-xs font-bold shrink-0 cursor-pointer"
                   >
                     {isImportingUrl ? (
                       <SpinnerGap className="w-3.5 h-3.5 animate-spin" />
@@ -2463,13 +2249,390 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
             </div>
           </div>
         </div>
+
+              {/* Card 2: Interactive Route Map & Elevation Profile */}
+              {(isBikepacking ||
+                routeGenMode === 'corridor' ||
+                (trip.route.coordinates?.length || 0) >= 2) && (
+                <div className="rounded-card bg-card text-ink p-4 sm:p-5 shadow-xs space-y-3 transition-colors animate-apple-step-in relative z-10">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <MapPin className="w-4 h-4 text-volt-dim shrink-0" />
+                      <div className="min-w-0">
+                        <span className="text-sm font-semibold text-ink block truncate">
+                          {t('interactiveMapToggle')}
+                        </span>
+                        {(isBikepacking || routeGenMode === 'corridor') && (
+                          <span className="text-[11px] text-ink-muted font-normal hidden sm:block">
+                            {t('clickMapToAddWaypointPrompt')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <Button variant="ghost"
+                      type="button"
+                      onClick={() => setIsMapCollapsed((prev) => !prev)}
+                      className="min-h-[44px] sm:min-h-[34px] px-3.5 py-1.5 rounded-full bg-pod hover:bg-chip text-xs font-semibold text-ink-secondary hover:text-ink transition-colors cursor-pointer shrink-0"
+                    >
+                      {isMapCollapsed ? t('showMapBtn') : t('hideMapBtn')}
+                    </Button>
+                  </div>
+
+                  {!isMapCollapsed && (
+                    <div className="space-y-3">
+                      <InteractiveRouteMap
+                        originName={originInput}
+                        originCoords={originCoords}
+                        destinationName={destInput}
+                        destCoords={destCoords}
+                        waypoints={waypoints}
+                        coordinates={trip.route.coordinates}
+                        distanceKm={trip.route.distanceKm}
+                        surfaceBreakdown={surfaceBreakdown}
+                        activeSurfaceSegmentId={activeSurfaceSegmentId}
+                        onSelectSurfaceSegment={(seg) =>
+                          setActiveSurfaceSegmentId(seg ? seg.id : null)
+                        }
+                        onMapClickAddWaypoint={handleMapClickAddWaypoint}
+                        onRemoveWaypoint={handleRemoveWaypoint}
+                        isRouting={isRouting}
+                      />
+
+                      <ElevationTerrainStrip
+                        route={trip.route}
+                        physicsResult={physicsResult}
+                        crr={trip.physics.crr}
+                        customChips={trip.customChips}
+                        activeSegmentId={activeSurfaceSegmentId}
+                        onSelectSurfaceSegment={(seg) =>
+                          setActiveSurfaceSegmentId(seg ? seg.id : null)
+                        }
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
       </>
     )}
+
+          {activeStep === 'date-time' && (
+            <>
+              {/* Card 1: Schedule, Chronometry Mode & Prep Buffers */}
+              <div className="rounded-card bg-card text-ink p-4 sm:p-5 shadow-xs flex flex-col justify-between transition-colors animate-apple-step-in relative z-20 focus-within:z-30 [&:has([aria-expanded='true'])]:z-30 space-y-4">
+                <div>
+                  <h2 className="text-base sm:text-[17px] font-semibold tracking-tight text-ink font-rounded">
+                    {isFr ? 'Date, heure & marges' : 'Schedule & timing buffers'}
+                  </h2>
+                  <p className="text-[13px] text-ink-muted mt-0.5">
+                    {isFr
+                      ? 'Définissez votre sens de calcul horaire, la date et vos marges de préparation'
+                      : 'Choose departure or arrival planning, ride date, and preparation buffers'}
+                  </p>
+                </div>
+
+                {/* Segmented Chronometry Control: Arrive by | Depart at */}
+                <div className="grid grid-cols-2 sm:inline-flex items-center p-1 gap-1 rounded-pod sm:rounded-full bg-pod w-full sm:w-auto self-start">
+                  <Button variant="ghost"
+                    type="button"
+                    onClick={() => handleSetChronometryMode(true)}
+                    className={`min-h-[44px] sm:min-h-[36px] px-4 py-2 sm:py-1.5 rounded-sub-pod sm:rounded-full text-xs font-semibold transition-all duration-150 cursor-pointer flex items-center justify-center gap-1.5 ${
+                      isArriveAtMode
+                        ? 'bg-card text-ink shadow-xs'
+                        : 'text-ink-muted hover:text-ink'
+                    }`}
+                  >
+                    <span>
+                      {isMultiDayBikepacking ? t('stageCutoffLabel') : t('logisticsArriveBy')}
+                    </span>
+                  </Button>
+                  <Button variant="ghost"
+                    type="button"
+                    onClick={() => handleSetChronometryMode(false)}
+                    className={`min-h-[44px] sm:min-h-[36px] px-4 py-2 sm:py-1.5 rounded-sub-pod sm:rounded-full text-xs font-semibold transition-all duration-150 cursor-pointer flex items-center justify-center gap-1.5 ${
+                      !isArriveAtMode
+                        ? 'bg-card text-ink shadow-xs'
+                        : 'text-ink-muted hover:text-ink'
+                    }`}
+                  >
+                    <span>{t('logisticsDepartAt')}</span>
+                  </Button>
+                </div>
+
+                {/* Date & Target Time Pickers */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <DatePicker
+                    label={t('departureDateLabel')}
+                    value={isoToLocalDate(trip.departureDate)}
+                    onChange={(date) => commitTrip((prev) => ({ ...prev, departureDate: localDateToIso(date) }))}
+                    locale={isFr ? 'fr-FR' : 'en-US'}
+                    showToday
+                  />
+
+                  <TimePicker
+                    label={
+                      isArriveAtMode
+                        ? isMultiDayBikepacking
+                          ? t('stageCutoffInputLabel')
+                          : t('targetArrivalInputLabel')
+                        : t('rolloutTimeLabel')
+                    }
+                    value={isArriveAtMode ? (trip.office.targetGateArrivalTime || '08:30') : (trip.departureTime || timelineResult.hardDepartureTime || '07:24')}
+                    onChange={(val) => {
+                      if (isArriveAtMode) {
+                        updateOffice('targetGateArrivalTime', val);
+                      } else {
+                        commitTrip((prev) => ({
+                          ...prev,
+                          arriveAtMode: false,
+                          departureTime: val,
+                        }));
+                      }
+                    }}
+                    minuteStep={5}
+                    format="24h"
+                  />
+                </div>
+
+                {/* Parking / Prep & Route Buffer Controls */}
+                <div className="rounded-pod bg-pod p-3.5 sm:p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-ink">
+                      {isFr ? 'Marges de trajet & stationnement' : 'Route & parking/prep buffers'}
+                    </span>
+                    <span className="text-[11px] text-ink-muted tnum">
+                      {isFr ? 'En minutes' : 'In minutes'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {(
+                      [
+                        {
+                          field: 'urbanTrafficDelayMinutes' as const,
+                          defaultValue: 8,
+                          labelKey:
+                            activeArchetypeMode === 'ESCAPADE'
+                              ? 'trafficBufferLabelEscapade'
+                              : activeArchetypeMode === 'BIKEPACKING'
+                              ? 'trafficBufferLabelBikepacking'
+                              : activeArchetypeMode === 'SPORT'
+                              ? 'trafficBufferLabelSport'
+                              : 'trafficBufferLabel',
+                          hintKey:
+                            activeArchetypeMode === 'ESCAPADE'
+                              ? 'trafficBufferHintEscapade'
+                              : activeArchetypeMode === 'BIKEPACKING'
+                              ? 'trafficBufferHintBikepacking'
+                              : activeArchetypeMode === 'SPORT'
+                              ? 'trafficBufferHintSport'
+                              : 'trafficBufferHint',
+                        },
+                        {
+                          field: 'gateSecurityDelayMinutes' as const,
+                          defaultValue: 5,
+                          labelKey:
+                            activeArchetypeMode === 'ESCAPADE'
+                              ? 'gateBufferLabelEscapade'
+                              : activeArchetypeMode === 'BIKEPACKING'
+                              ? 'gateBufferLabelBikepacking'
+                              : activeArchetypeMode === 'SPORT'
+                              ? 'gateBufferLabelSport'
+                              : 'gateBufferLabel',
+                          hintKey:
+                            activeArchetypeMode === 'ESCAPADE'
+                              ? 'gateBufferHintEscapade'
+                              : activeArchetypeMode === 'BIKEPACKING'
+                              ? 'gateBufferHintBikepacking'
+                              : activeArchetypeMode === 'SPORT'
+                              ? 'gateBufferHintSport'
+                              : 'gateBufferHint',
+                        },
+                      ] as const
+                    ).map((item) => (
+                      <div key={item.field} className="space-y-1.5">
+                        <label
+                          htmlFor={`buffer-${item.field}`}
+                          className="text-xs font-medium text-ink block"
+                        >
+                          {t(item.labelKey)}
+                        </label>
+                        <input
+                          id={`buffer-${item.field}`}
+                          type="number"
+                          min={0}
+                          max={120}
+                          value={trip.route[item.field] ?? item.defaultValue}
+                          onChange={(e) => handleDelayBufferChange(item.field, e.target.value)}
+                          className="w-full min-h-[44px] h-11 px-3 rounded-sub-pod bg-card text-ink font-rounded font-semibold text-base sm:text-sm tnum focus:outline-none focus:ring-2 focus:ring-ink/20"
+                        />
+                        <p className="text-[11px] text-ink-muted leading-snug">
+                          {t(item.hintKey)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 2: Weather Sync Card */}
+              <div className="rounded-card bg-card text-ink p-4 sm:p-5 shadow-xs flex flex-col justify-between transition-colors animate-apple-step-in relative z-10">
+                <div className="space-y-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <h2 className="text-base sm:text-[17px] font-semibold tracking-tight text-ink font-rounded">
+                        {t('scheduleWeatherHeading')}
+                      </h2>
+                      <p className="text-[13px] text-ink-muted mt-0.5">
+                        {t('scheduleWeatherSub')}
+                      </p>
+                    </div>
+                    <Badge
+                      variant={!forecastHorizon.isAvailable ? 'zinc' : daysOffset === 0 ? 'emerald' : 'sky'}
+                      size="md"
+                      className="tnum shrink-0"
+                    >
+                      {!forecastHorizon.isAvailable
+                        ? t('horizonBaseline', { offset: formattedDaysOffset })
+                        : daysOffset === 0
+                        ? t('horizonLiveToday')
+                        : t('horizonPlanned', { offset: formattedDaysOffset })}
+                    </Badge>
+                  </div>
+
+                  {/* Plain-language conditions pod + Sync button */}
+                  <div className="rounded-pod bg-pod p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="grid grid-cols-3 gap-3 flex-1">
+                      <div>
+                        <span className="text-[11px] text-ink-muted block">
+                          {isFr ? 'Température' : 'Temperature'}
+                        </span>
+                        <span className="text-sm font-semibold text-ink tnum">
+                          {trip.weather.temperatureC} °C
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[11px] text-ink-muted block">
+                          {isFr ? 'Vent prévu' : 'Wind speed'}
+                        </span>
+                        <span className="text-sm font-semibold text-ink tnum">
+                          {trip.weather.baseWindSpeedKmH} km/h
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[11px] text-ink-muted block">
+                          {isFr ? 'Pluie' : 'Rain chance'}
+                        </span>
+                        <span className="text-sm font-semibold text-ink tnum">
+                          {trip.weather.precipitationRiskPercent} %
+                        </span>
+                      </div>
+                    </div>
+
+                    <Button variant="ghost"
+                      type="button"
+                      disabled={isUpdatingWeather}
+                      onClick={async () => {
+                        const targetDate = trip.departureDate || getLocalTodayIso();
+                        const targetTime = timelineResult.hardDepartureTime || trip.departureTime || '08:00';
+                        const midIdx = Math.floor((trip.route?.coordinates?.length || 1) / 2);
+                        const coords = trip.route?.coordinates?.[midIdx] || [47.2184, -1.5536];
+                        const bearing = computeRouteBearing(trip.route?.coordinates);
+
+                        setIsUpdatingWeather(true);
+                        setWeatherFeedback(null);
+                        try {
+                          const w = await fetchHourlyWeather(coords[0], coords[1], targetDate, targetTime, bearing);
+                          commitTrip((prev) => ({
+                            ...prev,
+                            departureDate: prev.departureDate || targetDate,
+                            departureTime: prev.departureTime || targetTime,
+                            weather: {
+                              ...prev.weather,
+                              source: w.source,
+                              temperatureC: w.temperatureC,
+                              baseWindSpeedKmH: w.windSpeedKmH,
+                              effectiveHeadwindKmH: w.effectiveHeadwindKmH,
+                              windDirectionDegrees: w.windDirectionDegrees,
+                              windDirection:
+                                w.effectiveHeadwindKmH > 2
+                                  ? 'headwind'
+                                  : w.effectiveHeadwindKmH < -2
+                                  ? 'tailwind'
+                                  : 'calm',
+                              estuaryGustKmH: w.windGustsKmH,
+                              airDensityRho: w.airDensityRho,
+                              isHeadwindActive: w.isHeadwindActive,
+                              isBeyondForecastWindow: w.isBeyondForecastWindow,
+                              targetTimestampFormatted: w.timestamp,
+                              visibilityKm: w.visibilityKm,
+                              weatherCode: w.weatherCode,
+                              isDay: w.isDay,
+                              sunrise: w.sunriseIso,
+                              sunset: w.sunsetIso,
+                            },
+                            physics: {
+                              ...prev.physics,
+                              rho: w.airDensityRho,
+                            },
+                          }));
+                          setWeatherFeedback({
+                            message: w.isBeyondForecastWindow
+                              ? t('weatherBaselineApplied', { offset: formattedDaysOffset })
+                              : t('weatherSyncedMsg', { date: targetDate, time: targetTime }),
+                            status: !w.isBeyondForecastWindow,
+                          });
+                        } catch {
+                          setWeatherFeedback({
+                            message: t('weatherSyncUnavailable'),
+                            status: false,
+                            isError: true,
+                          });
+                        } finally {
+                          setIsUpdatingWeather(false);
+                        }
+                      }}
+                      className="w-full sm:w-auto min-h-[44px] flex items-center justify-center gap-1.5 px-5 py-2.5 bg-card hover:bg-chip disabled:opacity-60 rounded-full text-xs font-semibold text-ink shadow-xs transition-all cursor-pointer disabled:cursor-not-allowed shrink-0"
+                    >
+                      <ArrowsClockwise className={`w-4 h-4 ${isUpdatingWeather ? 'animate-spin' : 'text-ink-muted'}`} />
+                      <span>{isUpdatingWeather ? t('syncingBtn') : t('syncWeatherBtn')}</span>
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Status line with dashed separator */}
+                <div className="mt-4 pt-3 border-t border-dashed border-ink/10 dark:border-white/10 transition-colors">
+                  {weatherFeedback ? (
+                    <div
+                      className={`flex items-center gap-1.5 text-xs font-medium animate-apple-fade-in ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                        weatherFeedback.isError
+                          ? CHIP_TOKENS.rose.primary
+                          : weatherFeedback.status
+                          ? CHIP_TOKENS.emerald.primary
+                          : CHIP_TOKENS.amber.primary
+                      }`}
+                    >
+                      {weatherFeedback.status ? (
+                        <CheckCircle className="w-4 h-4 shrink-0 text-current" />
+                      ) : (
+                        <WarningCircle className="w-4 h-4 shrink-0 text-current" />
+                      )}
+                      <span>{weatherFeedback.message}</span>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-ink-muted animate-apple-fade-in">
+                      {isFr
+                        ? 'Synchronise le vent et la température au point médian de l’itinéraire pour l’heure prévue.'
+                        : 'Syncs forecast wind and temperature at your route midpoint for the scheduled ride window.'}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
 
     {activeStep === 'trip-style' && (
       <>
         {/* Card 1: Ride Archetype & Preset Chips */}
-        <div className="rounded-card bg-card text-ink p-4 sm:p-5 border border-ink/5 dark:border-white/5 shadow-xs transition-colors space-y-5 animate-apple-step-in relative z-20 focus-within:z-30">
+        <div className="rounded-card bg-card text-ink p-4 sm:p-5 shadow-xs transition-colors space-y-5 animate-apple-step-in relative z-20 focus-within:z-30">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h2 className="text-base sm:text-[17px] font-semibold tracking-tight text-ink">
@@ -2502,7 +2665,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                   key={col.id}
                   type="button"
                   onClick={() => handleSelectArchetype(col.id)}
-                  className={`flex items-center gap-3 pl-2.5 pr-4 py-2.5 rounded-full transition-all duration-200 cursor-pointer text-left active:scale-[0.98] ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                  className={`flex items-center gap-3 min-h-[44px] pl-2.5 pr-4 py-2.5 rounded-full transition-all duration-200 cursor-pointer text-left active:scale-[0.98] ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
                     isArchetypeActive
                       ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing} shadow-xs`
                       : `${CHIP_RING_UNSELECTED} bg-pod hover:bg-chip/80 text-ink`
@@ -2563,7 +2726,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                         isSelected={isSelected}
                         onClick={() => handleToggleChip(chip.id)}
                         title={isFr ? chip.descriptionFr : chip.descriptionEn}
-                        className="h-9 font-semibold text-xs"
+                        className="min-h-[44px] sm:min-h-[38px] font-semibold text-xs"
                       />
                     );
                   })}
@@ -2572,7 +2735,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                     <Button variant="ghost"
                       type="button"
                       onClick={() => setShowAllChips((v) => !v)}
-                      className="inline-flex items-center gap-1 h-9 px-3 rounded-full bg-pod hover:bg-chip text-xs font-medium text-ink-secondary hover:text-ink transition-colors cursor-pointer"
+                      className="inline-flex items-center gap-1 min-h-[44px] sm:min-h-[38px] px-3.5 rounded-full bg-pod hover:bg-chip text-xs font-medium text-ink-secondary hover:text-ink transition-colors cursor-pointer"
                     >
                       <span>
                         {showAllChips
@@ -2612,7 +2775,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
             {activeArchetypeMode === 'COMMUTE' && (
               <div key="commute-baseline" className="space-y-4 animate-apple-step-in">
                 {/* Food Restriction Toggle Capsule */}
-                <div className="bg-pod rounded-2xl sm:rounded-full pl-3 pr-3.5 sm:pr-5 py-2.5 flex items-center justify-between gap-3">
+                <div className="bg-pod rounded-pod sm:rounded-full pl-3 pr-3.5 sm:pr-5 py-2.5 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <IconBadge
                       theme={trip.office?.strictNoFoodInOpenSpace ? 'yellow-vest' : 'greyscale'}
@@ -2633,7 +2796,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                   <Button variant="ghost"
                     type="button"
                     onClick={() => updateOffice('strictNoFoodInOpenSpace', !trip.office?.strictNoFoodInOpenSpace)}
-                    className={`px-3 py-1 rounded-full text-xs font-semibold shrink-0 transition-all cursor-pointer ${CHIP_RING_BASE} ${
+                    className={`min-h-[44px] sm:min-h-[34px] px-3.5 py-1.5 rounded-full text-xs font-semibold shrink-0 transition-all cursor-pointer ${CHIP_RING_BASE} ${
                       trip.office?.strictNoFoodInOpenSpace
                         ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
                         : `${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} ${CHIP_RING_UNSELECTED}`
@@ -3227,7 +3390,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
             </div>
 
             {/* Concise Protocol Capsule */}
-            <div className="pl-2.5 pr-4 py-2.5 rounded-2xl sm:rounded-full bg-pod flex items-center gap-3">
+            <div className="pl-2.5 pr-4 py-2.5 rounded-pod sm:rounded-full bg-pod flex items-center gap-3">
               <IconBadge
                 theme={(trip.customChips || []).includes('coffee-stop') ? 'amber' : 'yellow-vest'}
                 icon={(trip.customChips || []).includes('coffee-stop') ? Coffee : ShieldCheck}

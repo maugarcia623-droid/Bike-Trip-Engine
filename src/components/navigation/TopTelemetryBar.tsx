@@ -341,7 +341,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
               aria-checked={active}
               onClick={() => onChange(opt.value)}
               className={`inline-flex items-center gap-1.5 rounded-full font-semibold transition-all duration-150 cursor-pointer focus:outline-none ${
-                m ? 'h-8 px-3 text-[13px]' : 'h-7 px-2.5 text-xs'
+                m ? 'min-h-[44px] px-3.5 text-[13px]' : 'h-8 px-2.5 text-xs'
               } ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
                 active
                   ? `${yellowVest.surface} ${yellowVest.primary} ${yellowVest.selectedRing} shadow-xs`
@@ -385,7 +385,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
               variant="secondary"
               size="sm"
               onClick={() => setIsMenuOpen(false)}
-              className="w-10 h-10 p-0 rounded-full bg-pod dark:bg-white/[0.06] hover:bg-chip text-ink-secondary hover:text-ink flex items-center justify-center cursor-pointer transition-colors shrink-0"
+              className="w-11 h-11 p-0 rounded-full bg-pod dark:bg-white/[0.06] hover:bg-chip text-ink-secondary hover:text-ink flex items-center justify-center cursor-pointer transition-colors shrink-0"
               aria-label={t('menuCloseAria')}
             >
               <X size={18} />
@@ -417,7 +417,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
                       />
                     }
                     className={`inline-flex items-center gap-1.5 rounded-full font-semibold cursor-pointer transition-colors shrink-0 bg-card dark:bg-white/[0.08] hover:bg-chip text-ink ${
-                      m ? 'h-9 px-3.5 text-[13px]' : 'h-8 px-3 text-xs'
+                      m ? 'min-h-[44px] px-4 text-[13px]' : 'h-8 px-3 text-xs'
                     }`}
                   />
                 }
@@ -518,92 +518,119 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
               }}
             />
           )}
-          {onOpenSpecs && (onShareReceipt || onPrint || onOpenRideBrief) && <Divider />}
           {activeTrip && onOpenRideBrief && (
             <>
+              {onOpenSpecs && <Divider />}
               <Row
                 theme="yellow-vest"
                 icon={ShieldCheck}
                 label={isFr ? 'Brief de la veille (1 écran)' : 'Night-Before Ride Brief'}
-                sub={isFr ? 'Verdict GO, pression, glucides, 1er point d’alerte & lien groupe' : 'Go status, leave-by, 3 key numbers, first route issue & group link'}
+                sub={isFr ? 'Verdict GO, pression, glucides & lien groupe' : 'Go status, leave-by, 3 key numbers & group link'}
                 onClick={() => {
                   setIsMenuOpen(false);
                   onOpenRideBrief();
                 }}
               />
-              {(onShareReceipt || onPrint) && <Divider />}
             </>
           )}
-          {onShareReceipt && (
-            <Row
-              theme="lime"
-              icon={Receipt}
-              label={t('shareReceiptBtn')}
-              sub={isFr ? 'Carte story PNG 1080×1920' : '1080×1920 PNG story card'}
-              onClick={() => {
-                setIsMenuOpen(false);
-                onShareReceipt();
-              }}
-            />
-          )}
-          {onShareReceipt && onPrint && <Divider />}
-          {onPrint && (
-            <Row
-              theme="blue"
-              icon={Printer}
-              label={t('printButtonTitle')}
-              sub={isFr ? 'Feuille de route A4 imprimable' : 'Printable A4 route summary'}
-              onClick={() => {
-                setIsMenuOpen(false);
-                requestAnimationFrame(() => onPrint());
-              }}
-            />
-          )}
-          {activeTrip && (
+          {(activeTrip || onPrint || onShareReceipt) && (
             <>
-              {(onShareReceipt || onPrint) && <Divider />}
-              <Row
-                theme="sky"
-                icon={Download}
-                label={t('drawerGpxTitle')}
-                sub={isFr ? 'Trace GPS .gpx pour Garmin, Wahoo, Hammerhead' : 'GPS .gpx track for Garmin, Wahoo, Hammerhead'}
-                onClick={() => {
-                  downloadTripGpx(activeTrip);
-                  setIsMenuOpen(false);
-                }}
-              />
-              <Divider />
-              <Row
-                theme="emerald"
-                icon={Compass}
-                label={t('drawerTcxTitle')}
-                sub={isFr ? 'Parcours .tcx avec dénivelé et allure' : '.tcx course with elevation & pacing'}
-                onClick={() => {
-                  downloadTripTcx(activeTrip);
-                  setIsMenuOpen(false);
-                }}
-              />
-              <Divider />
-              <Row
-                theme="amber"
-                icon={Download}
-                label={isFr ? 'Exporter .FIT (Garmin Up Ahead)' : 'Export .FIT (Garmin Up Ahead)'}
-                sub={isFr ? 'Parcours binaire .fit avec arrêts épinglés et repères' : 'Binary .fit course with pinned stops & cues'}
-                onClick={() => {
-                  downloadTripFit(activeTrip);
-                  setIsMenuOpen(false);
-                }}
-              />
+              {(onOpenSpecs || (activeTrip && onOpenRideBrief)) && <Divider />}
+              <div className="px-3.5 py-3">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className={`${subCls} font-rounded font-semibold text-ink-muted`}>
+                    {isFr ? 'Export & partage rapide' : 'Quick export & share'}
+                  </span>
+                  <span className="text-[10px] font-rounded font-bold text-emerald-700 dark:text-emerald-300">
+                    {isFr ? '100% Gratuit' : '100% Free'}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {activeTrip && (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        role="menuitem"
+                        onClick={() => {
+                          downloadTripFit(activeTrip);
+                          setIsMenuOpen(false);
+                        }}
+                        className="min-h-[44px] sm:min-h-[36px] px-3 rounded-full bg-card dark:bg-white/[0.08] hover:bg-chip text-ink text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Download className="w-3.5 h-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                        <span>.FIT</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        role="menuitem"
+                        onClick={() => {
+                          downloadTripGpx(activeTrip);
+                          setIsMenuOpen(false);
+                        }}
+                        className="min-h-[44px] sm:min-h-[36px] px-3 rounded-full bg-card dark:bg-white/[0.08] hover:bg-chip text-ink text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Download className="w-3.5 h-3.5 shrink-0 text-sky-600 dark:text-sky-400" />
+                        <span>.GPX</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        role="menuitem"
+                        onClick={() => {
+                          downloadTripTcx(activeTrip);
+                          setIsMenuOpen(false);
+                        }}
+                        className="min-h-[44px] sm:min-h-[36px] px-3 rounded-full bg-card dark:bg-white/[0.08] hover:bg-chip text-ink text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Compass className="w-3.5 h-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                        <span>.TCX</span>
+                      </Button>
+                    </>
+                  )}
+                  {onPrint && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      role="menuitem"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        requestAnimationFrame(() => onPrint());
+                      }}
+                      className="min-h-[44px] sm:min-h-[36px] px-3 rounded-full bg-card dark:bg-white/[0.08] hover:bg-chip text-ink text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Printer className="w-3.5 h-3.5 shrink-0 text-blue-600 dark:text-blue-400" />
+                      <span>{isFr ? 'Imprimer A4' : 'Print A4'}</span>
+                    </Button>
+                  )}
+                  {onShareReceipt && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      role="menuitem"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        onShareReceipt();
+                      }}
+                      className="min-h-[44px] sm:min-h-[36px] px-3 rounded-full bg-card dark:bg-white/[0.08] hover:bg-chip text-ink text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Receipt className="w-3.5 h-3.5 shrink-0 text-lime-700 dark:text-lime-400" />
+                      <span>{isFr ? 'Partager' : 'Share'}</span>
+                    </Button>
+                  )}
+                </div>
+              </div>
             </>
           )}
           {onOpenTools && (
             <>
-              <Divider />
+              {(onOpenSpecs || (activeTrip && onOpenRideBrief) || activeTrip || onPrint || onShareReceipt) && <Divider />}
               <Row
                 theme="purple"
                 icon={Calculator}
                 label={isFr ? 'Outils gratuits (Vent · Départ · Pneus)' : 'Free Cycling Tools (Wind · Leave-By · Pressure)'}
-                sub={isFr ? 'Calculateurs navigateur sans compte' : 'Standalone browser physics calculators'}
+                sub={isFr ? 'Calculateurs navigateur sans compte' : 'Standalone browser calculators'}
                 onClick={() => {
                   setIsMenuOpen(false);
                   onOpenTools('wind');
@@ -666,7 +693,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
           variant="ghost"
           size="md"
           onClick={() => onNavigate('home')}
-          className="lg:col-span-1 lg:justify-self-start flex items-center gap-2.5 sm:gap-3.5 p-0 hover:bg-transparent min-w-0 cursor-pointer group text-left focus:outline-none"
+          className="lg:col-span-1 lg:justify-self-start flex items-center gap-2.5 sm:gap-3.5 min-h-[44px] p-0 hover:bg-transparent min-w-0 cursor-pointer group text-left focus:outline-none"
         >
           <div
             className={`w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center group-hover:scale-105 transition-transform shrink-0 shadow-xs ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
@@ -751,7 +778,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
             aria-expanded={isMenuOpen}
             aria-label={t('menuOpenAria')}
             title={user ? `${user.email} (${t('cloudSynced')})` : t('savedOnDeviceClickToSync')}
-            className={`relative w-10 h-10 p-0 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-xs select-none focus:outline-none ring-2 ${
+            className={`relative w-11 h-11 sm:w-10 sm:h-10 p-0 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-xs select-none focus:outline-none ring-2 ${
               isMenuOpen
                 ? 'ring-volt bg-pod dark:bg-chip text-ink'
                 : 'ring-ink/10 dark:ring-white/15 bg-card dark:bg-pod text-ink hover:ring-volt/60'

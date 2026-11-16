@@ -1,7 +1,7 @@
 {
   "name": "Cadence",
   "short_name": "Cadence",
-  "description": "Cadence — High-Precision Bike Trip Cockpit & Ride Metrics Telemetry",
+  "description": "Smart bike ride planner with live route weather, resupply radar, fueling guidance, and free .FIT/.GPX export.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#111111",

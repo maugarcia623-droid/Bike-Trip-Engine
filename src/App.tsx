@@ -10,7 +10,7 @@ import {
 } from "./utils/specsStorage";
 import { ConfirmModal } from "./components/common/ConfirmModal";
 import { RiderBikeSpecs } from "./types/specs";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Analytics } from '@vercel/analytics/react';
 import { IconContext } from '@/components/icons';
 import { generateTripChecklist, TripProfile, WeatherCondition } from "./types/trip";
@@ -19,7 +19,6 @@ import {
   saveTrips,
   getActiveTripId,
   setActiveTripId as saveActiveTripId,
-  INITIAL_PROFILES,
   generateRandomPresetTrips,
   buildDefaultNewTripTemplate,
 } from './utils/storage';
@@ -34,14 +33,34 @@ import {
 import { TopTelemetryBar } from './components/navigation/TopTelemetryBar';
 import { DynamicIslandNav } from './components/navigation/DynamicIslandNav';
 import { HomeScreen } from './components/home/HomeScreen';
-import { ConfiguratorScreen } from './components/configurator/ConfiguratorScreen';
 import { BentoDashboard } from './components/dashboard/BentoDashboard';
 import { DashboardEmptyState } from './components/dashboard/DashboardEmptyState';
-import { PrintFlightSheet } from './components/print/PrintFlightSheet';
-import { OnboardingModal } from './components/OnboardingModal';
 import { FeedbackModal } from './components/FeedbackModal';
 import { ShareTelemetryModal } from './components/ShareTelemetryModal';
-import { FreeWebToolsView, FreeWebToolTab } from './components/tools/FreeWebToolsView';
+import type { FreeWebToolTab } from './components/tools/FreeWebToolsView';
+
+const ConfiguratorScreen = React.lazy(() =>
+  import('./components/configurator/ConfiguratorScreen').then((m) => ({ default: m.ConfiguratorScreen }))
+);
+const PrintFlightSheet = React.lazy(() =>
+  import('./components/print/PrintFlightSheet').then((m) => ({ default: m.PrintFlightSheet }))
+);
+const OnboardingModal = React.lazy(() =>
+  import('./components/OnboardingModal').then((m) => ({ default: m.OnboardingModal }))
+);
+const FreeWebToolsView = React.lazy(() =>
+  import('./components/tools/FreeWebToolsView').then((m) => ({ default: m.FreeWebToolsView }))
+);
+
+function ViewLoadingFallback() {
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-16 flex items-center justify-center">
+      <div className="rounded-full bg-card px-5 py-2.5 text-xs font-semibold text-ink-muted ring-1 ring-inset ring-black/10 dark:ring-white/10 animate-pulse">
+        Loading…
+      </div>
+    </div>
+  );
+}
 import { calculatePhysics } from './utils/physics';
 import { calculateReverseTimeline } from './utils/timeline';
 import { getChipsExtraBufferMinutes } from './utils/archetypeChips';
@@ -179,35 +198,10 @@ function AppContent() {
   const isCloudApplyingRef = React.useRef(false);
   const saveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSyncedPayloadHashRef = React.useRef<string>('');
-  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    const hash = window.location.hash;
-    const search = window.location.search;
-    if (
-      hash === '#configurator' ||
-      hash === '#home' ||
-      hash === '#tools' ||
-      hash.includes('plan=') ||
-      search.includes('view=configurator') ||
-      search.includes('view=home') ||
-      search.includes('view=tools') ||
-      search.includes('tool=') ||
-      search.includes('plan=')
-    ) {
-      return false;
-    }
-    // Returning user with Supabase session: skip onboarding
-    if (hasPotentialSupabaseSession()) {
-      return false;
-    }
-    try {
-      return localStorage.getItem(STORAGE_KEY_ONBOARDED) !== 'true';
-    } catch {
-      return false;
-    }
-  });
+  // Never block initial load with an onboarding modal wall; user can open Guided Setup manually
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
 
-  // If user is already logged in or logs in to Supabase, skip onboarding completely
+  // If user is already logged in or logs in to Supabase, mark onboarding seen
   useEffect(() => {
     if (user) {
       markOnboardingSeen();
@@ -227,6 +221,16 @@ function AppContent() {
       }
       if (hash === '#tools' || search.includes('view=tools') || search.includes('tool=')) {
         return 'tools';
+      }
+      const hasSharedPlan = hash.includes('plan=') || search.includes('plan=');
+      if (!hasSharedPlan && !hasPotentialSupabaseSession()) {
+        try {
+          if (localStorage.getItem(STORAGE_KEY_ONBOARDED) !== 'true') {
+            return 'home';
+          }
+        } catch {
+          return 'home';
+        }
       }
     }
     return 'dashboard';
@@ -275,10 +279,45 @@ function AppContent() {
   // Active trip object (null if 0 trips created yet)
   const activeTrip = trips.find((tripItem) => tripItem.id === activeTripId) || trips[0] || null;
 
-  // Persist to localStorage whenever trips change
+  const latestTripsRef = React.useRef(trips);
+  latestTripsRef.current = trips;
+  const tripSaveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isInitialTripsMountRef = React.useRef(true);
+
+  // Persist to localStorage whenever trips change (debounced 500ms to avoid blocking slider drags/checklist ticks)
   useEffect(() => {
-    saveTrips(trips);
+    if (isInitialTripsMountRef.current) {
+      isInitialTripsMountRef.current = false;
+      return;
+    }
+    if (tripSaveTimeoutRef.current) {
+      clearTimeout(tripSaveTimeoutRef.current);
+    }
+    tripSaveTimeoutRef.current = setTimeout(() => {
+      tripSaveTimeoutRef.current = null;
+      saveTrips(trips);
+    }, 500);
+    return () => {
+      if (tripSaveTimeoutRef.current) {
+        clearTimeout(tripSaveTimeoutRef.current);
+      }
+    };
   }, [trips]);
+
+  useEffect(() => {
+    const flushPendingTripSave = () => {
+      if (tripSaveTimeoutRef.current) {
+        clearTimeout(tripSaveTimeoutRef.current);
+        tripSaveTimeoutRef.current = null;
+        saveTrips(latestTripsRef.current);
+      }
+    };
+    window.addEventListener('beforeunload', flushPendingTripSave);
+    return () => {
+      window.removeEventListener('beforeunload', flushPendingTripSave);
+      flushPendingTripSave();
+    };
+  }, []);
 
   // PWA Share Target handler (?shared_file=1, ?shared_url=..., ?shared_text=...)
   useEffect(() => {
@@ -768,11 +807,29 @@ function AppContent() {
     setIsOnboardingOpen(false);
   };
 
+  const handleQuickCreateTrip = (
+    quickTrip: TripProfile,
+    targetView: 'dashboard' | 'configurator'
+  ) => {
+    markOnboardingSeen();
+    setTrips((prev) => {
+      const updated = [quickTrip, ...prev.filter((t) => t.id !== quickTrip.id)];
+      saveTrips(updated);
+      return updated;
+    });
+    setActiveTripId(quickTrip.id);
+    saveActiveTripId(quickTrip.id);
+    setConfiguratorTrip(quickTrip);
+    setIsNewTrip(false);
+    setCurrentView(targetView);
+  };
+
   const handleLaunchFromOnboarding = (calibratedTrip: TripProfile) => {
     markOnboardingSeen();
 
     const onboardingSpecsHint = (calibratedTrip as any).__onboardingSpecs as
       | {
+          purpose?: 'commute' | 'sport' | 'bikepacking' | 'leisure';
           isTubeless?: boolean;
           riderLevel?: 'occasional' | 'regular' | 'pro';
           carbTargetGPerHr?: number;
@@ -789,6 +846,9 @@ function AppContent() {
 
     if (calibratedTrip.id.startsWith('trip-calibrated-') || onboardingSpecsHint) {
       const hadSavedSpecs = hasSavedRiderBikeSpecs();
+      const isDataDrivenSport = onboardingSpecsHint?.purpose === 'sport';
+      const defaultTelemetryFallback = isDataDrivenSport ? 'quantitative' : 'fuel-first';
+      const defaultCockpitFallback = isDataDrivenSport ? 'pro' : 'essential';
       const matchedBike =
         riderSpecs.bikes.find((b) => Math.abs(b.cda - calibratedTrip.physics.cda) <= 0.03) ||
         getActiveBike(riderSpecs);
@@ -802,10 +862,10 @@ function AppContent() {
         riderLevel: nextLevel,
         cockpitViewMode:
           onboardingSpecsHint?.cockpitViewMode ??
-          (!hadSavedSpecs ? 'essential' : riderSpecs.cockpitViewMode ?? 'essential'),
+          (!hadSavedSpecs ? defaultCockpitFallback : riderSpecs.cockpitViewMode ?? defaultCockpitFallback),
         telemetryMode:
           onboardingSpecsHint?.telemetryMode ??
-          (!hadSavedSpecs ? 'fuel-first' : riderSpecs.telemetryMode ?? 'fuel-first'),
+          (!hadSavedSpecs ? defaultTelemetryFallback : riderSpecs.telemetryMode ?? defaultTelemetryFallback),
         pacingInputMode:
           onboardingSpecsHint?.pacingInputMode ??
           (!hadSavedSpecs ? 'feel' : riderSpecs.pacingInputMode ?? 'feel'),
@@ -969,22 +1029,26 @@ function AppContent() {
             onOpenOnboarding={() => setIsOnboardingOpen(true)}
             onLoadDemoTrip={handleLoadDemoTrips}
             onOpenTools={(tab) => handleOpenTools(tab || 'wind')}
+            onQuickCreateTrip={handleQuickCreateTrip}
+            riderSpecs={riderSpecs}
           />
         )}
 
         {currentView === 'configurator' && (
-          <ConfiguratorScreen
-            key={(configuratorTrip || activeTrip)?.id || 'new-trip'}
-            initialTrip={configuratorTrip || activeTrip || buildDefaultNewTripTemplate(lang)}
-            isNew={isNewTrip}
-            onSave={handleSaveConfiguratorTrip}
-            onAutoSync={handleSaveConfiguratorTrip}
-            onCancel={() => {
-              setIsNewTrip(false);
-              setCurrentView('dashboard');
-            }}
-            onLaunch={(savedTrip) => handleLaunchFromConfigurator(savedTrip || configuratorTrip || activeTrip)}
-          />
+          <Suspense fallback={<ViewLoadingFallback />}>
+            <ConfiguratorScreen
+              key={(configuratorTrip || activeTrip)?.id || 'new-trip'}
+              initialTrip={configuratorTrip || activeTrip || buildDefaultNewTripTemplate(lang)}
+              isNew={isNewTrip}
+              onSave={handleSaveConfiguratorTrip}
+              onAutoSync={handleSaveConfiguratorTrip}
+              onCancel={() => {
+                setIsNewTrip(false);
+                setCurrentView('dashboard');
+              }}
+              onLaunch={(savedTrip) => handleLaunchFromConfigurator(savedTrip || configuratorTrip || activeTrip)}
+            />
+          </Suspense>
         )}
 
         {currentView === 'dashboard' && (
@@ -1029,12 +1093,14 @@ function AppContent() {
         )}
 
         {currentView === 'tools' && (
-          <FreeWebToolsView
-            initialTab={toolsInitialTab}
-            activeTrip={activeTrip}
-            riderSpecs={riderSpecs}
-            onBackToCockpit={() => setCurrentView('dashboard')}
-          />
+          <Suspense fallback={<ViewLoadingFallback />}>
+            <FreeWebToolsView
+              initialTab={toolsInitialTab}
+              activeTrip={activeTrip}
+              riderSpecs={riderSpecs}
+              onBackToCockpit={() => setCurrentView('dashboard')}
+            />
+          </Suspense>
         )}
       </main>
 
@@ -1114,11 +1180,15 @@ function AppContent() {
       />
 
       {/* Standalone Interactive Onboarding & Calibration Wizard */}
-      <OnboardingModal
-        isOpen={isOnboardingOpen}
-        onClose={handleCloseOnboarding}
-        onLaunch={handleLaunchFromOnboarding}
-      />
+      {isOnboardingOpen && (
+        <Suspense fallback={null}>
+          <OnboardingModal
+            isOpen={isOnboardingOpen}
+            onClose={handleCloseOnboarding}
+            onLaunch={handleLaunchFromOnboarding}
+          />
+        </Suspense>
+      )}
 
       {/* Supabase Authentication & Cloud Sync Modal */}
       <AuthModal />
@@ -1145,7 +1215,9 @@ function AppContent() {
 
       {activeTrip && (
         <div className="hidden print:block print-only">
-          <PrintFlightSheet trip={activeTrip} riderSpecs={riderSpecs} />
+          <Suspense fallback={null}>
+            <PrintFlightSheet trip={activeTrip} riderSpecs={riderSpecs} />
+          </Suspense>
         </div>
       )}
     </div>

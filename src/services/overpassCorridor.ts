@@ -14,11 +14,111 @@ const OVERPASS_ENDPOINTS = [
 ];
 
 /**
- * Ephemeral Tier 1 In-Memory Scan Cache.
- * Prevents re-querying Overpass for identical route spines and strictly keeps
- * raw Overpass scan arrays OUT of localStorage / Supabase user_state.
+ * Tier 1 In-Memory + Bounded LocalStorage TTL Scan Cache.
+ * Prevents re-querying Overpass for identical route spines (max 15 entries, 6h TTL in localStorage).
  */
 const scanCache = new Map<string, StageAmenity[]>();
+const inFlightScans = new Map<string, Promise<StageAmenity[]>>();
+
+const OVERPASS_LS_PREFIX = 'cadence_overpass_v1_';
+const OVERPASS_LS_MAX_ENTRIES = 15;
+const OVERPASS_LS_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+const OVERPASS_CHUNK_THRESHOLD_KM = 60;
+const OVERPASS_CHUNK_DISTANCE_M = 45000; // ~45 km per chunk for long routes
+
+interface StoredOverpassEntry {
+  savedAt: number;
+  lastAccessedAt: number;
+  amenities: StageAmenity[];
+}
+
+function readLocalStorageScan(key: string): StageAmenity[] | undefined {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return undefined;
+    const fullKey = `${OVERPASS_LS_PREFIX}${key}`;
+    const raw = window.localStorage.getItem(fullKey);
+    if (!raw) return undefined;
+
+    const parsed = JSON.parse(raw) as StoredOverpassEntry;
+    if (
+      !parsed ||
+      typeof parsed.savedAt !== 'number' ||
+      !Array.isArray(parsed.amenities) ||
+      Date.now() - parsed.savedAt > OVERPASS_LS_TTL_MS
+    ) {
+      window.localStorage.removeItem(fullKey);
+      return undefined;
+    }
+
+    try {
+      window.localStorage.setItem(
+        fullKey,
+        JSON.stringify({ ...parsed, lastAccessedAt: Date.now() })
+      );
+    } catch {
+      // Ignore LRU touch error
+    }
+    return parsed.amenities;
+  } catch {
+    return undefined;
+  }
+}
+
+function writeLocalStorageScan(key: string, amenities: StageAmenity[]): void {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    const storage = window.localStorage;
+    const fullKey = `${OVERPASS_LS_PREFIX}${key}`;
+    const now = Date.now();
+
+    const activeEntries: Array<{ key: string; lastAccessedAt: number }> = [];
+    const expiredKeys: string[] = [];
+
+    for (let i = 0; i < storage.length; i++) {
+      const k = storage.key(i);
+      if (!k || !k.startsWith(OVERPASS_LS_PREFIX) || k === fullKey) continue;
+      try {
+        const raw = storage.getItem(k);
+        if (!raw) {
+          expiredKeys.push(k);
+          continue;
+        }
+        const parsed = JSON.parse(raw) as StoredOverpassEntry;
+        if (!parsed || typeof parsed.savedAt !== 'number' || now - parsed.savedAt > OVERPASS_LS_TTL_MS) {
+          expiredKeys.push(k);
+        } else {
+          activeEntries.push({
+            key: k,
+            lastAccessedAt: typeof parsed.lastAccessedAt === 'number' ? parsed.lastAccessedAt : parsed.savedAt,
+          });
+        }
+      } catch {
+        expiredKeys.push(k);
+      }
+    }
+
+    for (const k of expiredKeys) {
+      storage.removeItem(k);
+    }
+
+    if (activeEntries.length >= OVERPASS_LS_MAX_ENTRIES) {
+      activeEntries.sort((a, b) => a.lastAccessedAt - b.lastAccessedAt);
+      const evictCount = activeEntries.length - (OVERPASS_LS_MAX_ENTRIES - 1);
+      for (let i = 0; i < evictCount; i++) {
+        storage.removeItem(activeEntries[i].key);
+      }
+    }
+
+    const payload: StoredOverpassEntry = {
+      savedAt: now,
+      lastAccessedAt: now,
+      amenities,
+    };
+    storage.setItem(fullKey, JSON.stringify(payload));
+  } catch {
+    // Ignore localStorage quota errors
+  }
+}
 
 /**
  * Generates a deterministic hash key for a stage's coordinate sequence.
@@ -39,7 +139,15 @@ export function getRouteHashKey(
 }
 
 export function getCachedScan(key: string): StageAmenity[] | undefined {
-  return scanCache.get(key);
+  const mem = scanCache.get(key);
+  if (mem) return mem;
+
+  const ls = readLocalStorageScan(key);
+  if (ls) {
+    scanCache.set(key, ls);
+    return ls;
+  }
+  return undefined;
 }
 
 type ScanCacheListener = (key: string) => void;
@@ -58,11 +166,24 @@ export function subscribeScanCache(listener: ScanCacheListener): () => void {
 
 export function setCachedScan(key: string, results: StageAmenity[]): void {
   scanCache.set(key, results);
+  writeLocalStorageScan(key, results);
   scanCacheListeners.forEach((listener) => listener(key));
 }
 
 export function clearCachedScan(): void {
   scanCache.clear();
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const toDelete: string[] = [];
+      for (let i = 0; i < window.localStorage.length; i++) {
+        const k = window.localStorage.key(i);
+        if (k && k.startsWith(OVERPASS_LS_PREFIX)) toDelete.push(k);
+      }
+      toDelete.forEach((k) => window.localStorage.removeItem(k));
+    }
+  } catch {
+    // Ignore storage errors
+  }
   scanCacheListeners.forEach((listener) => listener('*'));
 }
 
@@ -410,7 +531,7 @@ function deduplicateAmenities(amenities: StageAmenity[]): StageAmenity[] {
  */
 export async function fetchOverpassWithFailover(
   query: string,
-  timeoutMs = 4500
+  timeoutMs = 3000
 ): Promise<any> {
   let lastError: Error | null = null;
 
@@ -446,11 +567,91 @@ export async function fetchOverpassWithFailover(
 }
 
 /**
+ * Splits a route polyline into overlapping ~45 km chunks so long routes (> 60 km)
+ * do not get truncated by Overpass's 260-element cap per bounding-box query.
+ */
+function chunkPolylineForOverpass(
+  coordinates: [number, number][],
+  cumDistancesMeters: number[],
+  chunkDistanceMeters = OVERPASS_CHUNK_DISTANCE_M
+): [number, number][][] {
+  if (coordinates.length < 2) return [coordinates];
+  const totalMeters = cumDistancesMeters[cumDistancesMeters.length - 1] || 0;
+  if (totalMeters <= chunkDistanceMeters) return [coordinates];
+
+  const chunks: [number, number][][] = [];
+  let startIdx = 0;
+  let nextBoundaryM = chunkDistanceMeters;
+
+  for (let i = 1; i < coordinates.length; i++) {
+    if (cumDistancesMeters[i] >= nextBoundaryM || i === coordinates.length - 1) {
+      const slice = coordinates.slice(startIdx, i + 1);
+      if (slice.length >= 2) {
+        chunks.push(slice);
+      }
+      startIdx = i;
+      nextBoundaryM = cumDistancesMeters[i] + chunkDistanceMeters;
+    }
+  }
+
+  return chunks.length > 0 ? chunks : [coordinates];
+}
+
+async function fetchOverpassElementsForRoute(
+  coordinates: [number, number][],
+  cumDistancesMeters: number[],
+  totalDistanceKm?: number
+): Promise<any[]> {
+  const computedKm = (cumDistancesMeters[cumDistancesMeters.length - 1] || 0) / 1000;
+  const effectiveKm = totalDistanceKm && totalDistanceKm > 0 ? totalDistanceKm : computedKm;
+
+  if (effectiveKm <= OVERPASS_CHUNK_THRESHOLD_KM) {
+    const rawJson = await fetchOverpassWithFailover(buildOverpassQuery(coordinates));
+    return Array.isArray(rawJson?.elements) ? rawJson.elements : [];
+  }
+
+  const chunks = chunkPolylineForOverpass(coordinates, cumDistancesMeters);
+  const allElements: any[] = [];
+  const seenOsmKeys = new Set<string>();
+  let anySuccess = false;
+  let lastError: unknown = null;
+
+  // Query chunks in pairs to avoid overwhelming public Overpass mirrors
+  for (let i = 0; i < chunks.length; i += 2) {
+    const batch = chunks.slice(i, i + 2);
+    const settled = await Promise.allSettled(
+      batch.map((chunk) => fetchOverpassWithFailover(buildOverpassQuery(chunk)))
+    );
+
+    for (const res of settled) {
+      if (res.status === 'fulfilled') {
+        anySuccess = true;
+        const elems = Array.isArray(res.value?.elements) ? res.value.elements : [];
+        for (const el of elems) {
+          const osmKey = `${el.type || 'node'}/${el.id}`;
+          if (!seenOsmKeys.has(osmKey)) {
+            seenOsmKeys.add(osmKey);
+            allElements.push(el);
+          }
+        }
+      } else {
+        lastError = res.reason;
+      }
+    }
+  }
+
+  if (!anySuccess && lastError) {
+    throw lastError;
+  }
+
+  return allElements;
+}
+
+/**
  * Scans the active GPX route corridor for curated OSM resupply amenities.
  * - Leverages fast bounding-box query + client-side polyline snapping.
- * - Utilizes in-memory ephemeral cache keyed by deterministic route hash.
- * - Gracefully falls back to curated corridor waypoints if all Overpass servers are offline.
- * - Strict Tier-1 ephemeral storage (does not touch user_state or localStorage).
+ * - Chunks long routes (> 60 km) along the polyline to avoid the 260-element cap.
+ * - Deduplicates concurrent in-flight scans and caches results in memory + bounded localStorage (15 entries, 6h TTL).
  */
 export async function scanCorridorAmenities(params: {
   coordinates: [number, number][];
@@ -482,34 +683,51 @@ export async function scanCorridorAmenities(params: {
     }
   }
 
-  const cumDistancesMeters = computeCumulativeDistances(coordinates);
-  const query = buildOverpassQuery(coordinates);
+  const inflightKey = `${cacheKey}:${lang}`;
+  if (!forceFresh) {
+    const existing = inFlightScans.get(inflightKey);
+    if (existing) {
+      return existing;
+    }
+  }
 
-  try {
-    const rawJson = await fetchOverpassWithFailover(query);
-    const rawElements = Array.isArray(rawJson?.elements) ? rawJson.elements : [];
+  const scanPromise = (async () => {
+    const cumDistancesMeters = computeCumulativeDistances(coordinates);
 
-    const parsedAmenities: StageAmenity[] = [];
-    for (const el of rawElements) {
-      const parsed = parseOsmAmenity(
-        el,
+    try {
+      const rawElements = await fetchOverpassElementsForRoute(
         coordinates,
         cumDistancesMeters,
-        elevationProfile,
-        lang
+        totalDistanceKm
       );
-      if (parsed) {
-        parsedAmenities.push(parsed);
-      }
-    }
 
-    const cleanAmenities = deduplicateAmenities(parsedAmenities);
-    setCachedScan(cacheKey, cleanAmenities);
-    return cleanAmenities;
-  } catch (err) {
-    console.warn('Overpass public servers unavailable or slow:', err);
-    throw err;
-  }
+      const parsedAmenities: StageAmenity[] = [];
+      for (const el of rawElements) {
+        const parsed = parseOsmAmenity(
+          el,
+          coordinates,
+          cumDistancesMeters,
+          elevationProfile,
+          lang
+        );
+        if (parsed) {
+          parsedAmenities.push(parsed);
+        }
+      }
+
+      const cleanAmenities = deduplicateAmenities(parsedAmenities);
+      setCachedScan(cacheKey, cleanAmenities);
+      return cleanAmenities;
+    } catch (err) {
+      console.warn('Overpass public servers unavailable or slow:', err);
+      throw err;
+    } finally {
+      inFlightScans.delete(inflightKey);
+    }
+  })();
+
+  inFlightScans.set(inflightKey, scanPromise);
+  return scanPromise;
 }
 
 /**

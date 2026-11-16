@@ -1,6 +1,5 @@
-import React, { createContext, useContext, useCallback, ReactNode } from 'react';
-import { en, TranslationKey } from '../locales/en';
-import { fr } from '../locales/fr';
+import React, { createContext, useContext, useCallback, useState, useEffect, ReactNode } from 'react';
+import { en, TranslationKey, TranslationDictionary } from '../locales/en';
 import { ChecklistItem, TripProfile } from '../types/trip';
 import { PRESET_TRIP_TRANSLATIONS } from '../utils/presetTrips';
 import { loadRiderBikeSpecs, getActiveBike } from '../utils/specsStorage';
@@ -55,12 +54,35 @@ export function getCurrentLanguage(): Language {
   return 'en';
 }
 
+let frDict: TranslationDictionary | null = null;
+let frLoadPromise: Promise<TranslationDictionary> | null = null;
+
+/**
+ * Lazily loads the non-default locale bundle (French) so it stays out of the main entry chunk.
+ */
+export function ensureLocaleLoaded(lang: Language): Promise<void> {
+  if (lang !== 'fr' || frDict) {
+    return Promise.resolve();
+  }
+  if (!frLoadPromise) {
+    frLoadPromise = import('../locales/fr').then((m) => {
+      frDict = m.fr;
+      return m.fr;
+    });
+  }
+  return frLoadPromise.then(() => undefined);
+}
+
+if (typeof window !== 'undefined' && loadInitialLanguage() === 'fr') {
+  void ensureLocaleLoaded('fr');
+}
+
 export function translate(
   lang: Language,
   key: TranslationKey,
   params?: Record<string, string | number>
 ): string {
-  const dict = lang === 'fr' ? fr : en;
+  const dict = lang === 'fr' && frDict ? frDict : en;
   let str: string = dict[key] ?? en[key] ?? key;
   if (params) {
     for (const [k, v] of Object.entries(params)) {
@@ -90,14 +112,34 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({
   setLang,
   children,
 }) => {
+  const [frReady, setFrReady] = useState(() => frDict !== null);
+
+  useEffect(() => {
+    if (lang === 'fr' && !frDict) {
+      let cancelled = false;
+      void ensureLocaleLoaded('fr').then(() => {
+        if (!cancelled) {
+          setFrReady(true);
+        }
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+  }, [lang]);
+
   const toggleLang = useCallback(() => {
-    setLang(lang === 'fr' ? 'en' : 'fr');
+    const next: Language = lang === 'fr' ? 'en' : 'fr';
+    if (next === 'fr') {
+      void ensureLocaleLoaded('fr').then(() => setFrReady(true));
+    }
+    setLang(next);
   }, [lang, setLang]);
 
   const t = useCallback(
     (key: TranslationKey, params?: Record<string, string | number>) =>
       translate(lang, key, params),
-    [lang]
+    [lang, frReady]
   );
 
   return (

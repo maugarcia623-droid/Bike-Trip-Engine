@@ -17,9 +17,11 @@ import {
   Gauge,
 } from '@/components/icons';
 import { TripProfile, WeatherCondition } from '../../types/trip';
+import { RiderBikeSpecs } from '../../types/specs';
 import { TripCard } from './TripCard';
 import { UpcomingTripCard } from './UpcomingTripCard';
 import { WeatherWidget } from './WeatherWidget';
+import { QuickRideBuilder } from './QuickRideBuilder';
 import { Badge } from '../common/Badge';
 import { IconBadge } from '../common/IconBadge';
 import { Button } from '@/components/arc';
@@ -50,6 +52,8 @@ interface HomeScreenProps {
   onLoadDemoTrip?: () => void;
   onOpenFeedback?: () => void;
   onOpenTools?: (tab?: 'wind' | 'leave-by' | 'pressure') => void;
+  onQuickCreateTrip?: (trip: TripProfile, targetView: 'dashboard' | 'configurator') => void;
+  riderSpecs?: RiderBikeSpecs;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -67,6 +71,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onLoadDemoTrip,
   onOpenFeedback,
   onOpenTools,
+  onQuickCreateTrip,
+  riderSpecs,
 }) => {
   const { lang, t } = useTranslation();
   const { userProfile, username } = useUserProfile();
@@ -218,25 +224,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </p>
           </div>
 
-          {/* Action Controls Bar (All 4 Preserved, spanning left 3 columns under greeting) */}
+          {/* Primary Action Controls Bar (clean: Guided Setup + Create New Trip) */}
           <div className="flex items-center gap-2.5 flex-wrap">
-            <Button
-              variant="secondary"
-              size="md"
-              onClick={onOpenFeedback || (() => setIsFeedbackOpen(true))}
-              title={t('sendFeedbackBtn')}
-              className={`flex items-center gap-2 h-10 px-4 text-[13px] font-semibold rounded-full transition-all duration-150 cursor-pointer ${CHIP_TOKENS.purple.surface} ${CHIP_TOKENS.purple.primary} hover:brightness-[0.98] dark:hover:brightness-110 active:scale-[0.98] ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
-            >
-              <Send size={16} className="w-4 h-4 text-current shrink-0" />
-              <span>{t('sendFeedbackBtn')}</span>
-            </Button>
-
             {onOpenOnboarding && (
               <Button
                 variant="secondary"
                 size="md"
                 onClick={onOpenOnboarding}
-                className={`flex items-center gap-2 h-10 px-4 text-[13px] font-semibold rounded-full transition-all duration-150 cursor-pointer active:scale-[0.98] ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} hover:brightness-[0.98] dark:hover:brightness-110 ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                className={`flex items-center gap-2 min-h-[44px] sm:min-h-[40px] px-4 text-[13px] font-semibold rounded-full transition-all duration-150 cursor-pointer active:scale-[0.98] ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} hover:brightness-[0.98] dark:hover:brightness-110 ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
               >
                 <BookOpen2 className="w-4 h-4 text-current shrink-0" />
                 <span>{t('calibrationWizardBtn')}</span>
@@ -244,21 +239,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             )}
 
             <Button
-              variant="secondary"
-              size="md"
-              onClick={onResetDefaults}
-              title={t('resetDefaultsTitle')}
-              className={`flex items-center gap-2 h-10 px-4 text-[13px] font-medium bg-card hover:bg-pod rounded-full transition-all duration-150 cursor-pointer active:scale-[0.98] ${GREYSCALE_TOKENS.primary} hover:text-ink ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
-            >
-              <ArrowCounterClockwise className="w-4 h-4 text-current" />
-              <span>{t('resetDefaultsBtn')}</span>
-            </Button>
-
-            <Button
-              variant="primary"
+              variant="ghost"
               size="md"
               onClick={onCreateNewTrip}
-              className={`flex items-center gap-1.5 h-10 px-5 bg-[#111111] hover:bg-[#262626] text-white dark:bg-[#F5F5F7] dark:hover:bg-white dark:text-[#111111] font-medium text-[13px] rounded-full transition-all duration-150 cursor-pointer active:scale-[0.98] sm:ml-auto ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+              className={`flex items-center gap-1.5 min-h-[44px] sm:min-h-[40px] px-5 bg-[#111111] hover:bg-[#262626] text-white dark:bg-[#F5F5F7] dark:hover:bg-white dark:text-[#111111] border-0 ring-0 font-medium text-[13px] rounded-full transition-all duration-150 cursor-pointer active:scale-[0.98] ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
               <Plus className="w-4 h-4 text-current stroke-[2.2]" />
               <span>{t('createNewTripBtn')}</span>
@@ -266,6 +250,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </div>
         </div>
       </div>
+
+      {/* ── Zero-AI Quick-Start Ride Composer, 1-Tap Recipes & Drop & Go Importer ── */}
+      {onQuickCreateTrip && (
+        <QuickRideBuilder
+          riderSpecs={riderSpecs}
+          currentWeather={activeTrip?.weather}
+          onCreateTrip={onQuickCreateTrip}
+          onOpenOnboarding={onOpenOnboarding}
+        />
+      )}
 
       {/* ── Main 5-Column Layout Grid (3 Cols Left: Main Card + Saved Trips | 2 Cols Right: Current Conditions) ── */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-3.5 sm:gap-4 lg:gap-5 items-start">
@@ -316,7 +310,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                         variant="ghost"
                         size="sm"
                         onClick={() => setSelectedArchetype(tab.id)}
-                        className={`h-9 px-4 rounded-full text-xs font-semibold flex items-center gap-2 transition-all duration-150 active:scale-[0.98] cursor-pointer shrink-0 ${
+                        className={`min-h-[44px] sm:min-h-[36px] py-1.5 px-4 rounded-full text-xs font-semibold flex items-center gap-2 transition-all duration-150 active:scale-[0.98] cursor-pointer shrink-0 ${
                           isSelected
                             ? tab.selectedClasses
                             : 'bg-card hover:bg-pod text-ink-secondary hover:text-ink border border-ink/5 dark:border-white/5'
@@ -496,7 +490,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   variant="ghost"
                   size="sm"
                   onClick={() => onOpenTools('wind')}
-                  className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-rounded font-semibold cursor-pointer ${CHIP_TOKENS.sky.surface} ${CHIP_TOKENS.sky.primary}`}
+                  className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] py-1.5 px-3 rounded-full text-xs font-rounded font-semibold cursor-pointer ${CHIP_TOKENS.sky.surface} ${CHIP_TOKENS.sky.primary}`}
                 >
                   <Wind className="w-3.5 h-3.5" />
                   <span>{lang === 'fr' ? 'Coût du Vent' : 'Wind Cost'}</span>
@@ -505,7 +499,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   variant="ghost"
                   size="sm"
                   onClick={() => onOpenTools('leave-by')}
-                  className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-rounded font-semibold cursor-pointer ${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary}`}
+                  className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] py-1.5 px-3 rounded-full text-xs font-rounded font-semibold cursor-pointer ${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary}`}
                 >
                   <Clock className="w-3.5 h-3.5" />
                   <span>{lang === 'fr' ? 'Leave-By' : 'Leave-By'}</span>
@@ -514,7 +508,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   variant="ghost"
                   size="sm"
                   onClick={() => onOpenTools('pressure')}
-                  className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-rounded font-semibold cursor-pointer ${CHIP_TOKENS.teal.surface} ${CHIP_TOKENS.teal.primary}`}
+                  className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] py-1.5 px-3 rounded-full text-xs font-rounded font-semibold cursor-pointer ${CHIP_TOKENS.teal.surface} ${CHIP_TOKENS.teal.primary}`}
                 >
                   <Gauge className="w-3.5 h-3.5" />
                   <span>{lang === 'fr' ? 'Pression Pneus' : 'Tyre Pressure'}</span>
@@ -524,6 +518,34 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           )}
         </div>
       </div>
+
+      {/* Subtle Secondary Utilities Footer (Feedback + Reset Defaults) */}
+      <footer className="pt-4 mt-2 border-t border-ink/5 dark:border-white/5 flex flex-wrap items-center justify-between gap-3 text-xs text-ink-muted">
+        <span>
+          {lang === 'fr'
+            ? 'Planificateur local · Physique cycliste & ravitaillement 100 % navigateur'
+            : 'Local-first cycling physics & nutrition planner'}
+        </span>
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={onOpenFeedback || (() => setIsFeedbackOpen(true))}
+            className="inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] px-2 text-xs font-medium text-ink-muted hover:text-ink transition-colors cursor-pointer"
+          >
+            <Send size={14} className="w-3.5 h-3.5 text-current shrink-0" />
+            <span>{t('sendFeedbackBtn')}</span>
+          </button>
+          <button
+            type="button"
+            onClick={onResetDefaults}
+            title={t('resetDefaultsTitle')}
+            className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] px-2 text-xs font-medium transition-colors cursor-pointer ${GREYSCALE_TOKENS.primary} hover:text-ink`}
+          >
+            <ArrowCounterClockwise className="w-3.5 h-3.5 text-current shrink-0" />
+            <span>{t('resetDefaultsBtn')}</span>
+          </button>
+        </div>
+      </footer>
 
       {/* Standalone User Feedback Modal */}
       <FeedbackModal

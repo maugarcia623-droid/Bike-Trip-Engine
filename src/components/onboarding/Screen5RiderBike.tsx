@@ -5,6 +5,7 @@ import { useTranslation } from '../../context/LanguageContext';
 import { BIKE_OPTIONS } from './constants';
 
 interface Screen5RiderBikeProps {
+  purposeId?: string;
   riderWeightKg: number;
   onChangeRiderWeight: (kg: number) => void;
   luggageWeightKg: number;
@@ -30,6 +31,7 @@ interface Screen5RiderBikeProps {
 }
 
 export const Screen5RiderBike: React.FC<Screen5RiderBikeProps> = ({
+  purposeId,
   riderWeightKg,
   onChangeRiderWeight,
   luggageWeightKg,
@@ -257,12 +259,16 @@ export const Screen5RiderBike: React.FC<Screen5RiderBikeProps> = ({
                 </div>
                 <div className="min-w-0">
                   <div className="text-sm font-rounded font-bold text-ink leading-snug">
-                    {isFr ? 'Suivi par puissance & Watts (FTP)' : 'Include power & Watts (FTP)'}
+                    {isFr ? 'Suivi quantitatif · Puissance & Watts (FTP)' : 'Quantitative Telemetry · Power & Watts (FTP)'}
                   </div>
                   <p className="text-xs text-ink-secondary font-body mt-0.5 leading-relaxed">
-                    {isFr
-                      ? 'Par défaut, Cadence reste en mode guidé calme (allure, hydratation, pauses). Activez cette option si vous roulez au capteur de puissance.'
-                      : 'By default Cadence starts in calm Guided mode. Turn this on if you ride with a power meter or want wattage targets.'}
+                    {purposeId === 'sport'
+                      ? isFr
+                        ? 'En sortie Sportive, l’affichage quantitatif (g/h, Watts, Zones) est activé par défaut. Activez cet interrupteur pour piloter l’allure en Watts via votre FTP.'
+                        : 'Sport rides default to quantitative telemetry (g/h, Watts, Zones). Keep this on if you ride with a power meter or target wattage pacing.'
+                      : isFr
+                        ? 'Activez cette option pour passer en télémétrie quantitative complète (Watts, FTP et objectifs g/h précis).'
+                        : 'Turn this on to enable full quantitative telemetry (Watts, FTP zones, and exact g/hr targets) instead of Fuel-First.'}
                   </p>
                 </div>
               </div>

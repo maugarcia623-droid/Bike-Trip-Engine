@@ -9,6 +9,9 @@ import { getChipsExtraBufferMinutes } from '../../utils/archetypeChips';
 import { parseRouteFile } from '../../utils/routeFileParser';
 import { fetchDemElevationProfile } from '../../services/elevationService';
 import { HeroRouteCard } from './HeroRouteCard';
+const RideModeOverlay = React.lazy(() =>
+  import('./RideModeOverlay').then((m) => ({ default: m.RideModeOverlay }))
+);
 import { AtmosphereCard } from './AtmosphereCard';
 import { PhysicsEngineCard } from './PhysicsEngineCard';
 import { ReverseTimelineBento } from './ReverseTimelineBento';
@@ -31,6 +34,12 @@ import {
   Download,
   X,
   Compass,
+  Map as MapIcon,
+  CloudSun,
+  Clock,
+  CheckCircle2,
+  ForkKnife,
+  Gauge,
 } from '@/components/icons';
 import { useTranslation, getLocalizedTripMeta } from '../../context/LanguageContext';
 import { switchActiveStage, getExpeditionTotals } from '../../utils/stageManager';
@@ -38,6 +47,7 @@ import { downloadEntireTourGpx } from '../../utils/gpxExporter';
 import {
   CHIP_TOKENS,
   CHIP_RING_BASE,
+  CHIP_RING_UNSELECTED,
   CHIP_DUOTONE_ISOLATION_CLASSES,
 } from '../../tokens/chipTokens';
 
@@ -83,6 +93,7 @@ function useIsDesktop(): boolean {
 export const BentoDashboard: React.FC<BentoDashboardProps> = ({
   trip,
   onUpdateTrip,
+  onPrint,
   onShareReceipt: onShareReceiptProp,
   onOpenFeedback,
   riderSpecs,
@@ -101,32 +112,70 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
   const isDesktop = useIsDesktop();
   const [isShareModalOpen, setIsShareModalOpen] = React.useState<boolean>(false);
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = React.useState<boolean>(false);
+  const [isRideModeOpen, setIsRideModeOpen] = React.useState<boolean>(false);
   const [gpxErrorMsg, setGpxErrorMsg] = React.useState<string | null>(null);
   const [loadedAmenities, setLoadedAmenities] = React.useState<StageAmenity[]>([]);
-  const [isBriefExpanded, setIsBriefExpanded] = React.useState<boolean>(() => {
+  const [activeQuickJump, setActiveQuickJump] = React.useState<string>('bento-route');
+
+  const getInitialBriefExpanded = React.useCallback((desktop: boolean): boolean => {
     try {
-      return localStorage.getItem('cadence_ride_brief_expanded') !== 'false';
+      const key = desktop ? 'cadence_ride_brief_expanded' : 'cadence_ride_brief_expanded_mobile';
+      const saved = localStorage.getItem(key);
+      if (saved === 'true') return true;
+      if (saved === 'false') return false;
     } catch {
-      return true;
+      // Ignore storage errors
     }
-  });
+    return desktop;
+  }, []);
+
+  const [isBriefExpanded, setIsBriefExpanded] = React.useState<boolean>(() =>
+    getInitialBriefExpanded(isDesktop)
+  );
+
+  const prevIsDesktopRef = React.useRef<boolean>(isDesktop);
+  React.useEffect(() => {
+    if (prevIsDesktopRef.current !== isDesktop) {
+      prevIsDesktopRef.current = isDesktop;
+      setIsBriefExpanded(getInitialBriefExpanded(isDesktop));
+    }
+  }, [isDesktop, getInitialBriefExpanded]);
+
   const toggleBriefExpanded = React.useCallback(() => {
     setIsBriefExpanded((prev) => {
       const next = !prev;
       try {
-        localStorage.setItem('cadence_ride_brief_expanded', next ? 'true' : 'false');
+        const key = isDesktop ? 'cadence_ride_brief_expanded' : 'cadence_ride_brief_expanded_mobile';
+        localStorage.setItem(key, next ? 'true' : 'false');
       } catch {
         // Ignore storage errors
       }
       return next;
     });
+  }, [isDesktop]);
+
+  const handleShareReceipt = React.useCallback(() => {
+    if (onShareReceiptProp) {
+      onShareReceiptProp();
+    } else {
+      setIsShareModalOpen(true);
+    }
+  }, [onShareReceiptProp]);
+
+  const handleQuickJump = React.useCallback((targetId: string) => {
+    setActiveQuickJump(targetId);
+    const el = document.getElementById(targetId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }, []);
 
   React.useEffect(() => {
     if (!externalRideBriefOpen) return;
     setIsBriefExpanded(true);
     try {
-      localStorage.setItem('cadence_ride_brief_expanded', 'true');
+      const key = isDesktop ? 'cadence_ride_brief_expanded' : 'cadence_ride_brief_expanded_mobile';
+      localStorage.setItem(key, 'true');
     } catch {
       // Ignore storage errors
     }
@@ -135,12 +184,13 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
       target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
     onCloseRideBrief?.();
-  }, [externalRideBriefOpen, onCloseRideBrief]);
+  }, [externalRideBriefOpen, onCloseRideBrief, isDesktop]);
 
   const openRideBrief = () => {
     setIsBriefExpanded(true);
     try {
-      localStorage.setItem('cadence_ride_brief_expanded', 'true');
+      const key = isDesktop ? 'cadence_ride_brief_expanded' : 'cadence_ride_brief_expanded_mobile';
+      localStorage.setItem(key, 'true');
     } catch {
       // Ignore storage errors
     }
@@ -575,7 +625,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-3.5 sm:gap-4 lg:gap-5 items-start">
           {/* Left Column (Desktop: 3 of 5 cols) - Hero Card, Reverse Timeline & Power/Resistance */}
           <div className="lg:col-span-3 flex flex-col gap-3.5 sm:gap-4 lg:gap-5 min-w-0">
-            <div className="animate-flight-deck-in deck-stagger-1 min-w-0">
+            <div id="bento-route" className="scroll-mt-3 animate-flight-deck-in deck-stagger-1 min-w-0">
               <HeroRouteCard
                 trip={trip}
                 physicsResult={physicsResult}
@@ -591,20 +641,23 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
                 onOpenSpecs={onOpenSpecs}
                 onOpenConfigurator={onOpenConfigurator}
                 onUploadGpxFile={handleUploadGpxInCockpit}
+                onPrint={onPrint}
+                onShareReceipt={handleShareReceipt}
                 amenities={loadedAmenities}
                 selectedAmenity={selectedAmenity}
                 onSelectAmenity={setSelectedAmenity}
                 onAmenitiesLoaded={setLoadedAmenities}
+                onStartRideMode={() => setIsRideModeOpen(true)}
               />
             </div>
-            <div className="animate-flight-deck-in deck-stagger-2 min-w-0">
+            <div id="bento-timeline" className="scroll-mt-3 animate-flight-deck-in deck-stagger-2 min-w-0">
               <ReverseTimelineBento
                 trip={trip}
                 timeline={timelineResult}
                 riderSpecs={effectiveSpecs}
               />
             </div>
-            <div className="animate-flight-deck-in deck-stagger-3 min-w-0">
+            <div id="bento-physics" className="scroll-mt-3 animate-flight-deck-in deck-stagger-3 min-w-0">
               <PhysicsEngineCard
                 trip={trip}
                 physicsResult={physicsResult}
@@ -617,7 +670,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
 
           {/* Right Column (Desktop: 2 of 5 cols) - Weather Card, Checklist & Nutrition */}
           <div className="lg:col-span-2 flex flex-col gap-3.5 sm:gap-4 lg:gap-5 min-w-0">
-            <div className="animate-flight-deck-in deck-stagger-2 min-w-0">
+            <div id="bento-weather" className="scroll-mt-3 animate-flight-deck-in deck-stagger-2 min-w-0">
               <AtmosphereCard
                 trip={trip}
                 physicsResult={physicsResult}
@@ -625,14 +678,14 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
                 hardRolloutTime={timelineResult.hardDepartureTime}
               />
             </div>
-            <div className="animate-flight-deck-in deck-stagger-4 min-w-0">
+            <div id="bento-checklist" className="scroll-mt-3 animate-flight-deck-in deck-stagger-4 min-w-0">
               <PreFlightChecklistBento
                 trip={trip}
                 onUpdateTrip={onUpdateTrip}
                 riderSpecs={effectiveSpecs}
               />
             </div>
-            <div className="animate-flight-deck-in deck-stagger-5 min-w-0">
+            <div id="bento-nutrition" className="scroll-mt-3 animate-flight-deck-in deck-stagger-5 min-w-0">
               <NutritionBento
                 trip={trip}
                 hardDepartureTime={timelineResult.hardDepartureTime}
@@ -646,10 +699,46 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
           </div>
         </div>
       ) : (
-        /* Mobile Linear Stack (< 1024px) with 20px (gap-5) vertical spacing */
+        /* Mobile Linear Stack (< 1024px) with Quick-Jump Pill Bar & 20px (gap-5) vertical spacing */
         <div className="flex flex-col gap-5 min-w-0">
+          {/* Mobile Quick-Jump Pill Bar */}
+          <nav
+            aria-label={isFr ? 'Accès rapide aux sections' : 'Quick jump to sections'}
+            data-testid="mobile-quick-jump-bar"
+            className="-mx-1 px-1 -mb-1.5 flex items-center gap-2 overflow-x-auto no-scrollbar snap-x"
+          >
+            {[
+              { id: 'bento-route', label: isFr ? 'Carte' : 'Map', icon: MapIcon },
+              { id: 'bento-weather', label: isFr ? 'Météo' : 'Weather', icon: CloudSun },
+              { id: 'bento-timeline', label: isFr ? 'Horaires' : 'Timeline', icon: Clock },
+              { id: 'bento-checklist', label: isFr ? 'Check-list' : 'Checklist', icon: CheckCircle2 },
+              { id: 'bento-nutrition', label: isFr ? 'Ravito' : 'Fuel', icon: ForkKnife },
+              { id: 'bento-physics', label: 'Stats', icon: Gauge },
+            ].map((item) => {
+              const Icon = item.icon;
+              const isActive = activeQuickJump === item.id;
+              return (
+                <Button
+                  key={item.id}
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  onClick={() => handleQuickJump(item.id)}
+                  className={`min-h-[44px] px-3.5 py-2 rounded-full inline-flex items-center gap-1.5 text-xs font-rounded font-bold whitespace-nowrap shrink-0 snap-start transition-all cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                    isActive
+                      ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing} shadow-xs`
+                      : `bg-card hover:bg-pod text-ink-secondary hover:text-ink ${CHIP_RING_UNSELECTED} shadow-xs`
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5 shrink-0 text-current" />
+                  <span>{item.label}</span>
+                </Button>
+              );
+            })}
+          </nav>
+
           {/* 1. Hero Route Card */}
-          <div className="animate-flight-deck-in deck-stagger-1 min-w-0">
+          <div id="bento-route" className="scroll-mt-3 animate-flight-deck-in deck-stagger-1 min-w-0">
             <HeroRouteCard
               trip={trip}
               physicsResult={physicsResult}
@@ -665,15 +754,18 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
               onOpenSpecs={onOpenSpecs}
               onOpenConfigurator={onOpenConfigurator}
               onUploadGpxFile={handleUploadGpxInCockpit}
+              onPrint={onPrint}
+              onShareReceipt={handleShareReceipt}
               amenities={loadedAmenities}
               selectedAmenity={selectedAmenity}
               onSelectAmenity={setSelectedAmenity}
               onAmenitiesLoaded={setLoadedAmenities}
+              onStartRideMode={() => setIsRideModeOpen(true)}
             />
           </div>
 
           {/* 2. Weather Bento */}
-          <div className="animate-flight-deck-in deck-stagger-2">
+          <div id="bento-weather" className="scroll-mt-3 animate-flight-deck-in deck-stagger-2">
             <AtmosphereCard
               trip={trip}
               physicsResult={physicsResult}
@@ -683,7 +775,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
           </div>
 
           {/* 3. Dynamic Reverse Timeline */}
-          <div className="animate-flight-deck-in deck-stagger-3">
+          <div id="bento-timeline" className="scroll-mt-3 animate-flight-deck-in deck-stagger-3">
             <ReverseTimelineBento
               trip={trip}
               timeline={timelineResult}
@@ -692,7 +784,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
           </div>
 
           {/* 4. Pre-Flight Inspection Checklist */}
-          <div className="animate-flight-deck-in deck-stagger-4">
+          <div id="bento-checklist" className="scroll-mt-3 animate-flight-deck-in deck-stagger-4">
             <PreFlightChecklistBento
               trip={trip}
               onUpdateTrip={onUpdateTrip}
@@ -701,7 +793,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
           </div>
 
           {/* 5. Baseline Dock: Real-Food Nutrition */}
-          <div className="animate-flight-deck-in deck-stagger-5">
+          <div id="bento-nutrition" className="scroll-mt-3 animate-flight-deck-in deck-stagger-5">
             <NutritionBento
               trip={trip}
               hardDepartureTime={timelineResult.hardDepartureTime}
@@ -714,7 +806,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
           </div>
 
           {/* 6. Telemetry Dock: Aerodynamic & Rolling Physics Engine */}
-          <div className="animate-flight-deck-in deck-stagger-6">
+          <div id="bento-physics" className="scroll-mt-3 animate-flight-deck-in deck-stagger-6">
             <PhysicsEngineCard
               trip={trip}
               physicsResult={physicsResult}
@@ -770,6 +862,19 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
         onClose={() => setGpxErrorMsg(null)}
         onConfirm={() => setGpxErrorMsg(null)}
       />
+
+      {/* ── In-Ride "Ride Mode" HUD Overlay ── */}
+      {isRideModeOpen && (
+        <React.Suspense fallback={null}>
+          <RideModeOverlay
+            trip={trip}
+            physicsResult={physicsResult}
+            riderSpecs={effectiveSpecs}
+            loadedAmenities={loadedAmenities}
+            onClose={() => setIsRideModeOpen(false)}
+          />
+        </React.Suspense>
+      )}
     </div>
   );
 };

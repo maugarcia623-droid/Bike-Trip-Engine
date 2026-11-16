@@ -44,6 +44,7 @@ export const SchematicRouteMap: React.FC<SchematicRouteMapProps> = ({
 
     try {
       const map = L.map(mapContainerRef.current, {
+        preferCanvas: true,
         zoomControl: false,
         attributionControl: false,
         dragging: true,

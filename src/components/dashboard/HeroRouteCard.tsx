@@ -29,9 +29,18 @@ import {
   TriangleAlert,
   RefreshCw,
   LoaderCircle,
+  Printer,
+  Send,
+  Compass,
+  Play,
 } from '@/components/icons';
-import { downloadTripGpx } from '../../utils/gpxExporter';
+import { downloadTripGpx, downloadTripTcx } from '../../utils/gpxExporter';
 import { downloadTripFit } from '../../utils/fitExporter';
+import {
+  getExpeditionPackStatus,
+  OfflineExpeditionPackMeta,
+  saveExpeditionPack,
+} from '../../services/offlinePackService';
 import { TripProfile, PhysicsCalculationResult, SurfaceSegment, SurfaceType } from '../../types/trip';
 import { StageAmenity } from '../../types/amenities';
 import { ResupplyRadarOverlay } from './ResupplyRadarOverlay';
@@ -45,12 +54,15 @@ import { useTranslation } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { calculateDynamicCarbTarget } from '../../utils/nutrition';
 import { Badge } from '../common/Badge';
+import { IconBadge } from '../common/IconBadge';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
   CHIP_RING_BASE,
   CHIP_RING_UNSELECTED,
   CHIP_TOKENS,
   GREYSCALE_TOKENS,
+  YELLOW_VEST_SOLID_CTA_CLASSES,
+  ChipTheme,
 } from '../../tokens/chipTokens';
 
 interface HeroRouteCardProps {
@@ -72,6 +84,7 @@ interface HeroRouteCardProps {
   onOpenSpecs?: () => void;
   onOpenConfigurator?: () => void;
   onUploadGpxFile?: (file: File) => void;
+  onPrint?: () => void;
   onShareReceipt?: () => void;
   onOpenFeedback?: () => void;
   amenities?: StageAmenity[];
@@ -79,9 +92,10 @@ interface HeroRouteCardProps {
   onSelectAmenity?: (amenity: StageAmenity) => void;
   onTogglePinAmenity?: (amenity: StageAmenity) => void;
   onAmenitiesLoaded?: (amenities: StageAmenity[]) => void;
+  onStartRideMode?: () => void;
 }
 
-type ActiveHeroPopover = 'bike' | 'target' | 'route' | 'pace' | 'elevation' | null;
+type ActiveHeroPopover = 'bike' | 'target' | 'route' | 'pace' | 'elevation' | 'export' | null;
 
 const ELEV_MATRIX_COLS = 60; // 60 × 12 @ 8u pitch → 5:1 aspect, fills the popover width edge to edge
 const ELEV_MATRIX_ROWS = 12;
@@ -151,6 +165,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
   onOpenSpecs,
   onOpenConfigurator,
   onUploadGpxFile,
+  onPrint,
   onShareReceipt,
   onOpenFeedback,
   amenities,
@@ -158,6 +173,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
   onSelectAmenity,
   onTogglePinAmenity,
   onAmenitiesLoaded,
+  onStartRideMode,
 }) => {
   const { lang, t } = useTranslation();
   const isFr = lang === 'fr';
@@ -181,6 +197,47 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
 
   const [activePopover, setActivePopover] = useState<ActiveHeroPopover>(null);
   const [isRadarOpen, setIsRadarOpen] = useState<boolean>(false);
+  const [includeFitFuelCues, setIncludeFitFuelCues] = useState<boolean>(true);
+  const [exportFeedback, setExportFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+  const exportToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (exportToastTimerRef.current) {
+        clearTimeout(exportToastTimerRef.current);
+      }
+    };
+  }, []);
+
+  const showExportToast = (kind: 'ok' | 'err', msg: string) => {
+    if (exportToastTimerRef.current) {
+      clearTimeout(exportToastTimerRef.current);
+    }
+    setExportFeedback({ kind, msg });
+    exportToastTimerRef.current = setTimeout(() => {
+      setExportFeedback(null);
+    }, 2400);
+  };
+
+  const runFileExport = (formatLabel: string, exporter: () => void) => {
+    try {
+      exporter();
+      setActivePopover(null);
+      showExportToast(
+        'ok',
+        isFr ? `${formatLabel} téléchargé` : `${formatLabel} downloaded`
+      );
+    } catch (err) {
+      showExportToast(
+        'err',
+        err instanceof Error
+          ? err.message
+          : isFr
+          ? `Export ${formatLabel} indisponible`
+          : `${formatLabel} export unavailable`
+      );
+    }
+  };
   const [showMapDots, setShowMapDots] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem('cadence_show_map_amenity_dots');
@@ -210,6 +267,43 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
   const activeBike = getActiveBike(effectiveSpecs);
   const isInteractive = Boolean(onUpdateTrip);
   const isDepartAtMode = trip.arriveAtMode === false;
+  const [offlinePack, setOfflinePack] = useState<OfflineExpeditionPackMeta | null>(null);
+  const [isSavingOffline, setIsSavingOffline] = useState(false);
+  const [isOnline, setIsOnline] = useState(() =>
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
+
+  useEffect(() => {
+    let active = true;
+    getExpeditionPackStatus(trip.id).then((meta) => {
+      if (active) setOfflinePack(meta);
+    });
+    return () => {
+      active = false;
+    };
+  }, [trip.id]);
+
+  useEffect(() => {
+    const onOnline = () => setIsOnline(true);
+    const onOffline = () => setIsOnline(false);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
+  }, []);
+
+  const handleSaveOfflinePack = async () => {
+    if (isSavingOffline) return;
+    setIsSavingOffline(true);
+    try {
+      const meta = await saveExpeditionPack(trip, lang);
+      setOfflinePack(meta);
+    } finally {
+      setIsSavingOffline(false);
+    }
+  };
   const currentTargetGateTime = isDepartAtMode
     ? trip.departureTime || timelineResult.hardDepartureTime || '07:30'
     : trip.office.targetGateArrivalTime || trip.office.shiftStartTime || '08:30';
@@ -940,6 +1034,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
       : aCoords[0] || [47.2184, -1.5536];
 
     const map = L.map(mapContainerRef.current, {
+      preferCanvas: true,
       center: initialCenter,
       zoom: 11,
       zoomControl: false,
@@ -968,11 +1063,18 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
 
     updateVectorLayers(isDark, rMode, rCenter, aCoords, rMeters);
 
+    let resizeDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     const resizeObserver = new ResizeObserver(() => {
-      if (!mapInstanceRef.current) return;
-      mapInstanceRef.current.invalidateSize();
-      const current = latestRouteRef.current;
-      fitRouteInClearArea(current.isRadiusMode, current.radiusCenter, current.activeCoordinates);
+      if (resizeDebounceTimer !== null) {
+        clearTimeout(resizeDebounceTimer);
+      }
+      resizeDebounceTimer = setTimeout(() => {
+        resizeDebounceTimer = null;
+        if (!mapInstanceRef.current) return;
+        mapInstanceRef.current.invalidateSize();
+        const current = latestRouteRef.current;
+        fitRouteInClearArea(current.isRadiusMode, current.radiusCenter, current.activeCoordinates);
+      }, 120);
     });
     resizeObserver.observe(mapContainerRef.current);
 
@@ -986,7 +1088,14 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
 
     return () => {
       clearTimeout(initFitTimer);
+      if (resizeDebounceTimer !== null) {
+        clearTimeout(resizeDebounceTimer);
+      }
       resizeObserver.disconnect();
+      if (surfaceHighlightLayerRef.current) {
+        surfaceHighlightLayerRef.current.remove();
+        surfaceHighlightLayerRef.current = null;
+      }
       map.remove();
       mapInstanceRef.current = null;
       tileLayerRef.current = null;
@@ -1014,49 +1123,49 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
     );
   }, [routeFingerprint, surfaceBreakdown, isDarkMode]);
 
-  // 2b. Highlight active/hovered surface segment on map
+  // 2b. Highlight active/hovered surface segment on map (reuses single persistent polyline)
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
 
-    if (surfaceHighlightLayerRef.current) {
-      surfaceHighlightLayerRef.current.remove();
-      surfaceHighlightLayerRef.current = null;
+    if (!surfaceHighlightLayerRef.current) {
+      surfaceHighlightLayerRef.current = L.polyline([], {
+        weight: 7,
+        opacity: 0,
+        lineCap: 'round',
+        lineJoin: 'round',
+        interactive: false,
+      }).addTo(map);
     }
 
+    const poly = surfaceHighlightLayerRef.current;
     const colSegId =
       hoveredElevCol !== null && elevationColumns[hoveredElevCol]
         ? elevationColumns[hoveredElevCol].segmentId
         : null;
     const targetSegId = activeSurfaceSegmentId ?? colSegId;
-    if (!targetSegId || isRadiusMode) return;
+
+    if (!targetSegId || isRadiusMode) {
+      poly.setStyle({ opacity: 0 });
+      poly.setLatLngs([]);
+      return;
+    }
 
     const seg = surfaceBreakdown.segments.find((s) => s.id === targetSegId);
-    if (!seg || !seg.coordinates || seg.coordinates.length < 2) return;
+    if (!seg || !seg.coordinates || seg.coordinates.length < 2) {
+      poly.setStyle({ opacity: 0 });
+      poly.setLatLngs([]);
+      return;
+    }
 
     const meta = SURFACE_VISUAL_META[seg.type];
-    const highlightPoly = L.polyline(seg.coordinates, {
-      color: isDarkMode ? '#FFFFFF' : '#111111',
-      weight: 9,
-      opacity: 0.85,
-      lineCap: 'round',
-      lineJoin: 'round',
-    }).addTo(map);
-
-    const innerHighlight = L.polyline(seg.coordinates, {
+    poly.setStyle({
       color: isDarkMode ? meta.colorDark : meta.colorLight,
-      weight: 5.5,
-      opacity: 1,
-      lineCap: 'round',
-      lineJoin: 'round',
-    }).addTo(map);
-
-    const fg = L.featureGroup([highlightPoly, innerHighlight]).addTo(map);
-    surfaceHighlightLayerRef.current = fg as unknown as L.Polyline;
-
-    return () => {
-      fg.remove();
-    };
+      weight: 7,
+      opacity: 0.95,
+    });
+    poly.setLatLngs(seg.coordinates);
+    poly.bringToFront();
   }, [activeSurfaceSegmentId, hoveredElevCol, elevationColumns, surfaceBreakdown.segments, isDarkMode, isRadiusMode]);
 
   // 3. Update map tiles & layer styles when theme changes (no map recreation)
@@ -1264,7 +1373,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
       </div>
 
       <div className="relative z-20 p-4 flex flex-col justify-between min-h-[460px] sm:min-h-[490px] lg:min-h-[520px] pointer-events-none">
-        <div className="relative z-30 flex flex-wrap items-center justify-start gap-2 mb-24 sm:mb-20 pointer-events-none max-w-full">
+        <div className="relative z-30 flex flex-wrap items-center justify-between gap-2 mb-24 sm:mb-20 pointer-events-none max-w-full">
           {/* ── MINI DYNAMIC ISLAND PILL (1:1 ICON BUTTONS: ROUTE, RESUPPLY RADAR, BIKE SPECS) ── */}
           <div className="relative inline-flex items-center gap-1 sm:gap-1.5 p-1 sm:p-1.5 rounded-full bg-card/95 dark:bg-[#161618]/95 backdrop-blur-md text-ink dark:text-white shadow-sm sm:shadow-md pointer-events-auto select-none transition-colors">
             {/* 1. Route Direction / Flip Button (1:1 format, icon only) */}
@@ -1307,7 +1416,10 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
             {/* 2. Corridor Resupply Radar Button (1:1 format, icon only) */}
             <Button variant="ghost"
               type="button"
-              onClick={() => setIsRadarOpen((prev) => !prev)}
+              onClick={() => {
+                setActivePopover(null);
+                setIsRadarOpen((prev) => !prev);
+              }}
               aria-expanded={isRadarOpen}
               aria-label={t('resupplyRadarTitle')}
               title={`${t('resupplyRadarTitle')}${
@@ -1424,6 +1536,338 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                 </div>
               </>
             )}
+          </div>
+
+          {/* ── RIGHT DYNAMIC ISLAND PILL (RIDE MODE, OFFLINE PACK & EXPORT / SEND) ── */}
+          <div className="relative inline-flex items-center gap-1 sm:gap-1.5 p-1 sm:p-1.5 rounded-full bg-card/95 dark:bg-[#161618]/95 backdrop-blur-md text-ink dark:text-white shadow-sm sm:shadow-md pointer-events-auto select-none transition-colors">
+            {!isOnline && (
+              <span
+                className={`inline-flex items-center gap-1 px-2.5 h-9 rounded-full text-[11px] font-rounded font-bold ${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.amber.selectedRing}`}
+              >
+                <span>{isFr ? 'Hors ligne' : 'Offline'}</span>
+              </span>
+            )}
+
+            {onStartRideMode && (
+              <Button
+                variant="ghost"
+                size="sm"
+                type="button"
+                data-testid="hero-start-ride-mode-btn"
+                onClick={onStartRideMode}
+                title={t('startRideModeBtn')}
+                className={`relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 h-9 px-3 rounded-full inline-flex items-center gap-1.5 text-xs font-rounded font-bold transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+              >
+                <Play className="w-4 h-4 shrink-0 text-current" />
+                <span className="whitespace-nowrap">
+                  {isFr ? 'Mode Vélo' : 'Ride Mode'}
+                </span>
+              </Button>
+            )}
+
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              data-testid="hero-offline-pack-btn"
+              disabled={isSavingOffline}
+              onClick={() => {
+                void handleSaveOfflinePack();
+              }}
+              aria-label={
+                offlinePack
+                  ? isFr
+                    ? 'Hors ligne prêt'
+                    : 'Offline Ready'
+                  : isFr
+                  ? 'Sauver hors ligne'
+                  : 'Save Offline'
+              }
+              title={
+                offlinePack
+                  ? isFr
+                    ? `Pack hors ligne enregistré (${offlinePack.amenitiesCount} arrêts, carte & météo)`
+                    : `Offline pack saved (${offlinePack.amenitiesCount} stops, map & weather)`
+                  : isFr
+                  ? 'Enregistrer carte, arrêts, surface et météo pour rouler sans réseau'
+                  : 'Save map, stops, surface & weather for zero-signal rides'
+              }
+              className={`relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 h-9 w-9 lg:w-auto lg:px-3 rounded-full inline-flex items-center justify-center gap-1.5 text-xs font-rounded font-bold transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 ${
+                offlinePack
+                  ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.emerald.selectedRing}`
+                  : `hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
+              } ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+            >
+              {isSavingOffline ? (
+                <LoaderCircle className="w-4 h-4 shrink-0 animate-spin text-current" />
+              ) : offlinePack ? (
+                <ShieldCheck className="w-4 h-4 shrink-0 text-current" />
+              ) : (
+                <Download className="w-4 h-4 shrink-0 text-current" />
+              )}
+              <span className="hidden lg:inline whitespace-nowrap">
+                {isSavingOffline
+                  ? isFr
+                    ? 'Enregistrement…'
+                    : 'Saving…'
+                  : offlinePack
+                  ? isFr
+                    ? 'Hors ligne prêt'
+                    : 'Offline Ready'
+                  : isFr
+                  ? 'Sauver hors ligne'
+                  : 'Save Offline'}
+              </span>
+            </Button>
+
+            {exportFeedback && exportFeedback.kind === 'ok' && (
+              <span
+                role="status"
+                className={`hidden sm:inline-flex items-center gap-1 px-2.5 h-9 rounded-full text-[11px] font-rounded font-bold shadow-xs ${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.emerald.selectedRing} animate-apple-popover`}
+              >
+                <Check className="w-3.5 h-3.5 shrink-0" />
+                <span>{exportFeedback.msg}</span>
+              </span>
+            )}
+
+            <Button
+              variant="primary"
+              size="sm"
+              type="button"
+              data-testid="hero-export-btn"
+              onClick={() => {
+                setIsRadarOpen(false);
+                setActivePopover((prev) => (prev === 'export' ? null : 'export'));
+              }}
+              aria-expanded={activePopover === 'export'}
+              aria-haspopup="menu"
+              aria-label={isFr ? 'Exporter ou envoyer le parcours' : 'Export or send route'}
+              title={isFr ? 'Exporter ou envoyer le parcours' : 'Export or send route'}
+              className={`relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 h-9 w-9 sm:w-auto sm:px-3.5 rounded-full inline-flex items-center justify-center gap-1.5 text-xs font-rounded font-bold cursor-pointer transition-all duration-150 active:scale-95 shrink-0 ${YELLOW_VEST_SOLID_CTA_CLASSES}`}
+            >
+              <Download className="w-4 h-4 shrink-0 text-current" />
+              <span className="hidden sm:inline whitespace-nowrap">
+                {isFr ? 'Exporter / Envoyer' : 'Export / Send'}
+              </span>
+              <CaretDown
+                className={`hidden sm:inline w-3.5 h-3.5 shrink-0 text-current transition-transform duration-150 ${
+                  activePopover === 'export' ? 'rotate-180' : ''
+                }`}
+              />
+            </Button>
+
+            {activePopover === 'export' && (() => {
+              const pinnedStopCount = trip.pinnedAmenities?.length || 0;
+              const stopSuffix =
+                pinnedStopCount > 0
+                  ? isFr
+                    ? ` · ${pinnedStopCount} arrêt${pinnedStopCount > 1 ? 's' : ''}`
+                    : ` · ${pinnedStopCount} stop${pinnedStopCount > 1 ? 's' : ''}`
+                  : '';
+
+              const exportActions: Array<{
+                id: string;
+                theme: ChipTheme;
+                icon: React.ElementType;
+                title: string;
+                sub: string;
+                badge?: string;
+                onSelect: () => void;
+              }> = [
+                {
+                  id: 'fit',
+                  theme: 'amber',
+                  icon: Download,
+                  title: 'Garmin / Wahoo .FIT',
+                  sub: includeFitFuelCues
+                    ? isFr
+                      ? `Parcours + cols & alertes nutrition${stopSuffix}`
+                      : `Course + climb & fueling alerts${stopSuffix}`
+                    : isFr
+                    ? `Parcours binaire + virages${stopSuffix}`
+                    : `Binary course + Up Ahead cues${stopSuffix}`,
+                  badge: '.FIT',
+                  onSelect: () => {
+                    const fitSpecs = riderSpecs ?? loadRiderBikeSpecs();
+                    runFileExport('.FIT', () =>
+                      downloadTripFit(trip, {
+                        includeFuelingCues: includeFitFuelCues,
+                        includeClimbCues: includeFitFuelCues,
+                        lang,
+                        ftpWatts: fitSpecs.ftpWatts,
+                        carbTargetGPerHr: fitSpecs.carbTargetGPerHr,
+                        nutritionPreference: fitSpecs.nutritionPreference,
+                      })
+                    );
+                  },
+                },
+                {
+                  id: 'gpx',
+                  theme: 'sky',
+                  icon: MapIcon,
+                  title: isFr ? 'GPS .GPX' : 'GPS .GPX',
+                  sub: isFr
+                    ? `Trace GPS universelle & repères${stopSuffix}`
+                    : `Universal GPS track & waypoints${stopSuffix}`,
+                  badge: '.GPX',
+                  onSelect: () => runFileExport('.GPX', () => downloadTripGpx(trip)),
+                },
+                {
+                  id: 'tcx',
+                  theme: 'emerald',
+                  icon: Compass,
+                  title: isFr ? 'Entraînement .TCX' : 'Training .TCX',
+                  sub: isFr
+                    ? 'Parcours avec dénivelé, allure & watts'
+                    : 'Course with elevation, pace & power',
+                  badge: '.TCX',
+                  onSelect: () => runFileExport('.TCX', () => downloadTripTcx(trip)),
+                },
+              ];
+
+              if (onPrint) {
+                exportActions.push({
+                  id: 'print',
+                  theme: 'blue',
+                  icon: Printer,
+                  title: isFr ? 'Imprimer feuille A4' : 'Print A4 Flight Sheet',
+                  sub: isFr
+                    ? 'Carnet de route et check-list imprimables'
+                    : 'Printable A4 summary & cue sheet',
+                  onSelect: () => {
+                    setActivePopover(null);
+                    requestAnimationFrame(() => onPrint());
+                  },
+                });
+              }
+
+              if (onShareReceipt) {
+                exportActions.push({
+                  id: 'share',
+                  theme: 'purple',
+                  icon: Send,
+                  title: isFr ? 'Partager lien groupe / Carte' : 'Share Group Link / Receipt',
+                  sub: isFr
+                    ? 'Lien du plan groupe + carte story PNG'
+                    : 'Copy group plan URL + PNG ride card',
+                  onSelect: () => {
+                    setActivePopover(null);
+                    onShareReceipt();
+                  },
+                });
+              }
+
+              return (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setActivePopover(null)}
+                    aria-hidden="true"
+                  />
+                  <div
+                    role="menu"
+                    aria-label={isFr ? 'Options d’export et partage' : 'Export and share options'}
+                    data-testid="hero-export-popover"
+                    className="absolute right-0 top-full mt-2 w-[min(21.5rem,calc(100vw-3.5rem))] sm:w-80 z-50 rounded-pod p-3.5 bg-card ring-1 ring-inset ring-ink/10 dark:ring-white/15 shadow-2xl animate-apple-popover text-ink"
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-2 px-0.5">
+                      <span className="text-xs font-rounded font-bold text-ink">
+                        {isFr ? 'Exporter & envoyer le parcours' : 'Export & send route'}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        type="button"
+                        onClick={() => setActivePopover(null)}
+                        aria-label={t('closeModalAria')}
+                        className="relative before:content-[''] before:absolute before:-inset-1.5 w-8 h-8 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-pod cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+
+                    <div className="mb-2.5 px-0.5 space-y-1.5">
+                      <Badge
+                        variant="emerald"
+                        size="xs"
+                        icon={ShieldCheck}
+                        className="font-rounded font-bold"
+                      >
+                        {isFr
+                          ? '100% Gratuit — Sans abonnement Pro'
+                          : '100% Free — No Pro paywall'}
+                      </Badge>
+
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={includeFitFuelCues}
+                        onClick={() => setIncludeFitFuelCues((v) => !v)}
+                        className="w-full rounded-pod px-2.5 py-1.5 bg-pod hover:bg-chip flex items-center justify-between gap-2 text-left transition-colors cursor-pointer"
+                      >
+                        <span className="inline-flex items-center gap-1.5 min-w-0">
+                          <Flame className={`w-3.5 h-3.5 shrink-0 ${CHIP_TOKENS.amber.primary}`} />
+                          <span className="text-[11px] font-semibold text-ink truncate">
+                            {isFr
+                              ? 'Alertes nutrition & cols (.FIT)'
+                              : 'Nutrition & climb cues (.FIT)'}
+                          </span>
+                        </span>
+                        <span
+                          className={`inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold shrink-0 ${
+                            includeFitFuelCues
+                              ? 'bg-volt text-[#4d5200]'
+                              : 'bg-card text-ink-muted ring-1 ring-ink/15'
+                          }`}
+                        >
+                          {includeFitFuelCues ? <Check className="w-2.5 h-2.5" /> : null}
+                        </span>
+                      </button>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      {exportActions.map((action) => (
+                        <Button
+                          key={action.id}
+                          variant="ghost"
+                          type="button"
+                          role="menuitem"
+                          onClick={action.onSelect}
+                          className="w-full min-h-[46px] rounded-2xl px-2.5 py-2 bg-pod hover:bg-chip text-left flex items-center justify-between gap-2.5 transition-colors cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                            <IconBadge
+                              theme={action.theme}
+                              icon={action.icon}
+                              size="md"
+                              shape="circle"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="text-xs font-semibold text-ink leading-tight break-words">
+                                {action.title}
+                              </div>
+                              <div className="text-[11px] text-ink-muted leading-snug mt-0.5 break-words">
+                                {action.sub}
+                              </div>
+                            </div>
+                          </div>
+                          {action.badge && (
+                            <span className="text-[10px] font-rounded font-extrabold tnum px-2 py-0.5 rounded-full bg-card text-ink-secondary shrink-0">
+                              {action.badge}
+                            </span>
+                          )}
+                        </Button>
+                      ))}
+                    </div>
+
+                    {exportFeedback && exportFeedback.kind === 'err' && (
+                      <p className="mt-2 px-1 text-[11px] font-semibold text-rose-600 dark:text-rose-400">
+                        {exportFeedback.msg}
+                      </p>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
 
@@ -1709,7 +2153,15 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                         <Button variant="ghost"
                           type="button"
                           onClick={() => {
-                            downloadTripFit(trip);
+                            const fitSpecs = riderSpecs ?? loadRiderBikeSpecs();
+                            downloadTripFit(trip, {
+                              includeFuelingCues: includeFitFuelCues,
+                              includeClimbCues: includeFitFuelCues,
+                              lang,
+                              ftpWatts: fitSpecs.ftpWatts,
+                              carbTargetGPerHr: fitSpecs.carbTargetGPerHr,
+                              nutritionPreference: fitSpecs.nutritionPreference,
+                            });
                             setActivePopover(null);
                           }}
                           className={`h-8 px-3 rounded-full bg-pod hover:bg-chip text-xs font-bold text-ink flex items-center justify-center gap-1 transition-colors cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES}`}

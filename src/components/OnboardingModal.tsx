@@ -17,6 +17,7 @@ import {
   PACE_TIERS,
   BIKE_OPTIONS,
   DEFAULT_NANTES_ROUTE_COORDS,
+  ONBOARDING_SPEED_BOUNDS,
 } from './onboarding/constants';
 import { RidePurposeId } from './onboarding/types';
 import { saveUserProfile } from '../utils/userProfileStorage';
@@ -68,6 +69,15 @@ function formatMinutesToTime(totalMins: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
+function getLocalTomorrowIso(): string {
+  const next = new Date();
+  next.setDate(next.getDate() + 1);
+  const yyyy = next.getFullYear();
+  const mm = String(next.getMonth() + 1).padStart(2, '0');
+  const dd = String(next.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   isOpen,
   onClose,
@@ -80,15 +90,15 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   // 0 = Welcome, 1 = Purpose, 2 = Route, 3 = Timing/Pace, 4 = Rider/Bike, 5 = Ready, 6 = Save/Sync
   const [currentStep, setCurrentStep] = useState<number>(0);
 
-  // Purpose State
-  const [purpose, setPurpose] = useState<RidePurposeId>('commute');
+  // Purpose State (neutral global default: leisure)
+  const [purpose, setPurpose] = useState<RidePurposeId>('leisure');
 
   // Route State
   const [routeMode, setRouteMode] = useState<'from-to' | 'distance' | 'gpx'>('from-to');
-  const [origin, setOrigin] = useState<string>('Trentemoult, Rezé');
-  const [destination, setDestination] = useState<string>('Nantes gare, Nantes');
-  const [distanceKm, setDistanceKm] = useState<number>(6.0);
-  const [coordinates, setCoordinates] = useState<[number, number][]>(DEFAULT_NANTES_ROUTE_COORDS);
+  const [origin, setOrigin] = useState<string>('Old Town Square');
+  const [destination, setDestination] = useState<string>('Riverside Cafe');
+  const [distanceKm, setDistanceKm] = useState<number>(25.0);
+  const [coordinates, setCoordinates] = useState<[number, number][]>([]);
   const [waypoints, setWaypoints] = useState<RouteWaypoint[]>([]);
   const [elevationGainM, setElevationGainM] = useState<number | undefined>();
   const [elevationLossM, setElevationLossM] = useState<number | undefined>();
@@ -97,14 +107,16 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   const [isRouteReady, setIsRouteReady] = useState<boolean>(true);
 
   // Timing & Pace State
-  const [targetMode, setTargetMode] = useState<'arrive' | 'depart'>('arrive');
-  const [rideDate, setRideDate] = useState<string>('2026-11-09'); // Default to Mon, 9 Nov 2026
-  const [targetTime, setTargetTime] = useState<string>('09:00');
+  const [targetMode, setTargetMode] = useState<'arrive' | 'depart'>('depart');
+  const [rideDate, setRideDate] = useState<string>(() => getLocalTomorrowIso());
+  const [targetTime, setTargetTime] = useState<string>('08:30');
   const [paceTier, setPaceTier] = useState<'easy' | 'steady' | 'brisk'>('steady');
-  const [parkingBufferMin, setParkingBufferMin] = useState<number>(5);
+  const [customSpeedKmH, setCustomSpeedKmH] = useState<number | null>(null);
+  const [targetEffortWatts, setTargetEffortWatts] = useState<number | null>(null);
+  const [parkingBufferMin, setParkingBufferMin] = useState<number>(10);
 
   // Archetype Chips
-  const [selectedChips, setSelectedChips] = useState<string[]>(['coffee-stop']);
+  const [selectedChips, setSelectedChips] = useState<string[]>(['bakery-raid']);
 
   // Weather & Physics parameters
   const [isWeatherFetched, setIsWeatherFetched] = useState<boolean>(false);
@@ -165,27 +177,44 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     if (def) {
       setPaceTier(def.defaultPaceTier);
       setParkingBufferMin(def.defaultBufferMin);
-      if (newPurpose !== 'commute') {
-        setOrigin(def.defaultOrigin);
-        setDestination(def.defaultDestination);
-        setDistanceKm(def.defaultDistanceKm);
-        setCoordinates([]);
-        setWaypoints([]);
-        setElevationGainM(undefined);
-        setElevationLossM(undefined);
-        setElevationProfile(undefined);
-        setIsRouteReady(false);
-      } else {
-        setOrigin('Trentemoult, Rezé');
-        setDestination('Nantes gare, Nantes');
-        setDistanceKm(6.0);
-        setCoordinates(DEFAULT_NANTES_ROUTE_COORDS);
-        setWaypoints([]);
-        setElevationGainM(undefined);
-        setElevationLossM(undefined);
-        setElevationProfile(undefined);
-        setIsRouteReady(true);
-      }
+      setOrigin(def.defaultOrigin);
+      setDestination(def.defaultDestination);
+      setDistanceKm(def.defaultDistanceKm);
+      setCoordinates([]);
+      setWaypoints([]);
+      setElevationGainM(undefined);
+      setElevationLossM(undefined);
+      setElevationProfile(undefined);
+      setIsRouteReady(false);
+    }
+
+    if (newPurpose === 'commute') {
+      setTargetMode('arrive');
+      setTargetTime('09:00');
+      setSelectedChips(['coffee-stop']);
+      setCustomSpeedKmH(null);
+      setTargetEffortWatts(null);
+      setUsePowerWatts(false);
+    } else if (newPurpose === 'sport') {
+      setTargetMode('depart');
+      setTargetTime('08:00');
+      setSelectedChips(['warmup-rollout']);
+      setCustomSpeedKmH(28);
+      setUsePowerWatts(true);
+    } else if (newPurpose === 'bikepacking') {
+      setTargetMode('depart');
+      setTargetTime('08:00');
+      setSelectedChips(['water-resupply']);
+      setCustomSpeedKmH(null);
+      setTargetEffortWatts(null);
+      setUsePowerWatts(false);
+    } else {
+      setTargetMode('depart');
+      setTargetTime('08:30');
+      setSelectedChips(['bakery-raid']);
+      setCustomSpeedKmH(null);
+      setTargetEffortWatts(null);
+      setUsePowerWatts(false);
     }
   };
 
@@ -196,9 +225,15 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     );
   };
 
-  // Speed calculation
+  // Speed calculation (respects custom target speed up to 45 km/h)
   const selectedPaceDef = PACE_TIERS.find((p) => p.id === paceTier) || PACE_TIERS[1];
-  const speedKmH = selectedPaceDef.speedKmH;
+  const speedKmH =
+    customSpeedKmH !== null && Number.isFinite(customSpeedKmH)
+      ? Math.min(
+          ONBOARDING_SPEED_BOUNDS.maxKmH,
+          Math.max(ONBOARDING_SPEED_BOUNDS.minKmH, Math.round(customSpeedKmH))
+        )
+      : selectedPaceDef.speedKmH;
   const ridingMinutes = Math.max(1, Math.round((distanceKm / speedKmH) * 60));
 
   // Chronometry calculation
@@ -226,14 +261,29 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     const chosenBike = BIKE_OPTIONS.find((b) => b.id === selectedBikeId) || BIKE_OPTIONS[0];
     const purposeDef = PURPOSES.find((p) => p.id === purpose) || PURPOSES[0];
 
-    const originShort = origin.split(',')[0].trim() || 'Trentemoult';
-    const destShort = destination.split(',')[0].trim() || 'Nantes gare';
+    const originShort = origin.split(',')[0].trim() || (isFr ? 'Départ' : 'Start');
+    const destShort = destination.split(',')[0].trim() || (isFr ? 'Arrivée' : 'Finish');
     const tripName = `${originShort} → ${destShort}`;
     const tripTag = purposeDef.tag;
 
     const resolvedFtp = usePowerWatts
       ? Math.max(80, Math.min(600, Math.round(Number(ftpWatts) || 210)))
       : 210;
+    const isDataDrivenSport = purpose === 'sport';
+    const resolvedTelemetryMode: 'quantitative' | 'fuel-first' =
+      usePowerWatts || isDataDrivenSport ? 'quantitative' : 'fuel-first';
+    const resolvedCockpitMode: 'pro' | 'essential' =
+      usePowerWatts || isDataDrivenSport ? 'pro' : 'essential';
+    const resolvedPacingInputMode: 'power' | 'feel' =
+      usePowerWatts || (isDataDrivenSport && targetEffortWatts !== null) ? 'power' : 'feel';
+    const paceLabel =
+      customSpeedKmH !== null
+        ? isFr
+          ? 'Perso'
+          : 'Custom'
+        : isFr
+        ? selectedPaceDef.nameFr
+        : selectedPaceDef.name;
 
     // Persist profile preferences
     try {
@@ -241,9 +291,9 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
       saveRiderBikeSpecs({
         ...existingSpecs,
         riderWeightKg: Number(riderWeightKg) || 75,
-        cockpitViewMode: usePowerWatts ? 'pro' : 'essential',
-        telemetryMode: usePowerWatts ? 'quantitative' : 'fuel-first',
-        pacingInputMode: usePowerWatts ? 'power' : 'feel',
+        cockpitViewMode: resolvedCockpitMode,
+        telemetryMode: resolvedTelemetryMode,
+        pacingInputMode: resolvedPacingInputMode,
         ftpWatts: usePowerWatts ? resolvedFtp : existingSpecs.ftpWatts,
       });
 
@@ -264,8 +314,8 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
       name: tripName,
       tag: tripTag,
       description: isFr
-        ? `Sortie ${purposeDef.nameFr} de ${distanceKm.toFixed(1)} km avec ${chosenBike.nameFr}. Allure : ${speedKmH} km/h (${selectedPaceDef.nameFr}).`
-        : `${distanceKm.toFixed(1)} km ${purposeDef.name.toLowerCase()} ride with ${chosenBike.name}. Pace: ${speedKmH} km/h (${selectedPaceDef.name}).`,
+        ? `Sortie ${purposeDef.nameFr} de ${distanceKm.toFixed(1)} km avec ${chosenBike.nameFr}. Allure : ${speedKmH} km/h (${paceLabel}).`
+        : `${distanceKm.toFixed(1)} km ${purposeDef.name.toLowerCase()} ride with ${chosenBike.name}. Pace: ${speedKmH} km/h (${paceLabel}).`,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       departureTime: leaveTimeFormatted,
@@ -289,12 +339,22 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
         elevationLossM,
         elevationProfile,
         targetSpeedKmH: speedKmH,
-        pacingMode: 'speed',
+        pacingMode: targetEffortWatts ? 'effort' : 'speed',
+        targetEffortWatts: targetEffortWatts ?? undefined,
         urbanTrafficDelayMinutes: 0,
         gateSecurityDelayMinutes: 0,
-        coordinates: coordinates.length > 0 ? coordinates : DEFAULT_NANTES_ROUTE_COORDS,
+        coordinates: coordinates.length > 0 ? coordinates : undefined,
         waypoints: waypoints.length > 0 ? waypoints : undefined,
-        routeMode: routeMode === 'from-to' ? 'corridor' : routeMode === 'distance' ? 'manual-radius' : 'gpx',
+        routeMode:
+          coordinates.length >= 2
+            ? routeMode === 'gpx'
+              ? 'gpx'
+              : 'corridor'
+            : 'manual-radius',
+        radiusMeters:
+          coordinates.length < 2
+            ? Math.max(1000, Math.round((distanceKm / 2) * 1000))
+            : undefined,
       },
       office: {
         shiftStartTime: readyTimeFormatted,
@@ -322,12 +382,13 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     };
 
     (trip as any).__onboardingSpecs = {
+      purpose,
       isTubeless,
-      riderLevel: purpose === 'sport' ? 'regular' : 'occasional',
+      riderLevel: isDataDrivenSport ? 'regular' : 'occasional',
       ftpWatts: resolvedFtp,
-      cockpitViewMode: usePowerWatts ? 'pro' : 'essential',
-      telemetryMode: usePowerWatts ? 'quantitative' : 'fuel-first',
-      pacingInputMode: usePowerWatts ? 'power' : 'feel',
+      cockpitViewMode: resolvedCockpitMode,
+      telemetryMode: resolvedTelemetryMode,
+      pacingInputMode: resolvedPacingInputMode,
       carbTargetGPerHr: 60,
       nutritionPreference: selectedChips.includes('real-food') ? 'real-food' : 'mixed',
     };
@@ -348,7 +409,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       departureTime: '08:35',
-      departureDate: '2026-11-09',
+      departureDate: getLocalTomorrowIso(),
       physics: {
         riderWeightKg: 75,
         bikeWeightKg: 12.5,
@@ -506,6 +567,10 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 onChangeTargetTime={setTargetTime}
                 paceTier={paceTier}
                 onChangePaceTier={setPaceTier}
+                customSpeedKmH={customSpeedKmH}
+                onChangeCustomSpeedKmH={setCustomSpeedKmH}
+                targetEffortWatts={targetEffortWatts}
+                onChangeTargetEffortWatts={setTargetEffortWatts}
                 parkingBufferMin={parkingBufferMin}
                 onChangeParkingBuffer={setParkingBufferMin}
                 selectedChips={selectedChips}
@@ -530,6 +595,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
 
             {currentStep === 4 && (
               <Screen5RiderBike
+                purposeId={purpose}
                 riderWeightKg={riderWeightKg}
                 onChangeRiderWeight={setRiderWeightKg}
                 luggageWeightKg={luggageWeightKg}

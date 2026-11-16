@@ -58,6 +58,71 @@ export interface RerouteAmenityResult {
   usedOfflineFallback: boolean;
 }
 
+const OSRM_BIKE_ENDPOINTS = [
+  'https://routing.openstreetmap.de/routed-bike/route/v1/cycling',
+  'https://router.project-osrm.org/route/v1/cycling',
+];
+const OSRM_ROUTE_TIMEOUT_MS = 8000;
+
+async function fetchOsrmRouteWithFailover(
+  coordsParam: string,
+  lang: 'en' | 'fr'
+): Promise<any> {
+  let lastStatus: number | null = null;
+  let lastError: unknown = null;
+  let hadEmptyRoutesResponse = false;
+
+  for (const endpoint of OSRM_BIKE_ENDPOINTS) {
+    const osrmUrl = `${endpoint}/${coordsParam}?overview=full&geometries=geojson&steps=true`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), OSRM_ROUTE_TIMEOUT_MS);
+
+    try {
+      const response = await fetch(osrmUrl, { signal: controller.signal });
+      if (!response.ok) {
+        lastStatus = response.status;
+        continue;
+      }
+
+      const json = await response.json();
+      if (json?.routes && json.routes.length > 0) {
+        return json;
+      }
+      hadEmptyRoutesResponse = true;
+    } catch (err) {
+      lastError = err;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  if (hadEmptyRoutesResponse) {
+    throw new Error(
+      lang === 'fr'
+        ? 'Aucun itinéraire cyclable trouvé entre ces lieux et points de passage.'
+        : 'No cycling path found between those locations and via-points.'
+    );
+  }
+
+  if (lastStatus !== null) {
+    throw new Error(
+      lang === 'fr'
+        ? `Impossible de calculer l’itinéraire vélo pour le moment (code ${lastStatus}).`
+        : `Could not calculate cycling directions right now (status ${lastStatus}).`
+    );
+  }
+
+  throw (
+    lastError instanceof Error
+      ? lastError
+      : new Error(
+          lang === 'fr'
+            ? 'Impossible de calculer l’itinéraire vélo pour le moment (délai dépassé).'
+            : 'Could not calculate cycling directions right now (request timed out).'
+        )
+  );
+}
+
 // Fetch OSRM Bicycle Path with multi-stop waypoints
 export async function calculateAutoBikeRoute(
   originText: string,
@@ -128,26 +193,7 @@ export async function calculateAutoBikeRoute(
 
   // OSRM expects coordinates in lng,lat format separated by semicolons
   const coordsParam = allCoords.map(([lat, lng]) => `${lng},${lat}`).join(';');
-  const osrmUrl = `https://routing.openstreetmap.de/routed-bike/route/v1/cycling/${coordsParam}?overview=full&geometries=geojson&steps=true`;
-
-  const response = await fetch(osrmUrl);
-  if (!response.ok) {
-    throw new Error(
-      lang === 'fr'
-        ? `Impossible de calculer l’itinéraire vélo pour le moment (code ${response.status}).`
-        : `Could not calculate cycling directions right now (status ${response.status}).`
-    );
-  }
-
-  const json = await response.json();
-
-  if (!json.routes || json.routes.length === 0) {
-    throw new Error(
-      lang === 'fr'
-        ? 'Aucun itinéraire cyclable trouvé entre ces lieux et points de passage.'
-        : 'No cycling path found between those locations and via-points.'
-    );
-  }
+  const json = await fetchOsrmRouteWithFailover(coordsParam, lang);
 
   const route = json.routes[0];
   const distanceKm = Math.round((route.distance / 1000) * 10) / 10;
@@ -765,4 +811,209 @@ export async function removeAmenityFromRoute(
     actualDetourKm: Math.max(0, Math.round((oldDistanceKm - nextDistanceKm) * 10) / 10),
     usedOfflineFallback,
   });
+}
+
+export type LoopShape = 'loop' | 'out-and-back';
+
+export interface GeneratedBikeLoopResult extends CalculatedBikeRoute {
+  originCoordinates: [number, number];
+  usedOfflineFallback: boolean;
+  shape: LoopShape;
+}
+
+/**
+ * Offsets a [lat, lng] coordinate by distKm along a compass bearing (degrees clockwise from North).
+ */
+export function offsetLatLng(
+  lat: number,
+  lng: number,
+  distKm: number,
+  bearingDeg: number
+): [number, number] {
+  const earthRadiusKm = 6371;
+  const delta = distKm / earthRadiusKm;
+  const theta = (bearingDeg * Math.PI) / 180;
+  const lat1 = (lat * Math.PI) / 180;
+  const lng1 = (lng * Math.PI) / 180;
+
+  const lat2 = Math.asin(
+    Math.sin(lat1) * Math.cos(delta) + Math.cos(lat1) * Math.sin(delta) * Math.cos(theta)
+  );
+  const lng2 =
+    lng1 +
+    Math.atan2(
+      Math.sin(theta) * Math.sin(delta) * Math.cos(lat1),
+      Math.cos(delta) - Math.sin(lat1) * Math.sin(lat2)
+    );
+
+  return [
+    Number(((lat2 * 180) / Math.PI).toFixed(6)),
+    Number(((lng2 * 180) / Math.PI).toFixed(6)),
+  ];
+}
+
+function buildLoopWaypointsForRadius(
+  startCoord: [number, number],
+  radiusKm: number,
+  shape: LoopShape,
+  bearingDeg: number
+): RouteWaypointParam[] {
+  if (shape === 'out-and-back') {
+    const turnCoord = offsetLatLng(startCoord[0], startCoord[1], radiusKm, bearingDeg);
+    return [
+      {
+        id: 'loop-turnaround',
+        name: 'Turnaround',
+        coordinates: turnCoord,
+      },
+    ];
+  }
+
+  // Triangular road loop: Start -> WP1 -> WP2 -> Start
+  const wp1 = offsetLatLng(startCoord[0], startCoord[1], radiusKm, (bearingDeg - 30 + 360) % 360);
+  const wp2 = offsetLatLng(startCoord[0], startCoord[1], radiusKm, (bearingDeg + 30) % 360);
+  return [
+    { id: 'loop-wp-1', name: 'Loop Sector 1', coordinates: wp1 },
+    { id: 'loop-wp-2', name: 'Loop Sector 2', coordinates: wp2 },
+  ];
+}
+
+function buildOfflineLoopFallback(
+  startCoord: [number, number],
+  targetDistanceKm: number,
+  shape: LoopShape,
+  bearingDeg: number
+): GeneratedBikeLoopResult {
+  const safeDist = Math.max(4, targetDistanceKm);
+  const coordinates: [number, number][] = [startCoord];
+
+  if (shape === 'out-and-back') {
+    const halfKm = safeDist / 2;
+    const steps = 10;
+    for (let i = 1; i <= steps; i++) {
+      coordinates.push(offsetLatLng(startCoord[0], startCoord[1], (halfKm * i) / steps, bearingDeg));
+    }
+    for (let i = steps - 1; i >= 0; i--) {
+      coordinates.push(offsetLatLng(startCoord[0], startCoord[1], (halfKm * i) / steps, bearingDeg));
+    }
+  } else {
+    // Circular polygon touching startCoord with perimeter ~= targetDistanceKm
+    const circleRadiusKm = safeDist / (2 * Math.PI);
+    const center = offsetLatLng(startCoord[0], startCoord[1], circleRadiusKm, bearingDeg);
+    const startAngleFromCenter = (bearingDeg + 180) % 360;
+    const segments = 32;
+    for (let i = 1; i <= segments; i++) {
+      const angle = (startAngleFromCenter + (360 * i) / segments) % 360;
+      coordinates.push(offsetLatLng(center[0], center[1], circleRadiusKm, angle));
+    }
+  }
+
+  return {
+    coordinates,
+    distanceKm: Number(safeDist.toFixed(1)),
+    estimatedMinutes: Math.max(15, Math.round((safeDist / 21) * 60)),
+    originCoordinates: startCoord,
+    usedOfflineFallback: true,
+    shape,
+  };
+}
+
+/**
+ * Generates an actual road-snapped circular loop or out-and-back bike route
+ * starting and ending at the given location, using OSRM bike routing with an
+ * offline geometric polyline fallback when unreachable.
+ */
+export async function generateBikeLoopRoute(
+  originText: string,
+  targetDistanceKm: number,
+  options?: {
+    originCoordsOverride?: [number, number] | null;
+    shape?: LoopShape;
+    bearingDeg?: number;
+  }
+): Promise<GeneratedBikeLoopResult> {
+  const lang = getCurrentLanguage();
+  const shape: LoopShape = options?.shape ?? 'loop';
+  const bearingDeg = options?.bearingDeg ?? 45;
+  const safeTargetKm = Math.max(4, Math.min(300, targetDistanceKm || 50));
+
+  const startCoord =
+    options?.originCoordsOverride || (await geocodeLocation(originText, lang));
+
+  if (!startCoord) {
+    throw new Error(
+      lang === 'fr'
+        ? `Impossible de localiser "${originText}". Sélectionnez un lieu dans la liste.`
+        : `Could not locate "${originText}". Choose a suggestion from the dropdown.`
+    );
+  }
+
+  // Initial crow-flies leg scaling accounting for ~1.3x real-road winding factor
+  const initialRadiusKm =
+    shape === 'out-and-back' ? safeTargetKm / (2 * 1.28) : safeTargetKm / (3 * 1.3);
+
+  try {
+    const firstWaypoints = buildLoopWaypointsForRadius(
+      startCoord,
+      Math.max(1, initialRadiusKm),
+      shape,
+      bearingDeg
+    );
+    const firstRoute = await calculateAutoBikeRoute(
+      originText || 'Start',
+      originText || 'Start',
+      startCoord,
+      startCoord,
+      firstWaypoints
+    );
+
+    if (!firstRoute || firstRoute.coordinates.length < 2) {
+      return buildOfflineLoopFallback(startCoord, safeTargetKm, shape, bearingDeg);
+    }
+
+    let bestRoute = firstRoute;
+    const errorRatio = Math.abs(firstRoute.distanceKm - safeTargetKm) / safeTargetKm;
+
+    // One adaptive distance calibration pass if OSRM distance is >18% off target
+    if (errorRatio > 0.18 && firstRoute.distanceKm > 1) {
+      const scaledRadiusKm = Math.max(
+        1,
+        Math.min(120, initialRadiusKm * (safeTargetKm / firstRoute.distanceKm))
+      );
+      try {
+        const tunedWaypoints = buildLoopWaypointsForRadius(
+          startCoord,
+          scaledRadiusKm,
+          shape,
+          bearingDeg
+        );
+        const tunedRoute = await calculateAutoBikeRoute(
+          originText || 'Start',
+          originText || 'Start',
+          startCoord,
+          startCoord,
+          tunedWaypoints
+        );
+        if (
+          tunedRoute &&
+          tunedRoute.coordinates.length >= 2 &&
+          Math.abs(tunedRoute.distanceKm - safeTargetKm) <
+            Math.abs(firstRoute.distanceKm - safeTargetKm)
+        ) {
+          bestRoute = tunedRoute;
+        }
+      } catch {
+        // Keep first valid OSRM loop if tuning request fails
+      }
+    }
+
+    return {
+      ...bestRoute,
+      originCoordinates: startCoord,
+      usedOfflineFallback: false,
+      shape,
+    };
+  } catch {
+    return buildOfflineLoopFallback(startCoord, safeTargetKm, shape, bearingDeg);
+  }
 }

@@ -138,7 +138,7 @@ export const AmenityReroutePrompt: React.FC<AmenityReroutePromptProps> = ({
       {isOpen && (
         <div
           onClick={(e) => e.stopPropagation()}
-          className="mt-2.5 rounded-2xl bg-volt/15 dark:bg-volt/10 ring-1 ring-inset ring-[#a3b300]/30 px-3 py-2 flex items-center justify-between gap-2.5 animate-apple-fade-in"
+          className="mt-2.5 rounded-pod bg-volt/15 dark:bg-volt/10 ring-1 ring-inset ring-[#a3b300]/30 px-3 py-2 flex items-center justify-between gap-2.5 animate-apple-fade-in"
         >
           <div className="flex items-center gap-2 min-w-0 text-xs font-rounded font-semibold text-ink">
             <Path className="w-3.5 h-3.5 text-[#4d5200] dark:text-volt shrink-0" />
@@ -175,7 +175,7 @@ export const AmenityReroutePrompt: React.FC<AmenityReroutePromptProps> = ({
       {feedback && (
         <div
           onClick={(e) => e.stopPropagation()}
-          className={`mt-2 rounded-xl px-2.5 py-1.5 text-[11px] font-rounded font-semibold flex items-center gap-1.5 ${
+          className={`mt-2 rounded-sub-pod px-2.5 py-1.5 text-[11px] font-rounded font-semibold flex items-center gap-1.5 ${
             feedback.isError
               ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300'
               : 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300'

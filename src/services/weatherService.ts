@@ -150,6 +150,64 @@ export function calculateAirDensity(tempC: number, pressureHpa: number): number 
   return Number(rho.toFixed(3));
 }
 
+const WEATHER_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const WEATHER_TIMEOUT_MS = 6000;
+const WEATHER_MAX_CACHE_ENTRIES = 50;
+
+const weatherResponseCache = new Map<string, { data: any; expiresAt: number }>();
+const weatherInFlight = new Map<string, Promise<any>>();
+
+async function fetchOpenMeteoForecast(lat: number, lon: number): Promise<any> {
+  const key = `${lat.toFixed(3)}:${lon.toFixed(3)}`;
+  const now = Date.now();
+  const cached = weatherResponseCache.get(key);
+  if (cached && now < cached.expiresAt) {
+    return cached.data;
+  }
+  if (cached) {
+    weatherResponseCache.delete(key);
+  }
+
+  const existing = weatherInFlight.get(key);
+  if (existing) {
+    return existing;
+  }
+
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m,visibility,is_day,weather_code&daily=sunrise,sunset&wind_speed_unit=kmh&timezone=auto&past_days=2&forecast_days=14`;
+
+  const requestPromise = (async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), WEATHER_TIMEOUT_MS);
+    try {
+      const response = await fetch(url, { signal: controller.signal });
+      if (!response.ok) {
+        throw new Error(`Open-Meteo HTTP Error: ${response.status}`);
+      }
+      const data = await response.json();
+      if (!data?.hourly?.time) {
+        throw new Error('Malformed Open-Meteo response');
+      }
+      if (weatherResponseCache.size >= WEATHER_MAX_CACHE_ENTRIES) {
+        const oldestKey = weatherResponseCache.keys().next().value;
+        if (oldestKey !== undefined) {
+          weatherResponseCache.delete(oldestKey);
+        }
+      }
+      weatherResponseCache.set(key, {
+        data,
+        expiresAt: Date.now() + WEATHER_CACHE_TTL_MS,
+      });
+      return data;
+    } finally {
+      clearTimeout(timeoutId);
+      weatherInFlight.delete(key);
+    }
+  })();
+
+  weatherInFlight.set(key, requestPromise);
+  return requestPromise;
+}
+
 /**
  * Fetches hourly weather telemetry or falls back to simulation if beyond 14 days.
  */
@@ -209,19 +267,9 @@ export async function fetchHourlyWeather(
     };
   }
 
-  // Fetch deterministic model from Open-Meteo
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m,visibility,is_day,weather_code&daily=sunrise,sunset&wind_speed_unit=kmh&timezone=auto&past_days=2&forecast_days=14`;
-
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Open-Meteo HTTP Error: ${response.status}`);
-  }
-
-  const data = await response.json();
+  // Fetch deterministic model from Open-Meteo (with 6s timeout, 10m TTL cache, and in-flight deduplication)
+  const data = await fetchOpenMeteoForecast(lat, lon);
   const hourly = data.hourly;
-  if (!hourly || !hourly.time) {
-    throw new Error('Malformed Open-Meteo response');
-  }
 
   // Match target hour e.g. "2026-10-27T07:00"
   const targetHour = `${targetDate}T${targetTime.split(':')[0]}:00`;

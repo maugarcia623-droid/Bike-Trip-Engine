@@ -483,14 +483,14 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
 
       <Collapsible open={isCardExpanded} innerClassName="pt-3">
       {/* ── 2. ELEGANT CONCENTRIC TAB SWITCHER: [ WIND & AERO ] / [ LIGHT & VISIBILITY ] ── */}
-      <div className="grid grid-cols-2 sm:inline-flex items-center gap-1 p-1 rounded-2xl sm:rounded-full bg-pod mb-4 w-full sm:w-auto self-stretch sm:self-start">
+      <div className="grid grid-cols-2 sm:inline-flex items-center gap-1 p-1 rounded-pod sm:rounded-full bg-pod mb-4 w-full sm:w-auto self-stretch sm:self-start">
         <Button variant="ghost"
           type="button"
           onClick={() => setActiveTab('wind')}
-          className={`px-2.5 sm:px-3.5 py-2 sm:py-1.5 rounded-xl sm:rounded-full text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+          className={`px-2.5 sm:px-3.5 py-2 sm:py-1.5 rounded-sub-pod sm:rounded-full text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
             activeTab === 'wind'
               ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
-              : `${CHIP_RING_UNSELECTED} text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200`
+              : `${CHIP_RING_UNSELECTED} text-ink-muted hover:text-ink`
           }`}
         >
           <Wind className="w-4 h-4 shrink-0 text-current" />
@@ -500,10 +500,10 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
         <Button variant="ghost"
           type="button"
           onClick={() => setActiveTab('visibility')}
-          className={`px-2.5 sm:px-3.5 py-2 sm:py-1.5 rounded-xl sm:rounded-full text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+          className={`px-2.5 sm:px-3.5 py-2 sm:py-1.5 rounded-sub-pod sm:rounded-full text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
             activeTab === 'visibility'
               ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
-              : `${CHIP_RING_UNSELECTED} text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200`
+              : `${CHIP_RING_UNSELECTED} text-ink-muted hover:text-ink`
           }`}
         >
           <SunHorizon className="w-4 h-4 shrink-0 text-current" />
@@ -520,7 +520,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
       {activeTab === 'wind' && (
         <div className="animate-apple-step-in flex flex-col justify-between">
           {/* Status Chain-Link Capsule Callout */}
-          <div className="flex items-start sm:items-center gap-3 pl-3 pr-4 sm:pr-5 py-3 sm:py-2.5 rounded-2xl sm:rounded-full bg-pod mb-3">
+          <div className="flex items-start sm:items-center gap-3 pl-3 pr-4 sm:pr-5 py-3 sm:py-2.5 rounded-pod sm:rounded-full bg-pod mb-3">
             <IconBadge
               theme={
                 goStatus === 'GO'
@@ -634,7 +634,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
 
               {isHeadwind ? (
                 pacingMode === 'effort' ? (
-                  <Badge variant="emerald" size="md" icon={Lightning} className="mt-2.5 tnum whitespace-normal text-left leading-snug rounded-2xl sm:rounded-full">
+                  <Badge variant="emerald" size="md" icon={Lightning} className="mt-2.5 tnum whitespace-normal text-left leading-snug rounded-pod sm:rounded-full">
                     {t('dragHoldEffortPill', {
                       watts: cappedWatts,
                       zone: powerZone,
@@ -643,7 +643,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
                     })}
                   </Badge>
                 ) : (
-                  <Badge variant="amber" size="md" icon={WarningCircle} className="mt-2.5 tnum whitespace-normal text-left leading-snug rounded-2xl sm:rounded-full">
+                  <Badge variant="amber" size="md" icon={WarningCircle} className="mt-2.5 tnum whitespace-normal text-left leading-snug rounded-pod sm:rounded-full">
                     {t('dragHoldSpeedPill', {
                       watts: aeroPenalty,
                       speed: effectiveSpeed,
@@ -651,7 +651,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
                   </Badge>
                 )
               ) : (
-                <Badge variant="emerald" size="md" icon={CheckCircle} className="mt-2.5 tnum whitespace-normal text-left leading-snug rounded-2xl sm:rounded-full">
+                <Badge variant="emerald" size="md" icon={CheckCircle} className="mt-2.5 tnum whitespace-normal text-left leading-snug rounded-pod sm:rounded-full">
                   {t('zeroPenaltyPill')}
                 </Badge>
               )}
@@ -828,7 +828,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
                     return (
                       <div
                         key={sec.index}
-                        className="rounded-xl bg-card/80 dark:bg-white/[0.04] px-3 py-2 flex items-center justify-between gap-2 text-xs tnum"
+                        className="rounded-sub-pod bg-card px-3 py-2 flex items-center justify-between gap-2 text-xs tnum"
                       >
                         <div className="min-w-0">
                           <div className="font-semibold text-ink">

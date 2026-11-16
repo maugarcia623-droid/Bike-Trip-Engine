@@ -12,7 +12,21 @@ const __dirname = path.dirname(__filename);
 // reloads design-system tokens immediately without Node ESM module cache staleness.
 export default defineConfig({
   plugins: [react()],
-server: {
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('leaflet')) return 'vendor-leaflet';
+            if (id.includes('@supabase')) return 'vendor-supabase';
+            if (id.includes('/motion/') || id.includes('framer-motion')) return 'vendor-motion';
+            if (id.includes('@radix-ui')) return 'vendor-radix';
+          }
+        },
+      },
+    },
+  },
+  server: {
 allowedHosts: true,
 },
   resolve: {

@@ -323,7 +323,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
                       variant="ghost"
                       type="button"
                       onClick={() => setBikePresetId(bp.id)}
-                      className={`min-h-[38px] px-2.5 py-1.5 rounded-xl text-xs font-rounded font-semibold cursor-pointer ${
+                      className={`min-h-[38px] px-2.5 py-1.5 rounded-sub-pod text-xs font-rounded font-semibold cursor-pointer ${
                         sel
                           ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ring-2 ring-inset ${CHIP_TOKENS['yellow-vest'].selectedRing}`
                           : 'bg-pod text-ink-secondary hover:text-ink'
@@ -338,7 +338,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
 
             {/* Numeric Sliders */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              <div className="rounded-2xl bg-pod/70 p-3 space-y-1">
+              <div className="rounded-pod bg-pod p-3 space-y-1">
                 <div className="flex justify-between text-xs font-rounded">
                   <span className="text-ink-secondary font-semibold">{isFr ? 'Distance' : 'Distance'}</span>
                   <strong className="text-ink tnum">{distanceKm} km</strong>
@@ -354,7 +354,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
                 />
               </div>
 
-              <div className="rounded-2xl bg-pod/70 p-3 space-y-1">
+              <div className="rounded-pod bg-pod p-3 space-y-1">
                 <div className="flex justify-between text-xs font-rounded">
                   <span className="text-ink-secondary font-semibold">{isFr ? 'Vitesse cible' : 'Target speed'}</span>
                   <strong className="text-ink tnum">{speedKmH} km/h</strong>
@@ -370,7 +370,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
                 />
               </div>
 
-              <div className="rounded-2xl bg-pod/70 p-3 space-y-1">
+              <div className="rounded-pod bg-pod p-3 space-y-1">
                 <div className="flex justify-between text-xs font-rounded">
                   <span className="text-ink-secondary font-semibold">{isFr ? 'Vent (km/h)' : 'Wind speed'}</span>
                   <strong className="text-ink tnum">{windSpeedKmH} km/h</strong>
@@ -386,7 +386,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
                 />
               </div>
 
-              <div className="rounded-2xl bg-pod/70 p-3 space-y-1">
+              <div className="rounded-pod bg-pod p-3 space-y-1">
                 <div className="flex justify-between text-xs font-rounded">
                   <span className="text-ink-secondary font-semibold">{isFr ? 'Dénivelé D+' : 'Elevation gain'}</span>
                   <strong className="text-ink tnum">+{elevGainM} m</strong>
@@ -402,7 +402,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
                 />
               </div>
 
-              <div className="rounded-2xl bg-pod/70 p-3 space-y-1">
+              <div className="rounded-pod bg-pod p-3 space-y-1">
                 <div className="flex justify-between text-xs font-rounded">
                   <span className="text-ink-secondary font-semibold">{isFr ? 'Poids cycliste' : 'Rider weight'}</span>
                   <strong className="text-ink tnum">{riderMassKg} kg</strong>
@@ -418,7 +418,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
                 />
               </div>
 
-              <div className="rounded-2xl bg-pod/70 p-3 space-y-1">
+              <div className="rounded-pod bg-pod p-3 space-y-1">
                 <div className="flex justify-between text-xs font-rounded">
                   <span className="text-ink-secondary font-semibold">{isFr ? 'Température air' : 'Air temperature'}</span>
                   <strong className="text-ink tnum">{tempC}°C</strong>
@@ -449,7 +449,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
                       variant="ghost"
                       type="button"
                       onClick={() => setWindAngleDeg(wa.deg)}
-                      className={`min-h-[38px] px-2.5 py-1.5 rounded-xl text-[11px] font-rounded font-semibold cursor-pointer ${
+                      className={`min-h-[38px] px-2.5 py-1.5 rounded-sub-pod text-[11px] font-rounded font-semibold cursor-pointer ${
                         sel
                           ? `${CHIP_TOKENS.sky.surface} ${CHIP_TOKENS.sky.primary} ring-2 ring-inset ${CHIP_TOKENS.sky.selectedRing}`
                           : 'bg-pod text-ink-secondary hover:text-ink'
@@ -475,7 +475,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-[22px] p-4 bg-volt/20 dark:bg-volt/15 ring-1 ring-inset ring-volt-lime/40">
+              <div className="rounded-pod p-4 bg-volt/20 dark:bg-volt/15 ring-1 ring-inset ring-volt-lime/40">
                 <div className="text-[11px] font-rounded font-bold text-ink-secondary uppercase">
                   {isFr ? 'Taxe vent' : 'Wind power delta'}
                 </div>
@@ -488,7 +488,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
                 </div>
               </div>
 
-              <div className="rounded-[22px] p-4 bg-pod/80 dark:bg-white/[0.045]">
+              <div className="rounded-pod p-4 bg-pod">
                 <div className="text-[11px] font-rounded font-bold text-ink-secondary uppercase">
                   {isFr ? 'Temps perdu / gagné' : 'Time delay'}
                 </div>
@@ -502,7 +502,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
               </div>
             </div>
 
-            <div className="rounded-[20px] bg-pod/70 dark:bg-white/[0.04] p-3.5 space-y-2 text-xs font-rounded">
+            <div className="rounded-pod bg-pod p-3.5 space-y-2 text-xs font-rounded">
               <div className="flex items-center justify-between">
                 <span className="text-ink-secondary flex items-center gap-1.5">
                   <Zap className="w-3.5 h-3.5 text-amber-500" />
@@ -558,7 +558,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              <div className="rounded-2xl bg-pod/70 p-3">
+              <div className="rounded-pod bg-pod p-3">
                 <label className="block text-xs font-rounded font-semibold text-ink-secondary mb-1">
                   {isFr ? 'Arrivée cible (HH:MM)' : 'Target arrival time'}
                 </label>
@@ -566,11 +566,11 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
                   type="time"
                   value={targetArrivalTime}
                   onChange={(e) => setTargetArrivalTime(e.target.value)}
-                  className="w-full h-9 px-2.5 rounded-xl bg-card text-sm font-bold text-ink tnum"
+                  className="w-full h-9 px-2.5 rounded-sub-pod bg-card text-sm font-bold text-ink tnum"
                 />
               </div>
 
-              <div className="rounded-2xl bg-pod/70 p-3 space-y-1">
+              <div className="rounded-pod bg-pod p-3 space-y-1">
                 <div className="flex justify-between text-xs font-rounded">
                   <span className="text-ink-secondary font-semibold">{isFr ? 'Distance' : 'Distance'}</span>
                   <strong className="text-ink tnum">{lbDistKm} km</strong>
@@ -586,7 +586,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
                 />
               </div>
 
-              <div className="rounded-2xl bg-pod/70 p-3 space-y-1">
+              <div className="rounded-pod bg-pod p-3 space-y-1">
                 <div className="flex justify-between text-xs font-rounded">
                   <span className="text-ink-secondary font-semibold">{isFr ? 'Allure calme' : 'Calm speed'}</span>
                   <strong className="text-ink tnum">{lbSpeedKmH} km/h</strong>
@@ -602,7 +602,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
                 />
               </div>
 
-              <div className="rounded-2xl bg-pod/70 p-3 space-y-1">
+              <div className="rounded-pod bg-pod p-3 space-y-1">
                 <div className="flex justify-between text-xs font-rounded">
                   <span className="text-ink-secondary font-semibold">{isFr ? 'Vent de face moy.' : 'Avg headwind'}</span>
                   <strong className="text-ink tnum">{lbHeadwindKmH} km/h</strong>
@@ -618,7 +618,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
                 />
               </div>
 
-              <div className="rounded-2xl bg-pod/70 p-3 space-y-1">
+              <div className="rounded-pod bg-pod p-3 space-y-1">
                 <div className="flex justify-between text-xs font-rounded">
                   <span className="text-ink-secondary font-semibold">{isFr ? 'Pause café / ravitaillement' : 'Coffee / stop time'}</span>
                   <strong className="text-ink tnum">{lbCoffeeMin} min</strong>
@@ -634,7 +634,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
                 />
               </div>
 
-              <div className="rounded-2xl bg-pod/70 p-3 space-y-1">
+              <div className="rounded-pod bg-pod p-3 space-y-1">
                 <div className="flex justify-between text-xs font-rounded">
                   <span className="text-ink-secondary font-semibold">{isFr ? 'Marge sécurité / portail' : 'Finish margin'}</span>
                   <strong className="text-ink tnum">{lbPrepMin} min</strong>
@@ -653,7 +653,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
           </div>
 
           <div className="lg:col-span-6 rounded-card bg-card p-4 sm:p-5 space-y-4 shadow-xs">
-            <div className="rounded-[24px] p-4 bg-volt/25 dark:bg-volt/15 ring-1 ring-inset ring-volt-lime/40 flex items-center justify-between gap-3">
+            <div className="rounded-pod p-4 bg-volt/25 dark:bg-volt/15 ring-1 ring-inset ring-volt-lime/40 flex items-center justify-between gap-3">
               <div>
                 <div className="text-[11px] font-rounded font-bold uppercase tracking-wider text-ink-secondary">
                   {isFr ? 'Départ impératif (Leave-By)' : 'Recommended Leave-By'}
@@ -672,7 +672,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
               </div>
             </div>
 
-            <div className="rounded-[20px] bg-pod/70 dark:bg-white/[0.04] divide-y divide-ink/[0.06] dark:divide-white/[0.06]">
+            <div className="rounded-pod bg-pod divide-y divide-ink/[0.06] dark:divide-white/[0.06]">
               {leaveByTimeline.res.steps.slice(0, 6).map((step) => (
                 <div key={step.id} className="px-3.5 py-2.5 flex items-center justify-between gap-3 text-xs font-rounded">
                   <div className="min-w-0">
@@ -705,7 +705,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              <div className="rounded-2xl bg-pod/70 p-3 space-y-1">
+              <div className="rounded-pod bg-pod p-3 space-y-1">
                 <div className="flex justify-between text-xs font-rounded">
                   <span className="text-ink-secondary font-semibold">{isFr ? 'Masse totale (cycliste + vélo)' : 'Total system mass'}</span>
                   <strong className="text-ink tnum">{tpSystemKg} kg</strong>
@@ -721,7 +721,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
                 />
               </div>
 
-              <div className="rounded-2xl bg-pod/70 p-3 space-y-1">
+              <div className="rounded-pod bg-pod p-3 space-y-1">
                 <div className="flex justify-between text-xs font-rounded">
                   <span className="text-ink-secondary font-semibold">{isFr ? 'Largeur mesurée' : 'Measured width'}</span>
                   <strong className="text-ink tnum">{tpWidthMm} mm</strong>
@@ -858,7 +858,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
             </span>
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-[22px] p-4 bg-pod/80 dark:bg-white/[0.045]">
+              <div className="rounded-pod p-4 bg-pod">
                 <div className="text-[11px] font-rounded font-bold text-ink-secondary uppercase">
                   {isFr ? 'Pneu Avant' : 'Front Tyre'} ({tpResult.frontLoadPct}%)
                 </div>
@@ -870,7 +870,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
                 </div>
               </div>
 
-              <div className="rounded-[22px] p-4 bg-volt/20 dark:bg-volt/15 ring-1 ring-inset ring-volt-lime/40">
+              <div className="rounded-pod p-4 bg-volt/20 dark:bg-volt/15 ring-1 ring-inset ring-volt-lime/40">
                 <div className="text-[11px] font-rounded font-bold text-ink-secondary uppercase">
                   {isFr ? 'Pneu Arrière' : 'Rear Tyre'} ({tpResult.rearLoadPct}%)
                 </div>
@@ -884,7 +884,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
             </div>
 
             {tpResult.hooklessCapped && (
-              <div className="rounded-2xl p-3 bg-rose-500/[0.1] text-rose-800 dark:text-rose-200 text-xs font-rounded flex items-start gap-2">
+              <div className="rounded-pod p-3 bg-rose-500/[0.1] text-rose-800 dark:text-rose-200 text-xs font-rounded flex items-start gap-2">
                 <TriangleAlert className="w-4 h-4 shrink-0 mt-0.5 text-rose-600 dark:text-rose-400" />
                 <span>
                   {isFr

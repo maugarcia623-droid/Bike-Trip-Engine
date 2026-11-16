@@ -9,13 +9,19 @@ import {
   TrainSimple,
   Buildings,
   Plus,
+  RotateCcw,
+  ArrowsLeftRight,
 } from '@/components/icons';
 import { useTranslation } from '../../context/LanguageContext';
 import { Button } from '@/components/arc';
 import { ElevationProfilePoint, RouteWaypoint } from '../../types/trip';
 import { SchematicRouteMap } from './SchematicRouteMap';
 import { parseRouteFile } from '../../utils/routeFileParser';
-import { calculateAutoBikeRoute } from '../../utils/routing';
+import {
+  calculateAutoBikeRoute,
+  generateBikeLoopRoute,
+  LoopShape,
+} from '../../utils/routing';
 import {
   LocationSuggestion,
   searchLocationSuggestions,
@@ -34,56 +40,54 @@ interface RouteLocationInputProps {
 
 const EXTENDED_CYCLING_HUBS: LocationSuggestion[] = [
   {
-    id: 'hub-trentemoult',
-    name: 'Trentemoult, Rezé',
-    secondaryText: '44400 Rezé, Loire-Atlantique (Bords de Loire)',
-    fullDisplayName: 'Trentemoult, 44400 Rezé, France',
-    coordinates: [47.1944, -1.5833],
+    id: 'hub-annecy',
+    name: 'Annecy, Le Pâquier',
+    secondaryText: '74000 Annecy (Voie Verte du Lac)',
+    fullDisplayName: 'Le Pâquier, 74000 Annecy, France',
+    coordinates: [45.9012, 6.1319],
+    type: 'city',
+  },
+  {
+    id: 'hub-talloires',
+    name: 'Talloires-Montmin',
+    secondaryText: '74290 Talloires (Rive Est Lac d’Annecy)',
+    fullDisplayName: 'Talloires-Montmin, 74290 France',
+    coordinates: [45.8404, 6.2136],
     type: 'village',
   },
   {
-    id: 'hub-nantes-gare',
-    name: 'Nantes gare, Nantes',
-    secondaryText: '44000 Nantes (Gare SNCF Accès Nord/Sud)',
-    fullDisplayName: 'Gare de Nantes, 44000 Nantes, France',
-    coordinates: [47.2173, -1.5422],
-    type: 'station',
-  },
-  {
-    id: 'hub-nantes-centre',
-    name: 'Nantes Quai de la Fosse',
-    secondaryText: '44000 Nantes (Piste cyclable Loire à Vélo)',
-    fullDisplayName: 'Quai de la Fosse, 44000 Nantes, France',
-    coordinates: [47.2115, -1.5583],
-    type: 'street',
-  },
-  {
-    id: 'hub-st-nazaire',
-    name: 'Saint-Nazaire Front de Mer',
-    secondaryText: '44600 Saint-Nazaire (Estuaire & Front de Mer)',
-    fullDisplayName: 'Saint-Nazaire, 44600 Loire-Atlantique, France',
-    coordinates: [47.2734, -2.2139],
+    id: 'hub-lyon-confluence',
+    name: 'Lyon Confluence',
+    secondaryText: '69002 Lyon (Départ ViaRhôna)',
+    fullDisplayName: 'Lyon Confluence, 69002 Lyon, France',
+    coordinates: [45.7418, 4.818],
     type: 'city',
   },
   {
-    id: 'hub-pornic',
-    name: 'Pornic Château',
-    secondaryText: '44210 Pornic (Port & Baie de Bourgneuf)',
-    fullDisplayName: 'Pornic, 44210 Loire-Atlantique, France',
-    coordinates: [47.1147, -2.1028],
+    id: 'hub-girona',
+    name: 'Girona, Plaça Catalunya',
+    secondaryText: '17001 Girona, Spain (Cycling Hub)',
+    fullDisplayName: 'Plaça Catalunya, Girona, Spain',
+    coordinates: [41.9818, 2.8237],
     type: 'city',
   },
   {
-    id: 'hub-clisson',
-    name: 'Clisson Gare',
-    secondaryText: '44190 Clisson (Vignoble & Vallée de la Sèvre)',
-    fullDisplayName: 'Clisson, 44190 Loire-Atlantique, France',
-    coordinates: [47.0872, -1.2828],
+    id: 'hub-amsterdam',
+    name: 'Amsterdam Centraal',
+    secondaryText: '1012 AB Amsterdam, Netherlands (Station Hub)',
+    fullDisplayName: 'Amsterdam Centraal, Netherlands',
+    coordinates: [52.3791, 4.9003],
     type: 'station',
   },
-  ...POPULAR_CYCLING_HUBS.filter(
-    (h) => h.id !== 'preset-nantes' && h.id !== 'preset-st-nazaire'
-  ),
+  {
+    id: 'hub-portland',
+    name: 'Portland Waterfront',
+    secondaryText: 'Tom McCall Waterfront Park, OR, USA',
+    fullDisplayName: 'Portland Waterfront, Oregon, USA',
+    coordinates: [45.5189, -122.6716],
+    type: 'city',
+  },
+  ...POPULAR_CYCLING_HUBS,
 ];
 
 const RouteLocationInput: React.FC<RouteLocationInputProps> = ({
@@ -348,39 +352,39 @@ interface Screen3RouteProps {
 
 const QUICK_HUBS = [
   {
-    origin: 'Trentemoult, Rezé',
-    destination: 'Nantes gare, Nantes',
-    label: 'Trentemoult → Gare de Nantes',
+    origin: 'Annecy, Le Pâquier',
+    destination: 'Talloires-Montmin',
+    label: 'Annecy → Talloires',
     coords: [
-      [47.1944, -1.5833] as [number, number],
-      [47.2173, -1.5422] as [number, number],
+      [45.9012, 6.1319] as [number, number],
+      [45.8404, 6.2136] as [number, number],
     ],
   },
   {
-    origin: 'Nantes Quai de la Fosse',
-    destination: 'Saint-Nazaire Front de Mer',
-    label: 'Nantes → Saint-Nazaire',
+    origin: 'Lyon Confluence',
+    destination: 'Vienne',
+    label: 'Lyon → Vienne (ViaRhôna)',
     coords: [
-      [47.2115, -1.5583] as [number, number],
-      [47.2734, -2.2139] as [number, number],
+      [45.7418, 4.818] as [number, number],
+      [45.5245, 4.8753] as [number, number],
     ],
   },
   {
-    origin: 'Pornichet Port',
-    destination: 'Le Croisic Côte Sauvage',
-    label: 'Pornichet → Le Croisic',
+    origin: 'Girona, Plaça Catalunya',
+    destination: 'Banyoles, Estany',
+    label: 'Girona → Banyoles',
     coords: [
-      [47.2625, -2.3389] as [number, number],
-      [47.2936, -2.5117] as [number, number],
+      [41.9818, 2.8237] as [number, number],
+      [42.126, 2.7556] as [number, number],
     ],
   },
   {
-    origin: 'Clisson Gare',
-    destination: 'Nantes Île de Nantes',
-    label: 'Clisson → Île de Nantes',
+    origin: 'Amsterdam Centraal',
+    destination: 'Haarlem Grote Markt',
+    label: 'Amsterdam → Haarlem',
     coords: [
-      [47.0872, -1.2828] as [number, number],
-      [47.2081, -1.5645] as [number, number],
+      [52.3791, 4.9003] as [number, number],
+      [52.3813, 4.6366] as [number, number],
     ],
   },
 ];
@@ -408,10 +412,10 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [originCoords, setOriginCoords] = useState<[number, number] | null>(() =>
-    origin.includes('Trentemoult') ? [47.1944, -1.5833] : null
+    origin.includes('Annecy') ? [45.9012, 6.1319] : null
   );
   const [destCoords, setDestCoords] = useState<[number, number] | null>(() =>
-    destination.includes('Nantes gare') ? [47.2173, -1.5422] : null
+    destination.includes('Talloires') ? [45.8404, 6.2136] : null
   );
   const [intermediateStops, setIntermediateStops] = useState<
     Array<{ id: string; name: string; coords: [number, number] | null }>
@@ -450,6 +454,71 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
   const [isFetchingDistance, setIsFetchingDistance] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [fetchSuccessMessage, setFetchSuccessMessage] = useState<string | null>(null);
+  const [loopShape, setLoopShape] = useState<LoopShape>('loop');
+  const [loopBearingDeg, setLoopBearingDeg] = useState<number>(45);
+  const [isGeneratingLoop, setIsGeneratingLoop] = useState(false);
+
+  const handleGenerateLoop = async (
+    shapeOverride: LoopShape = loopShape,
+    bearingOverride: number = loopBearingDeg
+  ) => {
+    const cleanOrigin = origin.trim();
+    if (!cleanOrigin && !originCoords) {
+      setFetchError(
+        isFr
+          ? 'Veuillez saisir un point de départ pour tracer la boucle.'
+          : 'Please enter a start location to build the loop.'
+      );
+      return;
+    }
+
+    setIsGeneratingLoop(true);
+    setFetchError(null);
+    setFetchSuccessMessage(null);
+
+    try {
+      const result = await generateBikeLoopRoute(cleanOrigin || 'Start', distanceKm, {
+        originCoordsOverride: originCoords,
+        shape: shapeOverride,
+        bearingDeg: bearingOverride,
+      });
+      onUpdateDistance(Number(result.distanceKm.toFixed(1)));
+      if (cleanOrigin) {
+        onUpdateDestination(
+          shapeOverride === 'out-and-back'
+            ? `${cleanOrigin} (${isFr ? 'Aller-retour' : 'Out & Back'})`
+            : `${cleanOrigin} (${isFr ? 'Boucle' : 'Loop'})`
+        );
+      }
+      onUpdateCoordinates(result.coordinates);
+      setOriginCoords(result.originCoordinates);
+      setDestCoords(result.originCoordinates);
+      onUpdateWaypoints?.([]);
+      onUpdateElevation?.({
+        elevationGainM: result.elevationGainM,
+        elevationLossM: result.elevationLossM,
+        elevationProfile: result.elevationProfile,
+      });
+      setFetchSuccessMessage(
+        result.usedOfflineFallback
+          ? isFr
+            ? `Mode hors-ligne : boucle géométrique de ${result.distanceKm.toFixed(1)} km générée.`
+            : `Offline fallback: ${result.distanceKm.toFixed(1)} km geometric loop created.`
+          : isFr
+          ? `${shapeOverride === 'out-and-back' ? 'Aller-retour' : 'Boucle vélo'} tracé : ${result.distanceKm.toFixed(1)} km (~${Math.round(result.estimatedMinutes)} min)`
+          : `${shapeOverride === 'out-and-back' ? 'Out & back' : 'Bike loop'} routed: ${result.distanceKm.toFixed(1)} km (~${Math.round(result.estimatedMinutes)} min)`
+      );
+    } catch (err: any) {
+      setFetchError(
+        err?.message ||
+          (isFr
+            ? 'Impossible de générer la boucle vélo pour ce départ.'
+            : 'Unable to generate a bike loop for that start point.')
+      );
+    } finally {
+      setIsGeneratingLoop(false);
+    }
+  };
 
   const handleFetchDistance = async (
     originText = origin,
@@ -605,7 +674,7 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
                 value={origin}
                 badgeLetter="A"
                 biasCoords={destCoords || undefined}
-                placeholder={isFr ? 'Ex: Trentemoult, Rezé ou tapez une ville' : 'e.g. Trentemoult, Rezé or type city'}
+                placeholder={isFr ? 'Ex: Annecy, Lyon ou tapez une ville' : 'e.g. Girona, Portland or type city'}
                 onChange={(val) => {
                   onUpdateOrigin(val);
                   setOriginCoords(null);
@@ -629,7 +698,7 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
                       value={stop.name}
                       badgeLetter={String(idx + 1) as any}
                       biasCoords={originCoords || destCoords || undefined}
-                      placeholder={isFr ? 'Ex: Rougiers, Mazaugues...' : 'e.g. Rougiers, Mazaugues...'}
+                      placeholder={isFr ? 'Ex: Point café, col, village…' : 'e.g. Coffee stop, climb, town…'}
                       onChange={(val) => {
                         setIntermediateStops((prev) =>
                           prev.map((s) => (s.id === stop.id ? { ...s, name: val, coords: null } : s))
@@ -687,7 +756,7 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
                 value={destination}
                 badgeLetter="B"
                 biasCoords={originCoords || undefined}
-                placeholder={isFr ? 'Ex: Nantes gare, Nantes ou gare' : 'e.g. Nantes gare, Nantes or station'}
+                placeholder={isFr ? 'Ex: Talloires, gare, lac ou sommet' : 'e.g. Lakeside Park, Banyoles or station'}
                 onChange={(val) => {
                   onUpdateDestination(val);
                   setDestCoords(null);
@@ -804,7 +873,7 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
                           onUpdateDistance(Math.max(2, Math.min(300, val)));
                         }
                       }}
-                      className="w-16 min-h-[40px] px-2 py-0.5 rounded-lg bg-card text-ink font-rounded font-bold text-base sm:text-sm text-right tnum border border-black/15 dark:border-white/20 focus:outline-none focus:ring-2 focus:ring-volt"
+                      className="w-16 min-h-[40px] px-2 py-0.5 rounded-sub-pod bg-card text-ink font-rounded font-bold text-base sm:text-sm text-right tnum border border-black/15 dark:border-white/20 focus:outline-none focus:ring-2 focus:ring-volt"
                     />
                     <span className="font-rounded font-bold text-ink tnum text-sm">km</span>
                   </div>
@@ -826,6 +895,115 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
                   <span>200 km</span>
                   <span>250 km</span>
                 </div>
+
+                {/* Quick distance presets + loop shape */}
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                  <div className="inline-flex items-center gap-1 p-1 rounded-full bg-pod border border-black/5 dark:border-white/10">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setLoopShape('loop')}
+                      className={`h-7 px-2.5 rounded-full text-[11px] font-rounded font-bold inline-flex items-center gap-1 transition-all cursor-pointer ${
+                        loopShape === 'loop'
+                          ? 'bg-card text-ink shadow-xs ring-1 ring-black/5 dark:ring-white/10'
+                          : 'text-ink-muted hover:text-ink'
+                      }`}
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      <span>{isFr ? 'Boucle' : 'Circular Loop'}</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setLoopShape('out-and-back')}
+                      className={`h-7 px-2.5 rounded-full text-[11px] font-rounded font-bold inline-flex items-center gap-1 transition-all cursor-pointer ${
+                        loopShape === 'out-and-back'
+                          ? 'bg-card text-ink shadow-xs ring-1 ring-black/5 dark:ring-white/10'
+                          : 'text-ink-muted hover:text-ink'
+                      }`}
+                    >
+                      <ArrowsLeftRight className="w-3 h-3" />
+                      <span>{isFr ? 'Aller-retour' : 'Out & Back'}</span>
+                    </Button>
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    {[25, 50, 80, 120].map((preset) => (
+                      <Button
+                        key={preset}
+                        type="button"
+                        variant="ghost"
+                        onClick={() => onUpdateDistance(preset)}
+                        className={`h-7 px-2 rounded-full text-[11px] font-rounded font-bold tnum transition-colors cursor-pointer ${
+                          Math.round(distanceKm) === preset
+                            ? 'bg-ink text-ink-inverse'
+                            : 'bg-pod text-ink-secondary hover:bg-chip'
+                        }`}
+                      >
+                        {preset}k
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Real OSRM Loop Generation CTA */}
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => handleGenerateLoop(loopShape, loopBearingDeg)}
+                    disabled={isGeneratingLoop || (!origin.trim() && !originCoords)}
+                    className="h-10 px-4 rounded-full bg-pod hover:bg-chip text-xs font-rounded font-bold text-ink border border-black/10 dark:border-white/15 inline-flex items-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
+                  >
+                    {isGeneratingLoop ? (
+                      <>
+                        <SpinnerGap className="w-3.5 h-3.5 animate-spin" />
+                        <span>{isFr ? 'Traçage de la boucle…' : 'Routing bike loop…'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Compass className="w-3.5 h-3.5 text-ink" />
+                        <span>
+                          {loopShape === 'out-and-back'
+                            ? isFr
+                              ? 'Tracer un aller-retour vélo'
+                              : 'Generate Out & Back Route'
+                            : isFr
+                            ? 'Tracer la boucle vélo'
+                            : 'Generate Bike Loop'}
+                        </span>
+                      </>
+                    )}
+                  </Button>
+
+                  {coordinates && coordinates.length >= 2 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        const nextBearing = (loopBearingDeg + 65) % 360;
+                        setLoopBearingDeg(nextBearing);
+                        handleGenerateLoop(loopShape, nextBearing);
+                      }}
+                      disabled={isGeneratingLoop}
+                      className="h-10 px-3 rounded-full bg-card border border-black/10 dark:border-white/15 text-xs font-rounded font-semibold text-ink-secondary hover:text-ink inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>{isFr ? 'Autre cap' : 'Rotate direction'}</span>
+                    </Button>
+                  )}
+                </div>
+
+                {fetchSuccessMessage && (
+                  <p className="mt-2 text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
+                    {fetchSuccessMessage}
+                  </p>
+                )}
+                {fetchError && (
+                  <p className="mt-2 text-[11px] font-medium text-rose-600 dark:text-rose-400">
+                    {fetchError}
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -891,14 +1069,14 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
               >
                 <span>
                   {isFr
-                    ? 'Utiliser une simple estimation de distance →'
-                    : 'Use a distance-only estimate instead →'}
+                    ? 'Tracer une boucle depuis Départ + Distance →'
+                    : 'Build a bike loop from Start + Distance →'}
                 </span>
               </Button>
               <p className="text-xs text-ink-muted font-body leading-relaxed">
                 {isFr
-                  ? 'Entrez les kilomètres sans tracer de carte. Vous obtiendrez l’estimation de temps sans tracé.'
-                  : 'Enter kilometres without plotting a route. You’ll get a time estimate, but no route map or directions.'}
+                  ? 'Choisissez un point de départ et une distance : Cadence trace une vraie boucle cyclable (ou un aller-retour) prête pour le GPS.'
+                  : 'Pick a start point and distance — Cadence generates a real road-snapped circular loop or out-and-back ride.'}
               </p>
             </div>
           )}
@@ -908,8 +1086,8 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
         <div className="lg:col-span-5 flex flex-col">
           <div className="bento-card bg-card text-ink rounded-card p-5 sm:p-6 border border-black/5 dark:border-white/10 shadow-xs flex flex-col">
             <SchematicRouteMap
-              originLabel={origin.split(',')[0] || 'Trentemoult'}
-              destinationLabel={destination.split(',')[0] || 'Nantes gare'}
+              originLabel={origin.split(',')[0] || (isFr ? 'Départ' : 'Start')}
+              destinationLabel={destination.split(',')[0] || (isFr ? 'Arrivée' : 'Finish')}
               distanceKm={distanceKm}
               coordinates={coordinates}
               waypoints={intermediateStops.map((s) => ({

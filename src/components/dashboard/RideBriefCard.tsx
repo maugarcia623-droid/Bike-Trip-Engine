@@ -163,7 +163,7 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
       id="ride-brief-card"
       data-testid="ride-brief-card"
       aria-label={isFr ? 'Briefing départ' : 'Ride Brief'}
-      className="w-full mb-4 lg:mb-5 rounded-card bg-card p-4 sm:p-5 lg:px-6 lg:py-5 shadow-xs border border-ink/5 dark:border-white/5 transition-colors"
+      className="w-full mb-3 sm:mb-4 lg:mb-5 rounded-card bg-card p-3.5 sm:p-5 lg:px-6 lg:py-5 shadow-xs border border-ink/5 dark:border-white/5 transition-colors"
     >
       {/* ── Header Row ── */}
       <div className="flex items-start sm:items-center justify-between gap-3">
@@ -177,20 +177,38 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
             </span>
           </div>
 
-          {!isExpanded && (
-            <div className="inline-flex items-center gap-2 rounded-full bg-pod px-2.5 py-1 text-xs font-semibold text-ink tnum max-w-full">
-              <span className="inline-flex items-center rounded-full bg-volt text-[#111111] px-2 py-0.5 text-[11px] font-extrabold leading-none">
-                {brief.leaveByHHMM}
-              </span>
-              <span className="whitespace-nowrap">{distLabel} km</span>
-              <span className="text-ink-muted font-medium whitespace-nowrap hidden sm:inline">
-                · {brief.totalDurationFormatted}
-              </span>
-              <span className="text-ink-muted font-medium whitespace-nowrap hidden md:inline">
-                · {brief.tyrePressure.frontBar}/{brief.tyrePressure.rearBar} bar
-              </span>
-            </div>
-          )}
+          <div className="flex flex-wrap items-center gap-2 max-w-full">
+            {!isExpanded && (
+              <Button
+                variant="ghost"
+                size="sm"
+                type="button"
+                onClick={onToggleExpand}
+                aria-label={isFr ? 'Déplier le briefing départ' : 'Expand Ride Brief'}
+                className="inline-flex items-center gap-2 rounded-full bg-pod hover:bg-chip px-3 py-1.5 min-h-[44px] sm:min-h-[32px] sm:px-2.5 sm:py-1 text-xs font-semibold text-ink tnum max-w-full cursor-pointer transition-colors"
+              >
+                <span className="inline-flex items-center rounded-full bg-volt text-[#111111] px-2 py-0.5 text-[11px] font-extrabold leading-none">
+                  {brief.leaveByHHMM}
+                </span>
+                <span className="whitespace-nowrap">{distLabel} km</span>
+                <span className="text-ink-muted font-medium whitespace-nowrap hidden sm:inline">
+                  · {brief.totalDurationFormatted}
+                </span>
+                <span className="text-ink-muted font-medium whitespace-nowrap hidden md:inline">
+                  · {brief.tyrePressure.frontBar}/{brief.tyrePressure.rearBar} bar
+                </span>
+              </Button>
+            )}
+
+            <Badge
+              variant={brief.attentionBadgeVariant}
+              size="sm"
+              dot
+              className="font-semibold sm:hidden"
+            >
+              {brief.attentionBadgeLabel}
+            </Badge>
+          </div>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
@@ -228,13 +246,6 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
             />
           </Button>
         </div>
-      </div>
-
-      {/* Small screen status badge when collapsed/mobile */}
-      <div className="mt-2 sm:hidden">
-        <Badge variant={brief.attentionBadgeVariant} size="sm" dot className="font-semibold">
-          {brief.attentionBadgeLabel}
-        </Badge>
       </div>
 
       {/* ── Collapsible Body ── */}
@@ -343,7 +354,7 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
               size="sm"
               type="button"
               onClick={handleCopyGroupLink}
-              className="h-8 px-3 rounded-full bg-pod hover:bg-chip text-ink text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
+              className="min-h-[44px] sm:h-8 sm:min-h-0 px-3.5 sm:px-3 rounded-full bg-pod hover:bg-chip text-ink text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
             >
               {copiedPlanLink ? (
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
@@ -366,7 +377,7 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
               size="sm"
               type="button"
               onClick={handleDownloadFit}
-              className="h-8 px-3 rounded-full bg-pod hover:bg-chip text-ink-secondary hover:text-ink text-xs font-semibold inline-flex items-center gap-1.5 transition-colors tnum"
+              className="min-h-[44px] sm:h-8 sm:min-h-0 px-3.5 sm:px-3 rounded-full bg-pod hover:bg-chip text-ink-secondary hover:text-ink text-xs font-semibold inline-flex items-center gap-1.5 transition-colors tnum"
             >
               <Download className="w-3.5 h-3.5" />
               <span>.FIT</span>
@@ -377,7 +388,7 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
               size="sm"
               type="button"
               onClick={handleDownloadGpx}
-              className="h-8 px-3 rounded-full bg-pod hover:bg-chip text-ink-secondary hover:text-ink text-xs font-semibold inline-flex items-center gap-1.5 transition-colors tnum"
+              className="min-h-[44px] sm:h-8 sm:min-h-0 px-3.5 sm:px-3 rounded-full bg-pod hover:bg-chip text-ink-secondary hover:text-ink text-xs font-semibold inline-flex items-center gap-1.5 transition-colors tnum"
             >
               <Download className="w-3.5 h-3.5" />
               <span>{hasMultipleStages ? (isFr ? '.GPX Tour' : 'Tour .GPX') : '.GPX'}</span>
@@ -389,7 +400,7 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
                 size="sm"
                 type="button"
                 onClick={() => onOpenTools('wind')}
-                className="h-8 px-3 rounded-full bg-pod hover:bg-chip text-ink-secondary hover:text-ink text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
+                className="min-h-[44px] sm:h-8 sm:min-h-0 px-3.5 sm:px-3 rounded-full bg-pod hover:bg-chip text-ink-secondary hover:text-ink text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
               >
                 <Calculator className="w-3.5 h-3.5" />
                 <span>{isFr ? 'Outils' : 'Free Tools'}</span>

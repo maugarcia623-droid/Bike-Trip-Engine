@@ -1,8 +1,9 @@
-import { TripProfile, TripStage } from '../types/trip';
+import { TripProfile, TripStage, WeatherCondition } from '../types/trip';
 import { calculatePhysics } from './physics';
 import { calculateReverseTimeline, parseHHMM } from './timeline';
 import { getChipsExtraBufferMinutes } from './archetypeChips';
 import { Language } from '../context/LanguageContext';
+import { checkForecastHorizon } from '../services/weatherService';
 
 /**
  * Downsamples OSRM polyline coordinates to at most maxPoints (default 250),
@@ -186,10 +187,30 @@ export function addNextStage(trip: TripProfile): TripProfile {
       ? previousStage.route.coordinates[previousStage.route.coordinates.length - 1]
       : undefined);
   const nextDayNumber = stages.length + 1;
-  const nextDepartureDate = addDaysToIso(
-    previousStage.departureDate || trip.departureDate || new Date().toISOString().slice(0, 10),
-    1
-  );
+  const previousDate = previousStage.departureDate || trip.departureDate || new Date().toISOString().slice(0, 10);
+  const nextDepartureDate = addDaysToIso(previousDate, 1);
+  const datesDiffer = nextDepartureDate !== previousDate;
+  const horizon = checkForecastHorizon(nextDepartureDate);
+
+  // Never copy previousStage live/planned weather verbatim onto a different calendar day
+  const nextWeather: WeatherCondition = datesDiffer
+    ? {
+        source: 'simulated',
+        isBeyondForecastWindow: !horizon.isAvailable,
+        airDensityRho: 1.225,
+        effectiveHeadwindKmH: 0,
+        isHeadwindActive: false,
+        baseWindSpeedKmH: 10,
+        windDirection: 'calm',
+        windDirectionDegrees: 240,
+        temperatureC: previousStage.weather?.temperatureC ?? 18,
+        precipitationRiskPercent: 10,
+        estuaryGustKmH: 14,
+        visibilityKm: 20,
+      }
+    : {
+        ...previousStage.weather,
+      };
 
   const newStage: TripStage = {
     id: `stage-${nextDayNumber}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
@@ -205,6 +226,11 @@ export function addNextStage(trip: TripProfile): TripProfile {
       destCoords: undefined,
       distanceKm: 45,
       elevationGainM: 200,
+      elevationLossM: undefined,
+      elevationProfile: undefined,
+      terrainSummary: undefined,
+      surfaceBreakdown: undefined,
+      cueSheet: undefined,
       coordinates: undefined,
       waypoints: undefined,
     },
@@ -212,9 +238,7 @@ export function addNextStage(trip: TripProfile): TripProfile {
       ...previousStage.office,
       targetGateArrivalTime: '17:30',
     },
-    weather: {
-      ...previousStage.weather,
-    },
+    weather: nextWeather,
     customChips: [...(previousStage.customChips || [])],
     accommodationNote: undefined,
   };

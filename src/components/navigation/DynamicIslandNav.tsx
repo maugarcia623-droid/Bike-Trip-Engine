@@ -113,9 +113,9 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
 
   const activeMeta = activeTrip ? getLocalizedTripMeta(activeTrip, lang) : null;
   const yellowVest = CHIP_TOKENS['yellow-vest'];
-  const navBtnBase = `inline-flex items-center justify-center gap-2 h-9 w-9 sm:w-auto sm:h-10 px-0 sm:px-4.5 rounded-full text-xs sm:text-[13.5px] font-semibold whitespace-nowrap transition-all duration-150 active:scale-[0.96] cursor-pointer focus:outline-none shrink-0 ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES}`;
+  const navBtnBase = `inline-flex items-center justify-center gap-2 h-11 w-11 sm:w-auto sm:h-10 px-0 sm:px-4.5 rounded-full text-xs sm:text-[13.5px] font-semibold whitespace-nowrap transition-all duration-150 active:scale-[0.96] cursor-pointer focus:outline-none shrink-0 ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES}`;
   const navBtnActive = `${yellowVest.surface} ${yellowVest.primary} ${yellowVest.selectedRing} shadow-xs`;
-  const navBtnInactive = `${CHIP_RING_UNSELECTED} text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-zinc-200 dark:hover:bg-zinc-800/70`;
+  const navBtnInactive = `${CHIP_RING_UNSELECTED} text-ink-muted hover:text-ink hover:bg-pod`;
 
   return (
     <div
@@ -125,7 +125,7 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
       {/* ── THE DYNAMIC ISLAND PILL (OVERFLOW-VISIBLE SO POPOVER FLOATS FREELY ABOVE) ── */}
       <div
         ref={switcherRef}
-        className="pointer-events-auto relative flex items-center gap-1 sm:gap-2.5 p-1.5 sm:p-2.5 w-fit max-w-full rounded-full bg-white dark:bg-[#111114] text-ink dark:text-white shadow-[0_16px_36px_rgba(0,0,0,0.12)] dark:shadow-[0_20px_45px_rgba(0,0,0,0.5)] overflow-visible transition-colors duration-150"
+        className="pointer-events-auto relative flex items-center gap-1 sm:gap-2.5 p-1.5 sm:p-2.5 w-fit max-w-full rounded-full bg-card text-ink ring-1 ring-inset ring-ink/5 dark:ring-white/10 shadow-[0_16px_36px_rgba(0,0,0,0.12)] dark:shadow-[0_20px_45px_rgba(0,0,0,0.5)] overflow-visible transition-colors duration-150"
       >
         {/* Primary Views Navigation */}
         <nav
@@ -180,7 +180,7 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
         </nav>
 
         {/* Divider */}
-        <span className="w-px h-4 sm:h-5 bg-[#E5E3DD] dark:bg-[#2C2C30] shrink-0 mx-0.5" aria-hidden="true" />
+        <span className="w-px h-5 bg-chip shrink-0 mx-0.5" aria-hidden="true" />
 
         {/* ── PROJECT TITLE BUTTON & DEDICATED TRIP SELECTOR DROPDOWN ── */}
         <div className="min-w-0 flex-1 sm:flex-initial sm:relative z-50">
@@ -192,10 +192,10 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
                 e.stopPropagation();
                 setIsSwitcherOpen((prev) => !prev);
               }}
-              className={`flex sm:inline-flex items-center gap-1.5 sm:gap-2.5 w-full sm:w-auto sm:max-w-[260px] md:max-w-[340px] min-h-[36px] sm:h-10 py-1 sm:py-0 px-2.5 sm:px-4.5 max-w-full min-w-0 overflow-hidden rounded-full text-xs sm:text-[13.5px] font-semibold transition-all duration-150 cursor-pointer focus:outline-none ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+              className={`flex sm:inline-flex items-center gap-1.5 sm:gap-2.5 w-full sm:w-auto sm:max-w-[260px] md:max-w-[340px] min-h-[44px] sm:h-10 sm:min-h-0 py-1 sm:py-0 px-3 sm:px-4.5 max-w-full min-w-0 overflow-hidden rounded-full text-xs sm:text-[13.5px] font-semibold transition-all duration-150 cursor-pointer focus:outline-none ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
                 isSwitcherOpen
                   ? `${yellowVest.surface} ${yellowVest.primary} ${yellowVest.selectedRing}`
-                  : `${CHIP_RING_UNSELECTED} bg-zinc-100 hover:bg-zinc-200/80 text-zinc-800 dark:bg-zinc-800/70 dark:hover:bg-zinc-800 dark:text-zinc-200`
+                  : `${CHIP_RING_UNSELECTED} bg-pod hover:bg-chip text-ink`
               }`}
               title={`${activeMeta.name} — ${t('feasibilityStatus')}: ${isGo ? t('feasibilityOptimal') : isCaution ? t('feasibilityCaution') : t('feasibilitySevere')} (${physics?.goStatusReason || ''})`}
               aria-expanded={isSwitcherOpen}
@@ -232,7 +232,7 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
               {isSwitcherOpen ? (
                 <CircleChevronUp className="w-4 h-4 shrink-0 text-current" />
               ) : (
-                <CircleChevronDown className="w-4 h-4 shrink-0 text-zinc-500 dark:text-zinc-400" />
+                <CircleChevronDown className="w-4 h-4 shrink-0 text-ink-muted" />
               )}
             </Button>
           ) : (
@@ -240,7 +240,7 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
               variant="primary"
               size="sm"
               onClick={onCreateNew}
-              className={`inline-flex items-center gap-1.5 h-9 sm:h-10 px-3 sm:px-4 rounded-full text-xs font-semibold ${yellowVest.surface} ${yellowVest.primary} ${CHIP_RING_BASE} ${yellowVest.selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} cursor-pointer`}
+              className={`inline-flex items-center gap-1.5 h-11 sm:h-10 px-3.5 sm:px-4 rounded-full text-xs font-semibold ${yellowVest.surface} ${yellowVest.primary} ${CHIP_RING_BASE} ${yellowVest.selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} cursor-pointer`}
             >
               <Plus className="w-3.5 h-3.5" />
               <span>{t('createNewTripBtn')}</span>
@@ -255,11 +255,11 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
               <div
                 role="listbox"
                 aria-label={t('activeTripAria')}
-                className="w-full bg-white dark:bg-[#161618] rounded-[24px] p-3 text-ink dark:text-white shadow-[0_20px_50px_rgba(0,0,0,0.18)] dark:shadow-[0_24px_55px_rgba(0,0,0,0.7)] border border-black/5 dark:border-white/10 animate-apple-popover"
+                className="w-full bg-card rounded-[24px] p-3 text-ink shadow-[0_20px_50px_rgba(0,0,0,0.18)] dark:shadow-[0_24px_55px_rgba(0,0,0,0.7)] border border-ink/5 dark:border-white/10 animate-apple-popover"
               >
                 {/* Header with Active Trip Count & New Trip Action */}
-                <div className="flex items-center justify-between gap-2 pb-2.5 mb-2.5 border-b border-[#E5E3DD] dark:border-[#2C2C30] px-1">
-                  <span className="text-xs font-rounded text-ink-muted dark:text-zinc-400 font-semibold">
+                <div className="flex items-center justify-between gap-2 pb-2.5 mb-2.5 border-b border-chip px-1">
+                  <span className="text-xs font-rounded text-ink-muted font-semibold">
                     {t('activeTripAria')} ({allTrips.length})
                   </span>
                   <Button
@@ -270,7 +270,7 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
                       onCreateNew();
                       setIsSwitcherOpen(false);
                     }}
-                    className={`text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shrink-0 whitespace-nowrap cursor-pointer transition-all duration-150 active:scale-[0.96] hover:brightness-[0.97] dark:hover:brightness-110 ${yellowVest.surface} ${yellowVest.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                    className={`min-h-[40px] sm:min-h-[34px] text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1 shrink-0 whitespace-nowrap cursor-pointer transition-all duration-150 active:scale-[0.96] hover:brightness-[0.97] dark:hover:brightness-110 ${yellowVest.surface} ${yellowVest.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
                   >
                     <Plus className="w-3.5 h-3.5 text-current stroke-[2.5] shrink-0" />
                     <span>{t('newTripButton')}</span>
@@ -279,9 +279,9 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
 
                 {/* Active Trip Feasibility Insight Capsule */}
                 {physics && activeTrip && (
-                  <div className="mb-2.5 p-2.5 rounded-sub-pod bg-pod dark:bg-zinc-900/70">
+                  <div className="mb-2.5 p-2.5 rounded-sub-pod bg-pod">
                     <div className="flex items-center justify-between gap-2 mb-1">
-                      <span className="text-[10px] font-rounded uppercase tracking-wider text-ink-muted dark:text-zinc-400 font-bold">
+                      <span className="text-[10px] font-rounded uppercase tracking-wider text-ink-muted font-bold">
                         {t('rideFeasibility')}
                       </span>
                       <span
@@ -309,7 +309,7 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
                           : t('feasibilitySevere')}
                       </span>
                     </div>
-                    <p className="text-[11px] text-ink-secondary dark:text-zinc-300 leading-snug">
+                    <p className="text-[11px] text-ink-secondary leading-snug">
                       {physics.goStatusReason}
                     </p>
                   </div>
@@ -343,10 +343,10 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
                           setIsSwitcherOpen(false);
                         }}
                         title={`${meta.name} — ${itemIsGo ? t('feasibilityOptimal') : itemIsCaution ? t('feasibilityCaution') : t('feasibilitySevere')}: ${itemPhysics.goStatusReason}`}
-                        className={`w-full flex items-center justify-between px-3 sm:px-3.5 py-2.5 rounded-xl text-[13px] text-left transition-all duration-150 active:scale-[0.98] cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                        className={`w-full min-h-[44px] flex items-center justify-between px-3 sm:px-3.5 py-2.5 rounded-xl text-[13px] text-left transition-all duration-150 active:scale-[0.98] cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
                           isSelected
                             ? `${yellowVest.surface} ${yellowVest.primary} ${yellowVest.selectedRing}`
-                            : `${CHIP_RING_UNSELECTED} bg-[#F4F3EF] hover:bg-[#EBE9E3] text-[#111111] dark:bg-[#202023] dark:hover:bg-[#2C2C30] dark:text-[#F5F5F7]`
+                            : `${CHIP_RING_UNSELECTED} bg-pod hover:bg-chip text-ink`
                         }`}
                       >
                         <div className="min-w-0 flex-1 pr-2">
@@ -365,7 +365,7 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
                           </div>
                           <div
                             className={`text-[11px] tnum mt-0.5 break-words leading-tight ${
-                              isSelected ? 'opacity-80' : 'text-ink-muted dark:text-zinc-400'
+                              isSelected ? 'opacity-80' : 'text-ink-muted'
                             }`}
                           >
                             <span className="font-medium mr-1">
@@ -385,7 +385,7 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
                 </div>
 
                 {/* Status Legend Footer */}
-                <div className="mt-2.5 pt-2 border-t border-[#E5E3DD] dark:border-[#2C2C30] px-1 flex items-center justify-between text-[11px] text-ink-muted dark:text-zinc-400">
+                <div className="mt-2.5 pt-2 border-t border-chip px-1 flex items-center justify-between text-[11px] text-ink-muted">
                   <span className="flex items-center gap-1.5">
                     <span className={`w-1.5 h-1.5 rounded-full ${CHIP_TOKENS.emerald.dot}`} />
                     {t('feasibilityOptimal')}

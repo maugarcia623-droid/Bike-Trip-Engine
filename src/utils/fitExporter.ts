@@ -1,5 +1,26 @@
 import { TripProfile } from '../types/trip';
+import { Language } from '../context/LanguageContext';
+import { NutritionPreference } from '../types/specs';
 import { computeCumulativeDistances, snapToPolyline } from '../services/overpassCorridor';
+import { calculatePhysics } from './physics';
+import { ClimbCategory, computeClimbSplitsAndFueling } from './climbSplits';
+
+export interface FitExportOptions {
+  /** Inject periodic nutrition/hydration course_points (every 30-45 min). Default true. */
+  includeFuelingCues?: boolean;
+  /** Inject detected climb start markers into Garmin/Wahoo Up Ahead list. Default true. */
+  includeClimbCues?: boolean;
+  /** Periodic fueling interval in minutes (default 35 min). */
+  fuelIntervalMinutes?: number;
+  /** Copy language ('en' | 'fr'). */
+  lang?: Language;
+  /** Optional FTP override (W). */
+  ftpWatts?: number;
+  /** Optional rider carb target override (g/hr). */
+  carbTargetGPerHr?: number;
+  /** Optional rider fueling preference. */
+  nutritionPreference?: NutritionPreference;
+}
 
 // Garmin FIT epoch: 1989-12-31T00:00:00Z in Unix seconds
 const FIT_EPOCH_OFFSET_SEC = 631065600;
@@ -104,6 +125,46 @@ function mapCueToCoursePointType(direction: string): number {
   }
 }
 
+function mapClimbCategoryToCoursePointType(category: ClimbCategory): number {
+  switch (category) {
+    case 'HC':
+      return 31; // hors_category
+    case '1':
+      return 30; // first_category
+    case '2':
+      return 29; // second_category
+    case '3':
+      return 28; // third_category
+    case '4':
+    default:
+      return 27; // fourth_category
+  }
+}
+
+function interpolateCoordAtDistM(
+  coords: [number, number][],
+  cumMeters: number[],
+  rawTotalM: number,
+  targetTotalM: number,
+  distM: number
+): [number, number] {
+  if (coords.length === 0) return [47.2184, -1.5536];
+  if (coords.length === 1) return coords[0];
+  const scale = targetTotalM > 0 && rawTotalM > 0 ? rawTotalM / targetTotalM : 1;
+  const rawDistM = Math.max(0, Math.min(rawTotalM, distM * scale));
+  for (let i = 1; i < coords.length; i++) {
+    if (cumMeters[i] >= rawDistM) {
+      const span = cumMeters[i] - cumMeters[i - 1];
+      const t = span > 0 ? (rawDistM - cumMeters[i - 1]) / span : 0;
+      return [
+        coords[i - 1][0] + (coords[i][0] - coords[i - 1][0]) * t,
+        coords[i - 1][1] + (coords[i][1] - coords[i - 1][1]) * t,
+      ];
+    }
+  }
+  return coords[coords.length - 1];
+}
+
 function interpolateElevation(
   distKm: number,
   profile?: Array<{ distKm: number; eleM: number }>
@@ -126,7 +187,19 @@ function interpolateElevation(
  * Encodes a TripProfile (track polyline + pinned Resupply Radar stops + turn cues)
  * into a Garmin-compatible binary `.fit` Course file for Up Ahead alerts.
  */
-export function exportTripToFit(trip: TripProfile): Uint8Array {
+export function exportTripToFit(
+  trip: TripProfile,
+  options: FitExportOptions = {}
+): Uint8Array {
+  const {
+    includeFuelingCues = true,
+    includeClimbCues = true,
+    fuelIntervalMinutes = 35,
+    lang = 'en',
+    ftpWatts,
+    carbTargetGPerHr,
+    nutritionPreference,
+  } = options;
   const coords =
     trip.route.coordinates && trip.route.coordinates.length >= 2
       ? trip.route.coordinates
@@ -277,6 +350,73 @@ export function exportTripToFit(trip: TripProfile): Uint8Array {
     });
   }
 
+  if (includeFuelingCues || includeClimbCues) {
+    const physicsResult = calculatePhysics(
+      trip.physics,
+      trip.route,
+      trip.weather,
+      lang,
+      ftpWatts
+    );
+    const splitSummary = computeClimbSplitsAndFueling(trip, physicsResult, lang, {
+      ftpWatts,
+      carbTargetGPerHr,
+      nutritionPreference,
+      checkpointIntervalMinutes: fuelIntervalMinutes,
+      departureTimeHHMM: trip.departureTime,
+    });
+
+    if (includeClimbCues) {
+      for (const climb of splitSummary.climbs) {
+        const distM = Math.max(0, Math.min(targetTotalM, climb.startKm * 1000));
+        const [lat, lon] = interpolateCoordAtDistM(
+          coords,
+          cumMeters,
+          rawTotalM,
+          targetTotalM,
+          distM
+        );
+        const catTag =
+          climb.category === 'HC'
+            ? 'HC'
+            : climb.category === 'hill'
+            ? 'Climb'
+            : `C${climb.category}`;
+        const shortName = `${catTag} ${climb.lengthKm}km ${Math.round(climb.avgGradePct)}%`.slice(
+          0,
+          15
+        );
+        coursePoints.push({
+          lat,
+          lon,
+          distM,
+          type: mapClimbCategoryToCoursePointType(climb.category),
+          name: shortName,
+        });
+      }
+    }
+
+    if (includeFuelingCues) {
+      for (const cp of splitSummary.checkpoints) {
+        const distM = Math.max(0, Math.min(targetTotalM, cp.distKm * 1000));
+        const [lat, lon] = interpolateCoordAtDistM(
+          coords,
+          cumMeters,
+          rawTotalM,
+          targetTotalM,
+          distM
+        );
+        coursePoints.push({
+          lat,
+          lon,
+          distM,
+          type: cp.kind === 'hydration' ? 11 : 10,
+          name: cp.shortFitCue.slice(0, 15),
+        });
+      }
+    }
+  }
+
   coursePoints.sort((a, b) => a.distM - b.distM);
 
   if (coursePoints.length > 0) {
@@ -336,9 +476,9 @@ export function exportTripToFit(trip: TripProfile): Uint8Array {
   return totalBytes;
 }
 
-export function downloadTripFit(trip: TripProfile): void {
+export function downloadTripFit(trip: TripProfile, options?: FitExportOptions): void {
   if (typeof document === 'undefined') return;
-  const bytes = exportTripToFit(trip);
+  const bytes = exportTripToFit(trip, options);
   const baseName =
     (trip.name || 'cadence-route')
       .toLowerCase()

@@ -1,8 +1,10 @@
 import { TripProfile, WeatherCondition } from '../types/trip';
 import { Language } from '../context/LanguageContext';
 import { calculatePhysics } from '../utils/physics';
+import { addDaysToIso } from '../utils/stageManager';
 import { computeCumulativeDistances, haversineDistanceMeters } from './overpassCorridor';
 import { calculateAirDensity, checkForecastHorizon, degreesToCompassCardinal } from './weatherService';
+import { loadSectorWeatherFromIdb, saveSectorWeatherToIdb } from './offlineIdb';
 
 export interface RouteSectorForecast {
   index: number;
@@ -85,15 +87,21 @@ function computeBearingDeg(a: [number, number], b: [number, number]): number {
   return (Math.round(toDeg(Math.atan2(y, x))) + 360) % 360;
 }
 
-function addMinutesHHMM(hhmm: string, addMin: number): { hhmm: string; hour: number } {
+export function addMinutesHHMM(
+  hhmm: string,
+  addMin: number
+): { hhmm: string; hour: number; dayOffset: number } {
   const [h, m] = (hhmm || '09:00').split(':').map(Number);
-  const base = ((Number.isFinite(h) ? h : 9) * 60 + (Number.isFinite(m) ? m : 0) + Math.round(addMin)) % 1440;
-  const norm = base < 0 ? base + 1440 : base;
+  const totalMinutes =
+    (Number.isFinite(h) ? h : 9) * 60 + (Number.isFinite(m) ? m : 0) + Math.round(addMin);
+  const dayOffset = Math.floor(totalMinutes / 1440);
+  const norm = ((totalMinutes % 1440) + 1440) % 1440;
   const outH = Math.floor(norm / 60);
   const outM = norm % 60;
   return {
     hhmm: `${String(outH).padStart(2, '0')}:${String(outM).padStart(2, '0')}`,
     hour: outH,
+    dayOffset,
   };
 }
 
@@ -250,8 +258,9 @@ function evaluateDirectionPhysics(
 
   for (let i = 0; i < sectorsGeom.length; i++) {
     const g = sectorsGeom[i];
-    const { hhmm: etaHHMM, hour } = addMinutesHHMM(departureTime, elapsedMin);
-    const targetHourStr = `${targetDate}T${String(hour).padStart(2, '0')}:00`;
+    const { hhmm: etaHHMM, hour, dayOffset } = addMinutesHHMM(departureTime, elapsedMin);
+    const sectorDate = dayOffset !== 0 ? addDaysToIso(targetDate, dayOffset) : targetDate;
+    const targetHourStr = `${sectorDate}T${String(hour).padStart(2, '0')}:00`;
 
     let tempC = trip.weather.temperatureC ?? 14;
     let windSpeedKmH = trip.weather.baseWindSpeedKmH ?? 12;
@@ -388,6 +397,15 @@ export async function fetchRouteSectorForecast(
   const cached = sectorCache.get(cacheKey);
   if (cached) return cached;
 
+  const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
+  if (isOffline) {
+    const idbOffline = await loadSectorWeatherFromIdb<RouteWeatherAnalysis>(cacheKey);
+    if (idbOffline) {
+      sectorCache.set(cacheKey, idbOffline);
+      return idbOffline;
+    }
+  }
+
   const sectorsGeom = buildSectors(
     coords,
     trip.route.distanceKm,
@@ -404,22 +422,29 @@ export async function fetchRouteSectorForecast(
     : 'simulated';
 
   if (isAvailable) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
     try {
       const lats = sectorsGeom.map((s) => s.lat.toFixed(4)).join(',');
       const lons = sectorsGeom.map((s) => s.lon.toFixed(4)).join(',');
       const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&hourly=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m,precipitation_probability,visibility,is_day,weather_code&wind_speed_unit=kmh&timezone=auto&past_days=2&forecast_days=14`;
-      const res = await fetch(url);
+      const res = await fetch(url, { signal: controller.signal });
       if (res.ok) {
         const json = await res.json();
         const arr = Array.isArray(json) ? json : [json];
         hourlyByIdx = arr.map((item) => item?.hourly).filter(Boolean);
         if (hourlyByIdx.length !== sectorsGeom.length) {
           hourlyByIdx = null;
+          source = 'simulated';
         }
+      } else {
+        source = 'simulated';
       }
     } catch {
       hourlyByIdx = null;
       source = 'simulated';
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 
@@ -526,6 +551,17 @@ export async function fetchRouteSectorForecast(
     source,
   };
 
+  if (source === 'simulated') {
+    const idbFallback = await loadSectorWeatherFromIdb<RouteWeatherAnalysis>(cacheKey);
+    if (idbFallback) {
+      sectorCache.set(cacheKey, idbFallback);
+      return idbFallback;
+    }
+  }
+
   sectorCache.set(cacheKey, analysis);
+  if (source !== 'simulated') {
+    void saveSectorWeatherToIdb(cacheKey, analysis);
+  }
   return analysis;
 }

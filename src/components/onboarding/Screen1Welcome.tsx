@@ -74,8 +74,8 @@ export const Screen1Welcome: React.FC = () => {
 
           <p className="text-xs text-ink-muted leading-relaxed font-body">
             {isFr
-              ? 'Partez de zéro ou découvrez un exemple de vélotaf nantais. Vous pourrez modifier chaque paramètre par la suite.'
-              : 'Start from scratch, or explore a short example commute in Nantes. You can change every choice later.'}
+              ? 'Partez de zéro ou explorez un exemple de sortie prêt à rouler. Vous pourrez modifier chaque paramètre par la suite.'
+              : 'Start from scratch, or explore a short sample ride anywhere in the world. You can change every choice later.'}
           </p>
         </div>
 
@@ -90,15 +90,15 @@ export const Screen1Welcome: React.FC = () => {
             </div>
 
             <h3 className="text-base sm:text-lg font-rounded font-bold text-ink mb-3">
-              Trentemoult → Nantes gare
+              {isFr ? 'Place Centrale → Boucle Rivière' : 'Old Town → Riverside Cafe'}
             </h3>
 
             {/* Schematic Route Canvas */}
             <SchematicRouteMap
-              originLabel="Trentemoult"
-              destinationLabel="Nantes gare"
-              distanceKm={6.0}
-              estimatedMinutes={20}
+              originLabel={isFr ? 'Place Centrale' : 'Old Town'}
+              destinationLabel={isFr ? 'Boucle Rivière' : 'Riverside Cafe'}
+              distanceKm={25.0}
+              estimatedMinutes={75}
               className="mb-4"
             />
 
@@ -109,7 +109,7 @@ export const Screen1Welcome: React.FC = () => {
                   {isFr ? 'Distance exemple' : 'Example distance'}
                 </span>
                 <span className="text-sm font-rounded font-bold text-ink tnum">
-                  6.0 km
+                  25.0 km
                 </span>
               </div>
               <div className="flex items-center justify-between">
@@ -117,7 +117,7 @@ export const Screen1Welcome: React.FC = () => {
                   {isFr ? 'Temps de pédalage estimé' : 'Estimated riding time'}
                 </span>
                 <span className="text-sm font-rounded font-bold text-ink tnum">
-                  20 min
+                  1h 15
                 </span>
               </div>
             </div>

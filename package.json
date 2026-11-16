@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "rm -rf .test-dist && ./node_modules/.bin/esbuild src/utils/__tests__/*.test.ts --bundle --platform=node --format=cjs --out-extension:.js=.cjs --outdir=.test-dist && node --test .test-dist/*.test.cjs; status=$?; rm -rf .test-dist; exit $status"
   },
   "dependencies": {
     "@keyline-icons/react": "^2.5.0",
