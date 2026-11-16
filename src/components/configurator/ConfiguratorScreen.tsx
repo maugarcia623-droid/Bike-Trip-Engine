@@ -1387,7 +1387,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
       : 'Pace & physics';
 
   return (
-    <div className="w-full max-w-[1720px] min-w-0 mx-auto px-3.5 sm:px-5 lg:px-7 pt-3 pb-28 sm:pb-20 space-y-5">
+    <div className="w-full max-w-[1720px] min-w-0 mx-auto px-3.5 sm:px-5 lg:px-7 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] sm:pt-[calc(env(safe-area-inset-top,0px)+1rem)] pb-28 sm:pb-20 space-y-5">
       {/* ── Top Bar: Back Button (Left) + Auto-saved Tag (Right) ── */}
       <div className="flex items-center justify-between gap-3 animate-apple-in stagger-1">
         <Button variant="ghost"
