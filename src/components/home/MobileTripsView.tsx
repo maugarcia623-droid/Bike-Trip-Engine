@@ -150,7 +150,7 @@ export const MobileTripsView: React.FC<MobileTripsViewProps> = ({
   };
 
   return (
-    <div className="pt-3 space-y-5 animate-apple-in">
+    <div className="pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] sm:pt-[calc(env(safe-area-inset-top,0px)+1rem)] space-y-5 animate-apple-in">
       {/* Top Row: Back to Home Pill + New Trip Button */}
       <div className="flex items-center justify-between gap-2">
         <Button
