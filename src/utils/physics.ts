@@ -82,10 +82,13 @@ export function calculatePhysics(
   // In body-neutral modes the trip snapshot may still carry a previously entered weight;
   // always defer to the effective (baseline or opted-in) value there.
   const isBodyNeutral = (configuredSpecs.telemetryMode ?? 'quantitative') !== 'quantitative';
-  const effectiveRiderKg =
-    !isBodyNeutral && typeof riderWeightKg === 'number' && riderWeightKg > 25
-      ? riderWeightKg
-      : effectiveSpecs.riderWeightKg;
+  const hasExplicitWeightOverride =
+    typeof riderWeightKg === 'number' &&
+    riderWeightKg > 25 &&
+    (!isBodyNeutral || Math.abs(riderWeightKg - configuredSpecs.riderWeightKg) >= 0.5);
+  const effectiveRiderKg = hasExplicitWeightOverride
+    ? riderWeightKg
+    : effectiveSpecs.riderWeightKg;
 
   // 1. Total System Mass (Rider + Bike + Gear) & Synced Air Density
   const systemMassKg = Number(

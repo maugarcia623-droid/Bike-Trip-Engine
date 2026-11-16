@@ -315,7 +315,6 @@ export function computeClimbSplitsAndFueling(
   });
 
   const ftpWatts = Math.max(80, Math.round(options.ftpWatts ?? physicsResult.ftpWatts ?? 210));
-  const riderMassKg = Math.max(35, trip.physics.riderWeightKg || 70);
   const rideHours = Math.max(0.25, physicsResult.movingTimeSeconds / 3600);
   const gutCeiling = Math.max(30, Math.min(120, options.carbTargetGPerHr ?? 60));
   const pref = options.nutritionPreference ?? 'mixed';
@@ -370,7 +369,7 @@ export function computeClimbSplitsAndFueling(
     );
 
     const targetWatts = Math.round(climbPhys.legWatts);
-    const wattsPerKg = Number((targetWatts / riderMassKg).toFixed(2));
+    const wattsPerKg = climbPhys.wattsPerKg;
     const durationMinutes = Math.max(1, Math.round(climbPhys.movingTimeSeconds / 60));
     const vamMetersPerHour = Math.round(
       (climb.elevationGainM / Math.max(60, climbPhys.movingTimeSeconds)) * 3600

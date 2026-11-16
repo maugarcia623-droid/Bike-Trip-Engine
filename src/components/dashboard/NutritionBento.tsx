@@ -443,7 +443,24 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
     ? `~${onBikeKcal} kcal · ${actualAllocatedCarbsG} g C · ${hydrationBadgeLabel}`
     : `${actualFuelUnits} · ${hydrationBadgeLabel}`;
 
-  const defaultStage1Loc = isEscapade
+  const hasEscapadeOvernightChip =
+    activeChips.includes('hotel-stay') ||
+    activeChips.includes('bed-and-breakfast') ||
+    activeChips.includes('long-distance-endurance') ||
+    activeChips.includes('local-gastronomy') ||
+    activeChips.includes('wine-tasting') ||
+    activeChips.includes('spa-wellness');
+  const isEscapadeCoffeeDay =
+    isEscapade &&
+    totalDays <= 1 &&
+    activeChips.includes('coffee-stop') &&
+    !hasEscapadeOvernightChip;
+
+  const defaultStage1Loc = isEscapadeCoffeeDay
+    ? isFr
+      ? 'Arrivée / Retour'
+      : 'Finish / Return'
+    : isEscapade
     ? isFr
       ? 'Hôtel / Table d’étape'
       : 'Hotel / Dining'
@@ -1561,6 +1578,14 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
     );
   }
 
+  const isCoffee = activeChips.includes('coffee-stop');
+  const customCafeName = trip.ruleSettings?.cafeName ? String(trip.ruleSettings.cafeName) : '';
+  const rawRation = trip.ruleSettings?.rationType ? String(trip.ruleSettings.rationType) : '';
+  // Older trips carry the chip's old "almond pastry" default: treat it as no custom choice
+  const customRation = isLegacyRationDefault(rawRation) ? '' : rawRation;
+  const cafeSnack = getCafeSnackSuggestion(dietaryFilters, lang);
+  const coffeeMin = localLogistics.coffeeDurationMin ?? 15;
+
   // 3. ESCAPADE / LEISURE STAY PROTOCOL
   if (isEscapade) {
     const isPicnic = activeChips.includes('picnic-outing');
@@ -1585,17 +1610,21 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       },
       {
         id: 'esc-2',
-        icon: isPicnic ? ForkKnife : Compass,
-        theme: isPicnic ? 'orange' : 'teal',
+        icon: isPicnic ? ForkKnife : isEscapadeCoffeeDay ? Coffee : Compass,
+        theme: isPicnic ? 'orange' : isEscapadeCoffeeDay ? 'amber' : 'teal',
         stageLabel: isFr ? 'En route' : 'On the road',
         timingLabel: isPicnic
           ? isFr
             ? 'Pique-nique · 45 min'
             : 'Picnic · 45 min'
+          : isEscapadeCoffeeDay
+          ? isFr
+            ? `Pause café · ${coffeeMin} min`
+            : `Café stop · ${coffeeMin} min`
           : isFr
           ? 'En route'
           : 'On the road',
-        timingVariant: isPicnic ? 'orange' : 'teal',
+        timingVariant: isPicnic ? 'orange' : isEscapadeCoffeeDay ? 'amber' : 'teal',
         macroHeadline:
           isPicnic && isQuantitative
             ? isFr
@@ -1614,6 +1643,8 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           ? isFr
             ? 'Déjeuner pique-nique du terroir au bord de l’eau'
             : 'Artisanal waterside picnic feast'
+          : isEscapadeCoffeeDay
+          ? customCafeName || (isFr ? 'Pause café en route' : 'Café stop on the way')
           : isQuantitative
           ? t('nutriEsc2Title', { carbs: recommendedGPerHr })
           : isFr
@@ -1631,6 +1662,10 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
             : dietaryFilters.includes('vegan') || dietaryFilters.includes('dairy-free')
             ? 'Crusty sourdough baguette, artisan hummus, avocado, fresh tomatoes, figs & chilled spring water.'
             : 'Crusty sourdough baguette, local farm goat cheese, avocado, fresh tomatoes, figs & chilled spring water.'
+          : isEscapadeCoffeeDay
+          ? isFr
+            ? `Pause café prévue (${coffeeMin} min) : ${customRation || cafeSnack}.`
+            : `Planned café stop (${coffeeMin} min): ${customRation || cafeSnack}.`
           : t('nutriEsc2Body'),
       },
       {
@@ -1646,6 +1681,8 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           ? isFr
             ? 'Spa & dîner'
             : 'Spa & dining'
+          : isEscapadeCoffeeDay
+          ? solvedTimeline.postRideConsolidatedWindow || (isFr ? 'Récupération' : 'Recovery')
           : solvedTimeline.postRideConsolidatedWindow || 'Check-in',
         timingVariant: isGastro ? 'rose' : 'emerald',
         macroHeadline: arrMacroHeadline,
@@ -1659,6 +1696,10 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           ? isFr
             ? 'Hydratation spa & dîner récupérateur'
             : 'Spa hydration & restorative dinner'
+          : isEscapadeCoffeeDay
+          ? isFr
+            ? 'Récupération post-sortie & collation'
+            : 'Post-ride recovery & snack'
           : t('nutriEsc3Title'),
         body: isGastro
           ? isFr
@@ -1668,6 +1709,10 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           ? isFr
             ? `À ${stage1Loc} : eau minérale et infusion après le bain chaud, suivi de ${resolvedPostRidePantry.nameFr} et d’un dîner léger.`
             : `At ${stage1Loc}: mineral water & herbal tea after the thermal bath, followed by ${resolvedPostRidePantry.nameEn} and a light dinner.`
+          : isEscapadeCoffeeDay
+          ? isFr
+            ? `À ${stage1Loc} : ${resolvedPostRidePantry.nameFr} et réhydratation fraîche après la sortie café.`
+            : `At ${stage1Loc}: ${resolvedPostRidePantry.nameEn} and cool rehydration after your coffee spin.`
           : isFr
           ? `À ${stage1Loc} : ${resolvedPostRidePantry.nameFr} et repas complet pour récupérer sereinement.`
           : `At ${stage1Loc}: ${resolvedPostRidePantry.nameEn} and a relaxed meal to restore your energy.`,
@@ -1704,15 +1749,8 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
   }
 
   // 4. VÉLOTAF / COMMUTE DEFAULT PROTOCOL (Real Food Items with Dynamic Macros & Logistics)
-  const isCoffee = activeChips.includes('coffee-stop');
   const isTempo = activeChips.includes('fitness-boost');
   const isShower = activeChips.includes('shower-locker');
-  const customCafeName = trip.ruleSettings?.cafeName ? String(trip.ruleSettings.cafeName) : '';
-  const rawRation = trip.ruleSettings?.rationType ? String(trip.ruleSettings.rationType) : '';
-  // Older trips carry the chip's old "almond pastry" default: treat it as no custom choice
-  const customRation = isLegacyRationDefault(rawRation) ? '' : rawRation;
-  const cafeSnack = getCafeSnackSuggestion(dietaryFilters, lang);
-  const coffeeMin = localLogistics.coffeeDurationMin ?? 15;
 
   const commutePhases: NutritionPhaseSpec[] = [
     {

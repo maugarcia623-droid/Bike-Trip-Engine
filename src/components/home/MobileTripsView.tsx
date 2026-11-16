@@ -239,7 +239,7 @@ export const MobileTripsView: React.FC<MobileTripsViewProps> = ({
                     <span>{tab.label}</span>
                     <span
                       className={`text-[11px] font-semibold px-2 py-0.5 rounded-full tnum transition-colors ${
-                        isSelected ? 'bg-current/15 text-current' : 'bg-pod text-ink-muted'
+                        isSelected ? 'bg-black/10 dark:bg-white/15 text-current' : 'bg-pod text-ink-muted'
                       }`}
                     >
                       {tab.count}

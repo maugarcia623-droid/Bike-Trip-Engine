@@ -1,6 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  calculateAmenityEta,
+  calculateAmenityEtaDetails,
   calculateWaterGaps,
   computeCumulativeDistances,
   snapToPolyline,
@@ -101,5 +103,14 @@ describe('overpassCorridor.ts', () => {
       frameBottleSlots: 2,
     });
     assert.equal(clearSummary.status, 'clear');
+  });
+
+  it('calculateAmenityEtaDetails handles 00:xx departures and midnight rollover dayOffset', () => {
+    const midnightSpin = calculateAmenityEtaDetails('00:15', 12, 24);
+    assert.deepEqual(midnightSpin, { etaHHMM: '00:45', dayOffset: 0 });
+    assert.equal(calculateAmenityEta('00:15', 12, 24), '00:45');
+
+    const overnightRollover = calculateAmenityEtaDetails('23:00', 48, 24);
+    assert.deepEqual(overnightRollover, { etaHHMM: '01:00', dayOffset: 1 });
   });
 });

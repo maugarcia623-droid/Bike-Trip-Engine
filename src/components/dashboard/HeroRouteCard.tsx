@@ -444,7 +444,6 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
       },
       weather: {
         ...trip.weather,
-        windDirectionDegrees: ((trip.weather.windDirectionDegrees || 0) + 180) % 360,
         effectiveHeadwindKmH: nextEffectiveHeadwind,
         isHeadwindActive: nextHeadwind,
         windDirection: nextWindDir,
@@ -949,16 +948,24 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
             ? `⚠️ Technique en ${surfaceBreakdown.suitability.tireWidthMm}c`
             : `⚠️ Technical on ${surfaceBreakdown.suitability.tireWidthMm}c`;
 
-        segLine.bindTooltip(
-          `<div style="font-family:ui-rounded,Nunito,sans-serif;padding:2px 4px;">
-            <div style="font-weight:800;font-size:11px;">${isFr ? seg.nameFr : seg.nameEn}</div>
-            <div style="font-size:10px;opacity:0.85;">km ${seg.startKm}–${seg.endKm} (${seg.distanceKm} km) · ${
-              isFr ? meta.labelFr : meta.labelEn
-            }</div>
-            <div style="font-size:10px;font-weight:700;margin-top:2px;">${suitabilityLabel}</div>
-          </div>`,
-          { sticky: true, direction: 'top', offset: [0, -8] }
-        );
+        const tooltipEl = document.createElement('div');
+        tooltipEl.style.cssText = 'font-family:ui-rounded,Nunito,sans-serif;padding:2px 4px;';
+        const titleEl = document.createElement('div');
+        titleEl.style.cssText = 'font-weight:800;font-size:11px;';
+        titleEl.textContent = isFr ? seg.nameFr : seg.nameEn;
+        const metaEl = document.createElement('div');
+        metaEl.style.cssText = 'font-size:10px;opacity:0.85;';
+        metaEl.textContent = `km ${seg.startKm}–${seg.endKm} (${seg.distanceKm} km) · ${
+          isFr ? meta.labelFr : meta.labelEn
+        }`;
+        const suitEl = document.createElement('div');
+        suitEl.style.cssText = 'font-size:10px;font-weight:700;margin-top:2px;';
+        suitEl.textContent = suitabilityLabel;
+        tooltipEl.appendChild(titleEl);
+        tooltipEl.appendChild(metaEl);
+        tooltipEl.appendChild(suitEl);
+
+        segLine.bindTooltip(tooltipEl, { sticky: true, direction: 'top', offset: [0, -8] });
 
         segLine.on('mouseover', () => {
           setActiveSurfaceSegmentId(seg.id);
@@ -988,10 +995,18 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                 iconAnchor: [9, 9],
               });
               const wpMarker = L.marker(wp.coordinates, { icon: wpIcon });
-              wpMarker.bindTooltip(
-                `<div style="font-weight:700;font-size:11px;">${wp.name}</div>${wp.distanceFromStartKm ? `<div style="font-size:10px;color:#666;">km ${wp.distanceFromStartKm}</div>` : ''}`,
-                { direction: 'top', offset: [0, -9] }
-              );
+              const wpTooltipEl = document.createElement('div');
+              const wpTitleEl = document.createElement('div');
+              wpTitleEl.style.cssText = 'font-weight:700;font-size:11px;';
+              wpTitleEl.textContent = wp.name;
+              wpTooltipEl.appendChild(wpTitleEl);
+              if (wp.distanceFromStartKm) {
+                const wpDistEl = document.createElement('div');
+                wpDistEl.style.cssText = 'font-size:10px;color:#666;';
+                wpDistEl.textContent = `km ${wp.distanceFromStartKm}`;
+                wpTooltipEl.appendChild(wpDistEl);
+              }
+              wpMarker.bindTooltip(wpTooltipEl, { direction: 'top', offset: [0, -9] });
               group.addLayer(wpMarker);
             }
           });
@@ -1288,27 +1303,52 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
 
       const marker = L.marker([amenity.lat, amenity.lon], { icon });
 
-      const popupHtml = `
-        <div style="padding: 4px; font-family: ui-sans-serif, system-ui, sans-serif; min-width: 160px; line-height: 1.3;">
-          <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 2px;">
-            <span style="font-size: 10px; font-weight: 700; color: ${catBg}; letter-spacing: 0.2px;">
-              ${catLabel}
-            </span>
-            <span style="font-size: 10px; font-weight: 700; background: #eee; color: #111; padding: 1px 6px; border-radius: 9999px; font-variant-numeric: tabular-nums;">
-              ${amenity.routeKm} km
-            </span>
-          </div>
-          <div style="font-weight: 700; font-size: 12px; color: #111; margin-bottom: 3px;">
-            ${amenity.name}
-          </div>
-          <div style="font-size: 10px; color: #666; display: flex; align-items: center; justify-content: space-between;">
-            <span>${amenity.detourMeters < 75 ? (isFr ? 'Sur la trace' : 'On route') : `+${amenity.detourMeters} m ${isFr ? 'détour' : 'detour'}`}</span>
-            ${isPinned ? `<span style="font-weight: 800; color: #4d5200; background: #f2f455; padding: 1px 4px; border-radius: 4px;">${isFr ? 'Épinglé' : 'Pinned'}</span>` : ''}
-          </div>
-        </div>
-      `;
+      const popupEl = document.createElement('div');
+      popupEl.style.cssText =
+        'padding: 4px; font-family: ui-sans-serif, system-ui, sans-serif; min-width: 160px; line-height: 1.3;';
 
-      marker.bindPopup(popupHtml, {
+      const headerRow = document.createElement('div');
+      headerRow.style.cssText =
+        'display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 2px;';
+      const catSpan = document.createElement('span');
+      catSpan.style.cssText = `font-size: 10px; font-weight: 700; color: ${catBg}; letter-spacing: 0.2px;`;
+      catSpan.textContent = catLabel;
+      const kmSpan = document.createElement('span');
+      kmSpan.style.cssText =
+        'font-size: 10px; font-weight: 700; background: #eee; color: #111; padding: 1px 6px; border-radius: 9999px; font-variant-numeric: tabular-nums;';
+      kmSpan.textContent = `${amenity.routeKm} km`;
+      headerRow.appendChild(catSpan);
+      headerRow.appendChild(kmSpan);
+
+      const nameDiv = document.createElement('div');
+      nameDiv.style.cssText =
+        'font-weight: 700; font-size: 12px; color: #111; margin-bottom: 3px;';
+      nameDiv.textContent = amenity.name;
+
+      const footerRow = document.createElement('div');
+      footerRow.style.cssText =
+        'font-size: 10px; color: #666; display: flex; align-items: center; justify-content: space-between;';
+      const detourSpan = document.createElement('span');
+      detourSpan.textContent =
+        amenity.detourMeters < 75
+          ? isFr
+            ? 'Sur la trace'
+            : 'On route'
+          : `+${amenity.detourMeters} m ${isFr ? 'détour' : 'detour'}`;
+      footerRow.appendChild(detourSpan);
+      if (isPinned) {
+        const pinnedSpan = document.createElement('span');
+        pinnedSpan.style.cssText =
+          'font-weight: 800; color: #4d5200; background: #f2f455; padding: 1px 4px; border-radius: 4px;';
+        pinnedSpan.textContent = isFr ? 'Épinglé' : 'Pinned';
+        footerRow.appendChild(pinnedSpan);
+      }
+
+      popupEl.appendChild(headerRow);
+      popupEl.appendChild(nameDiv);
+      popupEl.appendChild(footerRow);
+
+      marker.bindPopup(popupEl, {
         closeButton: false,
         className: 'cadence-amenity-popup',
       });

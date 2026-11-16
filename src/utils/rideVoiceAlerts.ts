@@ -68,7 +68,7 @@ export function computeFuelingIntervals(params: {
 }
 
 /**
- * Projects a live GPS coordinate onto the nearest vertex of the route polyline
+ * Projects a live GPS coordinate onto the nearest segment of the route polyline
  * to estimate distance covered, distance remaining, and off-route offset.
  */
 export function projectPositionOntoRoute(
@@ -97,24 +97,36 @@ export function projectPositionOntoRoute(
     };
   }
 
-  let bestIdx = 0;
+  let bestProjKm = 0;
   let bestDistMeters = Infinity;
   const cumKm: number[] = new Array(coords.length).fill(0);
 
-  for (let i = 0; i < coords.length; i++) {
-    if (i > 0) {
-      const segM = haversineDistanceMeters(
-        coords[i - 1][0],
-        coords[i - 1][1],
-        coords[i][0],
-        coords[i][1]
-      );
-      cumKm[i] = cumKm[i - 1] + segM / 1000;
+  for (let i = 1; i < coords.length; i++) {
+    const a = coords[i - 1];
+    const b = coords[i];
+    const segM = haversineDistanceMeters(a[0], a[1], b[0], b[1]);
+    cumKm[i] = cumKm[i - 1] + segM / 1000;
+
+    const midLat = (a[0] + b[0]) * 0.5;
+    const cosLat = Math.max(0.01, Math.cos((midLat * Math.PI) / 180));
+    const dx = (b[1] - a[1]) * cosLat;
+    const dy = b[0] - a[0];
+    const lenSq = dx * dx + dy * dy;
+
+    let t = 0;
+    if (lenSq > 0) {
+      const px = (lng - a[1]) * cosLat;
+      const py = lat - a[0];
+      t = Math.max(0, Math.min(1, (px * dx + py * dy) / lenSq));
     }
-    const distM = haversineDistanceMeters(lat, lng, coords[i][0], coords[i][1]);
+
+    const projLat = a[0] + t * (b[0] - a[0]);
+    const projLng = a[1] + t * (b[1] - a[1]);
+    const distM = haversineDistanceMeters(lat, lng, projLat, projLng);
+
     if (distM < bestDistMeters) {
       bestDistMeters = distM;
-      bestIdx = i;
+      bestProjKm = cumKm[i - 1] + t * (segM / 1000);
     }
   }
 
@@ -122,7 +134,7 @@ export function projectPositionOntoRoute(
   const scale = polylineTotalKm > 0.05 ? safeTotalKm / polylineTotalKm : 1;
   const distanceCoveredKm = Math.min(
     safeTotalKm,
-    Math.max(0, Math.round(cumKm[bestIdx] * scale * 100) / 100)
+    Math.max(0, Math.round(bestProjKm * scale * 100) / 100)
   );
   const distanceRemainingKm = Math.max(
     0,

@@ -98,10 +98,10 @@ export function getOsmSurfaceRouteKey(
     Math.min(n - 1, Math.floor(t * (n - 1)))
   );
   const sig = sampleIndices
-    .map((idx) => `${coordinates[idx][0].toFixed(4)},${coordinates[idx][1].toFixed(4)}`)
+    .map((idx) => `${coordinates[idx][0].toFixed(3)},${coordinates[idx][1].toFixed(3)}`)
     .join('|');
   const distTag = typeof distanceKm === 'number' ? Math.round(distanceKm * 10) : 0;
-  return `osm-surf-${n}-${distTag}-${sig}`;
+  return `osm-surf-${distTag}-${sig}`;
 }
 
 export function getCachedOsmSurfaceEntry(routeKey: string): OsmSurfaceStateEntry | undefined {

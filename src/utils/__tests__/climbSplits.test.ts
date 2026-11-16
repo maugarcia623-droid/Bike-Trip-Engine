@@ -139,4 +139,18 @@ describe('climbSplits.ts', () => {
     assert.match(formatClimbCategoryLabel('HC', 'fr'), /Hors|HC/i);
     assert.match(formatClimbCategoryLabel('2', 'en'), /Cat 2/i);
   });
+
+  it('computeClimbSplitsAndFueling keeps climb W/kg consistent with calculatePhysics overridden weight', () => {
+    const heavyTrip = makeClimbingTrip();
+    heavyTrip.physics.riderWeightKg = 85;
+    const physics = calculatePhysics(heavyTrip.physics, heavyTrip.route, heavyTrip.weather, 'en', 250);
+    const summary = computeClimbSplitsAndFueling(heavyTrip, physics, 'en', {
+      ftpWatts: 250,
+    });
+
+    assert.ok(summary.climbs.length >= 1);
+    const firstClimb = summary.climbs[0];
+    const expectedWattsPerKg = Number((firstClimb.targetWatts / 85).toFixed(2));
+    assert.ok(Math.abs(firstClimb.wattsPerKg - expectedWattsPerKg) <= 0.05);
+  });
 });

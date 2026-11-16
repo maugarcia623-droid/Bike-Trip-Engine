@@ -37,7 +37,7 @@ import { importRouteFromUrl } from '../../utils/routeUrlImporter';
 import { GpxParseResult } from '../../utils/gpxParser';
 import { calculateAutoBikeRoute } from '../../utils/routing';
 import { geocodeLocation, LocationSuggestion } from '../../services/locationService';
-import { computeRouteBearing, getLocalTodayIso } from '../../services/weatherService';
+import { getLocalTodayIso } from '../../services/weatherService';
 import { LocationAutocompleteInput } from '../configurator/LocationAutocompleteInput';
 import { Collapsible } from '../common/Collapsible';
 
@@ -408,9 +408,6 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
   }): TripProfile => {
     const base = buildDefaultNewTripTemplate(lang);
     const weather: WeatherCondition = currentWeather ? { ...currentWeather } : { ...base.weather };
-    if (params.coordinates && params.coordinates.length >= 2) {
-      weather.windDirectionDegrees = computeRouteBearing(params.coordinates);
-    }
 
     const safeDist = Math.max(1, Number(params.distKm.toFixed(1)));
     const safeSpeed = Math.min(45, Math.max(8, Math.round(params.speedKmH)));

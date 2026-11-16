@@ -432,6 +432,7 @@ export function generateTripChecklist(
 ): ChecklistItem[] {
   const isFr = options?.lang === 'fr';
   const totalDays = options?.totalDays || 1;
+  const activeChips = options?.customChips || [];
   const isTubeless = options?.isTubeless ?? false;
   const carbTarget = options?.carbTargetGPerHr ?? 60;
   const nutritionPref = options?.nutritionPreference ?? 'real-food';
@@ -449,7 +450,7 @@ export function generateTripChecklist(
     bidonSizeMl,
     frameBottleSlots,
     isShortRide: rideHours < 0.75 && totalDays === 1,
-    activeChips: options?.customChips ?? [],
+    activeChips,
   });
   const hydrationChecklistLabel =
     hydrationPlan.plannedRefillBidons === 0
@@ -537,7 +538,26 @@ export function generateTripChecklist(
     });
   }
 
-  if (isEscapade) {
+  const hasOvernightStayChip =
+    activeChips.includes('hotel-stay') ||
+    activeChips.includes('bed-and-breakfast') ||
+    activeChips.includes('long-distance-endurance') ||
+    activeChips.includes('local-gastronomy') ||
+    activeChips.includes('wine-tasting') ||
+    activeChips.includes('spa-wellness');
+  const isEscapadeCoffeeDay =
+    isEscapade &&
+    totalDays <= 1 &&
+    activeChips.includes('coffee-stop') &&
+    !hasOvernightStayChip;
+
+  if (isEscapadeCoffeeDay) {
+    items.push(
+      { id: "esc-daypack", label: isFr ? "Coupe-vent léger, kit crevaison & moyen de paiement pour la pause café" : "Light wind vest, flat repair kit & payment card for coffee stop", checked: false, category: "gear", critical: true },
+      { id: "esc-fuel", label: hydrationChecklistLabel, checked: false, category: "nutrition", critical: true },
+      { id: "esc-lights", label: isFr ? "Éclairage avant & feu arrière flash de sécurité" : "Front touring headlight & rear safety flasher", checked: false, category: "mechanics", critical: true }
+    );
+  } else if (isEscapade) {
     items.push(
       { id: "esc-id", label: isFr ? "Check-in Hôtel : confirmation de réservation, pièce d’identité & CB" : "Hotel Check-in: booking confirmation, ID & payment card", checked: false, category: "logistics", critical: true },
       { id: "esc-pannier", label: isFr ? "Répartition du poids sacoches / sac de selle & sac étanche" : "Pannier / Saddlebag weight distribution & dry-bag waterproofing", checked: false, category: "gear", critical: true },
@@ -648,8 +668,6 @@ export function generateTripChecklist(
       critical: false,
     });
   }
-
-  const activeChips = options?.customChips || [];
 
   if (activeChips.includes('mountain-adventure')) {
     items.push(

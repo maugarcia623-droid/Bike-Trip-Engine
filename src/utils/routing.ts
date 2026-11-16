@@ -299,15 +299,8 @@ async function fetchOsrmSegment(
   points: [number, number][]
 ): Promise<{ coordinates: [number, number][]; distanceMeters: number; cueSheet: RouteCueStep[] } | null> {
   const coordsParam = points.map(([lat, lng]) => `${lng},${lat}`).join(';');
-  const osrmUrl = `https://routing.openstreetmap.de/routed-bike/route/v1/cycling/${coordsParam}?overview=full&geometries=geojson&steps=true`;
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 6000);
   try {
-    const response = await fetch(osrmUrl, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    if (!response.ok) return null;
-    const json = await response.json();
+    const json = await fetchOsrmRouteWithFailover(coordsParam, getCurrentLanguage());
     const route = json?.routes?.[0];
     if (!route?.geometry?.coordinates) return null;
     const coordinates: [number, number][] = route.geometry.coordinates.map(
@@ -319,7 +312,6 @@ async function fetchOsrmSegment(
       cueSheet: parseOsrmRouteSteps(route.legs),
     };
   } catch {
-    clearTimeout(timeoutId);
     return null;
   }
 }
@@ -397,9 +389,11 @@ function removeAmenityCoordinateFallback(
   });
 
   if (filteredCoords.length < currentCoords.length && filteredCoords.length >= 2) {
-    const prevTotal = computeCumulativeDistances(currentCoords).slice(-1)[0] || oldDistanceKm;
-    const nextTotal = computeCumulativeDistances(filteredCoords).slice(-1)[0] || oldDistanceKm;
-    const deltaKm = Math.max(0, prevTotal - nextTotal);
+    const prevTotalMeters =
+      computeCumulativeDistances(currentCoords).slice(-1)[0] || oldDistanceKm * 1000;
+    const nextTotalMeters =
+      computeCumulativeDistances(filteredCoords).slice(-1)[0] || oldDistanceKm * 1000;
+    const deltaKm = Math.max(0, (prevTotalMeters - nextTotalMeters) / 1000);
     return {
       coordinates: filteredCoords,
       distanceKm: Math.max(1, Math.round((oldDistanceKm - deltaKm) * 10) / 10),

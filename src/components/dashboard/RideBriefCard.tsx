@@ -2,6 +2,7 @@ import React from 'react';
 import { Button } from '@/components/arc';
 import { TripProfile } from '../../types/trip';
 import { RiderBikeSpecs } from '../../types/specs';
+import { loadRiderBikeSpecs } from '../../utils/specsStorage';
 import { PhysicsCalculationResult } from '../../types/trip';
 import { ReverseTimelineCalculation } from '../../utils/timeline';
 import { StageAmenity } from '../../types/amenities';
@@ -65,6 +66,7 @@ function getPriorityIcon(key: RideBriefPriorityIconKey) {
 
 export const RideBriefCard: React.FC<RideBriefCardProps> = ({
   trip,
+  riderSpecs,
   brief,
   isExpanded,
   onToggleExpand,
@@ -113,7 +115,13 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
   const handleDownloadFit = () => {
     setExportError(null);
     try {
-      downloadTripFit(trip);
+      const specs = riderSpecs ?? loadRiderBikeSpecs();
+      downloadTripFit(trip, {
+        lang,
+        ftpWatts: specs.ftpWatts,
+        carbTargetGPerHr: specs.carbTargetGPerHr,
+        nutritionPreference: specs.nutritionPreference,
+      });
     } catch (err) {
       setExportError(
         err instanceof Error

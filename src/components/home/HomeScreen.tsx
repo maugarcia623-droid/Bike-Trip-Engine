@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Plus,
   ArrowCounterClockwise,
@@ -42,6 +42,12 @@ import { useAuth } from '../../context/AuthContext';
 import { useUserProfile } from '../../utils/userProfileStorage';
 import { getArchetypeFromTag } from '../../utils/archetypeChips';
 import { calculatePhysics } from '../../utils/physics';
+import {
+  fetchWeeklyWeather,
+  getCachedWeeklyWeather,
+  WeeklyForecast,
+} from '../../services/weatherService';
+import { summarizeWeeklyWeather } from '../../utils/weeklyWeatherSummary';
 import { FeedbackModal } from '../FeedbackModal';
 
 interface HomeScreenProps {
@@ -224,6 +230,76 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     return lang === 'fr' ? 'Où va-t-on ?' : 'Where to?';
   }, [username, t, lang]);
 
+  const weatherCoords = useMemo<[number, number]>(() => {
+    const coords =
+      currentConditionTrip?.route?.originCoords ||
+      currentConditionTrip?.route?.coordinates?.[0] ||
+      currentConditionTrip?.stages?.[0]?.route?.originCoords ||
+      currentConditionTrip?.stages?.[0]?.route?.coordinates?.[0];
+    if (coords && Number.isFinite(coords[0]) && Number.isFinite(coords[1])) {
+      return coords;
+    }
+    return [47.2184, -1.5536];
+  }, [currentConditionTrip]);
+
+  const weatherLat = weatherCoords[0];
+  const weatherLon = weatherCoords[1];
+
+  const [weeklyForecast, setWeeklyForecast] = useState<WeeklyForecast | null>(() =>
+    getCachedWeeklyWeather(weatherLat, weatherLon)
+  );
+  const [isWeeklyLoading, setIsWeeklyLoading] = useState<boolean>(
+    () => !getCachedWeeklyWeather(weatherLat, weatherLon)
+  );
+
+  useEffect(() => {
+    const cached = getCachedWeeklyWeather(weatherLat, weatherLon);
+    if (cached) {
+      setWeeklyForecast(cached);
+      setIsWeeklyLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setIsWeeklyLoading(true);
+    fetchWeeklyWeather(weatherLat, weatherLon)
+      .then((forecast) => {
+        if (!cancelled) {
+          setWeeklyForecast(forecast);
+        }
+      })
+      .catch(() => {
+        // Fallback to default subtitle when offline or forecast unavailable
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsWeeklyLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [weatherLat, weatherLon]);
+
+  const weeklyWeatherOverview = useMemo(() => {
+    if (weeklyForecast && weeklyForecast.days.length > 0) {
+      return summarizeWeeklyWeather(weeklyForecast, lang);
+    }
+    return '';
+  }, [weeklyForecast, lang]);
+
+  const headerSubtitleContent = weeklyWeatherOverview ? (
+    weeklyWeatherOverview
+  ) : isWeeklyLoading ? (
+    <span
+      className="inline-block h-3.5 w-64 max-w-full rounded-full bg-pod animate-pulse align-middle"
+      aria-hidden="true"
+    />
+  ) : (
+    t('homeSubtitle')
+  );
+
   const weatherStatusDotClass = useMemo(() => {
     if (!currentConditionTrip) return CHIP_TOKENS.emerald.dot;
     const res = calculatePhysics(
@@ -304,7 +380,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 {greetingTitle}
               </h1>
               <p className="text-ink-muted text-[13px] mt-1 leading-relaxed">
-                {t('homeSubtitle')}
+                {headerSubtitleContent}
               </p>
             </div>
 
@@ -508,21 +584,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <div>
             <div className="flex items-center gap-2.5 flex-wrap">
               <h1 className="text-2xl sm:text-[28px] font-semibold text-ink tracking-tight leading-tight">
-                {(() => {
-                  const trimmed = (username || '').trim();
-                  const isGenericName = !trimmed || trimmed === 'Rider' || trimmed === 'Cycliste';
-                  if (!isGenericName) {
-                    return t('homeGreetingUser', { name: trimmed, username: trimmed });
-                  }
-                  return lang === 'fr' ? 'Où va-t-on ?' : 'Where to?';
-                })()}
+                {greetingTitle}
               </h1>
               <Badge variant="yellow-vest" size="md" className="py-1 px-3 tnum">
                 {trips.length === 1 ? (lang === 'fr' ? '1 trajet' : '1 trip') : t('homeProfilesCount', { count: trips.length })}
               </Badge>
             </div>
             <p className="text-ink-muted text-[13px] mt-1 max-w-2xl leading-relaxed">
-              {t('homeSubtitle')}
+              {headerSubtitleContent}
             </p>
           </div>
 
@@ -627,7 +696,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                         <span
                           className={`text-[11px] font-semibold px-2 py-0.5 rounded-full tnum transition-colors ${
                             isSelected
-                              ? 'bg-current/15 text-current'
+                              ? 'bg-black/10 dark:bg-white/15 text-current'
                               : 'bg-pod text-ink-muted'
                           }`}
                         >

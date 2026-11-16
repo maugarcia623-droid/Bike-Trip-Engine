@@ -67,13 +67,16 @@ class FitByteWriter {
   }
 
   writeFixedString(text: string, byteLen: number): void {
-    const encoded = new TextEncoder().encode(text);
+    const encoder = new TextEncoder();
+    const maxBytes = Math.max(0, byteLen - 1);
+    const bytes: number[] = [];
+    for (const ch of text) {
+      const chBytes = encoder.encode(ch);
+      if (bytes.length + chBytes.length > maxBytes) break;
+      for (const b of chBytes) bytes.push(b);
+    }
     for (let i = 0; i < byteLen; i++) {
-      if (i < byteLen - 1 && i < encoded.length) {
-        this.buf.push(encoded[i]);
-      } else {
-        this.buf.push(0);
-      }
+      this.buf.push(i < bytes.length ? bytes[i] : 0);
     }
   }
 
@@ -329,7 +332,7 @@ export function exportTripToFit(
   const coursePoints: FitCoursePoint[] = [];
   for (const stop of trip.pinnedAmenities || []) {
     const snapped = snapToPolyline(stop.lat, stop.lon, coords, cumMeters);
-    const distM = Math.max(0, Math.min(targetTotalM, snapped.routeKm * 1000));
+    const distM = Math.max(0, Math.min(targetTotalM, snapped.routeKm * 1000 * distScale));
     coursePoints.push({
       lat: stop.lat,
       lon: stop.lon,

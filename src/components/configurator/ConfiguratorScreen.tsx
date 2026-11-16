@@ -381,7 +381,6 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
         curDir === 'headwind' ? 'tailwind' : curDir === 'tailwind' ? 'headwind' : curDir;
       const nextIsHeadwind =
         curDir === 'tailwind' ? true : curDir === 'headwind' ? false : prev.weather.isHeadwindActive;
-      const nextDeg = ((prev.weather.windDirectionDegrees || 0) + 180) % 360;
       const nextEffectiveWind =
         typeof prev.weather.effectiveHeadwindKmH === 'number'
           ? Number((-prev.weather.effectiveHeadwindKmH).toFixed(1))
@@ -402,7 +401,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
           ...prev.weather,
           windDirection: nextWindDir,
           isHeadwindActive: nextIsHeadwind,
-          windDirectionDegrees: nextDeg,
+          windDirectionDegrees: prev.weather.windDirectionDegrees,
           effectiveHeadwindKmH: nextEffectiveWind,
         },
       };
@@ -825,34 +824,24 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
     }
     setRouteSuccess(true);
 
-    commitTrip((prev) => {
-      const bearing =
-        parsed.coordinates.length >= 2
-          ? computeRouteBearing(parsed.coordinates)
-          : prev.weather.windDirectionDegrees || 0;
-      return {
-        ...prev,
-        name: prev.name.trim() ? prev.name : (parsed.trackName || prev.name),
-        route: {
-          ...prev.route,
-          routeMode: 'gpx',
-          gpxFileName: fileName,
-          radiusMeters: undefined,
-          origin: parsed.originLabel,
-          destination: parsed.destLabel,
-          distanceKm: parsed.distanceKm,
-          elevationGainM: parsed.elevationGainM,
-          elevationLossM: parsed.elevationLossM,
-          coordinates: parsed.coordinates,
-          elevationProfile: parsed.elevationProfile,
-          terrainSummary: parsed.terrainSummary,
-        },
-        weather: {
-          ...prev.weather,
-          windDirectionDegrees: Math.round(bearing),
-        },
-      };
-    });
+    commitTrip((prev) => ({
+      ...prev,
+      name: prev.name.trim() ? prev.name : (parsed.trackName || prev.name),
+      route: {
+        ...prev.route,
+        routeMode: 'gpx',
+        gpxFileName: fileName,
+        radiusMeters: undefined,
+        origin: parsed.originLabel,
+        destination: parsed.destLabel,
+        distanceKm: parsed.distanceKm,
+        elevationGainM: parsed.elevationGainM,
+        elevationLossM: parsed.elevationLossM,
+        coordinates: parsed.coordinates,
+        elevationProfile: parsed.elevationProfile,
+        terrainSummary: parsed.terrainSummary,
+      },
+    }));
   };
 
   const handleConfigGpxUpload = async (file: File) => {

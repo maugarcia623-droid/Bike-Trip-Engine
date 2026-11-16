@@ -1,5 +1,6 @@
 import { StageAmenity, AmenityCategory, WaterGapsSummary, WaterGapAlert } from '../types/amenities';
 import { evaluateOpeningHoursAtArrival } from '../utils/openingHours';
+import { loadAmenitiesFromIdb, saveAmenitiesToIdb } from './offlineIdb';
 
 /**
  * Public Overpass API instances for resilient failover.
@@ -131,11 +132,15 @@ export function getRouteHashKey(
   if (!coordinates || coordinates.length === 0) {
     return `empty-${stageId || 'default'}-${totalDistanceKm || 0}`;
   }
-  const first = coordinates[0];
-  const mid = coordinates[Math.floor(coordinates.length / 2)];
-  const last = coordinates[coordinates.length - 1];
-  const count = coordinates.length;
-  return `route-${stageId || 's'}-${count}-${first[0].toFixed(4)},${first[1].toFixed(4)}-${mid[0].toFixed(4)},${mid[1].toFixed(4)}-${last[0].toFixed(4)},${last[1].toFixed(4)}-${totalDistanceKm || 0}`;
+  const n = coordinates.length;
+  const indices = [0, 0.25, 0.5, 0.75, 1].map((t) =>
+    Math.min(n - 1, Math.floor(t * (n - 1)))
+  );
+  const sig = indices
+    .map((idx) => `${coordinates[idx][0].toFixed(3)},${coordinates[idx][1].toFixed(3)}`)
+    .join('|');
+  const distTag = typeof totalDistanceKm === 'number' ? Math.round(totalDistanceKm * 10) : 0;
+  return `route-${stageId || 's'}-${distTag}-${sig}`;
 }
 
 export function getCachedScan(key: string): StageAmenity[] | undefined {
@@ -167,6 +172,7 @@ export function subscribeScanCache(listener: ScanCacheListener): () => void {
 export function setCachedScan(key: string, results: StageAmenity[]): void {
   scanCache.set(key, results);
   writeLocalStorageScan(key, results);
+  void saveAmenitiesToIdb(key, results);
   scanCacheListeners.forEach((listener) => listener(key));
 }
 
@@ -681,6 +687,13 @@ export async function scanCorridorAmenities(params: {
     if (cached && cached.length > 0) {
       return cached;
     }
+    const idbCached = await loadAmenitiesFromIdb<StageAmenity[]>(cacheKey);
+    if (idbCached && idbCached.length > 0) {
+      scanCache.set(cacheKey, idbCached);
+      writeLocalStorageScan(cacheKey, idbCached);
+      scanCacheListeners.forEach((listener) => listener(cacheKey));
+      return idbCached;
+    }
   }
 
   const inflightKey = `${cacheKey}:${lang}`;
@@ -719,6 +732,12 @@ export async function scanCorridorAmenities(params: {
       setCachedScan(cacheKey, cleanAmenities);
       return cleanAmenities;
     } catch (err) {
+      const idbFallback = await loadAmenitiesFromIdb<StageAmenity[]>(cacheKey);
+      if (idbFallback && idbFallback.length > 0) {
+        scanCache.set(cacheKey, idbFallback);
+        scanCacheListeners.forEach((listener) => listener(cacheKey));
+        return idbFallback;
+      }
       console.warn('Overpass public servers unavailable or slow:', err);
       throw err;
     } finally {
@@ -858,6 +877,47 @@ export function calculateWaterGaps(
   };
 }
 
+function shiftIsoDateByDays(dateStr: string | undefined, dayOffset: number): string | undefined {
+  if (!dateStr || dayOffset === 0) return dateStr;
+  const parts = dateStr.split('-').map(Number);
+  if (parts.length !== 3 || parts.some(Number.isNaN)) return dateStr;
+  const d = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2] + dayOffset));
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/**
+ * Computes projected arrival time (ETA) and day rollover offset at a given route kilometer.
+ */
+export function calculateAmenityEtaDetails(
+  departureTime: string = '08:00',
+  routeKm: number,
+  effectiveSpeedKmH: number = 24
+): { etaHHMM: string; dayOffset: number } {
+  const [hStr, mStr] = departureTime.split(':');
+  const parsedH = parseInt(hStr, 10);
+  const parsedM = parseInt(mStr, 10);
+  const depH = Number.isFinite(parsedH) ? parsedH : 8;
+  const depM = Number.isFinite(parsedM) ? parsedM : 0;
+  const depMinutes = depH * 60 + depM;
+
+  const speed = Math.max(10, effectiveSpeedKmH);
+  const rideMinutes = Math.round((routeKm / speed) * 60);
+
+  const rawTotal = depMinutes + rideMinutes;
+  const dayOffset = Math.floor(rawTotal / 1440);
+  const totalMin = ((rawTotal % 1440) + 1440) % 1440;
+  const etaH = Math.floor(totalMin / 60);
+  const etaM = totalMin % 60;
+
+  return {
+    etaHHMM: `${String(etaH).padStart(2, '0')}:${String(etaM).padStart(2, '0')}`,
+    dayOffset,
+  };
+}
+
 /**
  * Computes the projected arrival time (ETA) at a given route kilometer,
  * synced with the departure time and effective pacing speed.
@@ -867,19 +927,7 @@ export function calculateAmenityEta(
   routeKm: number,
   effectiveSpeedKmH: number = 24
 ): string {
-  const [hStr, mStr] = departureTime.split(':');
-  const depH = parseInt(hStr, 10) || 8;
-  const depM = parseInt(mStr, 10) || 0;
-  const depMinutes = depH * 60 + depM;
-
-  const speed = Math.max(10, effectiveSpeedKmH);
-  const rideMinutes = Math.round((routeKm / speed) * 60);
-
-  const totalMin = (depMinutes + rideMinutes) % 1440;
-  const etaH = Math.floor(totalMin / 60);
-  const etaM = totalMin % 60;
-
-  return `${String(etaH).padStart(2, '0')}:${String(etaM).padStart(2, '0')}`;
+  return calculateAmenityEtaDetails(departureTime, routeKm, effectiveSpeedKmH).etaHHMM;
 }
 
 /**
@@ -911,8 +959,13 @@ export function autoMarkResupplyStops(params: {
 
   const isOpenOrUnknown = (a: StageAmenity) => {
     if (!a.openingHours) return true;
-    const eta = calculateAmenityEta(departureTime, a.routeKm, effectiveSpeedKmH);
-    const verdict = evaluateOpeningHoursAtArrival(a.openingHours, targetDate, eta, 'en');
+    const { etaHHMM, dayOffset } = calculateAmenityEtaDetails(
+      departureTime,
+      a.routeKm,
+      effectiveSpeedKmH
+    );
+    const arrivalDate = shiftIsoDateByDays(targetDate, dayOffset);
+    const verdict = evaluateOpeningHoursAtArrival(a.openingHours, arrivalDate, etaHHMM, 'en');
     return verdict?.status !== 'closed';
   };
 

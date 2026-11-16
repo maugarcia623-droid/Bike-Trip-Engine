@@ -559,7 +559,12 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
                         size="sm"
                         role="menuitem"
                         onClick={() => {
-                          downloadTripFit(activeTrip);
+                          downloadTripFit(activeTrip, {
+                            lang,
+                            ftpWatts: riderSpecs?.ftpWatts,
+                            carbTargetGPerHr: riderSpecs?.carbTargetGPerHr,
+                            nutritionPreference: riderSpecs?.nutritionPreference,
+                          });
                           setIsMenuOpen(false);
                         }}
                         className="min-h-[44px] sm:min-h-[36px] px-3 rounded-full bg-card dark:bg-white/[0.08] hover:bg-chip text-ink text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer"
@@ -685,7 +690,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
         <div className="flex items-center justify-center gap-1.5 pt-4 pb-1 text-[11px] text-ink-muted font-rounded tnum">
           <span>{t('appName')}</span>
           <span aria-hidden="true">·</span>
-          <span>v2.6</span>
+          <span>v4.0</span>
         </div>
       </div>
     );

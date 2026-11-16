@@ -26,6 +26,23 @@ export interface TelemetryWeather {
   sunsetIso?: string;
 }
 
+export interface DailyForecastDay {
+  date: string;
+  weatherCode: number;
+  tempMaxC: number;
+  tempMinC: number;
+  precipitationSumMm: number;
+  precipitationProbMax: number;
+  windSpeedMaxKmH: number;
+}
+
+export interface WeeklyForecast {
+  latitude: number;
+  longitude: number;
+  fetchedAt: string;
+  days: DailyForecastDay[];
+}
+
 function parseLocalDate(dateStr: string): Date {
   const parts = dateStr.split('-').map(Number);
   if (parts.length === 3 && !parts.some(Number.isNaN)) {
@@ -317,4 +334,117 @@ export async function fetchHourlyWeather(
     sunriseIso,
     sunsetIso,
   };
+}
+
+const WEEKLY_WEATHER_STORAGE_KEY = 'cadence_weekly_weather_v1';
+const WEEKLY_WEATHER_TTL_MS = 60 * 60 * 1000; // 60 minutes
+
+const weeklyMemoryCache = new Map<string, { forecast: WeeklyForecast; expiresAt: number }>();
+const weeklyInFlight = new Map<string, Promise<WeeklyForecast>>();
+
+function getWeeklyCacheKey(lat: number, lon: number): string {
+  return `${lat.toFixed(2)}:${lon.toFixed(2)}:${getLocalTodayIso()}`;
+}
+
+/**
+ * Reads a cached 7-day forecast synchronously if still valid for today and this location.
+ */
+export function getCachedWeeklyWeather(lat: number, lon: number): WeeklyForecast | null {
+  const key = getWeeklyCacheKey(lat, lon);
+  const now = Date.now();
+  const mem = weeklyMemoryCache.get(key);
+  if (mem && now < mem.expiresAt) {
+    return mem.forecast;
+  }
+
+  try {
+    if (typeof localStorage === 'undefined') return null;
+    const raw = localStorage.getItem(WEEKLY_WEATHER_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { key?: string; expiresAt?: number; forecast?: WeeklyForecast };
+    if (
+      parsed &&
+      parsed.key === key &&
+      typeof parsed.expiresAt === 'number' &&
+      now < parsed.expiresAt &&
+      parsed.forecast?.days?.length
+    ) {
+      weeklyMemoryCache.set(key, { forecast: parsed.forecast, expiresAt: parsed.expiresAt });
+      return parsed.forecast;
+    }
+  } catch {
+    // Ignore storage read errors
+  }
+  return null;
+}
+
+function saveCachedWeeklyWeather(key: string, forecast: WeeklyForecast): void {
+  const expiresAt = Date.now() + WEEKLY_WEATHER_TTL_MS;
+  weeklyMemoryCache.set(key, { forecast, expiresAt });
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(WEEKLY_WEATHER_STORAGE_KEY, JSON.stringify({ key, expiresAt, forecast }));
+    }
+  } catch {
+    // Ignore quota / storage errors
+  }
+}
+
+/**
+ * Fetches a 7-day daily weather overview from Open-Meteo for the given coordinates.
+ */
+export async function fetchWeeklyWeather(lat: number, lon: number): Promise<WeeklyForecast> {
+  const cached = getCachedWeeklyWeather(lat, lon);
+  if (cached) {
+    return cached;
+  }
+
+  const key = getWeeklyCacheKey(lat, lon);
+  const existing = weeklyInFlight.get(key);
+  if (existing) {
+    return existing;
+  }
+
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max&wind_speed_unit=kmh&timezone=auto&forecast_days=7`;
+
+  const requestPromise = (async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), WEATHER_TIMEOUT_MS);
+    try {
+      const response = await fetch(url, { signal: controller.signal });
+      if (!response.ok) {
+        throw new Error(`Open-Meteo HTTP Error: ${response.status}`);
+      }
+      const data = await response.json();
+      const daily = data?.daily;
+      if (!daily?.time || !Array.isArray(daily.time) || daily.time.length === 0) {
+        throw new Error('Malformed Open-Meteo daily forecast response');
+      }
+
+      const days: DailyForecastDay[] = daily.time.map((date: string, i: number) => ({
+        date,
+        weatherCode: Number(daily.weather_code?.[i] ?? 0),
+        tempMaxC: Number(daily.temperature_2m_max?.[i] ?? 15),
+        tempMinC: Number(daily.temperature_2m_min?.[i] ?? 8),
+        precipitationSumMm: Number(daily.precipitation_sum?.[i] ?? 0),
+        precipitationProbMax: Number(daily.precipitation_probability_max?.[i] ?? 0),
+        windSpeedMaxKmH: Number(daily.wind_speed_10m_max?.[i] ?? 10),
+      }));
+
+      const forecast: WeeklyForecast = {
+        latitude: lat,
+        longitude: lon,
+        fetchedAt: new Date().toISOString(),
+        days,
+      };
+      saveCachedWeeklyWeather(key, forecast);
+      return forecast;
+    } finally {
+      clearTimeout(timeoutId);
+      weeklyInFlight.delete(key);
+    }
+  })();
+
+  weeklyInFlight.set(key, requestPromise);
+  return requestPromise;
 }

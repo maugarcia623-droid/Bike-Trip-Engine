@@ -171,7 +171,8 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
     const isShortRide = rideHours < 0.75 && totalDays <= 1;
     const activeChips = trip.customChips || [];
     const ftpWatts = Math.max(80, riderSpecs.ftpWatts || 200);
-    const pctFtp = (physicsResult.legWatts || 150) / ftpWatts;
+    const pctFtp =
+      physicsResult.ftpPercent ?? ((physicsResult.legWatts || 150) / ftpWatts) * 100;
     const carbTarget = calculateIntensityModulatedCarbTarget({
       rideHours,
       pctFtp,
@@ -216,7 +217,12 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
 
   // Voice & Alerts State
   const [isMuted, setIsMuted] = useState<boolean>(false);
+  const isMutedRef = useRef<boolean>(false);
   const [lastAlert, setLastAlert] = useState<RideAlertEvent | null>(null);
+
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
   const triggeredAlertsRef = useRef<Set<string>>(new Set());
   const prevFixRef = useRef<{ lat: number; lng: number; timestamp: number } | null>(null);
 
@@ -250,9 +256,7 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
       setWakeLockStatus('active');
       if (sentinel.addEventListener) {
         sentinel.addEventListener('release', () => {
-          if (!wantWakeLockRef.current) {
-            setWakeLockStatus('off');
-          }
+          setWakeLockStatus('off');
         });
       }
     } catch {
@@ -339,14 +343,14 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
             spokenText: spoken,
           };
           setLastAlert(alert);
-          speakRideCue(spoken, { lang, muted: isMuted, chime: true });
+          speakRideCue(spoken, { lang, muted: isMutedRef.current, chime: true });
           return intervalSeconds;
         }
         return prev - 1;
       });
     }, 1000);
     return () => window.clearInterval(id);
-  }, [intervalSeconds, lang, isFr, isMuted]);
+  }, [intervalSeconds, lang, isFr]);
 
   // Live GPS Watch
   useEffect(() => {
@@ -409,7 +413,7 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
         if (alerts.length > 0) {
           const primary = alerts[0];
           setLastAlert(primary);
-          speakRideCue(primary.spokenText, { lang, muted: isMuted, chime: true });
+          speakRideCue(primary.spokenText, { lang, muted: isMutedRef.current, chime: true });
         }
       },
       (err) => {
@@ -429,7 +433,7 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
     return () => {
       navigator.geolocation.clearWatch(watchId);
     };
-  }, [routeCoords, totalDistanceKm, cueEntries, lang, isMuted]);
+  }, [routeCoords, totalDistanceKm, cueEntries, lang]);
 
   const { nextTurn, distanceToTurnKm, nextStop, distanceToStopKm } = useMemo(
     () => findNextStopAndTurn(distanceCoveredKm, cueEntries),

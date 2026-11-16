@@ -274,12 +274,18 @@ function buildRideBriefCardMeta(input: {
       ? `Votre ${archWordFr} de ${distRounded} km rencontre des conditions sévères — vérifiez rafales et adhérence avant de partir.`
       : `Your ${distRounded} km ${archWordEn} hits severe conditions — check wind gusts and wet traction before rolling out.`;
   } else if (hasRecommendedLoopFlip && loopComp) {
+    const reverseOrientation =
+      loopComp.forwardOrientation === 'anticlockwise' ? 'clockwise' : 'anticlockwise';
+    const orientationLabelFr =
+      reverseOrientation === 'clockwise' ? 'Le sens horaire' : 'Le sens antihoraire';
+    const orientationLabelEn =
+      reverseOrientation === 'clockwise' ? 'clockwise' : 'anticlockwise';
     headline = isFr
       ? `Inversez la boucle. Gagnez ${loopComp.minutesSaved} min.`
       : `Flip the loop. Save ${loopComp.minutesSaved} min.`;
     narrativeSummary = isFr
-      ? `Le sens antihoraire évite les secteurs les plus exposés (${windCardinal}) et maintient ${Math.round(physics.legWatts)} W (${physics.powerZone}).`
-      : `Riding anticlockwise avoids the worst ${windCardinal} headwind sectors and keeps effort steady at ${Math.round(physics.legWatts)} W (${physics.powerZone}).`;
+      ? `${orientationLabelFr} évite les secteurs les plus exposés (${windCardinal}) et maintient ${Math.round(physics.legWatts)} W (${physics.powerZone}).`
+      : `Riding ${orientationLabelEn} avoids the worst ${windCardinal} headwind sectors and keeps effort steady at ${Math.round(physics.legWatts)} W (${physics.powerZone}).`;
   } else if (archMode === 'COMMUTE' && (vis.nightPercent >= 40 || isLongRide)) {
     headline = isFr ? 'Partez tôt. Roulez régulier.' : 'Leave early. Ride steady.';
     narrativeSummary = isFr

@@ -1,8 +1,9 @@
 const IDB_NAME = 'cadence_offline_v1';
-const IDB_VERSION = 1;
+const IDB_VERSION = 2;
 export const STORE_PACKS = 'packs';
 export const STORE_OSM_SURFACE = 'osm_surface';
 export const STORE_SECTOR_WEATHER = 'sector_weather';
+export const STORE_OVERPASS_AMENITIES = 'overpass_amenities';
 
 interface StoredRecord<T> {
   key: string;
@@ -30,6 +31,9 @@ function openOfflineDb(): Promise<IDBDatabase | null> {
         }
         if (!db.objectStoreNames.contains(STORE_SECTOR_WEATHER)) {
           db.createObjectStore(STORE_SECTOR_WEATHER, { keyPath: 'key' });
+        }
+        if (!db.objectStoreNames.contains(STORE_OVERPASS_AMENITIES)) {
+          db.createObjectStore(STORE_OVERPASS_AMENITIES, { keyPath: 'key' });
         }
       };
       req.onsuccess = () => resolve(req.result);
@@ -113,5 +117,19 @@ export async function saveSectorWeatherToIdb<T>(cacheKey: string, analysis: T): 
 
 export async function loadSectorWeatherFromIdb<T>(cacheKey: string): Promise<T | null> {
   const rec = await idbGet<StoredRecord<T>>(STORE_SECTOR_WEATHER, cacheKey);
+  return rec?.value ?? null;
+}
+
+export async function saveAmenitiesToIdb<T>(routeKey: string, amenities: T): Promise<void> {
+  const rec: StoredRecord<T> = {
+    key: routeKey,
+    value: amenities,
+    updatedAt: new Date().toISOString(),
+  };
+  await idbPut(STORE_OVERPASS_AMENITIES, rec);
+}
+
+export async function loadAmenitiesFromIdb<T>(routeKey: string): Promise<T | null> {
+  const rec = await idbGet<StoredRecord<T>>(STORE_OVERPASS_AMENITIES, routeKey);
   return rec?.value ?? null;
 }

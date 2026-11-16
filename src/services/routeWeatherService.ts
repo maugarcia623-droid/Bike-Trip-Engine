@@ -360,23 +360,27 @@ function buildSectorCacheKey(
   trip: TripProfile,
   targetDate: string,
   departureTime: string,
-  lang: Language
+  lang: Language,
+  ftpWatts?: number
 ): string | null {
   const coords = trip.route?.coordinates;
   if (!coords || coords.length < 2) return null;
   const targetSpeedKmH = Math.max(8, trip.route?.targetSpeedKmH || 24);
   const first = coords[0];
   const last = coords[coords.length - 1];
-  return `${trip.id}:${coords.length}:${first[0].toFixed(3)},${first[1].toFixed(3)}:${last[0].toFixed(3)},${last[1].toFixed(3)}:${targetDate}:${departureTime}:${Math.round(targetSpeedKmH)}:${trip.route?.pacingMode || 'speed'}:${lang}`;
+  const distTag = Math.round((trip.route?.distanceKm || 0) * 10);
+  const ftpTag = Math.round(ftpWatts || 0);
+  return `${trip.id}:${distTag}:${first[0].toFixed(3)},${first[1].toFixed(3)}:${last[0].toFixed(3)},${last[1].toFixed(3)}:${targetDate}:${departureTime}:${Math.round(targetSpeedKmH)}:${trip.route?.pacingMode || 'speed'}:${lang}:${ftpTag}`;
 }
 
 export function getCachedRouteSectorForecast(
   trip: TripProfile,
   targetDate: string,
   departureTime: string,
-  lang: Language = 'en'
+  lang: Language = 'en',
+  ftpWatts?: number
 ): RouteWeatherAnalysis | null {
-  const key = buildSectorCacheKey(trip, targetDate, departureTime, lang);
+  const key = buildSectorCacheKey(trip, targetDate, departureTime, lang, ftpWatts);
   return key ? sectorCache.get(key) || null : null;
 }
 
@@ -391,7 +395,7 @@ export async function fetchRouteSectorForecast(
   if (!coords || coords.length < 2) return null;
 
   const targetSpeedKmH = Math.max(8, trip.route?.targetSpeedKmH || 24);
-  const cacheKey = buildSectorCacheKey(trip, targetDate, departureTime, lang);
+  const cacheKey = buildSectorCacheKey(trip, targetDate, departureTime, lang, ftpWatts);
   if (!cacheKey) return null;
 
   const cached = sectorCache.get(cacheKey);

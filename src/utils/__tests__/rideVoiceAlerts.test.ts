@@ -155,4 +155,15 @@ describe('rideVoiceAlerts', () => {
     assert.equal(sim.kind, 'test');
     assert.ok(sim.spokenText.includes('Fontaine du Parc'));
   });
+
+  it('projectPositionOntoRoute projects onto sparse segments between vertices', () => {
+    const sparse: [number, number][] = [
+      [47.0, -1.5],
+      [47.1, -1.5],
+    ];
+    const proj = projectPositionOntoRoute(47.05, -1.5, sparse, 10);
+    assert.ok(Math.abs(proj.distanceCoveredKm - 5) <= 0.15);
+    assert.equal(proj.offRouteMeters, 0);
+    assert.ok(Math.abs(proj.progressPct - 50) <= 1.5);
+  });
 });

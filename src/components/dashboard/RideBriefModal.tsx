@@ -67,13 +67,13 @@ export const RideBriefModal: React.FC<RideBriefModalProps> = ({
   const rolloutTime = timeline.hardDepartureTime || trip.departureTime || '08:00';
 
   const [sectorAnalysis, setSectorAnalysis] = useState<RouteWeatherAnalysis | null>(() =>
-    getCachedRouteSectorForecast(trip, activeDate, rolloutTime, lang)
+    getCachedRouteSectorForecast(trip, activeDate, rolloutTime, lang, riderSpecs?.ftpWatts)
   );
 
   useEffect(() => {
     if (!isOpen) return;
     let cancelled = false;
-    const cached = getCachedRouteSectorForecast(trip, activeDate, rolloutTime, lang);
+    const cached = getCachedRouteSectorForecast(trip, activeDate, rolloutTime, lang, riderSpecs?.ftpWatts);
     if (cached) {
       setSectorAnalysis(cached);
       return;

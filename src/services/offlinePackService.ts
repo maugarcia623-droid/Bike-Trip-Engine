@@ -3,6 +3,7 @@ import { scanCorridorAmenities } from './overpassCorridor';
 import { fetchOsmSurfaceForRoute } from './osmSurfaceService';
 import { fetchRouteSectorForecast } from './routeWeatherService';
 import { getLocalTodayIso } from './weatherService';
+import { loadRiderBikeSpecs } from '../utils/specsStorage';
 import { idbDelete, idbGet, idbPut, STORE_PACKS } from './offlineIdb';
 
 export interface OfflineExpeditionPackMeta {
@@ -39,34 +40,39 @@ function latLonToTile(lat: number, lon: number, zoom: number): { x: number; y: n
   };
 }
 
-function buildRouteTileUrls(coordinates: [number, number][], maxTiles = 48): string[] {
+function buildRouteTileUrls(coordinates: [number, number][], maxTiles = 96): string[] {
   if (!coordinates || coordinates.length < 2) return [];
-
-  let minLat = Infinity;
-  let maxLat = -Infinity;
-  let minLon = Infinity;
-  let maxLon = -Infinity;
-  for (const [lat, lon] of coordinates) {
-    if (lat < minLat) minLat = lat;
-    if (lat > maxLat) maxLat = lat;
-    if (lon < minLon) minLon = lon;
-    if (lon > maxLon) maxLon = lon;
-  }
 
   const urls: string[] = [];
   const seen = new Set<string>();
-  const zooms = [11, 12];
+  const zooms = [11, 12, 13];
+  const sampleCount = Math.min(16, coordinates.length);
+  const sampled: [number, number][] = [];
+  for (let i = 0; i < sampleCount; i++) {
+    const idx =
+      sampleCount === 1
+        ? 0
+        : Math.min(coordinates.length - 1, Math.round((i / (sampleCount - 1)) * (coordinates.length - 1)));
+    sampled.push(coordinates[idx]);
+  }
 
   for (const z of zooms) {
-    const tl = latLonToTile(maxLat, minLon, z);
-    const br = latLonToTile(minLat, maxLon, z);
-    for (let x = tl.x; x <= br.x; x++) {
-      for (let y = tl.y; y <= br.y; y++) {
-        const url = `https://a.basemaps.cartocdn.com/light_all/${z}/${x}/${y}.png`;
-        if (!seen.has(url)) {
-          seen.add(url);
-          urls.push(url);
-          if (urls.length >= maxTiles) return urls;
+    const n = Math.pow(2, z);
+    const offsets = z === 13 ? [0] : [-1, 0, 1];
+    for (const [lat, lon] of sampled) {
+      const center = latLonToTile(lat, lon, z);
+      for (const dx of offsets) {
+        for (const dy of offsets) {
+          const x = Math.max(0, Math.min(n - 1, center.x + dx));
+          const y = Math.max(0, Math.min(n - 1, center.y + dy));
+          for (const style of ['World_Light_Gray_Base', 'World_Dark_Gray_Base'] as const) {
+            const url = `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/${style}/MapServer/tile/${z}/${y}/${x}`;
+            if (!seen.has(url)) {
+              seen.add(url);
+              urls.push(url);
+              if (urls.length >= maxTiles) return urls;
+            }
+          }
         }
       }
     }
@@ -75,14 +81,19 @@ function buildRouteTileUrls(coordinates: [number, number][], maxTiles = 48): str
 }
 
 function prefetchRouteTilesViaSw(coordinates: [number, number][]): number {
-  const urls = buildRouteTileUrls(coordinates, 48);
+  const urls = buildRouteTileUrls(coordinates, 96);
   if (urls.length === 0) return 0;
-  if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
-    navigator.serviceWorker.controller?.postMessage({
-      type: 'PREFETCH_TILES',
-      urls,
-    });
+  if (
+    typeof navigator === 'undefined' ||
+    !('serviceWorker' in navigator) ||
+    !navigator.serviceWorker.controller
+  ) {
+    return 0;
   }
+  navigator.serviceWorker.controller.postMessage({
+    type: 'PREFETCH_TILES',
+    urls,
+  });
   return urls.length;
 }
 
@@ -91,7 +102,7 @@ function prefetchRouteTilesViaSw(coordinates: [number, number][]): number {
  * - Corridor POIs (Overpass -> localStorage + IDB)
  * - OSM Surface segments (Overpass -> IDB)
  * - Sector Weather Forecast (Open-Meteo -> IDB)
- * - Map tiles along the route bounding box (Service Worker tile cache)
+ * - Map tiles along the route corridor (Service Worker tile cache)
  */
 export async function saveExpeditionPack(
   trip: TripProfile,
@@ -99,6 +110,12 @@ export async function saveExpeditionPack(
 ): Promise<OfflineExpeditionPackMeta> {
   const coords = trip.route?.coordinates ?? [];
   const hasTrace = coords.length >= 2;
+  const activeStage =
+    trip.stages && trip.activeStageIndex !== undefined
+      ? trip.stages[trip.activeStageIndex]
+      : undefined;
+  const stageId = activeStage?.id || trip.id;
+  const ftpWatts = loadRiderBikeSpecs().ftpWatts;
 
   let amenitiesCount = 0;
   let hasSurface = false;
@@ -112,11 +129,12 @@ export async function saveExpeditionPack(
       scanCorridorAmenities({
         coordinates: coords,
         totalDistanceKm: trip.route.distanceKm,
+        stageId,
         elevationProfile: trip.route.elevationProfile,
         lang,
       }),
       fetchOsmSurfaceForRoute({ coordinates: coords, distanceKm: trip.route.distanceKm }),
-      fetchRouteSectorForecast(trip, targetDate, targetTime, lang),
+      fetchRouteSectorForecast(trip, targetDate, targetTime, lang, ftpWatts),
     ]);
 
     if (amenitiesRes.status === 'fulfilled') {

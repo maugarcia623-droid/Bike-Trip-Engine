@@ -235,7 +235,7 @@ function AppContent() {
         }
       }
     }
-    return 'dashboard';
+    return 'home';
   });
 
   const handleOpenTools = (tab: FreeWebToolTab = 'wind') => {

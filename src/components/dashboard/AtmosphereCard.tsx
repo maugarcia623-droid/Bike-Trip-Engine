@@ -156,7 +156,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
       return;
     }
     let cancelled = false;
-    fetchRouteSectorForecast(trip, currentDateStr, currentTimeStr, lang).then((res) => {
+    fetchRouteSectorForecast(trip, currentDateStr, currentTimeStr, lang, physicsResult?.ftpWatts).then((res) => {
       if (!cancelled) setSectorAnalysis(res);
     });
     return () => {
@@ -171,6 +171,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
     currentDateStr,
     currentTimeStr,
     lang,
+    physicsResult?.ftpWatts,
   ]);
 
   const kitAdvice = useMemo(() => {

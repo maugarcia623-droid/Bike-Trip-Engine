@@ -9,6 +9,7 @@ const TILE_HOSTS = [
   'tile.openstreetmap.org',
   'basemaps.cartocdn.com',
   'tile.opentopomap.org',
+  'server.arcgisonline.com',
 ];
 
 function isTileRequest(url) {

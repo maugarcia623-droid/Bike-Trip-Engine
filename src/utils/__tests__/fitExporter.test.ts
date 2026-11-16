@@ -190,4 +190,63 @@ describe('fitExporter.ts', () => {
       computeCrc16(enrichedBytes, 0, 14 + dataSize)
     );
   });
+
+  it('truncates multi-byte UTF-8 course point names at character boundaries and scales amenity distances', () => {
+    const trip = makeBaseTrip();
+    trip.route.distanceKm = 40; // ~2.44x raw polyline (~16.4 km)
+    trip.pinnedAmenities = [
+      {
+        id: 'utf8-stop',
+        name: 'Stop 1234567 €€€',
+        category: 'food',
+        subType: 'bakery',
+        lat: 47.24,
+        lon: -1.45,
+        routeKm: 8.2,
+        detourMeters: 0,
+        isPinned: true,
+      },
+    ];
+
+    const bytes = exportTripToFit(trip, {
+      includeFuelingCues: false,
+      includeClimbCues: false,
+    });
+
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const dataSize = view.getUint32(4, true);
+    assert.equal(
+      view.getUint16(14 + dataSize, true),
+      computeCrc16(bytes, 0, 14 + dataSize)
+    );
+
+    // Locate local msg 5 (global msg 32 = course_point) definition header
+    let defOffset = -1;
+    for (let i = 14; i < 14 + dataSize - 24; i++) {
+      if (
+        bytes[i] === 0x45 &&
+        bytes[i + 1] === 0 &&
+        bytes[i + 2] === 0 &&
+        bytes[i + 3] === 32 &&
+        bytes[i + 4] === 0 &&
+        bytes[i + 5] === 6
+      ) {
+        defOffset = i;
+        break;
+      }
+    }
+    assert.ok(defOffset >= 14);
+
+    const recOffset = defOffset + 24;
+    assert.equal(bytes[recOffset], 0x05);
+    const courseDistM = view.getUint32(recOffset + 13, true) / 100;
+    assert.ok(courseDistM > 15000 && courseDistM < 25000);
+
+    const rawName = bytes.slice(recOffset + 18, recOffset + 34);
+    assert.equal(rawName[15], 0);
+    const nullIdx = rawName.indexOf(0);
+    const trimmed = nullIdx >= 0 ? rawName.slice(0, nullIdx) : rawName;
+    const decoded = new TextDecoder('utf-8', { fatal: true }).decode(trimmed);
+    assert.equal(decoded, 'Stop 1234567 ');
+  });
 });

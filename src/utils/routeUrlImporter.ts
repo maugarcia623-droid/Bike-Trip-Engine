@@ -85,8 +85,10 @@ export async function importRouteFromUrl(rawInput: string): Promise<RouteUrlImpo
   }
 
   for (const endpoint of candidateEndpoints) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
     try {
-      const res = await fetch(endpoint);
+      const res = await fetch(endpoint, { signal: controller.signal });
       if (!res.ok) continue;
       const contentType = (res.headers.get('content-type') || '').toLowerCase();
       const buf = await res.arrayBuffer();
@@ -130,6 +132,8 @@ export async function importRouteFromUrl(rawInput: string): Promise<RouteUrlImpo
       }
     } catch {
       // CORS or network block — fall through to provider-specific guidance
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 
