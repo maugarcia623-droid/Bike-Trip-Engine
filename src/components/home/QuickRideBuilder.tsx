@@ -39,6 +39,7 @@ import { calculateAutoBikeRoute } from '../../utils/routing';
 import { geocodeLocation, LocationSuggestion } from '../../services/locationService';
 import { computeRouteBearing, getLocalTodayIso } from '../../services/weatherService';
 import { LocationAutocompleteInput } from '../configurator/LocationAutocompleteInput';
+import { Collapsible } from '../common/Collapsible';
 
 export type QuickRideTypeId = 'coffee' | 'sport' | 'gravel' | 'commute';
 export type QuickDeparturePresetId = 'today-next-hour' | 'tomorrow-08' | 'sat-0830' | 'custom';
@@ -294,6 +295,7 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
 }) => {
   const { lang } = useTranslation();
   const isFr = lang === 'fr';
+  const [isComposerOpen, setIsComposerOpen] = useState(false);
   const specs = propSpecs ?? loadRiderBikeSpecs();
   const activeBike = getActiveBike(specs);
   const effectiveRider = getEffectiveRiderSpecs(specs);
@@ -793,10 +795,9 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
       </div>
 
       {/* 1. 3-Tap Interactive Mad-Libs Sentence Composer */}
-      <div ref={composerRef} className="relative z-20">
-        <div className="bg-pod border border-ink/5 dark:border-white/5 rounded-pod p-4 sm:p-5">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-2.5 text-[15px] sm:text-[17px] font-rounded font-medium text-ink leading-relaxed">
-            <span>{isFr ? 'Je pars sur une' : 'I want a'}</span>
+      <div ref={composerRef} className="relative z-20 pt-0.5">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-2.5 text-[15px] sm:text-[17px] font-rounded font-medium text-ink leading-relaxed">
+          <span>{isFr ? 'Je pars sur une' : 'I want a'}</span>
 
             {/* Pill 1: Ride Type */}
             <div className="relative inline-block">
@@ -854,7 +855,7 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
                 aria-expanded={openPopover === 'distance'}
                 aria-haspopup="listbox"
                 onClick={() => setOpenPopover(openPopover === 'distance' ? null : 'distance')}
-                className="inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] px-3.5 py-1 rounded-full bg-card hover:bg-chip-hover border border-ink/10 dark:border-white/10 text-ink tnum font-bold text-sm sm:text-base transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] px-3.5 py-1 rounded-full bg-pod hover:bg-chip border border-ink/10 dark:border-white/10 text-ink tnum font-bold text-sm sm:text-base transition-colors cursor-pointer"
               >
                 <span>{distanceKm} km</span>
                 <ChevronDown className="w-3.5 h-3.5 text-ink-muted" />
@@ -938,7 +939,7 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
                 aria-expanded={openPopover === 'departure'}
                 aria-haspopup="listbox"
                 onClick={() => setOpenPopover(openPopover === 'departure' ? null : 'departure')}
-                className="inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] px-3.5 py-1 rounded-full bg-card hover:bg-chip-hover border border-ink/10 dark:border-white/10 text-ink text-sm sm:text-base font-semibold transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] px-3.5 py-1 rounded-full bg-pod hover:bg-chip border border-ink/10 dark:border-white/10 text-ink text-sm sm:text-base font-semibold transition-colors cursor-pointer"
               >
                 <Clock className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 shrink-0" />
                 <span className="tnum">{departurePillLabel}</span>
@@ -1028,7 +1029,7 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
                 aria-expanded={openPopover === 'pace'}
                 aria-haspopup="listbox"
                 onClick={() => setOpenPopover(openPopover === 'pace' ? null : 'pace')}
-                className="inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] px-3.5 py-1 rounded-full bg-card hover:bg-chip-hover border border-ink/10 dark:border-white/10 text-ink text-sm sm:text-base font-semibold transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] px-3.5 py-1 rounded-full bg-pod hover:bg-chip border border-ink/10 dark:border-white/10 text-ink text-sm sm:text-base font-semibold transition-colors cursor-pointer"
               >
                 <Gauge className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 shrink-0" />
                 <span className="tnum">{pacePillLabel}</span>
@@ -1097,7 +1098,9 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
 
             {!isFr && <span>pace.</span>}
           </div>
+      </div>
 
+      <Collapsible open={isComposerOpen}>
           {/* Optional Start Location + Vibe Pills + Build CTAs */}
           <div className="mt-4 pt-4 border-t border-ink/10 dark:border-white/10 flex flex-col lg:flex-row lg:items-end gap-3 justify-between">
             <div className="flex-1 grid grid-cols-1 md:grid-cols-[minmax(220px,1fr)_auto] gap-3 items-end">
@@ -1130,7 +1133,7 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
                   className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] px-3 rounded-full text-xs font-semibold border transition-colors cursor-pointer ${
                     vibeBakeryStop
                       ? `${CHIP_TOKENS.teal.surface} ${CHIP_TOKENS.teal.primary} border-teal-500/40`
-                      : 'bg-card border-ink/10 dark:border-white/10 text-ink-secondary hover:text-ink'
+                      : 'bg-pod hover:bg-chip border-ink/10 dark:border-white/10 text-ink-secondary hover:text-ink'
                   }`}
                 >
                   <Bakery className="w-3.5 h-3.5" />
@@ -1144,7 +1147,7 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
                   className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] px-3 rounded-full text-xs font-semibold border transition-colors cursor-pointer ${
                     vibeCircularLoop
                       ? `${CHIP_TOKENS.teal.surface} ${CHIP_TOKENS.teal.primary} border-teal-500/40`
-                      : 'bg-card border-ink/10 dark:border-white/10 text-ink-secondary hover:text-ink'
+                      : 'bg-pod hover:bg-chip border-ink/10 dark:border-white/10 text-ink-secondary hover:text-ink'
                   }`}
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
@@ -1158,7 +1161,7 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
                   className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] px-3 rounded-full text-xs font-semibold border transition-colors cursor-pointer ${
                     vibeLightPack
                       ? `${CHIP_TOKENS.teal.surface} ${CHIP_TOKENS.teal.primary} border-teal-500/40`
-                      : 'bg-card border-ink/10 dark:border-white/10 text-ink-secondary hover:text-ink'
+                      : 'bg-pod hover:bg-chip border-ink/10 dark:border-white/10 text-ink-secondary hover:text-ink'
                   }`}
                 >
                   <Feather className="w-3.5 h-3.5" />
@@ -1177,7 +1180,7 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
                 onClick={() => {
                   void handleBuildFromComposer('configurator');
                 }}
-                className="min-h-[44px] sm:min-h-[40px] px-4 rounded-full bg-card hover:bg-chip-hover text-ink border border-ink/10 dark:border-white/10 gap-1.5 font-semibold text-xs sm:text-[13px] cursor-pointer"
+                className="min-h-[44px] sm:min-h-[40px] px-4 rounded-full bg-pod hover:bg-chip text-ink border border-ink/10 dark:border-white/10 gap-1.5 font-semibold text-xs sm:text-[13px] cursor-pointer"
               >
                 <SlidersHorizontal className="w-4 h-4" />
                 <span>{isFr ? 'Affiner' : 'Fine-tune'}</span>
@@ -1198,11 +1201,9 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
               </Button>
             </div>
           </div>
-        </div>
-      </div>
 
       {/* 2. 1-Tap Ride Recipes */}
-      <div className="mt-4">
+      <div className="mt-5 pt-4 border-t border-ink/10 dark:border-white/10">
         <div className="flex items-center justify-between mb-2">
           <span className="text-[11px] font-rounded font-bold uppercase tracking-wider text-ink-muted">
             {isFr ? 'Recettes en 1 clic' : '1-Tap Ride Recipes'}
@@ -1211,13 +1212,13 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
             {isFr ? 'Ouvre le tableau de bord instantanément' : 'Launches straight into dashboard'}
           </span>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
+        <div className="flex overflow-x-auto gap-2 pb-1 -mx-[18px] px-[18px] scroll-pl-[18px] snap-x snap-mandatory no-scrollbar md:grid md:grid-cols-2 xl:grid-cols-4 md:overflow-visible md:pb-0 md:mx-0 md:px-0">
           {RIDE_RECIPES.map((recipe) => (
             <button
               key={recipe.id}
               type="button"
               onClick={() => handleLaunchRecipe(recipe)}
-              className="group flex items-center justify-between gap-2 text-left min-h-[44px] px-3.5 py-2.5 rounded-pod bg-pod hover:bg-chip border border-ink/5 dark:border-white/5 transition-all cursor-pointer active:scale-[0.99]"
+              className="group min-w-[215px] shrink-0 snap-start md:min-w-0 flex items-center justify-between gap-2 text-left min-h-[44px] px-3.5 py-2.5 rounded-pod bg-pod hover:bg-chip border border-ink/5 dark:border-white/5 transition-all cursor-pointer active:scale-[0.99]"
             >
               <div className="min-w-0 flex items-center gap-2.5">
                 <div
@@ -1364,6 +1365,29 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
           </button>
         </div>
       )}
+      </Collapsible>
+
+      <div className="mt-3.5 flex justify-start">
+        <button
+          type="button"
+          onClick={() => setIsComposerOpen((prev) => !prev)}
+          aria-expanded={isComposerOpen}
+          className="inline-flex items-center gap-1.5 min-h-[40px] px-4 rounded-full bg-pod hover:bg-chip text-ink-secondary hover:text-ink border border-ink/5 dark:border-white/5 text-xs font-semibold transition-colors cursor-pointer active:scale-[0.98]"
+        >
+          <span>
+            {isComposerOpen
+              ? isFr
+                ? 'Afficher moins d’options'
+                : 'Show less options'
+              : isFr
+              ? 'Afficher plus d’options'
+              : 'Show more options'}
+          </span>
+          <ChevronDown
+            className={`w-3.5 h-3.5 transition-transform duration-200 ${isComposerOpen ? 'rotate-180' : ''}`}
+          />
+        </button>
+      </div>
     </section>
   );
 };

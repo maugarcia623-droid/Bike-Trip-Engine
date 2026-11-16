@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { CloudDownload } from 'lucide-react';
 import { Button } from '@/components/arc';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -1373,10 +1374,10 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
       </div>
 
       <div className="relative z-20 p-4 flex flex-col justify-between min-h-[460px] sm:min-h-[490px] lg:min-h-[520px] pointer-events-none">
-        <div className="relative z-30 flex flex-wrap items-center justify-between gap-2 mb-24 sm:mb-20 pointer-events-none max-w-full">
-          {/* ── MINI DYNAMIC ISLAND PILL (1:1 ICON BUTTONS: ROUTE, RESUPPLY RADAR, BIKE SPECS) ── */}
+        <div className="relative z-30 flex flex-wrap items-center justify-start gap-2 mb-24 sm:mb-20 pointer-events-none max-w-full">
+          {/* ── UNIFIED MULTI-TOOL RIBBON (6 UNIFORM 1:1 ICON BUTTONS) ── */}
           <div className="relative inline-flex items-center gap-1 sm:gap-1.5 p-1 sm:p-1.5 rounded-full bg-card/95 dark:bg-[#161618]/95 backdrop-blur-md text-ink dark:text-white shadow-sm sm:shadow-md pointer-events-auto select-none transition-colors">
-            {/* 1. Route Direction / Flip Button (1:1 format, icon only) */}
+            {/* 1. Route Direction / Flip Button */}
             <Button variant="ghost"
               type="button"
               disabled={!isInteractive}
@@ -1400,11 +1401,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     })
                   : `${trip.route.origin || 'Nord-sur-Erdre'} ⇄ ${trip.route.destination || meta.gateName || 'Redon'} (${t('heroFlipReturnBtn')})`
               }
-              className={`relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 w-9 h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 select-none active:scale-95 shrink-0 ${
-                isRadiusMode && activePopover === 'route'
-                  ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.emerald.selectedRing}`
-                  : `hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
-              } ${isInteractive ? 'cursor-pointer' : 'opacity-60 cursor-default'} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+              className={`relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 w-9 h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${isInteractive ? 'cursor-pointer' : 'opacity-60 cursor-default'} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
               {isRadiusMode ? (
                 <Path className="w-4 h-4 text-current" />
@@ -1413,7 +1410,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
               )}
             </Button>
 
-            {/* 2. Corridor Resupply Radar Button (1:1 format, icon only) */}
+            {/* 2. Corridor Resupply Radar Button */}
             <Button variant="ghost"
               type="button"
               onClick={() => {
@@ -1427,11 +1424,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   ? ` (${trip.pinnedAmenities.length} ${t('pinnedStop')})`
                   : ''
               }`}
-              className={`relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 w-9 h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 ${
-                isRadarOpen || (trip.pinnedAmenities && trip.pinnedAmenities.length > 0)
-                  ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
-                  : `hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
-              } ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+              className={`relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 w-9 h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
               <Radar className="w-4 h-4 text-current" />
               {trip.pinnedAmenities && trip.pinnedAmenities.length > 0 && (
@@ -1441,7 +1434,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
               )}
             </Button>
 
-            {/* 3. Rider Bike Garage Button (1:1 format, icon only) */}
+            {/* 3. Rider Bike Garage Button */}
             <Button variant="ghost"
               type="button"
               onClick={() => {
@@ -1458,16 +1451,83 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   ? `${activeBike.name} · ${activeBike.weightKg} kg · ${activeBike.isTubeless ? 'TL' : 'Tube'} (${t('heroBikeSwitchAria')})`
                   : t('heroBikeSwitchAria')
               }
-              className={`relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 w-9 h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 ${
-                activePopover === 'bike'
-                  ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
-                  : `hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
-              } ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+              className={`relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 w-9 h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
               <Bicycle className="w-4 h-4 text-current shrink-0" />
             </Button>
 
-            {/* ── Bike Garage Popover (anchored to the mini dynamic island pill, above all lower content) ── */}
+            {/* 4. Ride Mode Button */}
+            {onStartRideMode && (
+              <Button
+                variant="ghost"
+                type="button"
+                data-testid="hero-start-ride-mode-btn"
+                onClick={onStartRideMode}
+                aria-label={isFr ? 'Mode Vélo' : 'Ride Mode'}
+                title={t('startRideModeBtn')}
+                className={`relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 w-9 h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+              >
+                <Play className="w-4 h-4 shrink-0 text-current" />
+              </Button>
+            )}
+
+            {/* 5. Save Offline Pack Button */}
+            <Button
+              variant="ghost"
+              type="button"
+              data-testid="hero-offline-pack-btn"
+              disabled={isSavingOffline}
+              onClick={() => {
+                void handleSaveOfflinePack();
+              }}
+              aria-label={
+                offlinePack
+                  ? isFr
+                    ? 'Hors ligne prêt'
+                    : 'Offline Ready'
+                  : isFr
+                  ? 'Sauver hors ligne'
+                  : 'Save Offline'
+              }
+              title={
+                offlinePack
+                  ? isFr
+                    ? `Pack hors ligne enregistré (${offlinePack.amenitiesCount} arrêts, carte & météo)`
+                    : `Offline pack saved (${offlinePack.amenitiesCount} stops, map & weather)`
+                  : isFr
+                  ? 'Enregistrer carte, arrêts, surface et météo pour rouler sans réseau'
+                  : 'Save map, stops, surface & weather for zero-signal rides'
+              }
+              className={`relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 w-9 h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+            >
+              {isSavingOffline ? (
+                <LoaderCircle className="w-4 h-4 shrink-0 animate-spin text-current" />
+              ) : offlinePack ? (
+                <ShieldCheck className="w-4 h-4 shrink-0 text-current" />
+              ) : (
+                <CloudDownload className="w-4 h-4 shrink-0 text-current" />
+              )}
+            </Button>
+
+            {/* 6. Export / Send Route Button */}
+            <Button
+              variant="ghost"
+              type="button"
+              data-testid="hero-export-btn"
+              onClick={() => {
+                setIsRadarOpen(false);
+                setActivePopover((prev) => (prev === 'export' ? null : 'export'));
+              }}
+              aria-expanded={activePopover === 'export'}
+              aria-haspopup="menu"
+              aria-label={isFr ? 'Exporter ou envoyer le parcours' : 'Export or send route'}
+              title={isFr ? 'Exporter ou envoyer le parcours' : 'Export or send route'}
+              className={`relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 w-9 h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+            >
+              <Download className="w-4 h-4 shrink-0 text-current" />
+            </Button>
+
+            {/* ── Bike Garage Popover (anchored to the unified ribbon, above all lower content) ── */}
             {activePopover === 'bike' && effectiveSpecs && activeBike && (
               <>
                 {/* Full-screen click-outside dismiss shield */}
@@ -1536,89 +1596,6 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                 </div>
               </>
             )}
-          </div>
-
-          {/* ── RIGHT DYNAMIC ISLAND PILL (RIDE MODE, OFFLINE PACK & EXPORT / SEND) ── */}
-          <div className="relative inline-flex items-center gap-1 sm:gap-1.5 p-1 sm:p-1.5 rounded-full bg-card/95 dark:bg-[#161618]/95 backdrop-blur-md text-ink dark:text-white shadow-sm sm:shadow-md pointer-events-auto select-none transition-colors">
-            {!isOnline && (
-              <span
-                className={`inline-flex items-center gap-1 px-2.5 h-9 rounded-full text-[11px] font-rounded font-bold ${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.amber.selectedRing}`}
-              >
-                <span>{isFr ? 'Hors ligne' : 'Offline'}</span>
-              </span>
-            )}
-
-            {onStartRideMode && (
-              <Button
-                variant="ghost"
-                size="sm"
-                type="button"
-                data-testid="hero-start-ride-mode-btn"
-                onClick={onStartRideMode}
-                title={t('startRideModeBtn')}
-                className={`relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 h-9 px-3 rounded-full inline-flex items-center gap-1.5 text-xs font-rounded font-bold transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
-              >
-                <Play className="w-4 h-4 shrink-0 text-current" />
-                <span className="whitespace-nowrap">
-                  {isFr ? 'Mode Vélo' : 'Ride Mode'}
-                </span>
-              </Button>
-            )}
-
-            <Button
-              variant="ghost"
-              size="sm"
-              type="button"
-              data-testid="hero-offline-pack-btn"
-              disabled={isSavingOffline}
-              onClick={() => {
-                void handleSaveOfflinePack();
-              }}
-              aria-label={
-                offlinePack
-                  ? isFr
-                    ? 'Hors ligne prêt'
-                    : 'Offline Ready'
-                  : isFr
-                  ? 'Sauver hors ligne'
-                  : 'Save Offline'
-              }
-              title={
-                offlinePack
-                  ? isFr
-                    ? `Pack hors ligne enregistré (${offlinePack.amenitiesCount} arrêts, carte & météo)`
-                    : `Offline pack saved (${offlinePack.amenitiesCount} stops, map & weather)`
-                  : isFr
-                  ? 'Enregistrer carte, arrêts, surface et météo pour rouler sans réseau'
-                  : 'Save map, stops, surface & weather for zero-signal rides'
-              }
-              className={`relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 h-9 w-9 lg:w-auto lg:px-3 rounded-full inline-flex items-center justify-center gap-1.5 text-xs font-rounded font-bold transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 ${
-                offlinePack
-                  ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.emerald.selectedRing}`
-                  : `hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
-              } ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
-            >
-              {isSavingOffline ? (
-                <LoaderCircle className="w-4 h-4 shrink-0 animate-spin text-current" />
-              ) : offlinePack ? (
-                <ShieldCheck className="w-4 h-4 shrink-0 text-current" />
-              ) : (
-                <Download className="w-4 h-4 shrink-0 text-current" />
-              )}
-              <span className="hidden lg:inline whitespace-nowrap">
-                {isSavingOffline
-                  ? isFr
-                    ? 'Enregistrement…'
-                    : 'Saving…'
-                  : offlinePack
-                  ? isFr
-                    ? 'Hors ligne prêt'
-                    : 'Offline Ready'
-                  : isFr
-                  ? 'Sauver hors ligne'
-                  : 'Save Offline'}
-              </span>
-            </Button>
 
             {exportFeedback && exportFeedback.kind === 'ok' && (
               <span
@@ -1629,32 +1606,6 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                 <span>{exportFeedback.msg}</span>
               </span>
             )}
-
-            <Button
-              variant="primary"
-              size="sm"
-              type="button"
-              data-testid="hero-export-btn"
-              onClick={() => {
-                setIsRadarOpen(false);
-                setActivePopover((prev) => (prev === 'export' ? null : 'export'));
-              }}
-              aria-expanded={activePopover === 'export'}
-              aria-haspopup="menu"
-              aria-label={isFr ? 'Exporter ou envoyer le parcours' : 'Export or send route'}
-              title={isFr ? 'Exporter ou envoyer le parcours' : 'Export or send route'}
-              className={`relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 h-9 w-9 sm:w-auto sm:px-3.5 rounded-full inline-flex items-center justify-center gap-1.5 text-xs font-rounded font-bold cursor-pointer transition-all duration-150 active:scale-95 shrink-0 ${YELLOW_VEST_SOLID_CTA_CLASSES}`}
-            >
-              <Download className="w-4 h-4 shrink-0 text-current" />
-              <span className="hidden sm:inline whitespace-nowrap">
-                {isFr ? 'Exporter / Envoyer' : 'Export / Send'}
-              </span>
-              <CaretDown
-                className={`hidden sm:inline w-3.5 h-3.5 shrink-0 text-current transition-transform duration-150 ${
-                  activePopover === 'export' ? 'rotate-180' : ''
-                }`}
-              />
-            </Button>
 
             {activePopover === 'export' && (() => {
               const pinnedStopCount = trip.pinnedAmenities?.length || 0;
@@ -1768,7 +1719,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     role="menu"
                     aria-label={isFr ? 'Options d’export et partage' : 'Export and share options'}
                     data-testid="hero-export-popover"
-                    className="absolute right-0 top-full mt-2 w-[min(21.5rem,calc(100vw-3.5rem))] sm:w-80 z-50 rounded-pod p-3.5 bg-card ring-1 ring-inset ring-ink/10 dark:ring-white/15 shadow-2xl animate-apple-popover text-ink"
+                    className="absolute left-0 top-full mt-2 w-[min(21.5rem,calc(100vw-3.5rem))] sm:w-80 z-50 rounded-pod p-3.5 bg-card ring-1 ring-inset ring-ink/10 dark:ring-white/15 shadow-2xl animate-apple-popover text-ink"
                   >
                     <div className="flex items-center justify-between gap-2 mb-2 px-0.5">
                       <span className="text-xs font-rounded font-bold text-ink">

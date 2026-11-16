@@ -209,6 +209,8 @@ function AppContent() {
     }
   }, [user]);
 
+  const [homeMobileView, setHomeMobileView] = useState<'home' | 'trips'>('home');
+  const tripsScrollYRef = React.useRef<number>(0);
   const [currentView, setCurrentView] = useState<'home' | 'configurator' | 'dashboard' | 'tools'>(() => {
     if (typeof window !== 'undefined') {
       const hash = window.location.hash;
@@ -274,6 +276,7 @@ function AppContent() {
 
   // Trip being edited in configurator
   const [configuratorTrip, setConfiguratorTrip] = useState<TripProfile | null>(null);
+  const [configuratorReturnView, setConfiguratorReturnView] = useState<'home' | 'dashboard'>('dashboard');
   const [isNewTrip, setIsNewTrip] = useState<boolean>(false);
 
   // Active trip object (null if 0 trips created yet)
@@ -607,6 +610,9 @@ function AppContent() {
   };
 
   const handleLaunchDashboard = (id: string) => {
+    if (currentView === 'home' && homeMobileView === 'trips' && typeof window !== 'undefined') {
+      tripsScrollYRef.current = window.scrollY;
+    }
     handleSelectTrip(id);
     setCurrentView('dashboard');
   };
@@ -643,12 +649,14 @@ function AppContent() {
       },
     };
     setConfiguratorTrip(newProfile);
+    setConfiguratorReturnView(currentView === 'home' ? 'home' : 'dashboard');
     setIsNewTrip(true);
     setCurrentView("configurator");
   };
 
   const handleEditTrip = (trip: TripProfile) => {
     setConfiguratorTrip(trip);
+    setConfiguratorReturnView(currentView === 'home' ? 'home' : 'dashboard');
     setIsNewTrip(false);
     setCurrentView('configurator');
   };
@@ -989,9 +997,19 @@ function AppContent() {
       } bg-canvas text-ink flex flex-col font-sans selection:bg-volt selection:text-[#111111] transition-colors duration-200`}
     >
       {/* High-End Minimalist Top Telemetry Bar */}
+      {currentView !== 'configurator' && !(currentView === 'home' && homeMobileView === 'trips') && (
       <TopTelemetryBar
         activeTrip={activeTrip}
         currentView={currentView}
+        dashboardBackTarget={homeMobileView}
+        onBackFromDashboard={() => {
+          setCurrentView('home');
+          if (homeMobileView === 'trips' && typeof window !== 'undefined') {
+            requestAnimationFrame(() => {
+              window.scrollTo({ top: tripsScrollYRef.current, behavior: 'instant' as ScrollBehavior });
+            });
+          }
+        }}
         onNavigate={(view) => {
           if (view === 'configurator' && !isNewTrip) {
             setConfiguratorTrip(activeTrip);
@@ -1011,6 +1029,7 @@ function AppContent() {
         isMenuOpen={isTopMenuOpen}
         onMenuOpenChange={setIsTopMenuOpen}
       />
+      )}
 
       {/* Screen Views (with ample bottom padding for the floating navigation island & iOS safe area) */}
       <main className="flex-1 min-w-0 w-full max-w-full pb-[calc(8rem+env(safe-area-inset-bottom,0px))] sm:pb-40 print:hidden no-print">
@@ -1031,6 +1050,8 @@ function AppContent() {
             onOpenTools={(tab) => handleOpenTools(tab || 'wind')}
             onQuickCreateTrip={handleQuickCreateTrip}
             riderSpecs={riderSpecs}
+            mobileView={homeMobileView}
+            onMobileViewChange={setHomeMobileView}
           />
         )}
 
@@ -1044,7 +1065,7 @@ function AppContent() {
               onAutoSync={handleSaveConfiguratorTrip}
               onCancel={() => {
                 setIsNewTrip(false);
-                setCurrentView('dashboard');
+                setCurrentView(configuratorReturnView);
               }}
               onLaunch={(savedTrip) => handleLaunchFromConfigurator(savedTrip || configuratorTrip || activeTrip)}
             />
@@ -1098,7 +1119,7 @@ function AppContent() {
               initialTab={toolsInitialTab}
               activeTrip={activeTrip}
               riderSpecs={riderSpecs}
-              onBackToCockpit={() => setCurrentView('dashboard')}
+              onBackToCockpit={() => setCurrentView('home')}
             />
           </Suspense>
         )}
@@ -1106,22 +1127,24 @@ function AppContent() {
 
       {/* Floating Dynamic Island Navigation Pill (Hidden when top settings menu overlay is open) */}
       {!isTopMenuOpen && (
-        <DynamicIslandNav
-          currentView={currentView}
-          onNavigate={(view) => {
-            if (view === 'configurator' && !isNewTrip) {
-              setConfiguratorTrip(activeTrip);
-            }
-            setCurrentView(view);
-          }}
-          activeTrip={activeTrip}
-          allTrips={trips}
-          onSelectTrip={handleSelectTrip}
-          onCreateNew={handleCreateNewTrip}
-          onPrint={handlePrint}
-          onOpenSpecs={() => setIsSpecsModalOpen(true)}
-          onResetDefaults={handleResetDefaults}
-        />
+        <div className="hidden md:block">
+          <DynamicIslandNav
+            currentView={currentView}
+            onNavigate={(view) => {
+              if (view === 'configurator' && !isNewTrip) {
+                setConfiguratorTrip(activeTrip);
+              }
+              setCurrentView(view);
+            }}
+            activeTrip={activeTrip}
+            allTrips={trips}
+            onSelectTrip={handleSelectTrip}
+            onCreateNew={handleCreateNewTrip}
+            onPrint={handlePrint}
+            onOpenSpecs={() => setIsSpecsModalOpen(true)}
+            onResetDefaults={handleResetDefaults}
+          />
+        </div>
       )}
 
       {/* Printable A4 Flight Sheet Layout (Hidden on Screen, Active on Print) */}

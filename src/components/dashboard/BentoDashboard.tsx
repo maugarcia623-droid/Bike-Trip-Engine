@@ -40,6 +40,7 @@ import {
   CheckCircle2,
   ForkKnife,
   Gauge,
+  Grid2x2,
 } from '@/components/icons';
 import { useTranslation, getLocalizedTripMeta } from '../../context/LanguageContext';
 import { switchActiveStage, getExpeditionTotals } from '../../utils/stageManager';
@@ -115,7 +116,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
   const [isRideModeOpen, setIsRideModeOpen] = React.useState<boolean>(false);
   const [gpxErrorMsg, setGpxErrorMsg] = React.useState<string | null>(null);
   const [loadedAmenities, setLoadedAmenities] = React.useState<StageAmenity[]>([]);
-  const [activeQuickJump, setActiveQuickJump] = React.useState<string>('bento-route');
+  const [activeSectionFilters, setActiveSectionFilters] = React.useState<string[]>([]);
 
   const getInitialBriefExpanded = React.useCallback((desktop: boolean): boolean => {
     try {
@@ -162,13 +163,25 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
     }
   }, [onShareReceiptProp]);
 
-  const handleQuickJump = React.useCallback((targetId: string) => {
-    setActiveQuickJump(targetId);
-    const el = document.getElementById(targetId);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const handleToggleSectionFilter = React.useCallback((sectionId: string) => {
+    if (sectionId === 'all') {
+      setActiveSectionFilters([]);
+      return;
     }
+    setActiveSectionFilters((prev) => {
+      const next = prev.includes(sectionId)
+        ? prev.filter((id) => id !== sectionId)
+        : [...prev, sectionId];
+      // Normalize back to "All" when every individual section is selected
+      return next.length === 6 ? [] : next;
+    });
   }, []);
+
+  const isSectionVisible = React.useCallback(
+    (sectionId: string) =>
+      activeSectionFilters.length === 0 || activeSectionFilters.includes(sectionId),
+    [activeSectionFilters]
+  );
 
   React.useEffect(() => {
     if (!externalRideBriefOpen) return;
@@ -699,15 +712,16 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
           </div>
         </div>
       ) : (
-        /* Mobile Linear Stack (< 1024px) with Quick-Jump Pill Bar & 20px (gap-5) vertical spacing */
+        /* Mobile Linear Stack (< 1024px) with Section Filter Pill Bar & 20px (gap-5) vertical spacing */
         <div className="flex flex-col gap-5 min-w-0">
-          {/* Mobile Quick-Jump Pill Bar */}
+          {/* Mobile Section Filter Pill Bar */}
           <nav
-            aria-label={isFr ? 'Accès rapide aux sections' : 'Quick jump to sections'}
+            aria-label={isFr ? 'Filtrer les sections' : 'Filter sections'}
             data-testid="mobile-quick-jump-bar"
-            className="-mx-1 px-1 -mb-1.5 flex items-center gap-2 overflow-x-auto no-scrollbar snap-x"
+            className="-mx-3.5 px-3.5 scroll-pl-3.5 sm:-mx-5 sm:px-5 sm:scroll-pl-5 -mb-1.5 flex items-center gap-2 overflow-x-auto no-scrollbar snap-x"
           >
             {[
+              { id: 'all', label: isFr ? 'Tout' : 'All', icon: Grid2x2 },
               { id: 'bento-route', label: isFr ? 'Carte' : 'Map', icon: MapIcon },
               { id: 'bento-weather', label: isFr ? 'Météo' : 'Weather', icon: CloudSun },
               { id: 'bento-timeline', label: isFr ? 'Horaires' : 'Timeline', icon: Clock },
@@ -716,14 +730,18 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
               { id: 'bento-physics', label: 'Stats', icon: Gauge },
             ].map((item) => {
               const Icon = item.icon;
-              const isActive = activeQuickJump === item.id;
+              const isActive =
+                item.id === 'all'
+                  ? activeSectionFilters.length === 0
+                  : activeSectionFilters.includes(item.id);
               return (
                 <Button
                   key={item.id}
                   variant="ghost"
                   size="sm"
                   type="button"
-                  onClick={() => handleQuickJump(item.id)}
+                  aria-pressed={isActive}
+                  onClick={() => handleToggleSectionFilter(item.id)}
                   className={`min-h-[44px] px-3.5 py-2 rounded-full inline-flex items-center gap-1.5 text-xs font-rounded font-bold whitespace-nowrap shrink-0 snap-start transition-all cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
                     isActive
                       ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing} shadow-xs`
@@ -738,7 +756,14 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
           </nav>
 
           {/* 1. Hero Route Card */}
-          <div id="bento-route" className="scroll-mt-3 animate-flight-deck-in deck-stagger-1 min-w-0">
+          <div
+            id="bento-route"
+            className={
+              isSectionVisible('bento-route')
+                ? 'scroll-mt-3 animate-flight-deck-in deck-stagger-1 min-w-0'
+                : 'hidden'
+            }
+          >
             <HeroRouteCard
               trip={trip}
               physicsResult={physicsResult}
@@ -765,7 +790,14 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
           </div>
 
           {/* 2. Weather Bento */}
-          <div id="bento-weather" className="scroll-mt-3 animate-flight-deck-in deck-stagger-2">
+          <div
+            id="bento-weather"
+            className={
+              isSectionVisible('bento-weather')
+                ? 'scroll-mt-3 animate-flight-deck-in deck-stagger-2'
+                : 'hidden'
+            }
+          >
             <AtmosphereCard
               trip={trip}
               physicsResult={physicsResult}
@@ -775,7 +807,14 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
           </div>
 
           {/* 3. Dynamic Reverse Timeline */}
-          <div id="bento-timeline" className="scroll-mt-3 animate-flight-deck-in deck-stagger-3">
+          <div
+            id="bento-timeline"
+            className={
+              isSectionVisible('bento-timeline')
+                ? 'scroll-mt-3 animate-flight-deck-in deck-stagger-3'
+                : 'hidden'
+            }
+          >
             <ReverseTimelineBento
               trip={trip}
               timeline={timelineResult}
@@ -784,7 +823,14 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
           </div>
 
           {/* 4. Pre-Flight Inspection Checklist */}
-          <div id="bento-checklist" className="scroll-mt-3 animate-flight-deck-in deck-stagger-4">
+          <div
+            id="bento-checklist"
+            className={
+              isSectionVisible('bento-checklist')
+                ? 'scroll-mt-3 animate-flight-deck-in deck-stagger-4'
+                : 'hidden'
+            }
+          >
             <PreFlightChecklistBento
               trip={trip}
               onUpdateTrip={onUpdateTrip}
@@ -793,7 +839,14 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
           </div>
 
           {/* 5. Baseline Dock: Real-Food Nutrition */}
-          <div id="bento-nutrition" className="scroll-mt-3 animate-flight-deck-in deck-stagger-5">
+          <div
+            id="bento-nutrition"
+            className={
+              isSectionVisible('bento-nutrition')
+                ? 'scroll-mt-3 animate-flight-deck-in deck-stagger-5'
+                : 'hidden'
+            }
+          >
             <NutritionBento
               trip={trip}
               hardDepartureTime={timelineResult.hardDepartureTime}
@@ -806,7 +859,14 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
           </div>
 
           {/* 6. Telemetry Dock: Aerodynamic & Rolling Physics Engine */}
-          <div id="bento-physics" className="scroll-mt-3 animate-flight-deck-in deck-stagger-6">
+          <div
+            id="bento-physics"
+            className={
+              isSectionVisible('bento-physics')
+                ? 'scroll-mt-3 animate-flight-deck-in deck-stagger-6'
+                : 'hidden'
+            }
+          >
             <PhysicsEngineCard
               trip={trip}
               physicsResult={physicsResult}

@@ -2,6 +2,8 @@ import React, { useState, useMemo } from 'react';
 import {
   Plus,
   ArrowCounterClockwise,
+  ArrowRight,
+  ChevronRight,
   ShieldCheck,
   Sparkle,
   BookOpen2,
@@ -15,15 +17,19 @@ import {
   Wind,
   Clock,
   Gauge,
+  X,
 } from '@/components/icons';
 import { TripProfile, WeatherCondition } from '../../types/trip';
 import { RiderBikeSpecs } from '../../types/specs';
 import { TripCard } from './TripCard';
-import { UpcomingTripCard } from './UpcomingTripCard';
+import { UpcomingTripCard, getTripDateDetails } from './UpcomingTripCard';
 import { WeatherWidget } from './WeatherWidget';
 import { QuickRideBuilder } from './QuickRideBuilder';
+import { CompactTripCard } from './CompactTripCard';
+import { MobileTripsView } from './MobileTripsView';
 import { Badge } from '../common/Badge';
 import { IconBadge } from '../common/IconBadge';
+import { ModalPortal } from '../common/ModalPortal';
 import { Button } from '@/components/arc';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
@@ -35,6 +41,7 @@ import { useTranslation } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import { useUserProfile } from '../../utils/userProfileStorage';
 import { getArchetypeFromTag } from '../../utils/archetypeChips';
+import { calculatePhysics } from '../../utils/physics';
 import { FeedbackModal } from '../FeedbackModal';
 
 interface HomeScreenProps {
@@ -54,6 +61,8 @@ interface HomeScreenProps {
   onOpenTools?: (tab?: 'wind' | 'leave-by' | 'pressure') => void;
   onQuickCreateTrip?: (trip: TripProfile, targetView: 'dashboard' | 'configurator') => void;
   riderSpecs?: RiderBikeSpecs;
+  mobileView?: 'home' | 'trips';
+  onMobileViewChange?: (view: 'home' | 'trips') => void;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -73,12 +82,28 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onOpenTools,
   onQuickCreateTrip,
   riderSpecs,
+  mobileView: controlledMobileView,
+  onMobileViewChange,
 }) => {
   const { lang, t } = useTranslation();
   const { userProfile, username } = useUserProfile();
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const [selectedArchetype, setSelectedArchetype] = useState<string>('all');
+  const [internalMobileView, setInternalMobileView] = useState<'home' | 'trips'>('home');
+  const mobileView = controlledMobileView ?? internalMobileView;
+  const setMobileView = (view: 'home' | 'trips') => {
+    setInternalMobileView(view);
+    onMobileViewChange?.(view);
+  };
+  const [isMobileWeatherOpen, setIsMobileWeatherOpen] = useState(false);
   const { user, openAuthModal, lastSyncedAt } = useAuth();
+
+  const navigateMobileView = (view: 'home' | 'trips') => {
+    setMobileView(view);
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   const syncedDisplayTime = (lastSyncedAt || new Date()).toLocaleTimeString(
     lang === 'fr' ? 'fr-FR' : 'en-US',
@@ -128,15 +153,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       return { tr, diffDays: 9999 };
     });
 
-    // If activeTrip exists and has an upcoming date >= 0, prioritize user selection
-    if (activeTrip) {
-      const activeItem = tripsWithDiff.find((x) => x.tr.id === activeTrip.id);
-      if (activeItem && activeItem.diffDays >= 0) {
-        return activeItem.tr;
-      }
-    }
-
-    // Chronologically next future trip
+    // Chronologically next future trip (regardless of which trip is active)
     const futureTrips = tripsWithDiff
       .filter((item) => item.diffDays >= 0)
       .sort((a, b) => a.diffDays - b.diffDays);
@@ -198,9 +215,294 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   const currentConditionTrip = nextUpcomingTrip || activeTrip || trips[0] || null;
 
+  const greetingTitle = useMemo(() => {
+    const trimmed = (username || '').trim();
+    const isGenericName = !trimmed || trimmed === 'Rider' || trimmed === 'Cycliste';
+    if (!isGenericName) {
+      return t('homeGreetingUser', { name: trimmed, username: trimmed });
+    }
+    return lang === 'fr' ? 'Où va-t-on ?' : 'Where to?';
+  }, [username, t, lang]);
+
+  const weatherStatusDotClass = useMemo(() => {
+    if (!currentConditionTrip) return CHIP_TOKENS.emerald.dot;
+    const res = calculatePhysics(
+      currentConditionTrip.physics,
+      currentConditionTrip.route,
+      currentConditionTrip.weather,
+      lang,
+      riderSpecs?.ftpWatts
+    );
+    if (res.goStatus === 'NO-GO') return CHIP_TOKENS.rose.dot;
+    if (res.goStatus === 'CAUTION') return CHIP_TOKENS.amber.dot;
+    return CHIP_TOKENS.emerald.dot;
+  }, [currentConditionTrip, lang, riderSpecs?.ftpWatts]);
+
+  const plannedMobileTrips = useMemo(() => {
+    const dated: { trip: TripProfile; time: number }[] = [];
+    const undated: TripProfile[] = [];
+    for (const tr of trips) {
+      const dateStr = tr.departureDate || tr.stages?.[0]?.departureDate;
+      if (dateStr) {
+        const info = getTripDateDetails(tr, lang);
+        if (info.diffDays >= 0) {
+          dated.push({ trip: tr, time: info.targetDate.getTime() });
+        }
+      } else {
+        undated.push(tr);
+      }
+    }
+    dated.sort((a, b) => a.time - b.time);
+    const list = [...dated.map((x) => x.trip), ...undated];
+    return list.length > 0 ? list : trips;
+  }, [trips, lang]);
+
   return (
     <div className="w-full max-w-[1720px] mx-auto px-3.5 sm:px-5 lg:px-7 pt-2 pb-24 sm:pb-20 space-y-5">
-      {/* ── Top Page Header (3-Column Span matching Mockup: Greeting Phrase, Number of Profiles, Action Bar Below) ── */}
+      {/* ═══════════════════════════════════════════════════════════════════════
+          MOBILE NATIVE-APP LAYOUT (< md) — Matches Figma Wireframe
+          ═══════════════════════════════════════════════════════════════════════ */}
+      <div className="md:hidden space-y-5">
+        {mobileView === 'trips' ? (
+          <MobileTripsView
+            trips={trips}
+            filteredTrips={filteredTrips}
+            activeTrip={activeTrip}
+            nextUpcomingTrip={nextUpcomingTrip}
+            selectedArchetype={selectedArchetype}
+            onSelectArchetype={setSelectedArchetype}
+            filterTabs={filterTabs}
+            onBackHome={() => navigateMobileView('home')}
+            onSelectTrip={onSelectTrip}
+            onCreateNewTrip={onCreateNewTrip}
+            onEditTrip={onEditTrip}
+            onDuplicateTrip={onDuplicateTrip}
+            onDeleteTrip={onDeleteTrip}
+            onLaunchDashboard={onLaunchDashboard}
+            onLoadDemoTrip={onLoadDemoTrip}
+          />
+        ) : (
+          <>
+            {/* Top Row: Weather Conditions Pill */}
+            {currentConditionTrip && (
+              <div className="flex items-center justify-end animate-apple-in">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setIsMobileWeatherOpen(true)}
+                  className="inline-flex items-center gap-2 min-h-[40px] px-3.5 rounded-full bg-card hover:bg-pod text-ink border border-ink/5 dark:border-white/5 text-xs font-semibold shadow-xs cursor-pointer active:scale-[0.98]"
+                >
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${weatherStatusDotClass}`} />
+                  <span>{t('weatherCardTitle')}</span>
+                </Button>
+              </div>
+            )}
+
+            {/* Greeting Header */}
+            <div className="animate-apple-in stagger-1">
+              <h1 className="text-2xl font-semibold text-ink tracking-tight leading-tight">
+                {greetingTitle}
+              </h1>
+              <p className="text-ink-muted text-[13px] mt-1 leading-relaxed">
+                {t('homeSubtitle')}
+              </p>
+            </div>
+
+            {/* Your Planned Trips Carousel Section */}
+            <div className="space-y-3 animate-apple-in stagger-2">
+              <button
+                type="button"
+                onClick={() => navigateMobileView('trips')}
+                className="w-full flex items-center justify-between gap-2 py-1 text-left cursor-pointer group"
+              >
+                <span className="flex items-center gap-2 min-w-0">
+                  <Compass className="w-5 h-5 text-ink shrink-0" />
+                  <span className="text-lg font-semibold tracking-tight text-ink truncate">
+                    {lang === 'fr' ? 'Vos trajets prévus' : 'Your planned trips'}
+                  </span>
+                </span>
+                <ChevronRight className="w-5 h-5 text-ink-muted group-hover:text-ink transition-colors shrink-0" />
+              </button>
+
+              {plannedMobileTrips.length > 0 ? (
+                <div className="flex overflow-x-auto gap-3 pb-1 -mx-3.5 px-3.5 scroll-pl-3.5 sm:-mx-5 sm:px-5 sm:scroll-pl-5 snap-x snap-mandatory no-scrollbar">
+                  {plannedMobileTrips.map((trip) => (
+                    <CompactTripCard
+                      key={trip.id}
+                      trip={trip}
+                      isActive={activeTrip ? trip.id === activeTrip.id : false}
+                      variant="carousel"
+                      onClick={() => onLaunchDashboard(trip.id)}
+                    />
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={() => navigateMobileView('trips')}
+                    className="w-[132px] shrink-0 snap-start rounded-card p-4 bg-card hover:bg-pod text-ink border border-ink/5 dark:border-white/5 shadow-xs flex items-center justify-center gap-2 text-sm font-semibold cursor-pointer transition-all active:scale-[0.98]"
+                  >
+                    <span>{lang === 'fr' ? 'Tout voir' : 'See all'}</span>
+                    <ArrowRight className="w-4 h-4 text-current shrink-0" />
+                  </button>
+                </div>
+              ) : (
+                <div className="rounded-card bg-card border border-ink/5 dark:border-white/5 p-5 text-center shadow-xs space-y-3">
+                  <p className="text-xs text-ink-muted">
+                    {lang === 'fr'
+                      ? 'Aucune sortie enregistrée pour le moment.'
+                      : 'No trips saved yet.'}
+                  </p>
+                  <div className="flex items-center justify-center gap-2 flex-wrap">
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={onCreateNewTrip}
+                      className={`inline-flex items-center gap-1.5 min-h-[40px] px-4 rounded-full text-xs font-semibold cursor-pointer ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                    >
+                      <Plus className="w-3.5 h-3.5 text-current" />
+                      <span>{t('createNewTripBtn')}</span>
+                    </Button>
+                    {onLoadDemoTrip && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={onLoadDemoTrip}
+                        className="inline-flex items-center gap-1.5 min-h-[40px] px-4 rounded-full bg-pod text-ink text-xs font-semibold cursor-pointer"
+                      >
+                        <Sparkle className="w-3.5 h-3.5 text-volt-dim dark:text-volt" />
+                        <span>{lang === 'fr' ? 'Trajet démo' : 'Load Demo'}</span>
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Divider */}
+            <div className="border-t border-ink/5 dark:border-white/5" />
+
+            {/* Quick-Start Composer + Horizontal 1-Tap Recipes + Drop & Go */}
+            {onQuickCreateTrip && (
+              <QuickRideBuilder
+                riderSpecs={riderSpecs}
+                currentWeather={activeTrip?.weather}
+                onCreateTrip={onQuickCreateTrip}
+                onOpenOnboarding={onOpenOnboarding}
+              />
+            )}
+
+            {/* Pre-ride Physics Tools Card */}
+            {onOpenTools && (
+              <div className="p-4 rounded-card bg-card border border-ink/5 dark:border-white/5 flex flex-col gap-2.5 text-xs text-ink-secondary shadow-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-rounded font-bold text-ink">
+                    {lang === 'fr' ? 'Calculateurs tactiques gratuits' : 'Pre-ride physics tools'}
+                  </span>
+                  <span className="text-[10px] font-rounded font-semibold px-2 py-0.5 rounded-full bg-pod text-ink-muted">
+                    100% browser
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onOpenTools('wind')}
+                    className={`inline-flex items-center gap-1.5 min-h-[44px] py-1.5 px-3 rounded-full text-xs font-rounded font-semibold cursor-pointer ${CHIP_TOKENS.sky.surface} ${CHIP_TOKENS.sky.primary}`}
+                  >
+                    <Wind className="w-3.5 h-3.5" />
+                    <span>{lang === 'fr' ? 'Coût du Vent' : 'Wind Cost'}</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onOpenTools('leave-by')}
+                    className={`inline-flex items-center gap-1.5 min-h-[44px] py-1.5 px-3 rounded-full text-xs font-rounded font-semibold cursor-pointer ${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary}`}
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>{lang === 'fr' ? 'Leave-By' : 'Leave-By'}</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onOpenTools('pressure')}
+                    className={`inline-flex items-center gap-1.5 min-h-[44px] py-1.5 px-3 rounded-full text-xs font-rounded font-semibold cursor-pointer ${CHIP_TOKENS.teal.surface} ${CHIP_TOKENS.teal.primary}`}
+                  >
+                    <Gauge className="w-3.5 h-3.5" />
+                    <span>{lang === 'fr' ? 'Pression Pneus' : 'Tyre Pressure'}</span>
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Persistence & Sync Callout */}
+            <div className="p-4 rounded-card bg-card border border-ink/5 dark:border-white/5 flex flex-col gap-3 text-xs text-ink-secondary shadow-xs">
+              <div className="flex items-center gap-3 min-w-0">
+                {user ? (
+                  <div className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
+                    <Cloud className="w-4 h-4" />
+                  </div>
+                ) : (
+                  <IconBadge theme="emerald" icon={ShieldCheck} size="md" solidBacker />
+                )}
+                <span className="leading-relaxed">
+                  {user ? t('cloudSyncNotice') : t('localStorageNotice')}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap justify-between pt-2 border-t border-ink/5 dark:border-white/5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {!user && (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => openAuthModal('login')}
+                      className="py-1 px-3 rounded-full bg-volt text-[#111111] text-xs font-semibold hover:brightness-105 transition-all cursor-pointer shadow-xs"
+                    >
+                      {t('logInOrSignUp')}
+                    </Button>
+                  )}
+                </div>
+                <span className="px-3 py-1 rounded-full bg-pod text-ink-muted tnum shrink-0 whitespace-nowrap">
+                  {t('syncedAt', { time: syncedDisplayTime })}
+                </span>
+              </div>
+            </div>
+
+            {/* Mobile Footer */}
+            <footer className="pt-4 mt-2 border-t border-ink/5 dark:border-white/5 flex flex-col gap-3 text-xs text-ink-muted">
+              <span>
+                {lang === 'fr'
+                  ? 'Planificateur local · Physique cycliste & ravitaillement 100 % navigateur'
+                  : 'Local-first cycling physics & nutrition planner'}
+              </span>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={onOpenFeedback || (() => setIsFeedbackOpen(true))}
+                  className="inline-flex items-center gap-1.5 min-h-[44px] px-3.5 rounded-full bg-card border border-ink/5 dark:border-white/5 text-xs font-medium text-ink-secondary hover:text-ink transition-colors cursor-pointer shadow-xs"
+                >
+                  <Send size={14} className="w-3.5 h-3.5 text-current shrink-0" />
+                  <span>{t('sendFeedbackBtn')}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={onResetDefaults}
+                  title={t('resetDefaultsTitle')}
+                  className={`inline-flex items-center gap-1.5 min-h-[44px] px-3.5 rounded-full bg-card border border-ink/5 dark:border-white/5 text-xs font-medium transition-colors cursor-pointer shadow-xs ${GREYSCALE_TOKENS.primary} hover:text-ink`}
+                >
+                  <ArrowCounterClockwise className="w-3.5 h-3.5 text-current shrink-0" />
+                  <span>{t('resetDefaultsBtn')}</span>
+                </button>
+              </div>
+            </footer>
+          </>
+        )}
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════════════════
+          DESKTOP & TABLET LAYOUT (>= md) — Preserved Unchanged
+          ═══════════════════════════════════════════════════════════════════════ */}
+      <div className="hidden md:block space-y-5">
+        {/* ── Top Page Header (3-Column Span matching Mockup: Greeting Phrase, Number of Profiles, Action Bar Below) ── */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-3.5 sm:gap-4 lg:gap-5 animate-apple-in stagger-1">
         <div className="lg:col-span-3 space-y-3.5 min-w-0">
           <div>
@@ -546,6 +848,35 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </button>
         </div>
       </footer>
+      </div>
+
+      {/* Mobile Weather Conditions Modal */}
+      <ModalPortal
+        isOpen={isMobileWeatherOpen}
+        onClose={() => setIsMobileWeatherOpen(false)}
+        panelClassName="w-full max-w-lg bg-card text-ink rounded-card p-4 sm:p-5 shadow-2xl animate-apple-modal max-h-[85vh] overflow-y-auto"
+      >
+        <div className="flex items-center justify-between gap-2 pb-3 px-1">
+          <span className="text-sm font-semibold text-ink">{t('weatherCardTitle')}</span>
+          <button
+            type="button"
+            onClick={() => setIsMobileWeatherOpen(false)}
+            aria-label={t('closeModalAria') || 'Close'}
+            className="w-8 h-8 rounded-full bg-pod hover:bg-chip flex items-center justify-center text-ink-muted hover:text-ink transition-colors cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        {currentConditionTrip && (
+          <WeatherWidget
+            trip={currentConditionTrip}
+            weather={currentConditionTrip.weather}
+            onUpdateWeather={onUpdateWeather}
+            speedKmH={currentConditionTrip.route.targetSpeedKmH}
+            embedded={true}
+          />
+        )}
+      </ModalPortal>
 
       {/* Standalone User Feedback Modal */}
       <FeedbackModal

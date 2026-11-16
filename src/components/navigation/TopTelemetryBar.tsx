@@ -26,6 +26,8 @@ import {
   Compass,
   ShieldCheck,
   Calculator,
+  ArrowLeft,
+  SlidersHorizontal,
 } from '@/components/icons';
 import { downloadTripGpx, downloadTripTcx } from '../../utils/gpxExporter';
 import { downloadTripFit } from '../../utils/fitExporter';
@@ -53,6 +55,8 @@ interface TopTelemetryBarProps {
   riderSpecs?: RiderBikeSpecs;
   isMenuOpen?: boolean;
   onMenuOpenChange?: (open: boolean) => void;
+  dashboardBackTarget?: 'home' | 'trips';
+  onBackFromDashboard?: () => void;
 }
 
 export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
@@ -68,6 +72,8 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
   riderSpecs,
   isMenuOpen: propIsMenuOpen,
   onMenuOpenChange,
+  dashboardBackTarget = 'home',
+  onBackFromDashboard,
 }) => {
   const { isDark, toggleTheme } = useTheme();
   const { lang, setLang, t } = useTranslation();
@@ -688,42 +694,62 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
   return (
     <header className="w-full transition-colors duration-200 select-none no-print relative z-40">
       <div className="w-full max-w-[1720px] mx-auto px-3.5 sm:px-5 lg:px-7 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-3 sm:pt-[calc(env(safe-area-inset-top,0px)+1rem)] sm:pb-4 flex items-center justify-between lg:grid lg:grid-cols-5 gap-3.5 sm:gap-4 lg:gap-5">
-        {/* Left: Chain-Link Brand Identifier */}
-        <Button
-          variant="ghost"
-          size="md"
-          onClick={() => onNavigate('home')}
-          className="lg:col-span-1 lg:justify-self-start flex items-center gap-2.5 sm:gap-3.5 min-h-[44px] p-0 hover:bg-transparent min-w-0 cursor-pointer group text-left focus:outline-none"
-        >
-          <div
-            className={`w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center group-hover:scale-105 transition-transform shrink-0 shadow-xs ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+        {/* Left: Back Button on Ride Plan (dashboard), or Chain-Link Brand Identifier */}
+        {currentView === 'dashboard' ? (
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={() => (onBackFromDashboard ? onBackFromDashboard() : onNavigate('home'))}
+            className="lg:col-span-1 lg:justify-self-start inline-flex items-center gap-1.5 min-h-[44px] h-10 px-4 rounded-full bg-card hover:bg-pod text-ink border border-ink/5 dark:border-white/5 text-xs font-semibold shadow-xs cursor-pointer active:scale-[0.98]"
           >
-            <svg
-              className="keyline-icon w-4.5 h-4.5 sm:w-5.5 sm:h-5.5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+            <ArrowLeft className="w-4 h-4 text-current shrink-0" />
+            <span>
+              {dashboardBackTarget === 'trips'
+                ? isFr
+                  ? 'Trajets'
+                  : 'Trips'
+                : isFr
+                ? 'Accueil'
+                : 'Home'}
+            </span>
+          </Button>
+        ) : (
+          <Button
+            variant="ghost"
+            size="md"
+            onClick={() => onNavigate('home')}
+            className="lg:col-span-1 lg:justify-self-start flex items-center gap-2.5 sm:gap-3.5 min-h-[44px] p-0 hover:bg-transparent min-w-0 cursor-pointer group text-left focus:outline-none"
+          >
+            <div
+              className={`w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center group-hover:scale-105 transition-transform shrink-0 shadow-xs ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
-              <circle cx="7" cy="12" r="3.5" fill="currentColor" fillOpacity="0.4" />
-              <circle cx="17" cy="12" r="3.5" fill="currentColor" fillOpacity="0.4" />
-              <path d="M9.5 9.2c1.6.9 3.4.9 5 0" />
-              <path d="M9.5 14.8c1.6-.9 3.4-.9 5 0" />
-            </svg>
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="font-semibold tracking-tight text-ink text-[15px] sm:text-[17px] break-words">
-                {t('appName')}
-              </span>
+              <svg
+                className="keyline-icon w-4.5 h-4.5 sm:w-5.5 sm:h-5.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="7" cy="12" r="3.5" fill="currentColor" fillOpacity="0.4" />
+                <circle cx="17" cy="12" r="3.5" fill="currentColor" fillOpacity="0.4" />
+                <path d="M9.5 9.2c1.6.9 3.4.9 5 0" />
+                <path d="M9.5 14.8c1.6-.9 3.4-.9 5 0" />
+              </svg>
             </div>
-            <p className="text-xs sm:text-[13px] text-ink-muted hidden md:block mt-0.5">
-              {t('headerTagline')}
-            </p>
-          </div>
-        </Button>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="font-semibold tracking-tight text-ink text-[15px] sm:text-[17px] break-words">
+                  {t('appName')}
+                </span>
+              </div>
+              <p className="text-xs sm:text-[13px] text-ink-muted hidden md:block mt-0.5">
+                {t('headerTagline')}
+              </p>
+            </div>
+          </Button>
+        )}
 
         {/* Center: Live Operational Breadcrumb (Desktop) */}
         <div className="hidden lg:flex lg:col-span-3 lg:justify-self-center min-w-0 max-w-full">
@@ -763,8 +789,21 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
           )}
         </div>
 
-        {/* Right: Sync Clock & Streamlined Profile Overlay Trigger */}
-        <div className="lg:col-span-1 lg:justify-self-end flex items-center gap-2 sm:gap-3 shrink-0 relative" ref={menuContainerRef}>
+        {/* Right: Trip Setup on Ride Plan (dashboard), or Sync Clock & Profile Overlay Trigger */}
+        {currentView === 'dashboard' ? (
+          <div className="lg:col-span-1 lg:justify-self-end flex items-center shrink-0">
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={() => onNavigate('configurator')}
+              className="inline-flex items-center gap-1.5 min-h-[44px] h-10 px-4 rounded-full bg-card hover:bg-pod text-ink border border-ink/5 dark:border-white/5 text-xs font-semibold shadow-xs cursor-pointer active:scale-[0.98]"
+            >
+              <SlidersHorizontal className="w-4 h-4 text-current shrink-0" />
+              <span>{isFr ? 'Configuration' : 'Trip Setup'}</span>
+            </Button>
+          </div>
+        ) : (
+          <div className="lg:col-span-1 lg:justify-self-end flex items-center gap-2 sm:gap-3 shrink-0 relative" ref={menuContainerRef}>
           {/* Real-time Clock */}
           <div className="hidden sm:flex items-center px-3.5 py-2 bg-card dark:bg-pod rounded-full text-xs sm:text-[13px] font-rounded text-ink shadow-xs">
             <span className="font-bold text-ink tnum">{currentTime}</span>
@@ -837,7 +876,8 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
               </div>,
               document.body
             )}
-        </div>
+          </div>
+        )}
       </div>
     </header>
   );

@@ -19,12 +19,14 @@ interface WeatherWidgetProps {
   weather: WeatherCondition;
   onUpdateWeather?: (newWeather: WeatherCondition) => void;
   speedKmH: number;
+  embedded?: boolean;
 }
 
 export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
   trip,
   weather,
   speedKmH,
+  embedded = false,
 }) => {
   const { lang, t } = useTranslation();
 
@@ -62,7 +64,13 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
   const isCaution = physicsResult.goStatus === 'CAUTION';
 
   return (
-    <div className="bg-card rounded-card p-4 sm:p-5 shadow-xs border border-ink/5 dark:border-white/5 transition-colors">
+    <div
+      className={
+        embedded
+          ? 'p-1 transition-colors'
+          : 'bg-card rounded-card p-4 sm:p-5 shadow-xs border border-ink/5 dark:border-white/5 transition-colors'
+      }
+    >
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-4">
         <div className="min-w-0">

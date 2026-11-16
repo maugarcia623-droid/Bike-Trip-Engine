@@ -262,7 +262,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
           className="inline-flex items-center gap-1.5 min-h-[40px] px-4 rounded-full bg-card dark:bg-pod hover:bg-chip text-xs font-rounded font-bold text-ink shadow-xs cursor-pointer"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          <span>{isFr ? 'Retour au cockpit' : 'Back to cockpit'}</span>
+          <span>{isFr ? 'Accueil' : 'Home'}</span>
         </Button>
       </div>
 

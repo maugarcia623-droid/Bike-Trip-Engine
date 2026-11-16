@@ -1387,101 +1387,99 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
       : 'Pace & physics';
 
   return (
-    <div className="w-full max-w-[1720px] min-w-0 mx-auto px-3.5 sm:px-5 lg:px-7 pt-2 pb-28 sm:pb-20 space-y-5">
-      {/* ── Centered Top Step Switcher Pill (Route & Map | Date & Time | Style & Stops | Pace & Physics) ── */}
-      <div className="flex justify-center w-full min-w-0 animate-apple-in stagger-1">
-        <div
-          role="tablist"
-          aria-label={isFr ? 'Étapes de configuration' : 'Configuration steps'}
-          className="grid grid-cols-2 sm:inline-flex items-center p-1 sm:p-1.5 gap-1 sm:gap-1.5 rounded-pod sm:rounded-full bg-card dark:bg-pod shadow-xs w-full sm:w-auto max-w-full"
+    <div className="w-full max-w-[1720px] min-w-0 mx-auto px-3.5 sm:px-5 lg:px-7 pt-3 pb-28 sm:pb-20 space-y-5">
+      {/* ── Top Bar: Back Button (Left) + Auto-saved Tag (Right) ── */}
+      <div className="flex items-center justify-between gap-3 animate-apple-in stagger-1">
+        <Button variant="ghost"
+          type="button"
+          onClick={onCancel}
+          title={isFr ? 'Retour à la sortie' : 'Back to ride plan'}
+          aria-label={isFr ? 'Retour' : 'Back'}
+          className="inline-flex items-center justify-center gap-1.5 min-h-[44px] px-3.5 rounded-full text-xs sm:text-[13px] font-medium text-ink-secondary hover:text-ink bg-card hover:bg-pod transition-all duration-150 active:scale-[0.98] cursor-pointer shrink-0"
         >
-          {stepOptions.map((step) => {
-            const StepIcon = step.icon;
-            const isStepActive = activeStep === step.id;
-            return (
-              <Button variant="ghost"
-                key={step.id}
-                type="button"
-                role="tab"
-                aria-selected={isStepActive}
-                onClick={() => setActiveStep(step.id)}
-                className={`inline-flex items-center justify-center gap-1.5 sm:gap-2 min-h-[44px] sm:min-h-[40px] px-3 py-2 sm:py-0 sm:px-4 rounded-sub-pod sm:rounded-full text-xs sm:text-[13px] leading-tight text-center font-semibold transition-all duration-150 cursor-pointer min-w-0 whitespace-nowrap active:scale-[0.98] ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
-                  isStepActive
-                    ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing} shadow-xs`
-                    : `${CHIP_RING_UNSELECTED} text-ink-secondary hover:text-ink hover:bg-pod/60`
-                }`}
-              >
-                <StepIcon className="w-4 h-4 shrink-0 text-current" />
-                <span className="truncate sm:overflow-visible">{step.label}</span>
-              </Button>
-            );
-          })}
+          <ArrowLeft className="w-4 h-4 shrink-0" />
+          <span>{isFr ? 'Retour' : 'Back'}</span>
+        </Button>
+
+        <span
+          className={`inline-flex items-center gap-1.5 min-h-[36px] h-9 px-3 rounded-full text-xs font-medium bg-card text-ink-secondary shrink-0 ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+        >
+          <CheckCircle className={`w-3.5 h-3.5 shrink-0 ${CHIP_TOKENS.emerald.primary}`} />
+          <span>{isFr ? 'Enregistré auto' : 'Auto-saved'}</span>
+        </span>
+      </div>
+
+      {/* ── Editable Ride Title ── */}
+      <div className="min-w-0 animate-apple-in stagger-1">
+        <input
+          type="text"
+          value={trip.name}
+          onChange={(e) => commitTrip((prev) => ({ ...prev, name: e.target.value }))}
+          placeholder={(() => {
+            const arch = getArchetypeFromTag(trip.tag, trip.name);
+            if (arch === 'ESCAPADE') return t('tripNamePlaceholderEscapade');
+            if (arch === 'BIKEPACKING') return t('tripNamePlaceholderBikepacking');
+            if (arch === 'SPORT') return t('tripNamePlaceholderSport');
+            return t('tripNamePlaceholderCommute');
+          })()}
+          className="w-full sm:w-auto sm:min-w-[300px] lg:min-w-[360px] max-w-full min-h-[44px] text-base sm:text-lg font-semibold text-ink-secondary focus:text-ink tracking-tight bg-transparent border-b border-dashed border-ink/15 hover:border-ink/35 focus:border-solid focus:border-ink/60 focus:outline-none transition-colors"
+          title={isFr ? 'Renommer la sortie' : 'Click to rename ride'}
+        />
+      </div>
+
+      {/* ── Centered Top Step Switcher Pill (Route & Map | Date & Time | Style & Stops | Pace & Physics) ── */}
+      <div className="flex sm:justify-center w-full min-w-0 animate-apple-in stagger-1">
+        <div className="relative w-full sm:w-auto max-w-full rounded-full overflow-hidden">
+          <div
+            role="tablist"
+            aria-label={isFr ? 'Étapes de configuration' : 'Configuration steps'}
+            className="flex sm:inline-flex items-center p-1 sm:p-1.5 pr-8 sm:pr-1.5 gap-1.5 rounded-full bg-card dark:bg-pod shadow-xs w-full sm:w-auto max-w-full overflow-x-auto no-scrollbar snap-x"
+          >
+            {stepOptions.map((step) => {
+              const StepIcon = step.icon;
+              const isStepActive = activeStep === step.id;
+              return (
+                <Button variant="ghost"
+                  key={step.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={isStepActive}
+                  onClick={() => setActiveStep(step.id)}
+                  className={`inline-flex items-center justify-center gap-1.5 sm:gap-2 min-h-[44px] sm:min-h-[40px] px-3.5 py-2 sm:py-0 sm:px-4 rounded-full text-xs sm:text-[13px] leading-tight text-center font-semibold transition-all duration-150 cursor-pointer shrink-0 snap-start whitespace-nowrap active:scale-[0.98] ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                    isStepActive
+                      ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing} shadow-xs`
+                      : `${CHIP_RING_UNSELECTED} text-ink-secondary hover:text-ink hover:bg-pod/60`
+                  }`}
+                >
+                  <StepIcon className="w-4 h-4 shrink-0 text-current" />
+                  <span>{step.label}</span>
+                </Button>
+              );
+            })}
+          </div>
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 right-0 w-14 rounded-r-full bg-gradient-to-l from-card dark:from-pod via-card/90 dark:via-pod/90 to-transparent sm:hidden"
+          />
         </div>
       </div>
 
-      {/* ── Section Header Bar (Left: Back + Editable Trip Title | Right: Live Auto-Save & Done) ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 animate-apple-in stagger-2">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
+      {/* ── Section Header Bar (Left: Step Title | Right: Revert if modified) ── */}
+      <div className="flex items-center justify-between gap-3 min-h-[44px] animate-apple-in stagger-2">
+        <h1 className="text-2xl sm:text-[28px] font-semibold text-ink tracking-tight leading-tight font-rounded min-w-0 truncate">
+          {currentStepTitle}
+        </h1>
+
+        {hasModified && (
           <Button variant="ghost"
             type="button"
-            onClick={onCancel}
-            title={isFr ? 'Retour à la sortie' : 'Back to ride plan'}
-            aria-label={isFr ? 'Retour à la sortie' : 'Back to ride plan'}
-            className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] w-11 h-11 rounded-full text-ink-secondary hover:text-ink bg-card hover:bg-pod transition-all duration-150 active:scale-[0.98] cursor-pointer shrink-0"
+            onClick={handleRevertChanges}
+            className="inline-flex items-center justify-center gap-1.5 min-h-[44px] px-3.5 text-xs sm:text-[13px] font-medium text-ink-secondary hover:text-ink bg-card hover:bg-pod rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer whitespace-nowrap shrink-0"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowsClockwise className="w-3.5 h-3.5 shrink-0" />
+            <span>{isFr ? 'Rétablir' : 'Revert'}</span>
           </Button>
-
-          <div className="flex items-baseline gap-2.5 min-w-0 flex-wrap">
-            <h1 className="text-2xl sm:text-[28px] font-semibold text-ink tracking-tight leading-tight font-rounded shrink-0">
-              {currentStepTitle}
-            </h1>
-            <span className="hidden sm:inline text-ink-muted">·</span>
-            <input
-              type="text"
-              value={trip.name}
-              onChange={(e) => commitTrip((prev) => ({ ...prev, name: e.target.value }))}
-              placeholder={(() => {
-                const arch = getArchetypeFromTag(trip.tag, trip.name);
-                if (arch === 'ESCAPADE') return t('tripNamePlaceholderEscapade');
-                if (arch === 'BIKEPACKING') return t('tripNamePlaceholderBikepacking');
-                if (arch === 'SPORT') return t('tripNamePlaceholderSport');
-                return t('tripNamePlaceholderCommute');
-              })()}
-              className="w-full sm:w-auto sm:min-w-[300px] lg:min-w-[360px] max-w-full min-h-[44px] text-base sm:text-lg font-semibold text-ink-secondary focus:text-ink tracking-tight bg-transparent border-b border-dashed border-ink/15 hover:border-ink/35 focus:border-solid focus:border-ink/60 focus:outline-none transition-colors"
-              title={isFr ? 'Renommer la sortie' : 'Click to rename ride'}
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 self-end sm:self-auto flex-wrap">
-          <span
-            className={`inline-flex items-center gap-1.5 min-h-[36px] h-9 px-3 rounded-full text-xs font-medium bg-card text-ink-secondary ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
-          >
-            <CheckCircle className={`w-3.5 h-3.5 shrink-0 ${CHIP_TOKENS.emerald.primary}`} />
-            <span>{isFr ? 'Enregistré auto' : 'Auto-saved'}</span>
-          </span>
-
-          {hasModified && (
-            <Button variant="ghost"
-              type="button"
-              onClick={handleRevertChanges}
-              className="inline-flex items-center justify-center gap-1.5 min-h-[44px] px-3.5 text-xs sm:text-[13px] font-medium text-ink-secondary hover:text-ink bg-card hover:bg-pod rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer whitespace-nowrap"
-            >
-              <ArrowsClockwise className="w-3.5 h-3.5 shrink-0" />
-              <span>{isFr ? 'Rétablir' : 'Revert'}</span>
-            </Button>
-          )}
-
-          <Button variant="ghost"
-            type="button"
-            onClick={handleLaunchDirect}
-            className="inline-flex items-center justify-center gap-1.5 min-h-[44px] px-4 sm:px-5 text-xs sm:text-[13px] font-medium bg-[#111111] hover:bg-[#262626] text-white dark:bg-[#F5F5F7] dark:hover:bg-white dark:text-[#111111] rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer whitespace-nowrap shadow-xs"
-          >
-            <span>{isFr ? 'Terminé · Voir la sortie' : 'Done · Back to ride plan'}</span>
-            <ArrowUpRight className="w-4 h-4 shrink-0" />
-          </Button>
-        </div>
+        )}
       </div>
 
       {/* ── MAIN 5-COLUMN GRID: Left 3 Cols (2 Stacked Step Cards) + Right 2 Cols (Live Results) ── */}
@@ -1611,7 +1609,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                       <Bicycle className="w-4 h-4 shrink-0 text-current" />
                       <span>{t('tripFormatSingleDay')}</span>
                     </Button>
-                    <Button variant="primary"
+                    <Button variant="ghost"
                       type="button"
                       onClick={() => handleSetTripFormat('multi')}
                       className={`min-h-[44px] sm:min-h-[36px] px-3.5 py-2 sm:py-1.5 rounded-full text-xs font-rounded font-bold transition-all cursor-pointer flex items-center gap-1.5 ${

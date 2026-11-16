@@ -13,6 +13,7 @@ import {
   Calendar,
   ChevronDown,
   CaretDown,
+  SlidersHorizontal,
 } from '@/components/icons';
 import { TripProfile } from '../../types/trip';
 import { calculatePhysics } from '../../utils/physics';
@@ -308,90 +309,6 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
             >
               {physicsResult.goStatus === 'GO' ? t('feasibilityOptimal') : physicsResult.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')}
             </Badge>
-
-            {/* Profile Switcher dropdown if multiple profiles exist */}
-            {allTrips.length > 1 && (
-              <div
-                ref={switcherRef}
-                className={`relative inline-block text-left ${isSwitcherOpen ? 'z-40' : ''}`}
-              >
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setIsSwitcherOpen(!isSwitcherOpen)}
-                  aria-expanded={isSwitcherOpen}
-                  aria-haspopup="true"
-                  className={`inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-xs font-semibold ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} hover:brightness-95 dark:hover:brightness-110 transition-all cursor-pointer`}
-                  title={t('switchActiveProfile')}
-                >
-                  <span>{t('switchActiveProfile')}</span>
-                  <CaretDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isSwitcherOpen ? 'rotate-180' : ''}`} />
-                </Button>
-
-                {isSwitcherOpen && (
-                  <>
-                    {/* Transparent Click-Away Overlay to dismiss dropdown */}
-                    <div
-                      className="fixed inset-0 z-30 cursor-default"
-                      aria-hidden="true"
-                      onClick={() => setIsSwitcherOpen(false)}
-                    />
-                    <div className="absolute left-0 mt-2 w-72 max-w-[calc(100vw-2.5rem)] rounded-2xl bg-card border border-ink/15 dark:border-white/15 shadow-xl py-1.5 z-40 animate-apple-popover">
-                      <div className="px-3 py-1.5 text-[11px] font-medium text-ink-muted tracking-tight">
-                        {t('switchActiveProfile')}
-                      </div>
-                      {allTrips.map((p) => {
-                        const pMeta = getLocalizedTripMeta(p, lang);
-                        const isCurrent = p.id === trip.id;
-                        const pDate = getTripDateDetails(p, lang);
-                        const pPhysics = calculatePhysics(p.physics, p.route, p.weather, lang, specs?.ftpWatts);
-                        const pIsGo = pPhysics.goStatus === 'GO';
-                        const pIsCaution = pPhysics.goStatus === 'CAUTION';
-                        return (
-                          <Button
-                            key={p.id}
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              onSelectTrip(p.id);
-                              setIsSwitcherOpen(false);
-                            }}
-                            title={`${pMeta.name} — ${pIsGo ? t('feasibilityOptimal') : pIsCaution ? t('feasibilityCaution') : t('feasibilitySevere')}: ${pPhysics.goStatusReason}`}
-                            className={`w-full text-left px-3 py-2 rounded-none text-xs flex items-center justify-between gap-2 hover:bg-pod transition-colors cursor-pointer ${
-                              isCurrent ? 'font-semibold text-ink bg-pod/60' : 'text-ink-secondary'
-                            }`}
-                          >
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1.5 font-medium min-w-0">
-                                <span
-                                  className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                                    pIsGo
-                                      ? CHIP_TOKENS.emerald.dot
-                                      : pIsCaution
-                                      ? CHIP_TOKENS.amber.dot
-                                      : CHIP_TOKENS.rose.dot
-                                  }`}
-                                />
-                                <span className="break-words leading-tight">{pMeta.name}</span>
-                              </div>
-                              <span className="text-[10px] text-ink-muted">
-                                <span className="font-semibold mr-1">
-                                  {pIsGo ? t('feasibilityOptimal') : pIsCaution ? t('feasibilityCaution') : t('feasibilitySevere')}
-                                </span>
-                                · {pDate.formattedDate} · {p.route.distanceKm} km · {p.tag === 'VÉLOTAF' ? (lang === 'fr' ? 'Vélotaf' : 'Commute') : p.tag}
-                              </span>
-                            </div>
-                            {isCurrent && (
-                              <span className="w-1.5 h-1.5 rounded-full bg-volt shrink-0" />
-                            )}
-                          </Button>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
           </div>
 
           {/* Title & Route summary with full untruncated trip name */}
@@ -410,33 +327,8 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
           </div>
         </div>
 
-        {/* Readiness Badge, Edit, Ride Plan Launch CTA & Collapse Button */}
+        {/* Ride Plan Launch CTA, Edit & Collapse Button */}
         <div className="flex items-center gap-2.5 flex-wrap shrink-0">
-          {isHighWind ? (
-            <Badge variant="rose" size="md" icon={Warning} className="py-2 px-3 text-xs" title={physicsResult.goStatusReason}>
-              {t('statusNoGoGale')}
-            </Badge>
-          ) : isCaution ? (
-            <Badge variant="amber" size="md" icon={Warning} className="py-2 px-3 text-xs" title={physicsResult.goStatusReason}>
-              {t('statusCautionHeadwind')}
-            </Badge>
-          ) : (
-            <Badge variant="emerald" size="md" icon={CheckCircle} className="py-2 px-3 text-xs" title={physicsResult.goStatusReason}>
-              {t('statusGoOptimal')}
-            </Badge>
-          )}
-
-          {onEditTrip && (
-            <Button
-              variant="secondary"
-              size="md"
-              onClick={() => onEditTrip(trip)}
-              className="inline-flex items-center gap-1.5 min-h-[44px] h-10 px-4 rounded-full bg-pod hover:bg-chip text-ink-secondary hover:text-ink font-medium text-xs transition-all duration-150 active:scale-[0.98] cursor-pointer"
-            >
-              <span>{lang === 'fr' ? 'Modifier' : 'Edit'}</span>
-            </Button>
-          )}
-
           <Button
             variant="primary"
             size="md"
@@ -446,6 +338,19 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
             <span>{t('launchCockpitBtn')}</span>
             <ArrowUpRight className="w-4 h-4 text-current stroke-[2.2]" />
           </Button>
+
+          {onEditTrip && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => onEditTrip(trip)}
+              aria-label={lang === 'fr' ? 'Modifier' : 'Edit'}
+              title={lang === 'fr' ? 'Modifier' : 'Edit'}
+              className="min-w-[44px] min-h-[44px] w-11 h-11 p-0 rounded-full bg-pod hover:bg-chip text-ink-secondary hover:text-ink flex items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer"
+            >
+              <SlidersHorizontal className="w-4 h-4 text-current" />
+            </Button>
+          )}
 
           {/* Collapsible Accordion Toggle */}
           <Button
