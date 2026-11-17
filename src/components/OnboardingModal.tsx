@@ -497,9 +497,9 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
           onClose();
         }
       }}
-      className="fixed inset-0 z-50 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-3 sm:p-6 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-6 pt-[max(1rem,env(safe-area-inset-top))] sm:pt-6 overflow-hidden animate-apple-fade-in select-none"
+      className="fixed inset-0 z-50 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-stretch sm:items-center justify-center p-0 sm:p-6 overflow-hidden animate-apple-fade-in select-none"
     >
-      <div className="relative w-full max-w-5xl max-h-[85vh] max-h-[85dvh] sm:max-h-[90vh] sm:max-h-[90dvh] bg-card text-ink rounded-[28px] sm:rounded-card shadow-2xl border border-black/10 dark:border-white/10 flex flex-col overflow-hidden animate-apple-modal">
+      <div className="relative w-full h-full sm:h-auto max-w-5xl max-h-none sm:max-h-[90vh] sm:max-h-[90dvh] bg-card text-ink rounded-none sm:rounded-card shadow-2xl border-0 sm:border sm:border-black/10 sm:dark:border-white/10 flex flex-col overflow-hidden animate-apple-modal">
         {/* Top Header & Progress Stepper */}
         <OnboardingHeader
           currentStep={currentStep}

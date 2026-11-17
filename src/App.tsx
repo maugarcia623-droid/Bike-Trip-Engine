@@ -202,8 +202,20 @@ function AppContent() {
   const isCloudApplyingRef = React.useRef(false);
   const saveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSyncedPayloadHashRef = React.useRef<string>('');
-  // Never block initial load with an onboarding modal wall; user can open Guided Setup manually
-  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    const hash = window.location.hash;
+    const search = window.location.search;
+    const hasSharedPlan = hash.includes('plan=') || search.includes('plan=');
+    if (hasSharedPlan || hasPotentialSupabaseSession()) {
+      return false;
+    }
+    try {
+      return localStorage.getItem(STORAGE_KEY_ONBOARDED) !== 'true';
+    } catch {
+      return true;
+    }
+  });
 
   // If user is already logged in or logs in to Supabase, mark onboarding seen
   useEffect(() => {

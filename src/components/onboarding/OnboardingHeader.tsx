@@ -47,7 +47,7 @@ export const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({
         </div>
 
         {/* Guest Reassurance Caption & Utilities */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <span className="hidden sm:inline text-xs font-medium text-ink-muted">
             {isFr ? 'Planification invité · aucun compte requis' : 'Guest planning · no account needed'}
           </span>
@@ -56,13 +56,13 @@ export const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({
           <div
             role="group"
             aria-label={isFr ? 'Sélecteur de langue' : 'Language selector'}
-            className="flex items-center rounded-full bg-pod p-0.5 border border-black/5 dark:border-white/10 text-xs font-bold"
+            className="flex items-center h-9 rounded-full bg-pod p-1 border border-black/5 dark:border-white/10 text-xs font-bold"
           >
             <Button
               type="button"
               variant="ghost"
               onClick={() => setLang('en')}
-              className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
+              className={`h-full px-2.5 py-0 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center justify-center ${
                 lang === 'en'
                   ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
                   : 'text-ink-muted hover:text-ink'
@@ -76,7 +76,7 @@ export const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({
               type="button"
               variant="ghost"
               onClick={() => setLang('fr')}
-              className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
+              className={`h-full px-2.5 py-0 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center justify-center ${
                 lang === 'fr'
                   ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
                   : 'text-ink-muted hover:text-ink'
@@ -94,7 +94,7 @@ export const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({
             onThemeChange={() => toggleTheme()}
             iconOnly
             label={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            className="relative before:content-[''] before:absolute before:-inset-1.5 w-8 h-8 rounded-full bg-pod hover:bg-surface-active flex items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer border border-black/5 dark:border-white/10 text-ink"
+            className="relative before:content-[''] before:absolute before:-inset-1.5 w-9 h-9 p-0 shrink-0 rounded-full bg-pod hover:bg-surface-active flex items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer border border-black/5 dark:border-white/10 text-ink"
           />
 
           {/* Dismiss Modal Button */}
@@ -102,7 +102,7 @@ export const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({
             type="button"
             variant="ghost"
             onClick={onClose}
-            className="relative before:content-[''] before:absolute before:-inset-1.5 w-8 h-8 rounded-full bg-pod hover:bg-surface-active flex items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer border border-black/5 dark:border-white/10 text-ink-muted hover:text-ink"
+            className="relative before:content-[''] before:absolute before:-inset-1.5 w-9 h-9 p-0 shrink-0 rounded-full bg-pod hover:bg-surface-active flex items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer border border-black/5 dark:border-white/10 text-ink-muted hover:text-ink"
             title={isFr ? 'Fermer l’assistant' : 'Close and dismiss'}
             aria-label={isFr ? 'Fermer l’assistant' : 'Close and dismiss'}
           >
