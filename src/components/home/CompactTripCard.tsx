@@ -5,6 +5,8 @@ import { calculatePhysics } from '../../utils/physics';
 import { calculateReverseTimeline } from '../../utils/timeline';
 import { getChipsExtraBufferMinutes } from '../../utils/archetypeChips';
 import { useTranslation, getLocalizedTripMeta } from '../../context/LanguageContext';
+import { computeTripReadiness } from '../../utils/tripReadiness';
+import { ReadinessGauge } from '../dashboard/RideReadinessGauge';
 import { loadRiderBikeSpecs } from '../../utils/specsStorage';
 import { Badge, BadgeVariant } from '../common/Badge';
 import { Button } from '@/components/arc';
@@ -64,7 +66,7 @@ export const CompactTripCard: React.FC<CompactTripCardProps> = ({
   );
   const extraBufferMinutes = getChipsExtraBufferMinutes(trip);
   // Compute timeline so readiness/duration match TripCard
-  calculateReverseTimeline(
+  const timelineResult = calculateReverseTimeline(
     trip.route,
     trip.office,
     trip.weather,
@@ -82,6 +84,7 @@ export const CompactTripCard: React.FC<CompactTripCardProps> = ({
     }
   );
   const meta = getLocalizedTripMeta(trip, lang);
+  const readiness = computeTripReadiness(trip, physicsResult, timelineResult, lang === 'fr' ? 'fr' : 'en');
   const dateInfo = getTripDateDetails(trip, lang);
   const rideStyleBadge = getRideStyleBadge(trip.tag);
 
@@ -245,13 +248,31 @@ export const CompactTripCard: React.FC<CompactTripCardProps> = ({
         )}
       </div>
 
-      {/* Bottom Row: Date + Title + Description + Customizations | Speed + Duration + Ready */}
-      <div className="flex items-end justify-between gap-3">
+      {/* Middle Row: Date + Title | Readiness Gauge */}
+      <div className="flex items-center justify-between gap-3">
         <div className="min-w-0 flex-1 space-y-1">
           <div className="text-xs font-medium text-ink-muted">{dateInfo.formattedDate}</div>
           <h3 className="text-lg font-semibold text-ink tracking-tight leading-snug break-words">
             {meta.name || t('defaultTripName')}
           </h3>
+        </div>
+        <span
+          className="inline-flex items-center shrink-0"
+          title={`${lang === 'fr' ? 'Prêt à partir' : 'Ride readiness'}: ${readiness.score}/100 · ${readiness.label}`}
+        >
+          <ReadinessGauge
+            score={readiness.score}
+            level={readiness.level}
+            label={readiness.label}
+            size={44}
+            showIcon={false}
+          />
+        </span>
+      </div>
+
+      {/* Bottom Row: Description + Customizations | Speed + Duration + Ready */}
+      <div className="flex items-end justify-between gap-3">
+        <div className="min-w-0 flex-1 space-y-1">
           {meta.description && (
             <p className="text-[13px] text-ink-muted line-clamp-2 leading-relaxed">
               {meta.description}

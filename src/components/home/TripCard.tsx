@@ -12,6 +12,8 @@ import { calculatePhysics } from '../../utils/physics';
 import { calculateReverseTimeline } from '../../utils/timeline';
 import { getChipsExtraBufferMinutes, findChipDef, CHIP_ICONS } from '../../utils/archetypeChips';
 import { useTranslation, getLocalizedTripMeta } from '../../context/LanguageContext';
+import { computeTripReadiness } from '../../utils/tripReadiness';
+import { ReadinessGauge } from '../dashboard/RideReadinessGauge';
 import { loadRiderBikeSpecs } from '../../utils/specsStorage';
 import { getExpeditionTotals } from '../../utils/stageManager';
 import { Badge } from '../common/Badge';
@@ -65,6 +67,7 @@ export const TripCard: React.FC<TripCardProps> = ({
     }
   );
   const meta = getLocalizedTripMeta(trip, lang);
+  const readiness = computeTripReadiness(trip, physicsResult, timelineResult, lang === 'fr' ? 'fr' : 'en');
 
   const checkedCount = trip.checklist.filter((c) => c.checked).length;
   const totalChecklist = Math.max(1, trip.checklist.length);
@@ -111,7 +114,19 @@ export const TripCard: React.FC<TripCardProps> = ({
             </Badge>
           </div>
 
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span
+              className="inline-flex items-center shrink-0"
+              title={`${lang === 'fr' ? 'Prêt à partir' : 'Ride readiness'}: ${readiness.score}/100 · ${readiness.label}`}
+            >
+              <ReadinessGauge
+                score={readiness.score}
+                level={readiness.level}
+                label={readiness.label}
+                size={36}
+                showIcon={false}
+              />
+            </span>
             <Button
               variant="secondary"
               size="sm"

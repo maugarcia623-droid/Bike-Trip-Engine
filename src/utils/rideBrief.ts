@@ -23,6 +23,8 @@ import { getArchetypeFromTag } from './archetypeChips';
 import { calculateRideVisibility } from './solarVisibility';
 import { degreesToCompassCardinal } from '../services/weatherService';
 import { BikeSpec } from '../types/specs';
+import { computeRideReadiness, RideReadiness } from './rideReadiness';
+import { buildEffectiveChecklist } from './effectiveChecklist';
 
 export type BriefProblemSeverity = 'critical' | 'warning' | 'info' | 'clear';
 
@@ -92,6 +94,7 @@ export interface RideBriefData {
   tireWidthMm: number;
   priorities: RideBriefPriorityItem[];
   blockerAlreadyFeatured: boolean;
+  readiness: RideReadiness;
 }
 
 function formatTotalBriefDuration(totalMinutes: number, stopsMin: number, isFr: boolean): string {
@@ -123,6 +126,7 @@ function buildRideBriefCardMeta(input: {
   finalVerdict: 'GO' | 'CAUTION' | 'NO-GO';
   lang: Language;
   telemetryMode?: RiderBikeSpecs['telemetryMode'];
+  vis?: ReturnType<typeof calculateRideVisibility>;
 }): Pick<
   RideBriefData,
   | 'archetypeLabel'
@@ -237,12 +241,9 @@ function buildRideBriefCardMeta(input: {
     0;
   const unpavedPct = Math.round(gravelPct + singletrackPct);
 
-  const vis = calculateRideVisibility(
-    trip,
-    departureDate,
-    timeline.hardDepartureTime,
-    physics.effectiveSpeedKmH
-  );
+  const vis =
+    input.vis ??
+    calculateRideVisibility(trip, departureDate, timeline.hardDepartureTime, physics.effectiveSpeedKmH);
   const daylightMin = Math.max(0, Math.round((vis.daylightPercent / 100) * vis.movingMinutes));
   const lumensCompact = vis.lightingGear.recommendedLumens.replace(' – ', '–');
 
@@ -856,6 +857,83 @@ export function buildRideBrief(params: {
     finalReason = firstProblem.headline;
   }
 
+  // 5. Readiness score (0–100) — blends weather, bike/terrain fit, effort, checklist, light & stops
+  const briefDepartureDate = activeStage?.departureDate || trip.departureDate;
+  const vis = calculateRideVisibility(
+    trip,
+    briefDepartureDate,
+    timeline.hardDepartureTime,
+    physics.effectiveSpeedKmH
+  );
+  const realSurface = trip.route?.terrainSummary?.surfaceBreakdown ?? trip.route?.surfaceBreakdown;
+  const terrainGravelPct = realSurface?.gravelPct ?? trip.route?.terrainSummary?.gravelPct;
+  const terrainSinglePct = realSurface?.singletrackPct ?? trip.route?.terrainSummary?.singletrackPct;
+  // Same list the "Before you leave" card renders (bike-specific tyre item, saved ticks merged).
+  const checklistItems = buildEffectiveChecklist(trip, riderSpecs, lang === 'fr' ? 'fr' : 'en');
+  const criticalItems = checklistItems.filter((c) => c.critical);
+  // Route factor = logistics only (closed stops, water gaps). Wind & rain problems are
+  // already scored by the Weather factor, so they're excluded to avoid double-counting.
+  const logisticsProblems = [firstProblem, ...secondaryProblems].filter(
+    (p) => p.id.startsWith('closed-') || p.id.startsWith('water-gap')
+  );
+  const flaggedProblems = logisticsProblems.filter(
+    (p) => p.severity === 'critical' || p.severity === 'warning'
+  );
+  const worstLogistics = logisticsProblems[0]; // already sorted critical → info
+  const baseWindKmH = trip.weather?.baseWindSpeedKmH ?? 0;
+  const worstWeather = sectorForecast?.worstCaseWeather;
+  const readiness = computeRideReadiness({
+    lang,
+    weather: {
+      rainRiskPct: Math.max(
+        trip.weather?.precipitationRiskPercent ?? 0,
+        worstWeather?.precipitationRiskPercent ?? 0
+      ),
+      baseWindKmH: Math.max(baseWindKmH, worstWeather?.baseWindSpeedKmH ?? 0),
+      gustKmH: Math.max(
+        trip.weather?.estuaryGustKmH ?? Math.round(baseWindKmH * 1.4),
+        worstWeather?.estuaryGustKmH ?? 0
+      ),
+      headwindKmH:
+        trip.weather?.effectiveHeadwindKmH ?? (trip.weather?.isHeadwindActive ? baseWindKmH : 0),
+      feelsLikeC: kit.feelsLikeC ?? trip.weather?.temperatureC ?? 14,
+    },
+    bike: {
+      name: activeBike.name,
+      category: activeBike.bikeCategory,
+      tireWidthMm: bikeTireWidthMm,
+      isTubeless: activeBike.isTubeless,
+    },
+    terrain: {
+      hasSurfaceData: terrainGravelPct !== undefined || terrainSinglePct !== undefined,
+      gravelPct: terrainGravelPct ?? 0,
+      singletrackPct: terrainSinglePct ?? 0,
+      suitabilityLevel: realSurface?.suitability?.overallLevel,
+    },
+    effort: {
+      ftpPercent: physics.ftpPercent ?? 70,
+      movingHours,
+      powerZone: physics.powerZone,
+      riderLevel: riderSpecs.riderLevel,
+    },
+    checklist: {
+      total: checklistItems.length,
+      checked: checklistItems.filter((c) => c.checked).length,
+      criticalTotal: criticalItems.length,
+      criticalChecked: criticalItems.filter((c) => c.checked).length,
+    },
+    light: {
+      nightPercent: vis.nightPercent,
+      twilightPercent: vis.twilightPercent,
+    },
+    route: {
+      worstSeverity: worstLogistics?.severity ?? 'clear',
+      issueCount: flaggedProblems.length,
+      headline: worstLogistics?.headline,
+    },
+    goStatus: finalVerdict,
+  });
+
   return {
     verdict: finalVerdict,
     verdictReason: finalReason,
@@ -901,6 +979,8 @@ export function buildRideBrief(params: {
       finalVerdict,
       lang: params.lang || 'en',
       telemetryMode: riderSpecs.telemetryMode,
+      vis,
     }),
+    readiness,
   };
 }

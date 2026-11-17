@@ -15,6 +15,11 @@ import { Badge } from '../common/Badge';
 import { IconBadge } from '../common/IconBadge';
 import { Collapsible } from '../common/Collapsible';
 import {
+  ReadinessGauge,
+  RideReadinessPanel,
+  RideReadinessBreakdown,
+} from './RideReadinessGauge';
+import {
   ChevronDown,
   Moon,
   Flashlight,
@@ -78,6 +83,8 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
 
   const [copiedPlanLink, setCopiedPlanLink] = React.useState(false);
   const [exportError, setExportError] = React.useState<string | null>(null);
+  const [showReadinessBreakdown, setShowReadinessBreakdown] = React.useState(false);
+  const readiness = brief.readiness;
 
   const hasMultipleStages = Boolean(trip.stages && trip.stages.length > 1);
   const distLabel =
@@ -219,7 +226,7 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2.5 shrink-0">
           <Badge
             variant={brief.attentionBadgeVariant}
             size="sm"
@@ -228,6 +235,21 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
           >
             {brief.attentionBadgeLabel}
           </Badge>
+
+          {!isExpanded && (
+            <span
+              className="inline-flex items-center shrink-0"
+              title={`${isFr ? 'Prêt à partir' : 'Ride readiness'} · ${readiness.label}`}
+            >
+              <ReadinessGauge
+                score={readiness.score}
+                level={readiness.level}
+                label={readiness.label}
+                size={40}
+                showIcon={false}
+              />
+            </span>
+          )}
 
           <Button
             variant="ghost"
@@ -259,8 +281,8 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
       {/* ── Collapsible Body ── */}
       <Collapsible open={isExpanded} id="ride-brief-body" innerClassName="pt-4 md:pt-3.5">
         {/* Top Row: Leave-By Volt Pod + Natural-Language Ride Guidance */}
-        <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-5">
-          <div className="w-full md:w-[200px] lg:w-[208px] shrink-0 rounded-pod bg-volt text-[#111111] px-4 py-3.5 md:py-3.5 flex flex-col justify-between gap-1.5 shadow-xs">
+        <div className="grid grid-cols-1 md:grid-cols-[200px_minmax(0,1fr)] xl:grid-cols-[208px_minmax(0,1fr)_320px] md:items-center gap-4 md:gap-5">
+          <div className="w-full shrink-0 rounded-pod bg-volt text-[#111111] px-4 py-3.5 md:py-3.5 flex flex-col justify-between gap-1.5 shadow-xs">
             <span className="text-[13px] font-medium font-body leading-tight text-[#111111]/90">
               {brief.leavePodLabel}
             </span>
@@ -287,7 +309,27 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
               </span>
             </div>
           </div>
+
+          {/* Readiness score pod — full width under on mobile/tablet, third column on xl */}
+          <div className="md:col-span-2 xl:col-span-1 min-w-0">
+            <RideReadinessPanel
+              readiness={readiness}
+              isFr={isFr}
+              showBreakdown={showReadinessBreakdown}
+              onToggleBreakdown={() => setShowReadinessBreakdown((v) => !v)}
+              breakdownId="ride-readiness-breakdown"
+            />
+          </div>
         </div>
+
+        {/* Readiness breakdown (per-factor scores) */}
+        <Collapsible
+          open={showReadinessBreakdown}
+          id="ride-readiness-breakdown"
+          innerClassName="pt-4 md:pt-3.5"
+        >
+          <RideReadinessBreakdown readiness={readiness} isFr={isFr} />
+        </Collapsible>
 
         {/* Hairline Divider */}
         <div className="h-px w-full bg-chip dark:bg-white/10 my-4 md:my-3.5" aria-hidden="true" />

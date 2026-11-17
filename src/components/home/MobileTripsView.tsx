@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { motion, AnimatePresence, LayoutGroup, MotionConfig } from 'motion/react';
 import {
   ArrowLeft,
   Plus,
@@ -107,49 +108,71 @@ export const MobileTripsView: React.FC<MobileTripsViewProps> = ({
     };
   }, [filteredTrips, lang]);
 
+  const cardSpring = { duration: 0.36, ease: [0.16, 1, 0.3, 1] as const };
+
   const renderTripItem = (trip: TripProfile) => {
     const isExpanded = expandedTripIds.has(trip.id);
     const isActive = activeTrip ? trip.id === activeTrip.id : false;
 
-    if (isExpanded) {
-      return (
-        <div
-          key={trip.id}
-          onClick={(e) => {
-            if (!(e.target as HTMLElement).closest('button, a, input, select, textarea, [role="button"]')) {
-              toggleExpandTrip(trip.id);
-            }
-          }}
-          className="cursor-pointer"
-        >
-          <TripCard
-            trip={trip}
-            isActive={isActive}
-            onSelect={onSelectTrip}
-            onEdit={onEditTrip}
-            onDuplicate={onDuplicateTrip}
-            onDelete={onDeleteTrip}
-            onLaunch={onLaunchDashboard}
-          />
-        </div>
-      );
-    }
-
     return (
-      <CompactTripCard
+      <motion.div
         key={trip.id}
-        trip={trip}
-        isActive={isActive}
-        variant="list"
-        onClick={() => toggleExpandTrip(trip.id)}
-        onDuplicate={onDuplicateTrip}
-        onEdit={onEditTrip}
-        onDelete={onDeleteTrip}
-      />
+        layout
+        transition={{ layout: cardSpring }}
+        className="rounded-card overflow-hidden"
+      >
+        <AnimatePresence mode="popLayout" initial={false}>
+          {isExpanded ? (
+            <motion.div
+              key="expanded"
+              initial={{ opacity: 0, y: 8, scale: 0.99 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -4, scale: 0.99 }}
+              transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+              onClick={(e) => {
+                if (!(e.target as HTMLElement).closest('button, a, input, select, textarea, [role="button"]')) {
+                  toggleExpandTrip(trip.id);
+                }
+              }}
+              className="cursor-pointer"
+            >
+              <TripCard
+                trip={trip}
+                isActive={isActive}
+                onSelect={onSelectTrip}
+                onEdit={onEditTrip}
+                onDuplicate={onDuplicateTrip}
+                onDelete={onDeleteTrip}
+                onLaunch={onLaunchDashboard}
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="compact"
+              initial={{ opacity: 0, y: -6, scale: 0.99 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 4, scale: 0.99 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <CompactTripCard
+                trip={trip}
+                isActive={isActive}
+                variant="list"
+                onClick={() => toggleExpandTrip(trip.id)}
+                onDuplicate={onDuplicateTrip}
+                onEdit={onEditTrip}
+                onDelete={onDeleteTrip}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
     );
   };
 
   return (
+    <MotionConfig reducedMotion="user">
+    <LayoutGroup>
     <div className="pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] sm:pt-[calc(env(safe-area-inset-top,0px)+1rem)] space-y-5 animate-apple-in">
       {/* Top Row: Back to Home Pill + New Trip Button */}
       <div className="flex items-center justify-between gap-2">
@@ -312,15 +335,17 @@ export const MobileTripsView: React.FC<MobileTripsViewProps> = ({
 
       {/* Your Completed Trips Section */}
       {completedTrips.length > 0 && (
-        <div className="space-y-3.5 pt-2">
+        <motion.div layout transition={{ layout: cardSpring }} className="space-y-3.5 pt-2">
           <h2 className="text-base font-semibold tracking-tight text-ink">
             {isFr ? 'Vos trajets terminés' : 'Your completed trips'}
           </h2>
           <div className="space-y-3.5">
             {completedTrips.map(renderTripItem)}
           </div>
-        </div>
+        </motion.div>
       )}
     </div>
+    </LayoutGroup>
+    </MotionConfig>
   );
 };

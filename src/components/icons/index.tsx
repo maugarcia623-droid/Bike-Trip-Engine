@@ -334,6 +334,8 @@ export const Home = createKeylineIcon(Duotone.Home, 'Home');
 export const Upload = createKeylineIcon(Duotone.Upload, 'Upload');
 export const FileArrowUp = Upload;
 export const Eye = createKeylineIcon(Duotone.Eye, 'Eye');
+export const OctagonX = createKeylineIcon(Duotone.OctagonX, 'OctagonX');
+export const CircleDashedCheck = createKeylineIcon(Duotone.CircleDashedCheck, 'CircleDashedCheck');
 
 // Keyline Rounded Duotone Icons:
 export const Monitor2Check = createKeylineIcon(Duotone.Monitor2Check, 'Monitor2Check');
@@ -549,6 +551,8 @@ export default {
   Upload,
   FileArrowUp,
   Eye,
+  OctagonX,
+  CircleDashedCheck,
   Cemetery,
   Graveyard,
   Radar,

@@ -118,42 +118,11 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
   const [loadedAmenities, setLoadedAmenities] = React.useState<StageAmenity[]>([]);
   const [activeSectionFilters, setActiveSectionFilters] = React.useState<string[]>([]);
 
-  const getInitialBriefExpanded = React.useCallback((desktop: boolean): boolean => {
-    try {
-      const key = desktop ? 'cadence_ride_brief_expanded' : 'cadence_ride_brief_expanded_mobile';
-      const saved = localStorage.getItem(key);
-      if (saved === 'true') return true;
-      if (saved === 'false') return false;
-    } catch {
-      // Ignore storage errors
-    }
-    return desktop;
-  }, []);
-
-  const [isBriefExpanded, setIsBriefExpanded] = React.useState<boolean>(() =>
-    getInitialBriefExpanded(isDesktop)
-  );
-
-  const prevIsDesktopRef = React.useRef<boolean>(isDesktop);
-  React.useEffect(() => {
-    if (prevIsDesktopRef.current !== isDesktop) {
-      prevIsDesktopRef.current = isDesktop;
-      setIsBriefExpanded(getInitialBriefExpanded(isDesktop));
-    }
-  }, [isDesktop, getInitialBriefExpanded]);
+  const [isBriefExpanded, setIsBriefExpanded] = React.useState<boolean>(false);
 
   const toggleBriefExpanded = React.useCallback(() => {
-    setIsBriefExpanded((prev) => {
-      const next = !prev;
-      try {
-        const key = isDesktop ? 'cadence_ride_brief_expanded' : 'cadence_ride_brief_expanded_mobile';
-        localStorage.setItem(key, next ? 'true' : 'false');
-      } catch {
-        // Ignore storage errors
-      }
-      return next;
-    });
-  }, [isDesktop]);
+    setIsBriefExpanded((prev) => !prev);
+  }, []);
 
   const handleShareReceipt = React.useCallback(() => {
     if (onShareReceiptProp) {

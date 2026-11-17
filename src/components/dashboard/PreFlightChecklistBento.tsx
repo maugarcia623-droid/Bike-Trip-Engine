@@ -16,6 +16,7 @@ import { RiderBikeSpecs } from '../../types/specs';
 import { useTranslation, getChecklistItemLabel } from '../../context/LanguageContext';
 import { getArchetypeFromTag } from '../../utils/archetypeChips';
 import { loadRiderBikeSpecs, getActiveBike } from '../../utils/specsStorage';
+import { buildEffectiveChecklist } from '../../utils/effectiveChecklist';
 
 interface PreFlightChecklistBentoProps {
   trip: TripProfile;
@@ -61,45 +62,8 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
   const effectiveTag = effectiveMode === 'COMMUTE' ? 'VÉLOTAF' : effectiveMode;
   const totalDays = trip.stages?.length || 1;
 
-  const getInitialItems = (): ChecklistItem[] => {
-    const fresh = generateTripChecklist(effectiveTag, trip.route?.distanceKm, trip.weather, {
-      lang,
-      customChips: trip.customChips,
-      totalDays,
-      isTubeless,
-      carbTargetGPerHr: riderSpecs.carbTargetGPerHr,
-      nutritionPreference: riderSpecs.nutritionPreference,
-      bidonSizeMl: riderSpecs.bidonSizeMl,
-      frameBottleSlots: riderSpecs.frameBottleSlots,
-    });
-
-    const tireSetupItem: ChecklistItem = {
-      id: isTubeless ? 'tire-setup-tubeless' : 'tire-setup-tube',
-      label: isTubeless
-        ? isFr
-          ? `Kit mèches Tubeless + cartouche CO2 & niveau préventif (${activeBike.name})`
-          : `Tubeless tire plugs (bacon strips) + CO2 & sealant check (${activeBike.name})`
-        : isFr
-        ? `Chambre à air de secours + démonte-pneus & mini-pompe (${activeBike.name})`
-        : `Spare inner tube + tire levers & mini-pump (${activeBike.name})`,
-      category: 'gear',
-      checked: false,
-      critical: true,
-    };
-
-    const existing = trip.checklist || [];
-    const checkedMap = new Map(existing.map((item) => [item.id, item.checked]));
-
-    const mergedFresh = [
-      tireSetupItem,
-      ...fresh.filter((i) => i.id !== 'mech-spares' && !i.id.startsWith('tire-setup-')),
-    ];
-
-    return mergedFresh.map((item) => ({
-      ...item,
-      checked: checkedMap.has(item.id) ? Boolean(checkedMap.get(item.id)) : item.checked,
-    }));
-  };
+  const getInitialItems = (): ChecklistItem[] =>
+    buildEffectiveChecklist(trip, riderSpecs, lang === 'fr' ? 'fr' : 'en');
 
   const [items, setItems] = useState<ChecklistItem[]>(getInitialItems);
   const [activeFilter, setActiveFilter] = useState<ChecklistCategoryFilter>('all');
