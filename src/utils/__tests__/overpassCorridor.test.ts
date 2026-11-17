@@ -7,6 +7,7 @@ import {
   computeCumulativeDistances,
   snapToPolyline,
 } from '../../services/overpassCorridor';
+import { evaluateOpeningHoursAtArrival } from '../openingHours';
 import type { StageAmenity } from '../../types/amenities';
 
 describe('overpassCorridor.ts', () => {
@@ -112,5 +113,13 @@ describe('overpassCorridor.ts', () => {
 
     const overnightRollover = calculateAmenityEtaDetails('23:00', 48, 24);
     assert.deepEqual(overnightRollover, { etaHHMM: '01:00', dayOffset: 1 });
+  });
+
+  it('evaluateOpeningHoursAtArrival handles seasonal month ranges like Apr-Oct', () => {
+    const julyOpen = evaluateOpeningHoursAtArrival('Apr-Oct Mo-Su 08:00-19:00', '2026-07-15', '12:00', 'en');
+    assert.equal(julyOpen?.status, 'open');
+
+    const janClosed = evaluateOpeningHoursAtArrival('Apr-Oct Mo-Su 08:00-19:00', '2026-01-15', '12:00', 'en');
+    assert.equal(janClosed?.status, 'closed');
   });
 });

@@ -148,6 +148,30 @@ export async function saveExpeditionPack(
     }
   }
 
+  // Warm additional expedition stages (POIs & surfaces) for multi-day offline readiness
+  if (trip.stages && trip.stages.length > 1) {
+    const otherStages = trip.stages.filter(
+      (s) => s.id !== stageId && (s.route?.coordinates?.length ?? 0) >= 2
+    );
+    if (otherStages.length > 0) {
+      await Promise.allSettled(
+        otherStages.flatMap((st) => [
+          scanCorridorAmenities({
+            coordinates: st.route.coordinates!,
+            totalDistanceKm: st.route.distanceKm,
+            stageId: st.id,
+            elevationProfile: st.route.elevationProfile,
+            lang,
+          }),
+          fetchOsmSurfaceForRoute({
+            coordinates: st.route.coordinates!,
+            distanceKm: st.route.distanceKm,
+          }),
+        ])
+      );
+    }
+  }
+
   const tilesPrefetched = hasTrace ? prefetchRouteTilesViaSw(coords) : 0;
 
   const meta: OfflineExpeditionPackMeta = {

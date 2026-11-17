@@ -230,9 +230,9 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
         await navigator.share({
           files: [file],
           title: telemetryData?.routeName
-            ? `${telemetryData.routeName} // Cadence Telemetry`
-            : 'Cadence Telemetry',
-          text: `Cadence Telemetry receipt · 1080×1920 PNG (9:16 Story / Strava)`,
+            ? `${telemetryData.routeName} // Cadence Ride Card`
+            : 'Cadence Ride Card',
+          text: `Cadence Ride Card · 1080×1920 PNG (9:16 Story / Strava)`,
         });
         return;
       } catch (err) {

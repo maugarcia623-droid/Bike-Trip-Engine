@@ -40,6 +40,7 @@ import {
   evaluateProximityAlerts,
   findNextStopAndTurn,
   formatFuelingVoiceCue,
+  primeRideAudio,
   projectPositionOntoRoute,
   RideAlertEvent,
   speakRideCue,
@@ -539,7 +540,13 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
               variant="ghost"
               size="sm"
               data-testid="ride-mode-mute-btn"
-              onClick={() => setIsMuted((prev) => !prev)}
+              onClick={() => {
+                setIsMuted((prev) => {
+                  const next = !prev;
+                  if (!next) primeRideAudio();
+                  return next;
+                });
+              }}
               className={`min-h-[44px] px-2.5 sm:px-3.5 rounded-full inline-flex items-center justify-center gap-1.5 text-xs font-rounded font-bold transition-all cursor-pointer min-w-0 ${
                 isMuted
                   ? `${CHIP_TOKENS.rose.surface} ${CHIP_TOKENS.rose.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.rose.selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`

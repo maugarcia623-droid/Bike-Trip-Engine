@@ -101,11 +101,53 @@ function parseDaySelectors(prefix: string): {
 }
 
 interface ParsedRule {
+  months?: Set<number>;
   days: Set<number>;
   hasExplicitDays: boolean;
   phOnly: boolean;
   isOff: boolean;
   intervals: Array<[number, number]>;
+}
+
+const MONTH_INDEX_MAP: Record<string, number> = {
+  jan: 1,
+  feb: 2,
+  mar: 3,
+  apr: 4,
+  may: 5,
+  jun: 6,
+  jul: 7,
+  aug: 8,
+  sep: 9,
+  oct: 10,
+  nov: 11,
+  dec: 12,
+};
+
+function parseLeadingMonthRange(raw: string): { months?: Set<number>; rest: string } {
+  const m = raw.match(/^([a-z]{3})\s*-\s*([a-z]{3})(?:\s+(.*))?$/i);
+  if (!m) return { rest: raw };
+  const start = MONTH_INDEX_MAP[m[1].toLowerCase()];
+  const end = MONTH_INDEX_MAP[m[2].toLowerCase()];
+  if (!start || !end) return { rest: raw };
+  const months = new Set<number>();
+  let cur = start;
+  for (let step = 0; step < 12; step++) {
+    months.add(cur);
+    if (cur === end) break;
+    cur = (cur % 12) + 1;
+  }
+  return { months, rest: (m[3] || '').trim() };
+}
+
+function resolveTargetMonth(targetDateStr?: string): number {
+  if (targetDateStr) {
+    const parts = targetDateStr.split('-').map(Number);
+    if (parts.length === 3 && parts[1] >= 1 && parts[1] <= 12) {
+      return parts[1];
+    }
+  }
+  return new Date().getMonth() + 1;
 }
 
 function parseSingleRule(ruleRaw: string): ParsedRule | null {
@@ -117,9 +159,22 @@ function parseSingleRule(ruleRaw: string): ParsedRule | null {
     return null;
   }
 
-  const lower = cleaned.toLowerCase();
+  const { months, rest } = parseLeadingMonthRange(cleaned);
+  if (!rest) {
+    return {
+      months,
+      days: new Set(ALL_DAYS),
+      hasExplicitDays: false,
+      phOnly: false,
+      isOff: false,
+      intervals: [[0, 1440]],
+    };
+  }
+
+  const lower = rest.toLowerCase();
   if (lower === '24/7' || lower === 'open') {
     return {
+      months,
       days: new Set(ALL_DAYS),
       hasExplicitDays: false,
       phOnly: false,
@@ -129,6 +184,7 @@ function parseSingleRule(ruleRaw: string): ParsedRule | null {
   }
   if (lower === 'off' || lower === 'closed') {
     return {
+      months,
       days: new Set(ALL_DAYS),
       hasExplicitDays: false,
       phOnly: false,
@@ -138,7 +194,7 @@ function parseSingleRule(ruleRaw: string): ParsedRule | null {
   }
 
   // Split optional leading day selector from time/status selector
-  const dayAndTimeMatch = cleaned.match(
+  const dayAndTimeMatch = rest.match(
     /^(?:([a-z,\-\s]+?)\s+)?(\d{1,2}:\d{2}\s*-.*|off|closed|open|24\/7)$/i
   );
   if (!dayAndTimeMatch) {
@@ -155,6 +211,7 @@ function parseSingleRule(ruleRaw: string): ParsedRule | null {
 
   if (timePart === 'off' || timePart === 'closed') {
     return {
+      months,
       days: parsedDays.days,
       hasExplicitDays: parsedDays.hasExplicitDays,
       phOnly: parsedDays.phOnly,
@@ -165,6 +222,7 @@ function parseSingleRule(ruleRaw: string): ParsedRule | null {
 
   if (timePart === 'open' || timePart === '24/7') {
     return {
+      months,
       days: parsedDays.days,
       hasExplicitDays: parsedDays.hasExplicitDays,
       phOnly: parsedDays.phOnly,
@@ -195,6 +253,7 @@ function parseSingleRule(ruleRaw: string): ParsedRule | null {
   }
 
   return {
+    months,
     days: parsedDays.days,
     hasExplicitDays: parsedDays.hasExplicitDays,
     phOnly: parsedDays.phOnly,
@@ -278,9 +337,13 @@ export function evaluateOpeningHoursAtArrival(
   }
 
   const osmTargetDay = resolveOsmTargetDay(targetDateStr);
+  const targetMonth = resolveTargetMonth(targetDateStr);
   let activeRule: ParsedRule | null = null;
 
   for (const rule of parsedRules) {
+    if (rule.months && !rule.months.has(targetMonth)) {
+      continue;
+    }
     if (rule.phOnly) {
       continue;
     }

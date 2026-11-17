@@ -1399,7 +1399,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
 
     return (
       <Card
-        title={isFr ? t('nutritionTitle') : t('nutriSportTitle')}
+        title={t('nutriSportTitle')}
         subtitle={t('nutriSportSub', { dist: distance })}
         badge={
           <div className="inline-flex items-center gap-2 flex-wrap">
@@ -1552,7 +1552,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
 
     return (
       <Card
-        title={isFr ? t('nutritionTitle') : t('nutriBpTitle')}
+        title={t('nutriBpTitle')}
         subtitle={t('nutriBpSub', { dist: distance })}
         badge={
           <div className="inline-flex items-center gap-2 flex-wrap">
@@ -1722,7 +1722,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
 
     return (
       <Card
-        title={isFr ? t('nutritionTitle') : t('nutriEscTitle')}
+        title={t('nutriEscTitle')}
         subtitle={t('nutriEscSub', { dest: trip.route?.destination || 'destination' })}
         badge={
           <div className="inline-flex items-center gap-2 flex-wrap">
@@ -1891,7 +1891,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
 
   return (
     <Card
-      title={isFr ? t('nutritionTitle') : t('nutriComTitle')}
+      title={t('nutriComTitle')}
       subtitle={t('nutriComSub')}
       badge={
         <div className="inline-flex items-center gap-2 flex-wrap">

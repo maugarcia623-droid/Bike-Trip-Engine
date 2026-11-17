@@ -40,7 +40,7 @@ import {
   CheckCircle2,
   ForkKnife,
   Gauge,
-  Grid2x2,
+  GridCirclesCheck,
 } from '@/components/icons';
 import { useTranslation, getLocalizedTripMeta } from '../../context/LanguageContext';
 import { switchActiveStage, getExpeditionTotals } from '../../utils/stageManager';
@@ -358,35 +358,60 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
     onUpdateTrip,
   ]);
 
-  const physicsResult = calculatePhysics(
-    trip.physics,
-    trip.route,
-    trip.weather,
-    lang,
-    effectiveSpecs.ftpWatts
+  const physicsResult = React.useMemo(
+    () =>
+      calculatePhysics(
+        trip.physics,
+        trip.route,
+        trip.weather,
+        lang,
+        effectiveSpecs.ftpWatts
+      ),
+    [trip.physics, trip.route, trip.weather, lang, effectiveSpecs.ftpWatts]
   );
   const extraBufferMinutes = getChipsExtraBufferMinutes(trip);
-  const timelineResult = calculateReverseTimeline(
-    trip.route,
-    trip.office,
-    trip.weather,
-    trip.tag,
-    trip.route?.destination,
-    lang,
-    extraBufferMinutes,
-    trip.customChips || [],
-    {
-      effectiveSpeedKmH: physicsResult.effectiveSpeedKmH,
-      calmSpeedKmH: physicsResult.calmSpeedKmH,
-      arriveAtMode: trip.arriveAtMode,
-      departureTime: trip.departureTime,
-      movingTimeSeconds: physicsResult.movingTimeSeconds,
-      logistics: trip.ruleSettings,
-      pinnedAmenities: trip.pinnedAmenities,
-      departureDate: activeStage?.departureDate || trip.departureDate,
-    }
+  const timelineResult = React.useMemo(
+    () =>
+      calculateReverseTimeline(
+        trip.route,
+        trip.office,
+        trip.weather,
+        trip.tag,
+        trip.route?.destination,
+        lang,
+        extraBufferMinutes,
+        trip.customChips || [],
+        {
+          effectiveSpeedKmH: physicsResult.effectiveSpeedKmH,
+          calmSpeedKmH: physicsResult.calmSpeedKmH,
+          arriveAtMode: trip.arriveAtMode,
+          departureTime: trip.departureTime,
+          movingTimeSeconds: physicsResult.movingTimeSeconds,
+          logistics: trip.ruleSettings,
+          pinnedAmenities: trip.pinnedAmenities,
+          departureDate: activeStage?.departureDate || trip.departureDate,
+        }
+      ),
+    [
+      trip.route,
+      trip.office,
+      trip.weather,
+      trip.tag,
+      lang,
+      extraBufferMinutes,
+      trip.customChips,
+      physicsResult.effectiveSpeedKmH,
+      physicsResult.calmSpeedKmH,
+      physicsResult.movingTimeSeconds,
+      trip.arriveAtMode,
+      trip.departureTime,
+      trip.ruleSettings,
+      trip.pinnedAmenities,
+      activeStage?.departureDate,
+      trip.departureDate,
+    ]
   );
-  const meta = getLocalizedTripMeta(trip, lang);
+  const meta = React.useMemo(() => getLocalizedTripMeta(trip, lang), [trip, lang]);
 
   const archetype = getTripArchetype(trip.tag, trip.name);
   const isSport = archetype === 'sport';
@@ -430,7 +455,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
 
   const isFr = lang === 'fr';
   const hasMultipleStages = Boolean(trip.stages && trip.stages.length > 1);
-  const expeditionTotals = getExpeditionTotals(trip);
+  const expeditionTotals = React.useMemo(() => getExpeditionTotals(trip), [trip]);
 
   const briefDate =
     trip.stages?.[trip.activeStageIndex ?? 0]?.departureDate ||
@@ -721,7 +746,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
             className="-mx-3.5 px-3.5 scroll-pl-3.5 sm:-mx-5 sm:px-5 sm:scroll-pl-5 -mb-1.5 flex items-center gap-2 overflow-x-auto no-scrollbar snap-x"
           >
             {[
-              { id: 'all', label: isFr ? 'Tout' : 'All', icon: Grid2x2 },
+              { id: 'all', label: isFr ? 'Tout' : 'All', icon: GridCirclesCheck },
               { id: 'bento-route', label: isFr ? 'Carte' : 'Map', icon: MapIcon },
               { id: 'bento-weather', label: isFr ? 'Météo' : 'Weather', icon: CloudSun },
               { id: 'bento-timeline', label: isFr ? 'Horaires' : 'Timeline', icon: Clock },

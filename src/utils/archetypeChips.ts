@@ -1236,7 +1236,7 @@ export const ARCHETYPE_CHIP_DEFINITIONS: Record<ArchetypeMode, ArchetypeChipDef[
       descriptionFr: 'Plan d’alimentation personnalisé : glucides/h et hydratation adaptés à votre allure',
       ruleTitleEn: 'Rider-Scaled Carbohydrate & Fluid Pacing',
       ruleTitleFr: 'Apport glucidique horaire & hydratation calibrés',
-      ruleDescriptionEn: 'Calibrates hourly carb intake to your rider profile without gastrointestinal overload.',
+      ruleDescriptionEn: 'Calibrates hourly carb intake to your rider profile without stomach discomfort.',
       ruleDescriptionFr: 'Adapte l’apport énergétique à votre profil cycliste sans surcharge digestive.',
       defaultSettings: {
         carbTargetGramHour: 60,

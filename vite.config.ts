@@ -17,6 +17,7 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
+            if (id.includes('/react-dom/') || id.includes('/react/') || id.includes('/scheduler/')) return 'vendor-react';
             if (id.includes('leaflet')) return 'vendor-leaflet';
             if (id.includes('@supabase')) return 'vendor-supabase';
             if (id.includes('/motion/') || id.includes('framer-motion')) return 'vendor-motion';

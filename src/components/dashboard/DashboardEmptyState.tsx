@@ -65,7 +65,7 @@ export const DashboardEmptyState: React.FC<DashboardEmptyStateProps> = ({
             <div className="p-4 rounded-2xl bg-pod border border-black/5 dark:border-white/10 space-y-1">
               <div className="flex items-center gap-2 text-ink font-bold text-xs">
                 <ForkKnife className="w-4 h-4 text-emerald-500" />
-                <span>{isFr ? 'Carburant brut' : 'Real-Food Fueling'}</span>
+                <span>{isFr ? 'Vrais aliments' : 'Real-Food Fueling'}</span>
               </div>
               <p className="text-[11px] text-ink-muted leading-tight">
                 {isFr

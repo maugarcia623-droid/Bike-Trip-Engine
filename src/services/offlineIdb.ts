@@ -15,10 +15,13 @@ function hasIndexedDb(): boolean {
   return typeof indexedDB !== 'undefined';
 }
 
+let dbPromise: Promise<IDBDatabase | null> | null = null;
+
 function openOfflineDb(): Promise<IDBDatabase | null> {
   if (!hasIndexedDb()) return Promise.resolve(null);
+  if (dbPromise) return dbPromise;
 
-  return new Promise((resolve) => {
+  dbPromise = new Promise((resolve) => {
     try {
       const req = indexedDB.open(IDB_NAME, IDB_VERSION);
       req.onupgradeneeded = () => {
@@ -36,12 +39,24 @@ function openOfflineDb(): Promise<IDBDatabase | null> {
           db.createObjectStore(STORE_OVERPASS_AMENITIES, { keyPath: 'key' });
         }
       };
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => resolve(null);
+      req.onsuccess = () => {
+        const db = req.result;
+        db.onversionchange = () => {
+          db.close();
+          dbPromise = null;
+        };
+        resolve(db);
+      };
+      req.onerror = () => {
+        dbPromise = null;
+        resolve(null);
+      };
     } catch {
+      dbPromise = null;
       resolve(null);
     }
   });
+  return dbPromise;
 }
 
 export async function idbGet<T>(storeName: string, key: string): Promise<T | null> {

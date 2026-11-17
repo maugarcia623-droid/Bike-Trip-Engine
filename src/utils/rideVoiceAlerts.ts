@@ -398,6 +398,39 @@ export function playGentleChime(): void {
  * Speaks a concise ride cue using the browser's built-in SpeechSynthesis API.
  * Returns true if speech synthesis was triggered.
  */
+/**
+ * Primes Web Audio and SpeechSynthesis on a direct user gesture (tap)
+ * so iOS Safari / mobile Chrome allow subsequent timer & GPS cues.
+ */
+export function primeRideAudio(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const AudioCtx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (AudioCtx) {
+      const ctx = new AudioCtx();
+      if (ctx.state === 'suspended') {
+        void ctx.resume();
+      }
+      setTimeout(() => {
+        void ctx.close().catch(() => {});
+      }, 250);
+    }
+  } catch {
+    // Ignore audio context priming errors
+  }
+  try {
+    if ('speechSynthesis' in window && typeof SpeechSynthesisUtterance !== 'undefined') {
+      const utter = new SpeechSynthesisUtterance('');
+      utter.volume = 0;
+      window.speechSynthesis.speak(utter);
+    }
+  } catch {
+    // Ignore speech synthesis priming errors
+  }
+}
+
 export function speakRideCue(
   text: string,
   options: { lang: 'en' | 'fr'; muted?: boolean; chime?: boolean }

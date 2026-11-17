@@ -159,7 +159,7 @@ export const en = {
   arrivalTimeLabel: "Arrival {time}",
   readinessProgressTitle: "Readiness: {checked}/{total}",
   readyCountLabel: "{checked}/{total} ready",
-  rigMassPill: "{mass} kg bike & gear",
+  rigMassPill: "{mass} kg total",
   windSpeedPill: "{speed} km/h wind",
   calmWind: "Calm",
   openFlightDeckBtn: "View ride plan",

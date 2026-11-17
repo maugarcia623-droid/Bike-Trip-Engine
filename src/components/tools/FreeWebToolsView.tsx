@@ -350,7 +350,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
                   step={5}
                   value={distanceKm}
                   onChange={(e) => setDistanceKm(Number(e.target.value))}
-                  className="w-full accent-volt cursor-pointer"
+                  className="w-full peloton-slider accent-volt cursor-pointer"
                 />
               </div>
 
@@ -366,7 +366,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
                   step={1}
                   value={speedKmH}
                   onChange={(e) => setSpeedKmH(Number(e.target.value))}
-                  className="w-full accent-volt cursor-pointer"
+                  className="w-full peloton-slider accent-volt cursor-pointer"
                 />
               </div>
 
@@ -382,7 +382,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
                   step={1}
                   value={windSpeedKmH}
                   onChange={(e) => setWindSpeedKmH(Number(e.target.value))}
-                  className="w-full accent-volt cursor-pointer"
+                  className="w-full peloton-slider accent-volt cursor-pointer"
                 />
               </div>
 
@@ -398,7 +398,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
                   step={50}
                   value={elevGainM}
                   onChange={(e) => setElevGainM(Number(e.target.value))}
-                  className="w-full accent-volt cursor-pointer"
+                  className="w-full peloton-slider accent-volt cursor-pointer"
                 />
               </div>
 
@@ -414,7 +414,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
                   step={1}
                   value={riderMassKg}
                   onChange={(e) => setRiderMassKg(Number(e.target.value))}
-                  className="w-full accent-volt cursor-pointer"
+                  className="w-full peloton-slider accent-volt cursor-pointer"
                 />
               </div>
 
@@ -430,7 +430,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
                   step={1}
                   value={tempC}
                   onChange={(e) => setTempC(Number(e.target.value))}
-                  className="w-full accent-volt cursor-pointer"
+                  className="w-full peloton-slider accent-volt cursor-pointer"
                 />
               </div>
             </div>
@@ -582,7 +582,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
                   step={5}
                   value={lbDistKm}
                   onChange={(e) => setLbDistKm(Number(e.target.value))}
-                  className="w-full accent-volt cursor-pointer"
+                  className="w-full peloton-slider accent-volt cursor-pointer"
                 />
               </div>
 
@@ -598,7 +598,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
                   step={1}
                   value={lbSpeedKmH}
                   onChange={(e) => setLbSpeedKmH(Number(e.target.value))}
-                  className="w-full accent-volt cursor-pointer"
+                  className="w-full peloton-slider accent-volt cursor-pointer"
                 />
               </div>
 
@@ -614,7 +614,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
                   step={2}
                   value={lbHeadwindKmH}
                   onChange={(e) => setLbHeadwindKmH(Number(e.target.value))}
-                  className="w-full accent-volt cursor-pointer"
+                  className="w-full peloton-slider accent-volt cursor-pointer"
                 />
               </div>
 
@@ -630,7 +630,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
                   step={5}
                   value={lbCoffeeMin}
                   onChange={(e) => setLbCoffeeMin(Number(e.target.value))}
-                  className="w-full accent-volt cursor-pointer"
+                  className="w-full peloton-slider accent-volt cursor-pointer"
                 />
               </div>
 
@@ -646,7 +646,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
                   step={5}
                   value={lbPrepMin}
                   onChange={(e) => setLbPrepMin(Number(e.target.value))}
-                  className="w-full accent-volt cursor-pointer"
+                  className="w-full peloton-slider accent-volt cursor-pointer"
                 />
               </div>
             </div>
@@ -717,7 +717,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
                   step={1}
                   value={tpSystemKg}
                   onChange={(e) => setTpSystemKg(Number(e.target.value))}
-                  className="w-full accent-volt cursor-pointer"
+                  className="w-full peloton-slider accent-volt cursor-pointer"
                 />
               </div>
 
@@ -733,7 +733,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
                   step={1}
                   value={tpWidthMm}
                   onChange={(e) => setTpWidthMm(Number(e.target.value))}
-                  className="w-full accent-volt cursor-pointer"
+                  className="w-full peloton-slider accent-volt cursor-pointer"
                 />
               </div>
             </div>

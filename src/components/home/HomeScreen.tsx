@@ -69,6 +69,8 @@ interface HomeScreenProps {
   riderSpecs?: RiderBikeSpecs;
   mobileView?: 'home' | 'trips';
   onMobileViewChange?: (view: 'home' | 'trips') => void;
+  isMobileWeatherOpen?: boolean;
+  onMobileWeatherOpenChange?: (open: boolean) => void;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -90,6 +92,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   riderSpecs,
   mobileView: controlledMobileView,
   onMobileViewChange,
+  isMobileWeatherOpen: controlledWeatherOpen,
+  onMobileWeatherOpenChange,
 }) => {
   const { lang, t } = useTranslation();
   const { userProfile, username } = useUserProfile();
@@ -101,7 +105,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     setInternalMobileView(view);
     onMobileViewChange?.(view);
   };
-  const [isMobileWeatherOpen, setIsMobileWeatherOpen] = useState(false);
+  const [internalWeatherOpen, setInternalWeatherOpen] = useState(false);
+  const isMobileWeatherOpen = controlledWeatherOpen ?? internalWeatherOpen;
+  const setIsMobileWeatherOpen = (open: boolean) => {
+    setInternalWeatherOpen(open);
+    onMobileWeatherOpenChange?.(open);
+  };
   const { user, openAuthModal, lastSyncedAt } = useAuth();
 
   const navigateMobileView = (view: 'home' | 'trips') => {
@@ -359,21 +368,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           />
         ) : (
           <>
-            {/* Top Row: Weather Conditions Pill */}
-            {currentConditionTrip && (
-              <div className="flex items-center justify-end animate-apple-in">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setIsMobileWeatherOpen(true)}
-                  className="inline-flex items-center gap-2 min-h-[40px] px-3.5 rounded-full bg-card hover:bg-pod text-ink border border-ink/5 dark:border-white/5 text-xs font-semibold shadow-xs cursor-pointer active:scale-[0.98]"
-                >
-                  <span className={`w-2 h-2 rounded-full shrink-0 ${weatherStatusDotClass}`} />
-                  <span>{t('weatherCardTitle')}</span>
-                </Button>
-              </div>
-            )}
-
             {/* Greeting Header */}
             <div className="animate-apple-in stagger-1">
               <h1 className="text-2xl font-semibold text-ink tracking-tight leading-tight">
@@ -475,7 +469,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     {lang === 'fr' ? 'Calculateurs tactiques gratuits' : 'Pre-ride physics tools'}
                   </span>
                   <span className="text-[10px] font-rounded font-semibold px-2 py-0.5 rounded-full bg-pod text-ink-muted">
-                    100% browser
+                    {lang === 'fr' ? '100 % navigateur' : '100% browser'}
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
@@ -495,7 +489,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     className={`inline-flex items-center gap-1.5 min-h-[44px] py-1.5 px-3 rounded-full text-xs font-rounded font-semibold cursor-pointer ${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary}`}
                   >
                     <Clock className="w-3.5 h-3.5" />
-                    <span>{lang === 'fr' ? 'Leave-By' : 'Leave-By'}</span>
+                    <span>{lang === 'fr' ? 'Heure de départ' : 'Leave-By'}</span>
                   </Button>
                   <Button
                     variant="ghost"
@@ -853,7 +847,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   {lang === 'fr' ? 'Calculateurs tactiques gratuits' : 'Free pre-ride physics tools'}
                 </span>
                 <span className="text-[10px] font-rounded font-semibold px-2 py-0.5 rounded-full bg-pod text-ink-muted">
-                  100% browser
+                  {lang === 'fr' ? '100 % navigateur' : '100% browser'}
                 </span>
               </div>
               <div className="flex flex-wrap gap-1.5">
@@ -873,7 +867,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] py-1.5 px-3 rounded-full text-xs font-rounded font-semibold cursor-pointer ${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary}`}
                 >
                   <Clock className="w-3.5 h-3.5" />
-                  <span>{lang === 'fr' ? 'Leave-By' : 'Leave-By'}</span>
+                  <span>{lang === 'fr' ? 'Heure de départ' : 'Leave-By'}</span>
                 </Button>
                 <Button
                   variant="ghost"

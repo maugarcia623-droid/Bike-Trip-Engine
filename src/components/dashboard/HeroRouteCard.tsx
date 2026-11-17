@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { CloudDownload } from 'lucide-react';
 import { Button } from '@/components/arc';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -25,6 +24,9 @@ import {
   Check,
   BadgeInfo,
   Radar,
+  CloudArrowDown,
+  CloudCheck,
+  ShareNetwork,
   Download,
   ShieldCheck,
   TriangleAlert,
@@ -1543,9 +1545,9 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
               {isSavingOffline ? (
                 <LoaderCircle className="w-4 h-4 shrink-0 animate-spin text-current" />
               ) : offlinePack ? (
-                <ShieldCheck className="w-4 h-4 shrink-0 text-current" />
+                <CloudCheck className="w-4 h-4 shrink-0 text-current" />
               ) : (
-                <CloudDownload className="w-4 h-4 shrink-0 text-current" />
+                <CloudArrowDown className="w-4 h-4 shrink-0 text-current" />
               )}
             </Button>
 
@@ -1564,7 +1566,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
               title={isFr ? 'Exporter ou envoyer le parcours' : 'Export or send route'}
               className={`relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 w-9 h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
-              <Download className="w-4 h-4 shrink-0 text-current" />
+              <ShareNetwork className="w-4 h-4 shrink-0 text-current" />
             </Button>
 
             {/* ── Bike Garage Popover (anchored to the unified ribbon, above all lower content) ── */}
@@ -2542,6 +2544,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   if (rect.width <= 0) return;
                   const relX = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
                   const col = Math.min(ELEV_MATRIX_COLS - 1, Math.max(0, Math.floor(relX * ELEV_MATRIX_COLS)));
+                  if (col === hoveredElevCol) return;
                   setHoveredElevCol(col);
                   setActiveSurfaceSegmentId(elevationColumns[col]?.segmentId ?? null);
                 };

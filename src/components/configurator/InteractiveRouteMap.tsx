@@ -62,7 +62,7 @@ export const InteractiveRouteMap: React.FC<InteractiveRouteMapProps> = ({
 
   const [isClickGeocoding, setIsClickGeocoding] = useState(false);
   const [lastAddedLabel, setLastAddedLabel] = useState<string | null>(null);
-  const highlightLayerRef = useRef<L.FeatureGroup | null>(null);
+  const highlightLayerRef = useRef<{ outer: L.Polyline; inner: L.Polyline } | null>(null);
 
   const canQueryFallbackOsm =
     !externalBreakdown && Boolean(coordinates && coordinates.length >= 2);
@@ -438,41 +438,47 @@ export const InteractiveRouteMap: React.FC<InteractiveRouteMapProps> = ({
     }
   }, [geometryKey]);
 
-  // Highlight active/hovered surface segment on map
+  // Highlight active/hovered surface segment on map (reuse polylines to avoid layer thrashing)
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
 
-    if (highlightLayerRef.current) {
-      highlightLayerRef.current.remove();
-      highlightLayerRef.current = null;
+    const seg = activeSurfaceSegmentId
+      ? surfaceBreakdown.segments.find((s) => s.id === activeSurfaceSegmentId)
+      : undefined;
+
+    if (!seg || !seg.coordinates || seg.coordinates.length < 2) {
+      if (highlightLayerRef.current) {
+        highlightLayerRef.current.outer.setLatLngs([]);
+        highlightLayerRef.current.inner.setLatLngs([]);
+      }
+      return;
     }
 
-    if (!activeSurfaceSegmentId) return;
-    const seg = surfaceBreakdown.segments.find((s) => s.id === activeSurfaceSegmentId);
-    if (!seg || !seg.coordinates || seg.coordinates.length < 2) return;
-
     const meta = SURFACE_VISUAL_META[seg.type];
-    const outer = L.polyline(seg.coordinates, {
-      color: isDark ? '#FFFFFF' : '#111111',
-      weight: 9,
-      opacity: 0.85,
-      lineCap: 'round',
-      lineJoin: 'round',
-    });
-    const inner = L.polyline(seg.coordinates, {
-      color: isDark ? meta.colorDark : meta.colorLight,
-      weight: 5.5,
-      opacity: 1,
-      lineCap: 'round',
-      lineJoin: 'round',
-    });
-    const fg = L.featureGroup([outer, inner]).addTo(map);
-    highlightLayerRef.current = fg;
+    const outerColor = isDark ? '#FFFFFF' : '#111111';
+    const innerColor = isDark ? meta.colorDark : meta.colorLight;
 
-    return () => {
-      fg.remove();
-    };
+    if (highlightLayerRef.current) {
+      highlightLayerRef.current.outer.setLatLngs(seg.coordinates).setStyle({ color: outerColor });
+      highlightLayerRef.current.inner.setLatLngs(seg.coordinates).setStyle({ color: innerColor });
+    } else {
+      const outer = L.polyline(seg.coordinates, {
+        color: outerColor,
+        weight: 9,
+        opacity: 0.85,
+        lineCap: 'round',
+        lineJoin: 'round',
+      }).addTo(map);
+      const inner = L.polyline(seg.coordinates, {
+        color: innerColor,
+        weight: 5.5,
+        opacity: 1,
+        lineCap: 'round',
+        lineJoin: 'round',
+      }).addTo(map);
+      highlightLayerRef.current = { outer, inner };
+    }
   }, [activeSurfaceSegmentId, surfaceBreakdown.segments, isDark]);
 
   const handleResetFit = () => {

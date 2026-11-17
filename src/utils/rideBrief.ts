@@ -122,6 +122,7 @@ function buildRideBriefCardMeta(input: {
   sectorForecast?: RouteWeatherAnalysis | null;
   finalVerdict: 'GO' | 'CAUTION' | 'NO-GO';
   lang: Language;
+  telemetryMode?: RiderBikeSpecs['telemetryMode'];
 }): Pick<
   RideBriefData,
   | 'archetypeLabel'
@@ -156,6 +157,7 @@ function buildRideBriefCardMeta(input: {
     sectorForecast,
     finalVerdict,
     lang,
+    telemetryMode,
   } = input;
 
   const isFr = lang === 'fr';
@@ -407,17 +409,28 @@ function buildRideBriefCardMeta(input: {
   }
 
   // Priority #3: Fueling & Hydration
+  const isIntuitiveFuel = telemetryMode === 'intuitive';
+  const isFuelFirstUnits = telemetryMode === 'fuel-first';
+  const fuelUnitsPerHr = Math.max(1, Math.round(carbsPerHr / 20));
   const priority3: RideBriefPriorityItem =
     carbsPerHr > 0
       ? {
           id: 'fuel-hydration',
           theme: 'orange',
           iconKey: 'fuel',
-          headline: isFr
+          headline: isIntuitiveFuel
+            ? isFr
+              ? 'Gorgée & bouchée toutes les 20 min'
+              : 'Sip & bite every 20 min'
+            : isFuelFirstUnits
+            ? isFr
+              ? `~${fuelUnitsPerHr} en-cas / h`
+              : `~${fuelUnitsPerHr} snacks / hr`
+            : isFr
             ? `Ravito régulier : ${carbsPerHr} g/h`
             : `Fuel regularly: ${carbsPerHr} g carbs/h`,
           detail:
-            totalCarbsG > 0
+            !isIntuitiveFuel && !isFuelFirstUnits && totalCarbsG > 0
               ? isFr
                 ? `${bottlesBadge} · ${totalCarbsG} g au total`
                 : `${bottlesBadge} · ${totalCarbsG} g total`
@@ -887,6 +900,7 @@ export function buildRideBrief(params: {
       sectorForecast,
       finalVerdict,
       lang: params.lang || 'en',
+      telemetryMode: riderSpecs.telemetryMode,
     }),
   };
 }

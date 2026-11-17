@@ -57,6 +57,7 @@ interface TopTelemetryBarProps {
   onMenuOpenChange?: (open: boolean) => void;
   dashboardBackTarget?: 'home' | 'trips';
   onBackFromDashboard?: () => void;
+  onOpenMobileWeather?: () => void;
 }
 
 export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
@@ -74,6 +75,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
   onMenuOpenChange,
   dashboardBackTarget = 'home',
   onBackFromDashboard,
+  onOpenMobileWeather,
 }) => {
   const { isDark, toggleTheme } = useTheme();
   const { lang, setLang, t } = useTranslation();
@@ -719,12 +721,24 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
             </span>
           </Button>
         ) : (
-          <Button
-            variant="ghost"
-            size="md"
-            onClick={() => onNavigate('home')}
-            className="lg:col-span-1 lg:justify-self-start flex items-center gap-2.5 sm:gap-3.5 min-h-[44px] p-0 hover:bg-transparent min-w-0 cursor-pointer group text-left focus:outline-none"
-          >
+          <>
+            {currentView === 'home' && onOpenMobileWeather && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onOpenMobileWeather}
+                className="md:hidden inline-flex items-center gap-2 min-h-[40px] px-3.5 rounded-full bg-card hover:bg-pod text-ink border border-ink/5 dark:border-white/5 text-xs font-semibold shadow-xs cursor-pointer active:scale-[0.98]"
+              >
+                <span className={`w-2 h-2 rounded-full shrink-0 ${statusDotClass}`} />
+                <span>{t('weatherCardTitle')}</span>
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="md"
+              onClick={() => onNavigate('home')}
+              className={`${currentView === 'home' ? 'hidden md:flex' : 'flex'} lg:col-span-1 lg:justify-self-start items-center gap-2.5 sm:gap-3.5 min-h-[44px] p-0 hover:bg-transparent min-w-0 cursor-pointer group text-left focus:outline-none`}
+            >
             <div
               className={`w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center group-hover:scale-105 transition-transform shrink-0 shadow-xs ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
@@ -754,6 +768,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
               </p>
             </div>
           </Button>
+          </>
         )}
 
         {/* Center: Live Operational Breadcrumb (Desktop) */}

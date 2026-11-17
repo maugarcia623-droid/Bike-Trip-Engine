@@ -12,8 +12,14 @@ const TILE_HOSTS = [
   'server.arcgisonline.com',
 ];
 
+const FONT_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com'];
+
 function isTileRequest(url) {
   return TILE_HOSTS.some((host) => url.hostname === host || url.hostname.endsWith(`.${host}`));
+}
+
+function isFontAsset(url) {
+  return FONT_HOSTS.some((host) => url.hostname === host || url.hostname.endsWith(`.${host}`));
 }
 
 function isStaticShellAsset(url) {
@@ -176,8 +182,8 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. Same-origin static assets: Cache-first with network fill
-  if (isStaticShellAsset(url)) {
+  // 3. Same-origin static assets & Google Fonts: Cache-first with network fill
+  if (isStaticShellAsset(url) || isFontAsset(url)) {
     event.respondWith(
       caches.open(SHELL_CACHE_NAME).then(async (cache) => {
         const cached = await cache.match(event.request);

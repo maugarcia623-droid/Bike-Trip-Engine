@@ -279,7 +279,7 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
             <p className="text-sm font-medium text-ink-secondary font-body leading-snug max-w-4xl">
               {brief.narrativeSummary}
             </p>
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 pt-1 text-[14px] font-body">
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 pt-1 text-[14px] font-rounded">
               <span className="font-bold text-ink tnum">{distLabel} km</span>
               <span className="font-bold text-ink tnum">{brief.totalDurationFormatted}</span>
               <span className="font-medium text-ink-muted tnum">
@@ -309,7 +309,7 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
                   className="shrink-0"
                 />
                 <div className="min-w-0 flex flex-col gap-0.5">
-                  <p className="text-[14px] font-bold text-ink font-body leading-[1.3]">
+                  <p className="text-[14px] font-bold text-ink font-rounded leading-[1.3]">
                     {item.headline}
                   </p>
                   <p className="text-[12px] font-medium text-ink-muted font-body leading-[1.3]">

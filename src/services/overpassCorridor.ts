@@ -18,8 +18,19 @@ const OVERPASS_ENDPOINTS = [
  * Tier 1 In-Memory + Bounded LocalStorage TTL Scan Cache.
  * Prevents re-querying Overpass for identical route spines (max 15 entries, 6h TTL in localStorage).
  */
+const SCAN_CACHE_MAX_ENTRIES = 25;
 const scanCache = new Map<string, StageAmenity[]>();
 const inFlightScans = new Map<string, Promise<StageAmenity[]>>();
+
+function setMemoryScanCache(key: string, results: StageAmenity[]): void {
+  if (scanCache.has(key)) {
+    scanCache.delete(key);
+  } else if (scanCache.size >= SCAN_CACHE_MAX_ENTRIES) {
+    const oldestKey = scanCache.keys().next().value;
+    if (oldestKey !== undefined) scanCache.delete(oldestKey);
+  }
+  scanCache.set(key, results);
+}
 
 const OVERPASS_LS_PREFIX = 'cadence_overpass_v1_';
 const OVERPASS_LS_MAX_ENTRIES = 15;
@@ -145,11 +156,16 @@ export function getRouteHashKey(
 
 export function getCachedScan(key: string): StageAmenity[] | undefined {
   const mem = scanCache.get(key);
-  if (mem) return mem;
+  if (mem) {
+    // Touch LRU order
+    scanCache.delete(key);
+    scanCache.set(key, mem);
+    return mem;
+  }
 
   const ls = readLocalStorageScan(key);
   if (ls) {
-    scanCache.set(key, ls);
+    setMemoryScanCache(key, ls);
     return ls;
   }
   return undefined;
@@ -170,7 +186,7 @@ export function subscribeScanCache(listener: ScanCacheListener): () => void {
 }
 
 export function setCachedScan(key: string, results: StageAmenity[]): void {
-  scanCache.set(key, results);
+  setMemoryScanCache(key, results);
   writeLocalStorageScan(key, results);
   void saveAmenitiesToIdb(key, results);
   scanCacheListeners.forEach((listener) => listener(key));
@@ -302,20 +318,26 @@ export function buildOverpassQuery(coordinates: [number, number][]): string {
   node["amenity"="grave_yard"];
   way["amenity"="grave_yard"];
   node["shop"="bakery"];
+  way["shop"="bakery"];
   node["shop"="supermarket"];
+  way["shop"="supermarket"];
   node["shop"="convenience"];
+  way["shop"="convenience"];
   node["amenity"="cafe"];
+  node["amenity"~"^(restaurant|pub)$"];
   node["shop"="bicycle"];
   node["amenity"="bicycle_repair_station"];
   node["amenity"="shelter"];
   way["amenity"="shelter"];
+  node["tourism"~"^(camp_site|alpine_hut)$"];
+  way["tourism"~"^(camp_site|alpine_hut)$"];
   node["amenity"="toilets"];
   node["amenity"="fuel"];
   way["amenity"="fuel"];
   node["amenity"="pharmacy"];
   node["railway"~"^(station|halt)$"];
 );
-out center qt 260;`;
+out center qt 500;`;
 }
 
 /**
@@ -432,7 +454,9 @@ function parseOsmAmenity(
     tags.shop === 'bakery' ||
     tags.shop === 'supermarket' ||
     tags.shop === 'convenience' ||
-    tags.amenity === 'cafe'
+    tags.amenity === 'cafe' ||
+    tags.amenity === 'restaurant' ||
+    tags.amenity === 'pub'
   ) {
     category = 'food';
     subType = tags.shop || tags.amenity;
@@ -440,20 +464,26 @@ function parseOsmAmenity(
       fallbackName = isFr ? 'Boulangerie artisanale' : 'Bakery';
     } else if (subType === 'cafe') {
       fallbackName = isFr ? 'Café / Étape' : 'Café / Bistro';
+    } else if (subType === 'restaurant' || subType === 'pub') {
+      fallbackName = isFr ? 'Auberge / Restaurant' : 'Village Inn / Restaurant';
     } else {
       fallbackName = isFr ? 'Alimentation / Épicerie' : 'Supermarket / Grocery';
     }
   } else if (
     tags.shop === 'bicycle' ||
     tags.amenity === 'bicycle_repair_station' ||
-    tags.amenity === 'shelter'
+    tags.amenity === 'shelter' ||
+    tags.tourism === 'camp_site' ||
+    tags.tourism === 'alpine_hut'
   ) {
     category = 'mechanix';
-    subType = tags.shop || tags.amenity;
+    subType = tags.shop || tags.amenity || tags.tourism;
     if (subType === 'bicycle') {
       fallbackName = isFr ? 'Magasin & Atelier vélo' : 'Bicycle Shop';
     } else if (subType === 'bicycle_repair_station') {
       fallbackName = isFr ? 'Station gonflage & outils' : 'Bike Repair Station';
+    } else if (subType === 'camp_site' || subType === 'alpine_hut') {
+      fallbackName = isFr ? 'Bivouac / Refuge' : 'Campsite / Refuge';
     } else {
       fallbackName = isFr ? 'Abri & Refuge' : 'Trail Shelter';
     }

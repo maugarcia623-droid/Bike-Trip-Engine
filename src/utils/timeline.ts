@@ -663,7 +663,7 @@ export function calculateReverseTimeline(
         fuelStep.description = isQuant
           ? isFr
             ? `Apport régulier calibré sur votre tolérance digestive (${riderCarbs} g/h) + recharge sodium 500–750 mg pour éviter toute fringale.`
-            : `Steady fueling calibrated to your gut capacity (${riderCarbs} g/h) + 500–750 mg sodium reload to prevent bonking and cramping.`
+            : `Steady fueling calibrated to your carb target (${riderCarbs} g/h) + 500–750 mg sodium reload to prevent bonking and cramping.`
           : isFr
           ? `Apport régulier calibré sur votre confort digestif (${fuelRateText}) + boisson électrolytes pour éviter le coup de mou.`
           : `Steady fueling calibrated to your digestion comfort (${fuelRateText}) + electrolyte sips to prevent energy dips.`;

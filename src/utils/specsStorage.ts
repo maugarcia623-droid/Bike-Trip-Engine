@@ -181,15 +181,20 @@ export function normalizeRiderBikeSpecs(parsed: Partial<RiderBikeSpecs> | Record
   };
 }
 
+let cachedSpecs: RiderBikeSpecs | null = null;
+
 export function loadRiderBikeSpecs(): RiderBikeSpecs {
+  if (cachedSpecs) return cachedSpecs;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
       localStorage.setItem(GARAGE_SEEDED_KEY, 'true');
-      return DEFAULT_RIDER_BIKE_SPECS;
+      cachedSpecs = DEFAULT_RIDER_BIKE_SPECS;
+      return cachedSpecs;
     }
     const parsed = JSON.parse(raw);
-    return normalizeRiderBikeSpecs(parsed);
+    cachedSpecs = normalizeRiderBikeSpecs(parsed);
+    return cachedSpecs;
   } catch (e) {
     console.error('Failed to load rider & bike specs:', e);
     return DEFAULT_RIDER_BIKE_SPECS;
@@ -197,8 +202,9 @@ export function loadRiderBikeSpecs(): RiderBikeSpecs {
 }
 
 export function saveRiderBikeSpecs(specs: RiderBikeSpecs): void {
+  cachedSpecs = normalizeRiderBikeSpecs(specs);
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(specs));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedSpecs));
     localStorage.setItem(GARAGE_SEEDED_KEY, 'true');
   } catch (e) {
     console.error('Failed to save rider & bike specs:', e);

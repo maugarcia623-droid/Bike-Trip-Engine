@@ -443,7 +443,7 @@ export function exportTripToGpx(trip: TripProfile): string {
     trip.name || `${trip.route.origin || 'Start'} → ${trip.route.destination || 'Finish'}`;
   const description =
     trip.description ||
-    `${trip.route.distanceKm} km ride · Planned with Cadence Cockpit (bike-trip-engine)`;
+    `${trip.route.distanceKm} km ride · Planned with Cadence (bike-trip-engine)`;
   const time = points.length > 0 ? points[0].timestamp : new Date().toISOString();
 
   const wptXml = buildStageWaypointsXml({
@@ -466,7 +466,7 @@ export function exportTripToGpx(trip: TripProfile): string {
   const trkptsXml = buildTrackPointsXml(points);
 
   return `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="Cadence Cockpit - bike-trip-engine"
+<gpx version="1.1" creator="Cadence - bike-trip-engine"
   xmlns="http://www.topografix.com/GPX/1/1"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
@@ -548,7 +548,7 @@ export function exportEntireTourToGpx(trip: TripProfile): string {
   });
 
   return `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="Cadence Cockpit - Tour Engine"
+<gpx version="1.1" creator="Cadence - Tour Engine"
   xmlns="http://www.topografix.com/GPX/1/1"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">

@@ -356,7 +356,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                             : 'text-ink-muted hover:text-ink'
                         }`}
                       >
-                        {isFr ? 'Guidé (Calme)' : 'Guided (Calm)'}
+                        {isFr ? 'Vue guidée' : 'Guided view'}
                       </Button>
                       <Button variant="ghost"
                         type="button"
@@ -369,7 +369,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                             : 'text-ink-muted hover:text-ink'
                         }`}
                       >
-                        {isFr ? 'Pro (Technique)' : 'Pro (Data)'}
+                        {isFr ? 'Mode Pro (Données)' : 'Pro mode (Data)'}
                       </Button>
                     </div>
                   </div>

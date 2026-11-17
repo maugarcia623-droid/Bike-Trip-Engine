@@ -32,13 +32,17 @@ import {
 } from './context/LanguageContext';
 import { TopTelemetryBar } from './components/navigation/TopTelemetryBar';
 import { DynamicIslandNav } from './components/navigation/DynamicIslandNav';
-import { HomeScreen } from './components/home/HomeScreen';
-import { BentoDashboard } from './components/dashboard/BentoDashboard';
 import { DashboardEmptyState } from './components/dashboard/DashboardEmptyState';
 import { FeedbackModal } from './components/FeedbackModal';
 import { ShareTelemetryModal } from './components/ShareTelemetryModal';
 import type { FreeWebToolTab } from './components/tools/FreeWebToolsView';
 
+const HomeScreen = React.lazy(() =>
+  import('./components/home/HomeScreen').then((m) => ({ default: m.HomeScreen }))
+);
+const BentoDashboard = React.lazy(() =>
+  import('./components/dashboard/BentoDashboard').then((m) => ({ default: m.BentoDashboard }))
+);
 const ConfiguratorScreen = React.lazy(() =>
   import('./components/configurator/ConfiguratorScreen').then((m) => ({ default: m.ConfiguratorScreen }))
 );
@@ -210,6 +214,7 @@ function AppContent() {
   }, [user]);
 
   const [homeMobileView, setHomeMobileView] = useState<'home' | 'trips'>('home');
+  const [isMobileWeatherOpen, setIsMobileWeatherOpen] = useState(false);
   const tripsScrollYRef = React.useRef<number>(0);
   const [currentView, setCurrentView] = useState<'home' | 'configurator' | 'dashboard' | 'tools'>(() => {
     if (typeof window !== 'undefined') {
@@ -1002,6 +1007,7 @@ function AppContent() {
         activeTrip={activeTrip}
         currentView={currentView}
         dashboardBackTarget={homeMobileView}
+        onOpenMobileWeather={homeMobileView === 'home' ? () => setIsMobileWeatherOpen(true) : undefined}
         onBackFromDashboard={() => {
           setCurrentView('home');
           if (homeMobileView === 'trips' && typeof window !== 'undefined') {
@@ -1034,7 +1040,8 @@ function AppContent() {
       {/* Screen Views (with ample bottom padding for the floating navigation island & iOS safe area) */}
       <main className="flex-1 min-w-0 w-full max-w-full pb-[calc(8rem+env(safe-area-inset-bottom,0px))] sm:pb-40 print:hidden no-print">
         {currentView === 'home' && (
-          <HomeScreen
+          <Suspense fallback={<ViewLoadingFallback />}>
+            <HomeScreen
             trips={trips}
             activeTrip={activeTrip}
             onSelectTrip={handleSelectTrip}
@@ -1052,7 +1059,10 @@ function AppContent() {
             riderSpecs={riderSpecs}
             mobileView={homeMobileView}
             onMobileViewChange={setHomeMobileView}
+            isMobileWeatherOpen={isMobileWeatherOpen}
+            onMobileWeatherOpenChange={setIsMobileWeatherOpen}
           />
+          </Suspense>
         )}
 
         {currentView === 'configurator' && (
@@ -1090,25 +1100,27 @@ function AppContent() {
                 saveTrips(freshPresets);
               }}
             >
-              <BentoDashboard
-                trip={activeTrip}
-                onUpdateTrip={handleUpdateActiveTrip}
-                onToggleHeadwind={handleToggleHeadwind}
-                onPrint={handlePrint}
-                riderSpecs={riderSpecs}
-                onUpdateRiderSpecs={handleSaveRiderSpecs}
-                onSelectBike={handleQuickSelectBike}
-                onOpenSpecs={() => setIsSpecsModalOpen(true)}
-                onOpenConfigurator={() => handleEditTrip(activeTrip)}
-                onShareReceipt={() => setIsShareModalOpen(true)}
-                onOpenFeedback={() => setIsFeedbackModalOpen(true)}
-                isRideBriefOpen={isRideBriefOpen}
-                onOpenRideBrief={() => setIsRideBriefOpen(true)}
-                onCloseRideBrief={() => setIsRideBriefOpen(false)}
-                onOpenTools={(tab) => handleOpenTools(tab || 'wind')}
-                sharedPlanBanner={sharedPlanBanner}
-                onDismissSharedPlanBanner={() => setSharedPlanBanner(null)}
-              />
+              <Suspense fallback={<ViewLoadingFallback />}>
+                <BentoDashboard
+                  trip={activeTrip}
+                  onUpdateTrip={handleUpdateActiveTrip}
+                  onToggleHeadwind={handleToggleHeadwind}
+                  onPrint={handlePrint}
+                  riderSpecs={riderSpecs}
+                  onUpdateRiderSpecs={handleSaveRiderSpecs}
+                  onSelectBike={handleQuickSelectBike}
+                  onOpenSpecs={() => setIsSpecsModalOpen(true)}
+                  onOpenConfigurator={() => handleEditTrip(activeTrip)}
+                  onShareReceipt={() => setIsShareModalOpen(true)}
+                  onOpenFeedback={() => setIsFeedbackModalOpen(true)}
+                  isRideBriefOpen={isRideBriefOpen}
+                  onOpenRideBrief={() => setIsRideBriefOpen(true)}
+                  onCloseRideBrief={() => setIsRideBriefOpen(false)}
+                  onOpenTools={(tab) => handleOpenTools(tab || 'wind')}
+                  sharedPlanBanner={sharedPlanBanner}
+                  onDismissSharedPlanBanner={() => setSharedPlanBanner(null)}
+                />
+              </Suspense>
             </CockpitErrorBoundary>
           )
         )}

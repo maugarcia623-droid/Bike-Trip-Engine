@@ -792,7 +792,7 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
       </div>
 
       {/* 1. 3-Tap Interactive Mad-Libs Sentence Composer */}
-      <div ref={composerRef} className="relative z-20 pt-0.5">
+      <div ref={composerRef} className="relative z-40 pt-0.5">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-2.5 text-[15px] sm:text-[17px] font-rounded font-medium text-ink leading-relaxed">
           <span>{isFr ? 'Je pars sur une' : 'I want a'}</span>
 
@@ -1086,7 +1086,7 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
                         setPacePreset('custom');
                         setPaceManuallySet(true);
                       }}
-                      className="w-full accent-teal-600 dark:accent-teal-400 cursor-pointer"
+                      className="w-full peloton-slider accent-teal-600 dark:accent-teal-400 cursor-pointer"
                     />
                   </div>
                 </div>
