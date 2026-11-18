@@ -150,13 +150,13 @@ function formatHours(h: number): string {
 // ── factor scorers ─────────────────────────────────────────────────────────
 
 function scoreWeather(w: RideReadinessInput['weather'], isFr: boolean) {
-  const rainPen = w.rainRiskPct <= 20 ? 0 : (w.rainRiskPct - 20) * 0.7; // 60% → 28, 100% → 56
-  const gustPen = clamp((w.gustKmH - 25) * 1.5, 0, 50); // 40 → 22, 55 → 45
-  const basePen = clamp((w.baseWindKmH - 15) * 1.6, 0, 45); // 25 → 16, 32 → 27
-  const headPen = clamp((w.headwindKmH - 12) * 0.8, 0, 16);
-  const windPen = Math.max(gustPen, basePen) + headPen * 0.5;
+  const rainPen = w.rainRiskPct <= 5 ? 0 : (w.rainRiskPct - 5) * 0.65; // 20% → 10, 60% → 36, 100% → 62
+  const gustPen = clamp((w.gustKmH - 18) * 1.25, 0, 50); // 25 → 9, 40 → 27.5, 58 → 50
+  const basePen = clamp((w.baseWindKmH - 10) * 1.4, 0, 45); // 15 → 7, 25 → 21, 32 → 31
+  const headPen = clamp((w.headwindKmH - 8) * 0.7, 0, 18);
+  const windPen = Math.max(gustPen, basePen) + headPen * 0.45;
   const t = w.feelsLikeC;
-  const tempPen = t < 8 ? clamp((8 - t) * 3.5, 0, 45) : t > 26 ? clamp((t - 26) * 4, 0, 45) : 0;
+  const tempPen = t < 12 ? clamp((12 - t) * 2.2, 0, 40) : t > 24 ? clamp((t - 24) * 3.2, 0, 40) : 0;
   const score = clamp(100 - (rainPen + windPen + tempPen));
 
   const parts: string[] = [];
@@ -278,11 +278,11 @@ function scoreEffort(e: RideReadinessInput['effort'], isFr: boolean) {
   const tss = Math.round(hours * IF * IF * 100);
   const levelFactor = e.riderLevel === 'pro' ? 1.5 : e.riderLevel === 'occasional' ? 0.7 : 1;
 
-  // Sustained intensity above sweet-spot is hard to hold — scaled by how long you hold it.
-  const intensityPen = Math.max(0, IF - 0.85) * 200 * clamp(hours, 0.5, 1.5);
-  // Overall load (TSS): comfortable up to ~150 for a regular rider.
-  const loadStart = 150 * levelFactor;
-  const loadPen = clamp((tss - loadStart) * (0.25 / levelFactor), 0, 55);
+  // Sustained intensity above endurance (0.70 IF) scales with duration.
+  const intensityPen = Math.max(0, IF - 0.70) * 135 * clamp(hours, 0.5, 1.5);
+  // Overall load (TSS): comfortable up to ~70 for a regular rider, then scales smoothly.
+  const loadStart = 70 * levelFactor;
+  const loadPen = clamp((tss - loadStart) * (0.24 / levelFactor), 0, 55);
   const score = clamp(100 - (intensityPen + loadPen));
 
   const zone = e.powerZone ? `${e.powerZone} · ` : '';
@@ -421,21 +421,17 @@ export function computeRideReadiness(input: RideReadinessInput): RideReadiness {
   let score = Math.round(weighted);
   let capReason: string | undefined;
 
-  // Weakest-link caps: one badly-off factor stops a "Good to go".
+  // Smooth weakest-link drag: a low factor (< 50) pulls the score down proportionally
+  // instead of snapping to a hard ceiling (44 / 74), preserving granularity.
   const applicable = factors.filter((f) => f.applicable);
   const weakest = applicable.reduce((m, f) => (f.score < m.score ? f : m), applicable[0]);
-  if (weakest) {
-    const cap =
-      weakest.score < 15
-        ? READINESS_BANDS['needs-change'].max
-        : weakest.score < 35
-        ? READINESS_BANDS['worth-tweak'].max
-        : 100;
-    if (score > cap) {
-      score = cap;
+  if (weakest && weakest.score < 50) {
+    const drag = Math.round((50 - weakest.score) * 0.45);
+    if (drag >= 2) {
+      score = Math.max(weakest.score, score - drag);
       capReason = isFr
-        ? `Plafonné par ${weakest.label.toLowerCase()} (${weakest.score}/100)`
-        : `Held back by ${weakest.label.toLowerCase()} (${weakest.score}/100)`;
+        ? `Freiné par ${weakest.label.toLowerCase()} (${weakest.score}/100)`
+        : `Pulled down by ${weakest.label.toLowerCase()} (${weakest.score}/100)`;
     }
   }
   if (input.goStatus === 'NO-GO' && score > 40) {

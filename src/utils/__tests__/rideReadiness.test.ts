@@ -90,10 +90,10 @@ describe('rideReadiness.ts', () => {
     assert.ok(r.score <= 40);
   });
 
-  it('weakest-link cap keeps one terrible factor from reading "Good to go"', () => {
+  it('weakest-link drag pulls down the score proportionally without snapping to a flat cap', () => {
     const r = computeRideReadiness(makeInput({ route: { worstSeverity: 'critical', issueCount: 3 } }));
-    // Route is only 10% weight, but a critical blocker (score < 35) caps at 74.
-    assert.ok(r.score <= 74, `score ${r.score}`);
+    // Route is only 10% weight, but a critical blocker (score 18) drags the total down proportionally.
+    assert.ok(r.score < 85 && r.score > 74, `score ${r.score}`);
     assert.ok(r.capReason);
   });
 

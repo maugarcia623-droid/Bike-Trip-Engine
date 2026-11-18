@@ -24,6 +24,14 @@ import {
 } from '../../types/specs';
 import { saveRiderBikeSpecs, getActiveBike } from '../../utils/specsStorage';
 import { saveUserProfile } from '../../utils/userProfileStorage';
+import {
+  disconnectStravaAccount,
+  fetchStravaConnectionStatus,
+  getCachedStravaStatus,
+  startStravaOAuthConnect,
+  StravaConnectionStatus,
+  subscribeStravaStatus,
+} from '../../services/stravaIntegration';
 import { useTranslation } from '../../context/LanguageContext';
 import { IconBadge } from '../common/IconBadge';
 import { Badge } from '../common/Badge';
@@ -57,6 +65,15 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
   const [activeTab, setActiveTab] = useState<'rider' | 'bike' | 'pantry'>('rider');
   const [showFtpEstimator, setShowFtpEstimator] = useState(false);
   const [showAdvancedBike, setShowAdvancedBike] = useState(false);
+  const [stravaStatus, setStravaStatus] = useState<StravaConnectionStatus>(() =>
+    getCachedStravaStatus()
+  );
+  const [isDisconnectingStrava, setIsDisconnectingStrava] = useState(false);
+
+  useEffect(() => {
+    const unsub = subscribeStravaStatus(() => setStravaStatus(getCachedStravaStatus()));
+    return unsub;
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -64,6 +81,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
       setActiveTab('rider');
       setShowFtpEstimator(false);
       setShowAdvancedBike(false);
+      void fetchStravaConnectionStatus().then((status) => setStravaStatus(status));
     }
   }, [isOpen, specs]);
 
@@ -913,6 +931,63 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                   </span>
                   <span className="text-[11px] text-ink-muted">→</span>
                 </Button>
+
+                {/* Connected Apps: Strava OAuth */}
+                <div className="p-3.5 rounded-pod bg-card space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="text-xs font-rounded font-bold text-ink flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-[#FC4C02] shrink-0" />
+                        <span>{isFr ? 'Applications connectées' : 'Connected Apps'}</span>
+                      </div>
+                      <p className="text-[11px] text-ink-muted mt-0.5 leading-snug">
+                        {stravaStatus.connected
+                          ? isFr
+                            ? `Strava connecté (${stravaStatus.athleteName || 'Athlète'}) — import direct des parcours`
+                            : `Strava connected (${stravaStatus.athleteName || 'Rider'}) — direct route import enabled`
+                          : isFr
+                          ? 'Connectez Strava pour importer vos liens de parcours en 1 clic.'
+                          : 'Connect Strava to import route links directly in 1 click.'}
+                      </p>
+                      {stravaStatus.error && !stravaStatus.connected && (
+                        <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">
+                          {stravaStatus.error === 'missing_strava_secrets'
+                            ? isFr
+                              ? 'Clés API Strava manquantes dans Supabase (STRAVA_CLIENT_ID / STRAVA_CLIENT_SECRET).'
+                              : 'Strava API keys not configured in Supabase secrets yet.'
+                            : isFr
+                            ? `Connexion Strava interrompue (${stravaStatus.error}).`
+                            : `Strava connection failed (${stravaStatus.error}).`}
+                        </p>
+                      )}
+                    </div>
+
+                    {stravaStatus.connected ? (
+                      <Button
+                        variant="ghost"
+                        type="button"
+                        disabled={isDisconnectingStrava}
+                        onClick={async () => {
+                          setIsDisconnectingStrava(true);
+                          await disconnectStravaAccount();
+                          setIsDisconnectingStrava(false);
+                        }}
+                        className="min-h-[44px] sm:min-h-[34px] px-3.5 rounded-full bg-pod hover:bg-chip text-xs font-rounded font-semibold text-ink-secondary hover:text-ink shrink-0 cursor-pointer"
+                      >
+                        {isFr ? 'Déconnecter' : 'Disconnect'}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        type="button"
+                        onClick={startStravaOAuthConnect}
+                        className="min-h-[44px] sm:min-h-[34px] px-3.5 rounded-full bg-[#FC4C02] hover:bg-[#e54400] text-white text-xs font-rounded font-semibold shrink-0 cursor-pointer transition-colors"
+                      >
+                        {isFr ? 'Connecter Strava' : 'Connect Strava'}
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>

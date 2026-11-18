@@ -1,5 +1,7 @@
 import { GpxParseResult, parseGpxFileContent } from './gpxParser';
 import { parseFitFileBuffer, parseTcxFileContent } from './routeFileParser';
+import { isSupabaseConfigured, supabase } from '../services/supabase';
+import { getOrCreateIntegrationConnectionKey } from '../services/stravaIntegration';
 
 export type RouteUrlProvider = 'komoot' | 'bikemap' | 'ridewithgps' | 'strava' | 'direct-file' | 'unknown';
 
@@ -12,6 +14,21 @@ export interface RouteUrlImportOutcome {
   guidanceEn?: string;
   guidanceFr?: string;
 }
+
+export interface RouteProxyPayload {
+  ok?: boolean;
+  provider?: RouteUrlProvider;
+  routeId?: string;
+  format?: 'gpx' | 'tcx' | 'fit';
+  fileName?: string;
+  content?: string;
+  contentBase64?: string;
+  reason?: string;
+}
+
+export type RouteProxyInvoker = (
+  url: string
+) => Promise<{ data: RouteProxyPayload | null; error: unknown }>;
 
 export function detectRouteUrlProvider(rawUrl: string): {
   provider: RouteUrlProvider;
@@ -55,13 +72,115 @@ export function detectRouteUrlProvider(rawUrl: string): {
   return { provider: 'unknown', url: parsedUrl };
 }
 
+function escapeXml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+export function convertTrackPointsToGpx(
+  points: Array<{ lat: number; lon: number; ele?: number }>,
+  name = 'Cadence Route'
+): string {
+  const trkpts = points
+    .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lon))
+    .map((p) => {
+      const eleTag = Number.isFinite(p.ele) ? `<ele>${Number(p.ele).toFixed(1)}</ele>` : '';
+      return `      <trkpt lat="${p.lat.toFixed(6)}" lon="${p.lon.toFixed(6)}">${eleTag}</trkpt>`;
+    })
+    .join('\n');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Cadence Route Proxy" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>${escapeXml(name)}</name>
+    <trkseg>
+${trkpts}
+    </trkseg>
+  </trk>
+</gpx>`;
+}
+
+function base64ToArrayBuffer(b64: string): ArrayBuffer {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
+export function parseProxyRoutePayload(
+  payload: RouteProxyPayload | null | undefined,
+  fallbackProvider: RouteUrlProvider,
+  fallbackRouteId?: string
+): RouteUrlImportOutcome | null {
+  if (!payload || !payload.ok) return null;
+
+  const provider = payload.provider || fallbackProvider;
+  const routeId = payload.routeId ?? fallbackRouteId;
+  const format = payload.format;
+
+  if (format === 'fit' && payload.contentBase64) {
+    const fileName = payload.fileName || `${provider}-${routeId || 'route'}.fit`;
+    const buf = base64ToArrayBuffer(payload.contentBase64);
+    return {
+      ok: true,
+      provider,
+      routeId,
+      fileName,
+      parsed: parseFitFileBuffer(buf, fileName),
+    };
+  }
+
+  if (format === 'tcx' && payload.content) {
+    const fileName = payload.fileName || `${provider}-${routeId || 'route'}.tcx`;
+    return {
+      ok: true,
+      provider,
+      routeId,
+      fileName,
+      parsed: parseTcxFileContent(payload.content, fileName),
+    };
+  }
+
+  if (payload.content && (format === 'gpx' || /<gpx\b/i.test(payload.content))) {
+    const fileName = payload.fileName || `${provider}-${routeId || 'route'}.gpx`;
+    return {
+      ok: true,
+      provider,
+      routeId,
+      fileName,
+      parsed: parseGpxFileContent(payload.content, fileName),
+    };
+  }
+
+  return null;
+}
+
+async function defaultProxyInvoker(
+  url: string
+): Promise<{ data: RouteProxyPayload | null; error: unknown }> {
+  const connectionKey = getOrCreateIntegrationConnectionKey();
+  const { data, error } = await supabase.functions.invoke<RouteProxyPayload>('route-proxy', {
+    body: { url, connectionKey },
+  });
+  return { data: data ?? null, error };
+}
+
 /**
  * Attempts to import a route from a pasted URL (direct .gpx/.tcx/.fit URL or
- * Komoot / Bikemap / RideWithGPS / Strava share link). When browser CORS or
- * private route auth blocks direct fetching, returns structured guidance so
- * the user can export GPX/FIT from that app and drop or share it into Cadence.
+ * Komoot / Bikemap / RideWithGPS / Strava share link). Uses the Supabase
+ * `route-proxy` Edge Function first to bypass browser CORS restrictions, then
+ * falls back to direct fetching or clear provider guidance when private/auth-locked.
  */
-export async function importRouteFromUrl(rawInput: string): Promise<RouteUrlImportOutcome> {
+export async function importRouteFromUrl(
+  rawInput: string,
+  options?: { proxyInvoker?: RouteProxyInvoker }
+): Promise<RouteUrlImportOutcome> {
   const { provider, url, routeId } = detectRouteUrlProvider(rawInput);
 
   if (!url) {
@@ -71,6 +190,19 @@ export async function importRouteFromUrl(rawInput: string): Promise<RouteUrlImpo
       guidanceEn: 'Paste a valid https:// route link from Komoot, Bikemap, Ride with GPS, or a direct .gpx/.tcx/.fit URL.',
       guidanceFr: 'Collez un lien https:// valide depuis Komoot, Bikemap, Ride with GPS ou un fichier .gpx/.tcx/.fit.',
     };
+  }
+
+  const invoker = options?.proxyInvoker ?? (isSupabaseConfigured ? defaultProxyInvoker : null);
+  if (invoker) {
+    try {
+      const { data, error } = await invoker(url.toString());
+      if (!error && data?.ok) {
+        const outcome = parseProxyRoutePayload(data, provider, routeId);
+        if (outcome) return outcome;
+      }
+    } catch {
+      // Cloud helper unavailable or returned non-importable route; fall through
+    }
   }
 
   const candidateEndpoints: string[] = [];
@@ -147,11 +279,21 @@ export async function importRouteFromUrl(rawInput: string): Promise<RouteUrlImpo
   };
   const label = labelMap[provider];
 
+  if (provider === 'strava') {
+    return {
+      ok: false,
+      provider,
+      routeId,
+      guidanceEn: 'Strava routes require account connection or manual export. In Strava, tap Export GPX / FIT and drop or share the file here.',
+      guidanceFr: 'Les parcours Strava nécessitent une connexion au compte ou un export manuel. Dans Strava, exportez le fichier .GPX ou .FIT puis déposez-le ici.',
+    };
+  }
+
   return {
     ok: false,
     provider,
     routeId,
-    guidanceEn: `${label} blocks direct browser download on shared links (CORS/auth). In ${label}, tap Export GPX / FIT and drop or share the file here.`,
-    guidanceFr: `${label} bloque le téléchargement direct dans le navigateur (CORS/compte). Dans ${label}, exportez le fichier .GPX ou .FIT puis déposez-le ou partagez-le ici.`,
+    guidanceEn: `${label} could not be fetched automatically (route may be private or require sign-in). In ${label}, tap Export GPX / FIT and drop or share the file here.`,
+    guidanceFr: `${label} n'a pas pu être importé automatiquement (parcours privé ou protégé). Dans ${label}, exportez le fichier .GPX ou .FIT puis déposez-le ou partagez-le ici.`,
   };
 }

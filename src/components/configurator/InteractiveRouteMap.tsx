@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import { useTheme } from '../../context/ThemeContext';
 import { useTranslation } from '../../context/LanguageContext';
 import { Plus, X, SpinnerGap, MapPin, Compass } from '@/components/icons';
+import { Maximize2, Minimize2 } from 'lucide-react';
 import { reverseGeocodeLocation } from '../../services/locationService';
 import { SurfaceBreakdown, SurfaceSegment } from '../../types/trip';
 import { computeSurfaceBreakdown, SURFACE_VISUAL_META } from '../../utils/surfaceProfile';
@@ -62,7 +63,34 @@ export const InteractiveRouteMap: React.FC<InteractiveRouteMapProps> = ({
 
   const [isClickGeocoding, setIsClickGeocoding] = useState(false);
   const [lastAddedLabel, setLastAddedLabel] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const highlightLayerRef = useRef<{ outer: L.Polyline; inner: L.Polyline } | null>(null);
+
+  // Fullscreen: Escape key to exit, body scroll lock, and Leaflet resize
+  useEffect(() => {
+    if (!isFullscreen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsFullscreen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isFullscreen]);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    const timer = setTimeout(() => {
+      map.invalidateSize({ animate: false });
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [isFullscreen]);
 
   const canQueryFallbackOsm =
     !externalBreakdown && Boolean(coordinates && coordinates.length >= 2);
@@ -500,13 +528,21 @@ export const InteractiveRouteMap: React.FC<InteractiveRouteMapProps> = ({
   };
 
   return (
-    <div className={`relative rounded-pod overflow-hidden ${className}`}>
+    <div
+      className={
+        isFullscreen
+          ? 'fixed inset-0 z-[100] bg-card overflow-hidden'
+          : `relative rounded-pod overflow-hidden ${className}`
+      }
+    >
       {/* Map Container */}
-      <div
-        ref={mapContainerRef}
-        className="w-full h-56 sm:h-72 cursor-crosshair z-0"
-        title={t('clickMapToAddWaypointPrompt')}
-      />
+      <div className={isFullscreen ? 'w-full h-full' : 'w-full h-56 sm:h-72'}>
+        <div
+          ref={mapContainerRef}
+          className="w-full h-full cursor-crosshair z-0"
+          title={t('clickMapToAddWaypointPrompt')}
+        />
+      </div>
 
       {/* Top Floating Prompt & Click Banner (offset from top-left Leaflet zoom controls) */}
       <div className="absolute top-2.5 left-14 right-2.5 z-10 pointer-events-none flex items-center justify-between gap-2">
@@ -521,16 +557,54 @@ export const InteractiveRouteMap: React.FC<InteractiveRouteMapProps> = ({
           </span>
         </div>
 
-        {/* Fit Bounds Quick Button */}
-        <Button variant="ghost"
-          type="button"
-          onClick={handleResetFit}
-          className="pointer-events-auto bg-card/90 dark:bg-card/90 backdrop-blur-md min-h-[40px] px-3 py-1.5 rounded-full shadow-md text-[11px] font-semibold text-ink-secondary hover:text-ink hover:bg-card transition-all cursor-pointer flex items-center gap-1 shrink-0"
-          title={isFr ? 'Recentrer sur l’itinéraire' : 'Fit route bounds'}
-        >
-          <Compass className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">{isFr ? 'Recentrer' : 'Recenter'}</span>
-        </Button>
+        {/* Fit Bounds & Fullscreen Quick Buttons */}
+        <div className="pointer-events-auto flex items-center gap-1.5 shrink-0">
+          <Button variant="ghost"
+            type="button"
+            onClick={handleResetFit}
+            className="bg-card/90 dark:bg-card/90 backdrop-blur-md min-h-[40px] px-3 py-1.5 rounded-full shadow-md text-[11px] font-semibold text-ink-secondary hover:text-ink hover:bg-card transition-all cursor-pointer flex items-center gap-1"
+            title={isFr ? 'Recentrer sur l’itinéraire' : 'Fit route bounds'}
+          >
+            <Compass className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{isFr ? 'Recentrer' : 'Recenter'}</span>
+          </Button>
+
+          <Button variant="ghost"
+            type="button"
+            onClick={() => setIsFullscreen((prev) => !prev)}
+            className="bg-card/90 dark:bg-card/90 backdrop-blur-md min-h-[40px] px-3 py-1.5 rounded-full shadow-md text-[11px] font-semibold text-ink-secondary hover:text-ink hover:bg-card transition-all cursor-pointer flex items-center gap-1"
+            title={
+              isFullscreen
+                ? isFr
+                  ? 'Quitter le plein écran (Échap)'
+                  : 'Exit fullscreen (Esc)'
+                : isFr
+                ? 'Plein écran'
+                : 'Fullscreen'
+            }
+            aria-label={
+              isFullscreen
+                ? isFr
+                  ? 'Quitter le plein écran'
+                  : 'Exit fullscreen'
+                : isFr
+                ? 'Plein écran'
+                : 'Fullscreen'
+            }
+          >
+            {isFullscreen ? (
+              <>
+                <Minimize2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{isFr ? 'Réduire' : 'Exit'}</span>
+              </>
+            ) : (
+              <>
+                <Maximize2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{isFr ? 'Plein écran' : 'Fullscreen'}</span>
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Bottom-Left Surface Color Legend Pill */}

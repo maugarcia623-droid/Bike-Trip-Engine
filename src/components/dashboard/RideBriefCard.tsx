@@ -282,14 +282,14 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
       <Collapsible open={isExpanded} id="ride-brief-body" innerClassName="pt-4 md:pt-3.5">
         {/* Top Row: Leave-By Volt Pod + Natural-Language Ride Guidance */}
         <div className="grid grid-cols-1 md:grid-cols-[200px_minmax(0,1fr)] xl:grid-cols-[208px_minmax(0,1fr)_320px] md:items-center gap-4 md:gap-5">
-          <div className="w-full shrink-0 rounded-pod bg-volt text-[#111111] px-4 py-3.5 md:py-3.5 flex flex-col justify-between gap-1.5 shadow-xs">
-            <span className="text-[13px] font-medium font-body leading-tight text-[#111111]/90">
+          <div className="w-full shrink-0 rounded-pod bg-volt dark:bg-volt/15 dark:ring-1 dark:ring-inset dark:ring-volt/30 text-[#111111] dark:text-volt px-4 py-3.5 md:py-3.5 flex flex-col justify-between gap-1.5 shadow-xs">
+            <span className="text-[13px] font-medium font-body leading-tight text-[#111111]/90 dark:text-volt/85">
               {brief.leavePodLabel}
             </span>
             <span className="text-[36px] leading-none font-extrabold tracking-tight font-sans tnum">
               {brief.leaveByHHMM}
             </span>
-            <span className="text-xs font-medium font-body leading-tight text-[#111111]/75">
+            <span className="text-xs font-medium font-body leading-tight text-[#111111]/75 dark:text-volt/70">
               {brief.targetContextLabel}
             </span>
           </div>

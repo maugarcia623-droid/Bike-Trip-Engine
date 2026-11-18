@@ -34,6 +34,10 @@ import {
 import { buildDefaultNewTripTemplate } from '../../utils/storage';
 import { parseRouteFile } from '../../utils/routeFileParser';
 import { importRouteFromUrl } from '../../utils/routeUrlImporter';
+import {
+  getCachedStravaStatus,
+  startStravaOAuthConnect,
+} from '../../services/stravaIntegration';
 import { GpxParseResult } from '../../utils/gpxParser';
 import { calculateAutoBikeRoute } from '../../utils/routing';
 import { geocodeLocation, LocationSuggestion } from '../../services/locationService';
@@ -1346,20 +1350,34 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
       {importError && (
         <div
           role="alert"
-          className="mt-3 flex items-start justify-between gap-2.5 rounded-pod bg-amber-500/10 border border-amber-500/30 px-3.5 py-2.5 text-xs text-ink"
+          className="mt-3 flex flex-wrap items-start justify-between gap-2.5 rounded-pod bg-amber-500/10 border border-amber-500/30 px-3.5 py-2.5 text-xs text-ink"
         >
-          <div className="flex items-start gap-2">
+          <div className="flex items-start gap-2 flex-1 min-w-[200px]">
             <CircleAlert className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
             <span>{importError}</span>
           </div>
-          <button
-            type="button"
-            onClick={() => setImportError(null)}
-            aria-label={isFr ? 'Fermer l’avertissement' : 'Dismiss warning'}
-            className="text-ink-muted hover:text-ink p-1 cursor-pointer"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {(/strava/i.test(routeLinkInput) || /strava/i.test(importError)) &&
+              !getCachedStravaStatus().connected && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={startStravaOAuthConnect}
+                  className="min-h-[36px] px-3 rounded-full bg-[#FC4C02] hover:bg-[#e54400] text-white text-[11px] font-rounded font-semibold cursor-pointer"
+                >
+                  {isFr ? 'Connecter Strava' : 'Connect Strava'}
+                </Button>
+              )}
+            <button
+              type="button"
+              onClick={() => setImportError(null)}
+              aria-label={isFr ? 'Fermer l’avertissement' : 'Dismiss warning'}
+              className="text-ink-muted hover:text-ink p-1 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       )}
       </Collapsible>

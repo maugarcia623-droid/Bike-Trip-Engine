@@ -71,6 +71,7 @@ import { getChipsExtraBufferMinutes } from './utils/archetypeChips';
 import { decodePlanShareToken, SharedPlanMeta } from './utils/planShare';
 import { parseRouteFile } from './utils/routeFileParser';
 import { importRouteFromUrl } from './utils/routeUrlImporter';
+import { consumeStravaOAuthRedirectParams } from './services/stravaIntegration';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AuthModal } from './components/auth/AuthModal';
 import { ResetPasswordModal } from './components/auth/ResetPasswordModal';
@@ -337,6 +338,11 @@ function AppContent() {
       window.removeEventListener('beforeunload', flushPendingTripSave);
       flushPendingTripSave();
     };
+  }, []);
+
+  // Handle Strava OAuth redirect return query params (?strava_connected=1 / ?strava_error=...)
+  useEffect(() => {
+    consumeStravaOAuthRedirectParams();
   }, []);
 
   // PWA Share Target handler (?shared_file=1, ?shared_url=..., ?shared_text=...)

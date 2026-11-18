@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Maximize2, Minimize2, Plus, Minus } from 'lucide-react';
 import { Button } from '@/components/arc';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -182,6 +183,57 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
   const isFr = lang === 'fr';
   const heroRootRef = useRef<HTMLDivElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
+  const [isMapFullscreen, setIsMapFullscreen] = useState(false);
+  const isMapFullscreenRef = useRef(false);
+  isMapFullscreenRef.current = isMapFullscreen;
+  const hasToggledFullscreenRef = useRef(false);
+
+  useEffect(() => {
+    if (!isMapFullscreen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsMapFullscreen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isMapFullscreen]);
+
+  useEffect(() => {
+    if (!hasToggledFullscreenRef.current) {
+      hasToggledFullscreenRef.current = true;
+      return;
+    }
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    if (isMapFullscreen) {
+      map.dragging.enable();
+      map.scrollWheelZoom.enable();
+      map.doubleClickZoom.enable();
+      map.touchZoom.enable();
+    } else {
+      if (L.Browser.mobile) map.dragging.disable();
+      map.scrollWheelZoom.disable();
+      map.doubleClickZoom.disable();
+    }
+
+    const timer = setTimeout(() => {
+      map.invalidateSize({ animate: false });
+      const {
+        isRadiusMode: rMode,
+        radiusCenter: rCenter,
+        activeCoordinates: aCoords,
+      } = latestRouteRef.current;
+      fitRouteInClearArea(rMode, rCenter, aCoords);
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [isMapFullscreen]);
   const lowerContentRef = useRef<HTMLDivElement>(null);
   const gpxInputRef = useRef<HTMLInputElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -820,12 +872,18 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
       }
 
       const containerH = mapContainerRef.current.clientHeight || 480;
-      const lowerH = lowerContentRef.current?.offsetHeight || 240;
       const isNarrow = window.innerWidth < 640;
       const padX = isNarrow ? 24 : 40;
-      const padTop = isNarrow ? 48 : 44;
-      const maxBottomPad = Math.max(120, containerH - padTop - 64);
-      const padBottom = Math.min(maxBottomPad, Math.max(160, lowerH + (isNarrow ? 20 : 28)));
+      const padTop = isNarrow ? 56 : 56;
+      const padBottom = isMapFullscreenRef.current
+        ? isNarrow
+          ? 24
+          : 40
+        : (() => {
+            const lowerH = lowerContentRef.current?.offsetHeight || 240;
+            const maxBottomPad = Math.max(120, containerH - padTop - 64);
+            return Math.min(maxBottomPad, Math.max(160, lowerH + (isNarrow ? 20 : 28)));
+          })();
       mapInstanceRef.current.fitBounds(bounds, {
         paddingTopLeft: [padX, padTop],
         paddingBottomRight: [padX, padBottom],
@@ -1067,7 +1125,8 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
     const isDark = document.documentElement.classList.contains('dark');
 
     const tileLayer = L.tileLayer(getTileUrl(isDark), {
-      maxZoom: 16,
+      maxNativeZoom: 16,
+      maxZoom: 19,
       attribution: 'Esri',
     }).addTo(map);
 
@@ -1395,27 +1454,41 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
   return (
     <div
       ref={heroRootRef}
-      className="relative max-w-full min-w-0 rounded-card bg-card text-ink transition-colors shadow-sm min-h-[460px] sm:min-h-[490px] lg:min-h-[520px]"
+      className={
+        isMapFullscreen
+          ? 'fixed inset-0 z-[100] bg-card text-ink transition-colors'
+          : 'relative max-w-full min-w-0 rounded-card bg-card text-ink transition-colors shadow-sm min-h-[460px] sm:min-h-[490px] lg:min-h-[520px]'
+      }
     >
-      <div className="absolute inset-0 z-0 rounded-card overflow-hidden isolate [transform:translateZ(0)]">
+      <div
+        className={`absolute inset-0 z-0 overflow-hidden ${
+          isMapFullscreen ? 'rounded-none' : 'rounded-card isolate [transform:translateZ(0)]'
+        }`}
+      >
         <div className="absolute inset-0 z-0 overflow-hidden">
           <div
             ref={mapContainerRef}
-            className="w-full h-full min-h-[460px] sm:min-h-[490px] lg:min-h-[520px] bg-[#E5E3DD] dark:bg-[#121214] dark:[filter:brightness(0.82)_contrast(1.22)_saturate(1.15)] [transform:translateZ(0)]"
+            className="w-full h-full bg-[#E5E3DD] dark:bg-[#121214] dark:[filter:brightness(0.82)_contrast(1.22)_saturate(1.15)]"
           />
         </div>
 
-        <div
-          className="absolute inset-0 z-1 pointer-events-none transition-colors"
-          style={{
-            background: isDarkMode
-              ? 'linear-gradient(to bottom, rgba(10, 10, 11, 0) 0%, rgba(10, 10, 11, 0) 35%, rgba(10, 10, 11, 0.45) 50%, rgba(10, 10, 11, 0.9) 70%, rgba(10, 10, 11, 1) 100%)'
-              : 'linear-gradient(to bottom, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0) 35%, rgba(255, 255, 255, 0.45) 50%, rgba(255, 255, 255, 0.92) 70%, rgba(255, 255, 255, 1) 100%)',
-          }}
-        />
+        {!isMapFullscreen && (
+          <div
+            className="absolute inset-0 z-1 pointer-events-none transition-colors"
+            style={{
+              background: isDarkMode
+                ? 'linear-gradient(to bottom, rgba(10, 10, 11, 0) 0%, rgba(10, 10, 11, 0) 35%, rgba(10, 10, 11, 0.45) 50%, rgba(10, 10, 11, 0.9) 70%, rgba(10, 10, 11, 1) 100%)'
+                : 'linear-gradient(to bottom, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0) 35%, rgba(255, 255, 255, 0.45) 50%, rgba(255, 255, 255, 0.92) 70%, rgba(255, 255, 255, 1) 100%)',
+            }}
+          />
+        )}
       </div>
 
-      <div className="relative z-20 p-4 flex flex-col justify-between min-h-[460px] sm:min-h-[490px] lg:min-h-[520px] pointer-events-none">
+      <div
+        className={`relative z-20 p-4 flex flex-col justify-between pointer-events-none ${
+          isMapFullscreen ? 'h-full' : 'min-h-[460px] sm:min-h-[490px] lg:min-h-[520px]'
+        }`}
+      >
         <div className="relative z-30 flex flex-wrap items-center justify-start gap-2 mb-24 sm:mb-20 pointer-events-none max-w-full">
           {/* ── UNIFIED MULTI-TOOL RIBBON (6 UNIFORM 1:1 ICON BUTTONS) ── */}
           <div className="relative inline-flex items-center gap-1 sm:gap-1.5 p-1 sm:p-1.5 rounded-full bg-card/95 dark:bg-[#161618]/95 backdrop-blur-md text-ink dark:text-white shadow-sm sm:shadow-md pointer-events-auto select-none transition-colors">
@@ -1567,6 +1640,40 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
               className={`relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 w-9 h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
               <ShareNetwork className="w-4 h-4 shrink-0 text-current" />
+            </Button>
+
+            {/* 7. Fullscreen Map Toggle Button */}
+            <Button variant="ghost"
+              type="button"
+              onClick={() => {
+                setActivePopover(null);
+                setIsMapFullscreen((prev) => !prev);
+              }}
+              aria-label={
+                isMapFullscreen
+                  ? isFr
+                    ? 'Quitter le plein écran'
+                    : 'Exit fullscreen'
+                  : isFr
+                  ? 'Carte en plein écran'
+                  : 'Fullscreen map'
+              }
+              title={
+                isMapFullscreen
+                  ? isFr
+                    ? 'Quitter le plein écran (Échap)'
+                    : 'Exit fullscreen (Esc)'
+                  : isFr
+                  ? 'Carte en plein écran'
+                  : 'Fullscreen map'
+              }
+              className={`relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 w-9 h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+            >
+              {isMapFullscreen ? (
+                <Minimize2 className="w-4 h-4 shrink-0 text-current" />
+              ) : (
+                <Maximize2 className="w-4 h-4 shrink-0 text-current" />
+              )}
             </Button>
 
             {/* ── Bike Garage Popover (anchored to the unified ribbon, above all lower content) ── */}
@@ -1864,7 +1971,14 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
           </div>
         </div>
 
-        <div ref={lowerContentRef} className="mt-auto flex flex-col gap-3.5 sm:gap-4 pointer-events-auto">
+        <div
+          ref={lowerContentRef}
+          className={
+            isMapFullscreen
+              ? 'hidden'
+              : 'mt-auto flex flex-col gap-3.5 sm:gap-4 pointer-events-auto'
+          }
+        >
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-3 sm:gap-4 min-w-0">
             <div className="max-w-3xl min-w-0">
               <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold tracking-tight text-ink leading-tight break-words">
@@ -2843,6 +2957,50 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
             </div>
           </div>
         </div>
+
+        {isMapFullscreen && (
+          <div className="mt-auto flex items-end justify-end pointer-events-none">
+            <div className="pointer-events-auto inline-flex flex-col items-center gap-1 p-1 rounded-full bg-card/95 dark:bg-[#161618]/95 backdrop-blur-md text-ink dark:text-white shadow-md select-none">
+              <Button
+                variant="ghost"
+                type="button"
+                onClick={() => mapInstanceRef.current?.zoomIn()}
+                aria-label={isFr ? 'Zoomer' : 'Zoom in'}
+                title={isFr ? 'Zoomer' : 'Zoom in'}
+                className={`w-9 h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer active:scale-95 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`}
+              >
+                <Plus className="w-4 h-4 shrink-0 text-current" />
+              </Button>
+              <Button
+                variant="ghost"
+                type="button"
+                onClick={() => mapInstanceRef.current?.zoomOut()}
+                aria-label={isFr ? 'Dézoomer' : 'Zoom out'}
+                title={isFr ? 'Dézoomer' : 'Zoom out'}
+                className={`w-9 h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer active:scale-95 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`}
+              >
+                <Minus className="w-4 h-4 shrink-0 text-current" />
+              </Button>
+              <Button
+                variant="ghost"
+                type="button"
+                onClick={() => {
+                  const {
+                    isRadiusMode: rMode,
+                    radiusCenter: rCenter,
+                    activeCoordinates: aCoords,
+                  } = latestRouteRef.current;
+                  fitRouteInClearArea(rMode, rCenter, aCoords);
+                }}
+                aria-label={isFr ? 'Recentrer sur l’itinéraire' : 'Fit route bounds'}
+                title={isFr ? 'Recentrer sur l’itinéraire' : 'Fit route bounds'}
+                className={`w-9 h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer active:scale-95 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+              >
+                <Compass className="w-4 h-4 shrink-0 text-current" />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Corridor Resupply Radar Overlay Menu (Accessible via 1:1 button) ── */}
