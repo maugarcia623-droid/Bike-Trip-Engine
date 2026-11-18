@@ -612,7 +612,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                       updateRoute('targetEffortWatts', nextWatts);
                     }}
                     aria-label={isFr ? 'Allure cible (% FTP)' : 'Target pacing (% FTP)'}
-                    className="w-full accent-[#10b981] cursor-pointer"
+                    className="peloton-slider w-full cursor-pointer"
                   />
                 </div>
               ) : (

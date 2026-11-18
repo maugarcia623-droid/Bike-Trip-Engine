@@ -1,4 +1,14 @@
-import { RiderBikeSpecsModal } from "./components/settings/RiderBikeSpecsModal";
+const RiderBikeSpecsModal = React.lazy(() =>
+  import('./components/settings/RiderBikeSpecsModal').then((m) => ({
+    default: m.RiderBikeSpecsModal,
+  }))
+);
+const FeedbackModal = React.lazy(() =>
+  import('./components/FeedbackModal').then((m) => ({ default: m.FeedbackModal }))
+);
+const ShareTelemetryModal = React.lazy(() =>
+  import('./components/ShareTelemetryModal').then((m) => ({ default: m.ShareTelemetryModal }))
+);
 import { Button } from "@/components/arc";
 import {
   loadRiderBikeSpecs,
@@ -33,8 +43,6 @@ import {
 import { TopTelemetryBar } from './components/navigation/TopTelemetryBar';
 import { DynamicIslandNav } from './components/navigation/DynamicIslandNav';
 import { DashboardEmptyState } from './components/dashboard/DashboardEmptyState';
-import { FeedbackModal } from './components/FeedbackModal';
-import { ShareTelemetryModal } from './components/ShareTelemetryModal';
 import type { FreeWebToolTab } from './components/tools/FreeWebToolsView';
 
 const HomeScreen = React.lazy(() =>
@@ -214,20 +222,7 @@ function AppContent() {
   const isCloudApplyingRef = React.useRef(false);
   const saveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSyncedPayloadHashRef = React.useRef<string>('');
-  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    const hash = window.location.hash;
-    const search = window.location.search;
-    const hasSharedPlan = hash.includes('plan=') || search.includes('plan=');
-    if (hasSharedPlan || hasPotentialSupabaseSession()) {
-      return false;
-    }
-    try {
-      return localStorage.getItem(STORAGE_KEY_ONBOARDED) !== 'true';
-    } catch {
-      return true;
-    }
-  });
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
 
   // If user is already logged in or logs in to Supabase, mark onboarding seen
   useEffect(() => {
@@ -1196,12 +1191,16 @@ function AppContent() {
       )}
 
       {/* Printable A4 Flight Sheet Layout (Hidden on Screen, Active on Print) */}
-      <RiderBikeSpecsModal
-        isOpen={isSpecsModalOpen}
-        onClose={() => setIsSpecsModalOpen(false)}
-        specs={riderSpecs}
-        onSave={handleSaveRiderSpecs}
-      />
+      {isSpecsModalOpen && (
+        <Suspense fallback={null}>
+          <RiderBikeSpecsModal
+            isOpen={isSpecsModalOpen}
+            onClose={() => setIsSpecsModalOpen(false)}
+            specs={riderSpecs}
+            onSave={handleSaveRiderSpecs}
+          />
+        </Suspense>
+      )}
 
       <ConfirmModal
         isOpen={confirmDialog !== null}
@@ -1276,21 +1275,29 @@ function AppContent() {
       )}
 
       {/* Cadence Feedback Modal */}
-      <FeedbackModal
-        isOpen={isFeedbackModalOpen}
-        onClose={() => setIsFeedbackModalOpen(false)}
-        tripName={activeTrip?.name}
-      />
+      {isFeedbackModalOpen && (
+        <Suspense fallback={null}>
+          <FeedbackModal
+            isOpen={isFeedbackModalOpen}
+            onClose={() => setIsFeedbackModalOpen(false)}
+            tripName={activeTrip?.name}
+          />
+        </Suspense>
+      )}
 
       {/* Sortie Telemetry Share Receipt Modal */}
-      <ShareTelemetryModal
-        isOpen={isShareModalOpen}
-        onClose={() => setIsShareModalOpen(false)}
-        trip={activeTrip || undefined}
-        physicsResult={sharePhysicsResult}
-        leaveByHHMM={shareTimelineResult?.hardDepartureTime}
-        arrivalHHMM={shareTimelineResult?.gateArrivalTime}
-      />
+      {isShareModalOpen && (
+        <Suspense fallback={null}>
+          <ShareTelemetryModal
+            isOpen={isShareModalOpen}
+            onClose={() => setIsShareModalOpen(false)}
+            trip={activeTrip || undefined}
+            physicsResult={sharePhysicsResult}
+            leaveByHHMM={shareTimelineResult?.hardDepartureTime}
+            arrivalHHMM={shareTimelineResult?.gateArrivalTime}
+          />
+        </Suspense>
+      )}
 
       {activeTrip && (
         <div className="hidden print:block print-only">

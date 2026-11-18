@@ -298,7 +298,7 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
 }) => {
   const { lang } = useTranslation();
   const isFr = lang === 'fr';
-  const [isComposerOpen, setIsComposerOpen] = useState(false);
+  const [isComposerOpen, setIsComposerOpen] = useState(true);
   const specs = propSpecs ?? loadRiderBikeSpecs();
   const activeBike = getActiveBike(specs);
   const effectiveRider = getEffectiveRiderSpecs(specs);
@@ -616,7 +616,7 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
     }
   };
 
-  const handleLaunchRecipe = (recipe: RecipePreset) => {
+  const handleLaunchRecipe = async (recipe: RecipePreset) => {
     setImportError(null);
     const dateIso =
       recipe.schedule === 'saturday-0830'
@@ -641,11 +641,40 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
         ? 'Destination bureau'
         : 'Work destination';
 
+    let coords: [number, number][] = startLocationCoords ? [startLocationCoords] : [];
+    let resolvedDistKm = recipe.distanceKm;
+    let routeMode: 'gpx' | 'manual-radius' = 'manual-radius';
+    let elevationGainM: number | undefined;
+    let elevationProfile: import('../../types/trip').ElevationProfilePoint[] | undefined;
+    let cueSheet: typeof loopResultFallbackCueSheet = undefined;
+    type LoopCue = Awaited<ReturnType<typeof import('../../utils/routing')['generateBikeLoopRoute']>>['cueSheet'];
+    const loopResultFallbackCueSheet: LoopCue = undefined;
+
+    if (recipe.circular && startLocationCoords) {
+      try {
+        const { generateBikeLoopRoute } = await import('../../utils/routing');
+        const loopResult = await generateBikeLoopRoute(
+          originLabel,
+          recipe.distanceKm
+        );
+        if (loopResult.coordinates.length >= 2) {
+          coords = loopResult.coordinates;
+          resolvedDistKm = Number(loopResult.distanceKm.toFixed(1));
+          routeMode = 'gpx';
+          elevationGainM = loopResult.elevationGainM;
+          elevationProfile = loopResult.elevationProfile;
+          cueSheet = loopResult.cueSheet;
+        }
+      } catch {
+        // Fallback to manual-radius if OSRM loop generation is unavailable
+      }
+    }
+
     const builtTrip = buildBaseTrip({
       name: isFr ? recipe.titleFr : recipe.titleEn,
       tag: recipe.tag,
       description: `${isFr ? recipe.titleFr : recipe.titleEn} (${isFr ? recipe.metaFr : recipe.metaEn})`,
-      distKm: recipe.distanceKm,
+      distKm: resolvedDistKm,
       speedKmH: recipe.speedKmH,
       dateIso,
       timeStr,
@@ -653,9 +682,12 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
       destLabel,
       chips: recipe.chips,
       luggageWeightKg: recipe.luggageWeightKg,
-      routeMode: 'manual-radius',
-      coordinates: startLocationCoords ? [startLocationCoords] : [],
+      routeMode,
+      coordinates: coords,
       originCoords: startLocationCoords ?? undefined,
+      elevationGainM,
+      elevationProfile,
+      cueSheet,
     });
 
     onCreateTrip(builtTrip, 'dashboard');
@@ -1324,11 +1356,11 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
                 setRouteLinkInput(e.target.value);
                 if (importError) setImportError(null);
               }}
-              aria-label={isFr ? 'Coller un lien Komoot, RideWithGPS, OpenRunner ou Strava' : 'Paste Komoot, RideWithGPS, OpenRunner or Strava link'}
+              aria-label={isFr ? 'Coller un lien Komoot, Bikemap, RideWithGPS ou Strava' : 'Paste Komoot, Bikemap, RideWithGPS or Strava link'}
               placeholder={
                 isFr
-                  ? 'Coller un lien Komoot / RideWithGPS / OpenRunner / Strava…'
-                  : 'Paste Komoot / RideWithGPS / OpenRunner / Strava URL…'
+                  ? 'Coller un lien Komoot / Bikemap / RideWithGPS / Strava…'
+                  : 'Paste Komoot / Bikemap / RideWithGPS / Strava URL…'
               }
               className="w-full min-h-[44px] px-3.5 rounded-pod bg-pod border border-ink/10 dark:border-white/10 text-xs text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-teal-500/40"
             />
@@ -1364,7 +1396,7 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
                   variant="ghost"
                   size="sm"
                   onClick={startStravaOAuthConnect}
-                  className="min-h-[36px] px-3 rounded-full bg-[#FC4C02] hover:bg-[#e54400] text-white text-[11px] font-rounded font-semibold cursor-pointer"
+                  className="min-h-[44px] sm:min-h-[34px] px-3 rounded-full bg-[#B83500] hover:bg-[#9E2D00] text-white text-[11px] font-rounded font-semibold cursor-pointer"
                 >
                   {isFr ? 'Connecter Strava' : 'Connect Strava'}
                 </Button>

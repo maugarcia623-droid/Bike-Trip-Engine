@@ -29,8 +29,7 @@ import {
   ArrowLeft,
   SlidersHorizontal,
 } from '@/components/icons';
-import { downloadTripGpx, downloadTripTcx } from '../../utils/gpxExporter';
-import { downloadTripFit } from '../../utils/fitExporter';
+
 import { IconBadge } from '../common/IconBadge';
 import { Button, ActionButton } from '@/components/arc';
 import {
@@ -561,12 +560,14 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
                         size="sm"
                         role="menuitem"
                         onClick={() => {
-                          downloadTripFit(activeTrip, {
-                            lang,
-                            ftpWatts: riderSpecs?.ftpWatts,
-                            carbTargetGPerHr: riderSpecs?.carbTargetGPerHr,
-                            nutritionPreference: riderSpecs?.nutritionPreference,
-                          });
+                          void import('../../utils/fitExporter').then(({ downloadTripFit }) =>
+                            downloadTripFit(activeTrip, {
+                              lang,
+                              ftpWatts: riderSpecs?.ftpWatts,
+                              carbTargetGPerHr: riderSpecs?.carbTargetGPerHr,
+                              nutritionPreference: riderSpecs?.nutritionPreference,
+                            })
+                          );
                           setIsMenuOpen(false);
                         }}
                         className="min-h-[44px] sm:min-h-[36px] px-3 rounded-full bg-card dark:bg-white/[0.08] hover:bg-chip text-ink text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer"
@@ -579,7 +580,9 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
                         size="sm"
                         role="menuitem"
                         onClick={() => {
-                          downloadTripGpx(activeTrip);
+                          void import('../../utils/gpxExporter').then(({ downloadTripGpx }) =>
+                            downloadTripGpx(activeTrip)
+                          );
                           setIsMenuOpen(false);
                         }}
                         className="min-h-[44px] sm:min-h-[36px] px-3 rounded-full bg-card dark:bg-white/[0.08] hover:bg-chip text-ink text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer"
@@ -592,7 +595,9 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
                         size="sm"
                         role="menuitem"
                         onClick={() => {
-                          downloadTripTcx(activeTrip);
+                          void import('../../utils/gpxExporter').then(({ downloadTripTcx }) =>
+                            downloadTripTcx(activeTrip)
+                          );
                           setIsMenuOpen(false);
                         }}
                         className="min-h-[44px] sm:min-h-[36px] px-3 rounded-full bg-card dark:bg-white/[0.08] hover:bg-chip text-ink text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer"

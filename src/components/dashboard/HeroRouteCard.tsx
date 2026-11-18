@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Maximize2, Minimize2, Plus, Minus } from 'lucide-react';
+import { Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from '@/components/arc';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
+  Plus,
+  Minus,
   Clock,
   Path,
   Map as MapIcon,
@@ -1817,7 +1819,14 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     ? `Trace GPS universelle & repères${stopSuffix}`
                     : `Universal GPS track & waypoints${stopSuffix}`,
                   badge: '.GPX',
-                  onSelect: () => runFileExport('.GPX', () => downloadTripGpx(trip)),
+                  onSelect: () =>
+                    runFileExport('.GPX', () =>
+                      downloadTripGpx(trip, {
+                        ftpWatts: riderSpecs?.ftpWatts,
+                        carbTargetGPerHr: riderSpecs?.carbTargetGPerHr,
+                        nutritionPreference: riderSpecs?.nutritionPreference,
+                      })
+                    ),
                 },
                 {
                   id: 'tcx',
@@ -1828,7 +1837,14 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     ? 'Parcours avec dénivelé, allure & watts'
                     : 'Course with elevation, pace & power',
                   badge: '.TCX',
-                  onSelect: () => runFileExport('.TCX', () => downloadTripTcx(trip)),
+                  onSelect: () =>
+                    runFileExport('.TCX', () =>
+                      downloadTripTcx(trip, {
+                        ftpWatts: riderSpecs?.ftpWatts,
+                        carbTargetGPerHr: riderSpecs?.carbTargetGPerHr,
+                        nutritionPreference: riderSpecs?.nutritionPreference,
+                      })
+                    ),
                 },
                 ...(HEADUNIT_PUSH_ENABLED
                   ? (
@@ -2487,14 +2503,14 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                           <input
                             type="range"
                             min={80}
-                            max={360}
+                            max={450}
                             step={5}
                             value={currentWatts}
                             onChange={(e) =>
                               handleUpdatePacing({ targetEffortWatts: parseInt(e.target.value, 10) || 160 })
                             }
                             aria-label={isFr ? 'Puissance cible (Watts)' : 'Target power (Watts)'}
-                            className="w-full accent-[#a3b300] dark:accent-[#dfff00] cursor-pointer"
+                            className="peloton-slider w-full cursor-pointer"
                           />
                           <div className="space-y-1.5 pt-1 border-t border-dashed border-ink/10 dark:border-white/10">
                             <div className="flex items-center justify-between text-[11px] text-ink-secondary tnum">
@@ -2517,7 +2533,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                                 handleUpdatePacing({ targetEffortWatts: nextWatts });
                               }}
                               aria-label={isFr ? 'Allure cible (% FTP)' : 'Target pacing (% FTP)'}
-                              className="w-full accent-[#a3b300] dark:accent-[#dfff00] cursor-pointer"
+                              className="peloton-slider w-full cursor-pointer"
                             />
                             <div className="flex items-center justify-between gap-1.5">
                               {[65, 75, 85, 95].map((pct) => {
@@ -2535,7 +2551,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                                         ),
                                       })
                                     }
-                                    className={`flex-1 min-h-[36px] sm:min-h-[30px] rounded-full text-[11px] font-semibold tnum cursor-pointer ${
+                                    className={`flex-1 min-h-[44px] sm:min-h-[34px] rounded-full text-[11px] font-semibold tnum cursor-pointer ${
                                       active
                                         ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary}`
                                         : 'bg-pod hover:bg-chip text-ink-secondary hover:text-ink'
@@ -2556,7 +2572,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                                   handleUpdatePacing({
                                     targetEffortWatts: Math.max(
                                       80,
-                                      Math.min(360, currentWatts + dw)
+                                      Math.min(450, currentWatts + dw)
                                     ),
                                   })
                                 }

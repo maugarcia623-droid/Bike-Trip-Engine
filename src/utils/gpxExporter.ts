@@ -13,10 +13,18 @@ import {
 } from './cueSheet';
 import { calculatePhysics } from './physics';
 import {
+  buildClimbAdjustedPacingCurve,
   ClimbCategory,
   computeClimbSplitsAndFueling,
   formatClimbCategoryLabel,
+  interpolateElapsedSecondsAtKm,
 } from './climbSplits';
+
+export interface GpxExportOptions {
+  ftpWatts?: number;
+  carbTargetGPerHr?: number;
+  nutritionPreference?: 'real-food' | 'mixed' | 'sports-fuel';
+}
 
 /**
  * Generate a smooth closed loop of GPS coordinates centered around an origin point.
@@ -154,11 +162,17 @@ function prepareStageTrackPoints(
     return 20;
   };
 
+  const pacingCurve = buildClimbAdjustedPacingCurve(
+    profile || [],
+    targetTotalMeters / 1000,
+    speedKmH
+  );
+
   return coords.map((c, idx) => {
     const distM = cumDists[idx] * scale;
     const distKm = distM / 1000;
     const ele = getElevationAtDistKm(distKm);
-    const timeOffsetSec = Math.round(distM / speedMetersPerSec);
+    const timeOffsetSec = Math.round(interpolateElapsedSecondsAtKm(pacingCurve, distKm));
     const pointTime = new Date(startEpoch + timeOffsetSec * 1000).toISOString();
 
     return {
@@ -441,7 +455,7 @@ function buildStageCueRouteXml(params: {
  * Generate standard GPX 1.1 XML string ready for Garmin, Wahoo, Hammerhead.
  * Includes all pinned Resupply Radar POIs as <wpt> waypoints and a <rte> turn-by-turn cue sheet.
  */
-export function exportTripToGpx(trip: TripProfile): string {
+export function exportTripToGpx(trip: TripProfile, options: GpxExportOptions = {}): string {
   const lang = getCurrentLanguage();
   const points = prepareTrackPoints(trip);
   const pinnedAmenities = resolveActivePinnedAmenities(trip);
@@ -459,7 +473,7 @@ export function exportTripToGpx(trip: TripProfile): string {
       pinnedAmenities,
       departureTime: trip.departureTime,
       lang,
-    }) + buildClimbAndFuelGpxWaypointsXml(trip, points, lang);
+    }) + buildClimbAndFuelGpxWaypointsXml(trip, points, lang, options);
 
   const rteXml = buildStageCueRouteXml({
     route: trip.route,
@@ -587,12 +601,22 @@ function mapClimbCategoryToTcxPointType(cat: ClimbCategory): string {
 function buildClimbAndFuelGpxWaypointsXml(
   trip: TripProfile,
   points: TrackPointData[],
-  lang: 'en' | 'fr'
+  lang: 'en' | 'fr',
+  options: GpxExportOptions = {}
 ): string {
   if (points.length === 0) return '';
-  const physicsResult = calculatePhysics(trip.physics, trip.route, trip.weather, lang);
+  const physicsResult = calculatePhysics(
+    trip.physics,
+    trip.route,
+    trip.weather,
+    lang,
+    options.ftpWatts
+  );
   const splitSummary = computeClimbSplitsAndFueling(trip, physicsResult, lang, {
     departureTimeHHMM: trip.departureTime,
+    ftpWatts: options.ftpWatts,
+    carbTargetGPerHr: options.carbTargetGPerHr,
+    nutritionPreference: options.nutritionPreference,
   });
 
   let xml = '';
@@ -639,7 +663,7 @@ function buildClimbAndFuelGpxWaypointsXml(
  * Generate Garmin TCX Course XML string with course laps, track points,
  * and <CoursePoint> turn-by-turn + pinned resupply cue sheet entries.
  */
-export function exportTripToTcx(trip: TripProfile): string {
+export function exportTripToTcx(trip: TripProfile, options: GpxExportOptions = {}): string {
   const lang = getCurrentLanguage();
   const points = prepareTrackPoints(trip);
   const pinnedAmenities = resolveActivePinnedAmenities(trip);
@@ -648,7 +672,16 @@ export function exportTripToTcx(trip: TripProfile): string {
   );
   const totalMeters = points.length > 0 ? points[points.length - 1].distanceMeters : 0;
   const speedKmH = Math.max(10, trip.route.targetSpeedKmH || 24);
-  const totalTimeSeconds = Math.round((totalMeters / (speedKmH * 1000)) * 3600);
+  const totalTimeSeconds =
+    points.length >= 2
+      ? Math.max(
+          60,
+          Math.round(
+            (Date.parse(points[points.length - 1].timestamp) - Date.parse(points[0].timestamp)) /
+              1000
+          )
+        )
+      : Math.round((totalMeters / (speedKmH * 1000)) * 3600);
 
   const startPt = points[0] || { lat: 47.2186, lng: -1.5541 };
   const endPt = points[points.length - 1] || startPt;
@@ -688,9 +721,18 @@ export function exportTripToTcx(trip: TripProfile): string {
     lang,
   });
 
-  const physicsResult = calculatePhysics(trip.physics, trip.route, trip.weather, lang);
+  const physicsResult = calculatePhysics(
+    trip.physics,
+    trip.route,
+    trip.weather,
+    lang,
+    options.ftpWatts
+  );
   const splitSummary = computeClimbSplitsAndFueling(trip, physicsResult, lang, {
     departureTimeHHMM: trip.departureTime,
+    ftpWatts: options.ftpWatts,
+    carbTargetGPerHr: options.carbTargetGPerHr,
+    nutritionPreference: options.nutritionPreference,
   });
 
   interface TcxCoursePoint {
@@ -813,8 +855,8 @@ function sanitizeFilename(name: string): string {
 /**
  * Trigger browser file download for a GPX track file.
  */
-export function downloadTripGpx(trip: TripProfile): void {
-  const xml = exportTripToGpx(trip);
+export function downloadTripGpx(trip: TripProfile, options?: GpxExportOptions): void {
+  const xml = exportTripToGpx(trip, options);
   const baseName = sanitizeFilename(trip.name || 'cadence-route');
   const filename = `${baseName}-${Math.round(trip.route.distanceKm || 0)}km.gpx`;
   downloadTextFile(xml, filename, 'application/gpx+xml');
@@ -834,8 +876,8 @@ export function downloadEntireTourGpx(trip: TripProfile): void {
 /**
  * Trigger browser file download for a TCX course file.
  */
-export function downloadTripTcx(trip: TripProfile): void {
-  const xml = exportTripToTcx(trip);
+export function downloadTripTcx(trip: TripProfile, options?: GpxExportOptions): void {
+  const xml = exportTripToTcx(trip, options);
   const baseName = sanitizeFilename(trip.name || 'cadence-route');
   const filename = `${baseName}-${Math.round(trip.route.distanceKm || 0)}km.tcx`;
   downloadTextFile(xml, filename, 'application/vnd.garmin.tcx+xml');

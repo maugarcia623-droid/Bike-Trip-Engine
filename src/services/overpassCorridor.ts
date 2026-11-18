@@ -920,11 +920,13 @@ function shiftIsoDateByDays(dateStr: string | undefined, dayOffset: number): str
 
 /**
  * Computes projected arrival time (ETA) and day rollover offset at a given route kilometer.
+ * When a non-linear climb-adjusted pacing curve is provided, uses it for realistic climb ETAs.
  */
 export function calculateAmenityEtaDetails(
   departureTime: string = '08:00',
   routeKm: number,
-  effectiveSpeedKmH: number = 24
+  effectiveSpeedKmH: number = 24,
+  pacingCurve?: Array<{ distKm: number; elapsedSec: number }>
 ): { etaHHMM: string; dayOffset: number } {
   const [hStr, mStr] = departureTime.split(':');
   const parsedH = parseInt(hStr, 10);
@@ -933,8 +935,28 @@ export function calculateAmenityEtaDetails(
   const depM = Number.isFinite(parsedM) ? parsedM : 0;
   const depMinutes = depH * 60 + depM;
 
-  const speed = Math.max(10, effectiveSpeedKmH);
-  const rideMinutes = Math.round((routeKm / speed) * 60);
+  let rideMinutes: number;
+  if (pacingCurve && pacingCurve.length >= 2) {
+    let elapsedSec = pacingCurve[pacingCurve.length - 1].elapsedSec;
+    if (routeKm <= pacingCurve[0].distKm) {
+      elapsedSec = pacingCurve[0].elapsedSec;
+    } else {
+      for (let i = 1; i < pacingCurve.length; i++) {
+        if (pacingCurve[i].distKm >= routeKm) {
+          const a = pacingCurve[i - 1];
+          const b = pacingCurve[i];
+          const span = b.distKm - a.distKm;
+          const ratio = span > 0 ? (routeKm - a.distKm) / span : 0;
+          elapsedSec = a.elapsedSec + ratio * (b.elapsedSec - a.elapsedSec);
+          break;
+        }
+      }
+    }
+    rideMinutes = Math.round(elapsedSec / 60);
+  } else {
+    const speed = Math.max(10, effectiveSpeedKmH);
+    rideMinutes = Math.round((routeKm / speed) * 60);
+  }
 
   const rawTotal = depMinutes + rideMinutes;
   const dayOffset = Math.floor(rawTotal / 1440);

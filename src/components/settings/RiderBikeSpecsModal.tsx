@@ -973,8 +973,8 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                         <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">
                           {stravaStatus.error === 'missing_strava_secrets'
                             ? isFr
-                              ? 'Clés API Strava manquantes dans Supabase (STRAVA_CLIENT_ID / STRAVA_CLIENT_SECRET).'
-                              : 'Strava API keys not configured in Supabase secrets yet.'
+                              ? 'L’import Strava n’est pas encore activé sur ce serveur — importez un fichier .GPX/.FIT depuis Strava.'
+                              : 'Strava import isn’t enabled on this server yet — export a .GPX/.FIT from Strava instead.'
                             : isFr
                             ? `Connexion Strava interrompue (${stravaStatus.error}).`
                             : `Strava connection failed (${stravaStatus.error}).`}
@@ -1001,7 +1001,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                         variant="ghost"
                         type="button"
                         onClick={startStravaOAuthConnect}
-                        className="min-h-[44px] sm:min-h-[34px] px-3.5 rounded-full bg-[#FC4C02] hover:bg-[#e54400] text-white text-xs font-rounded font-semibold shrink-0 cursor-pointer transition-colors"
+                        className="min-h-[44px] sm:min-h-[34px] px-3.5 rounded-full bg-[#B83500] hover:bg-[#9E2D00] text-white text-xs font-rounded font-semibold shrink-0 cursor-pointer transition-colors"
                       >
                         {isFr ? 'Connecter Strava' : 'Connect Strava'}
                       </Button>

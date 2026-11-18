@@ -89,7 +89,7 @@ self.addEventListener('message', (event) => {
   }
 
   if (data.type === 'PREFETCH_TILES' && Array.isArray(data.urls)) {
-    const urls = data.urls.slice(0, 60).filter((u) => typeof u === 'string');
+    const urls = data.urls.slice(0, 120).filter((u) => typeof u === 'string');
     event.waitUntil(
       (async () => {
         const cache = await caches.open(TILE_CACHE_NAME);

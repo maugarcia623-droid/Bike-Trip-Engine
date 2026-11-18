@@ -148,12 +148,17 @@ export async function saveExpeditionPack(
     }
   }
 
-  // Warm additional expedition stages (POIs & surfaces) for multi-day offline readiness
+  let extraStageTiles = 0;
+
+  // Warm additional expedition stages (POIs, surfaces, sector weather & tiles) for multi-day offline readiness
   if (trip.stages && trip.stages.length > 1) {
     const otherStages = trip.stages.filter(
       (s) => s.id !== stageId && (s.route?.coordinates?.length ?? 0) >= 2
     );
     if (otherStages.length > 0) {
+      for (const st of otherStages) {
+        extraStageTiles += prefetchRouteTilesViaSw(st.route.coordinates!);
+      }
       await Promise.allSettled(
         otherStages.flatMap((st) => [
           scanCorridorAmenities({
@@ -167,12 +172,19 @@ export async function saveExpeditionPack(
             coordinates: st.route.coordinates!,
             distanceKm: st.route.distanceKm,
           }),
+          fetchRouteSectorForecast(
+            { ...trip, id: st.id, route: st.route },
+            st.departureDate || trip.departureDate || getLocalTodayIso(),
+            st.departureTime || trip.departureTime || '08:00',
+            lang,
+            ftpWatts
+          ),
         ])
       );
     }
   }
 
-  const tilesPrefetched = hasTrace ? prefetchRouteTilesViaSw(coords) : 0;
+  const tilesPrefetched = (hasTrace ? prefetchRouteTilesViaSw(coords) : 0) + extraStageTiles;
 
   const meta: OfflineExpeditionPackMeta = {
     tripId: trip.id,

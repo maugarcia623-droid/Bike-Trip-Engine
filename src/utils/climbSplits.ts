@@ -268,9 +268,9 @@ function buildFuelUnitLabel(
 
   if (fluidMl >= 150) {
     if (fluidMl >= 500) {
-      parts.push('1 bidon');
+      parts.push(isFr ? '1 bidon' : '1 bottle');
     } else if (fluidMl >= 250) {
-      parts.push(isFr ? '1/2 bidon' : '1/2 bidon');
+      parts.push(isFr ? '1/2 bidon' : '1/2 bottle');
     } else {
       parts.push(`${Math.round(fluidMl)} ml`);
     }
@@ -555,7 +555,7 @@ export function computeClimbSplitsAndFueling(
         : `Km ${distKm}: ${unitDesc}`;
 
       const detailParts: string[] = [];
-      if (carbsGrams > 0) detailParts.push(`${carbsGrams}g CHO`);
+      if (carbsGrams > 0) detailParts.push(isFr ? `${carbsGrams} g glucides` : `${carbsGrams} g carbs`);
       detailParts.push(`${fluidMl} ml`);
       detailParts.push(formatClimbDuration(min));
       if (upcomingClimb) {

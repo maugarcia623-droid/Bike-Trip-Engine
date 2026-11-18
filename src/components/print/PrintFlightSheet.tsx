@@ -622,17 +622,17 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
 
       {/* Climb Splits & Fueling Checkpoints */}
       {(climbSplitsSummary.climbs.length > 0 || climbSplitsSummary.checkpoints.length > 0) && (
-        <div className="mb-6">
-          <h2 className="text-xs font-bold border-b border-gray-400 pb-1 mb-2">
+        <div className="mb-6 print:break-inside-avoid">
+          <h2 className="text-xs font-bold border-b border-gray-400 pb-1 mb-2 print:break-after-avoid">
             {isFr
               ? 'Cols & Points de Ravitaillement (Allure ajustée)'
               : 'Climb Splits & Fueling Checkpoints (Climb-Adjusted)'}
           </h2>
 
           {climbSplitsSummary.climbs.length > 0 && (
-            <table className="w-full text-[10px] border-collapse mb-3 tnum">
+            <table className="w-full text-[10px] border-collapse mb-3 tnum [&_thead]:table-header-group">
               <thead>
-                <tr className="border-b border-gray-300 text-left text-gray-600">
+                <tr className="border-b border-gray-300 text-left text-gray-600 print:break-inside-avoid">
                   <th className="py-1 pr-2">{isFr ? 'Cat.' : 'Cat'}</th>
                   <th className="py-1 pr-2">{isFr ? 'Ascension' : 'Climb'}</th>
                   <th className="py-1 pr-2">Km</th>
@@ -644,7 +644,7 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
               </thead>
               <tbody>
                 {climbSplitsSummary.climbs.map((climb) => (
-                  <tr key={climb.index} className="border-b border-gray-100">
+                  <tr key={climb.index} className="border-b border-gray-100 print:break-inside-avoid">
                     <td className="py-1 pr-2 font-bold">
                       {formatClimbCategoryLabel(climb.category, lang)}
                     </td>
@@ -674,7 +674,7 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
               {climbSplitsSummary.checkpoints.map((cp) => (
                 <div
                   key={cp.id}
-                  className="border border-gray-300 rounded px-2 py-1 flex items-center justify-between gap-2"
+                  className="border border-gray-300 rounded px-2 py-1 flex items-center justify-between gap-2 print:break-inside-avoid"
                 >
                   <div>
                     <span className="font-bold">{cp.label}</span>
