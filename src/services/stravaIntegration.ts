@@ -1,4 +1,8 @@
-import { isSupabaseConfigured, supabase } from './supabase';
+const isSupabaseConfigured = Boolean(
+  import.meta.env?.VITE_SUPABASE_URL &&
+    import.meta.env?.VITE_SUPABASE_ANON_KEY &&
+    import.meta.env?.VITE_SUPABASE_URL.startsWith('http')
+);
 
 const CONNECTION_KEY_STORAGE = 'cadence_integration_key_v1';
 const STRAVA_STATUS_STORAGE = 'cadence_strava_status_v1';
@@ -117,18 +121,36 @@ export function consumeStravaOAuthRedirectParams(): StravaConnectionStatus | nul
   return next;
 }
 
-export function startStravaOAuthConnect(): void {
+export async function startStravaOAuthConnect(): Promise<void> {
   if (typeof window === 'undefined' || !isSupabaseConfigured) return;
-  const supabaseUrl = (import.meta.env?.VITE_SUPABASE_URL || '').replace(/\/$/, '');
-  if (!supabaseUrl) return;
-  const connectionKey = getOrCreateIntegrationConnectionKey();
-  const redirectOrigin = window.location.origin;
-  const url =
-    `${supabaseUrl}/functions/v1/strava-auth` +
-    `?action=authorize` +
-    `&connection_key=${encodeURIComponent(connectionKey)}` +
-    `&redirect_origin=${encodeURIComponent(redirectOrigin)}`;
-  window.location.assign(url);
+  try {
+    const connectionKey = getOrCreateIntegrationConnectionKey();
+    const { supabase } = await import('./supabase');
+    const { data, error } = await supabase.functions.invoke<{
+      ok?: boolean;
+      authorizeUrl?: string;
+      reason?: string;
+    }>('strava-auth', {
+      body: {
+        action: 'authorize_url',
+        connectionKey,
+        redirectOrigin: window.location.origin,
+      },
+    });
+    if (!error && data?.ok && data.authorizeUrl) {
+      window.location.assign(data.authorizeUrl);
+      return;
+    }
+    saveCachedStravaStatus({
+      connected: false,
+      error: data?.reason || 'oauth_failed',
+    });
+  } catch {
+    saveCachedStravaStatus({
+      connected: false,
+      error: 'oauth_failed',
+    });
+  }
 }
 
 export async function fetchStravaConnectionStatus(): Promise<StravaConnectionStatus> {
@@ -137,6 +159,7 @@ export async function fetchStravaConnectionStatus(): Promise<StravaConnectionSta
   }
   try {
     const connectionKey = getOrCreateIntegrationConnectionKey();
+    const { supabase } = await import('./supabase');
     const { data, error } = await supabase.functions.invoke<{
       ok?: boolean;
       connected?: boolean;
@@ -165,6 +188,7 @@ export async function disconnectStravaAccount(): Promise<boolean> {
   if (!isSupabaseConfigured) return true;
   try {
     const connectionKey = getOrCreateIntegrationConnectionKey();
+    const { supabase } = await import('./supabase');
     const { error } = await supabase.functions.invoke('strava-auth', {
       body: { action: 'disconnect', connectionKey },
     });

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useCallback, useState, useEffect, ReactNode } from 'react';
 import { en, TranslationKey, TranslationDictionary } from '../locales/en';
 import { ChecklistItem, TripProfile } from '../types/trip';
-import { PRESET_TRIP_TRANSLATIONS } from '../utils/presetTrips';
+import { PRESET_TRIP_TRANSLATIONS } from '../utils/presetTripTranslations';
 import { loadRiderBikeSpecs, getActiveBike } from '../utils/specsStorage';
 import { calculateHydrationPlan } from '../utils/nutrition';
 import { getArchetypeFromTag } from '../utils/archetypeChips';

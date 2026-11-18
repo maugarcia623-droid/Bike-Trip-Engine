@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Button } from '@/components/arc';
+import { Button, SegmentedControl } from '@/components/arc';
 import {
   WarningCircle,
   CheckCircle,
@@ -262,7 +262,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
 
   const fillPercent = Math.min(100, Math.max(0, (windSpeed / 45) * 100));
   const activeBarColor = windSpeed >= 30 ? '#FF3B30' : isDarkMode ? '#F2F455' : '#111111';
-  const trackEmptyColor = isDarkMode ? '#2D2D34' : '#EBE9E3';
+  const trackEmptyColor = isDarkMode ? 'rgba(255, 255, 255, 0.14)' : 'rgba(17, 17, 17, 0.08)';
 
   // ── PRECISE SOLAR ELEVATION & VISUAL CORRIDOR CALCULATIONS ──
   const coords: [number, number] = trip.route.coordinates?.[0] || [47.2184, -1.5536];
@@ -484,35 +484,32 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
 
       <Collapsible open={isCardExpanded} innerClassName="pt-3">
       {/* ── 2. ELEGANT CONCENTRIC TAB SWITCHER: [ WIND & AERO ] / [ LIGHT & VISIBILITY ] ── */}
-      <div className="grid grid-cols-2 sm:inline-flex items-center gap-1 p-1 rounded-pod sm:rounded-full bg-pod mb-4 w-full sm:w-auto self-stretch sm:self-start">
-        <Button variant="ghost"
-          type="button"
-          onClick={() => setActiveTab('wind')}
-          className={`px-2.5 sm:px-3.5 py-2 sm:py-1.5 rounded-sub-pod sm:rounded-full text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
-            activeTab === 'wind'
-              ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
-              : `${CHIP_RING_UNSELECTED} text-ink-muted hover:text-ink`
-          }`}
-        >
-          <Wind className="w-4 h-4 shrink-0 text-current" />
-          <span className="break-words">{t('weatherTabWind')}</span>
-        </Button>
-
-        <Button variant="ghost"
-          type="button"
-          onClick={() => setActiveTab('visibility')}
-          className={`px-2.5 sm:px-3.5 py-2 sm:py-1.5 rounded-sub-pod sm:rounded-full text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
-            activeTab === 'visibility'
-              ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
-              : `${CHIP_RING_UNSELECTED} text-ink-muted hover:text-ink`
-          }`}
-        >
-          <SunHorizon className="w-4 h-4 shrink-0 text-current" />
-          <span className="break-words">{t('weatherTabVisibility')}</span>
-          {isCriticalOptical && (
-            <span className={`w-1.5 h-1.5 rounded-full shrink-0 animate-beacon-pulse ${CHIP_TOKENS.rose.dot}`} />
-          )}
-        </Button>
+      <div className="mb-4 w-full sm:w-auto self-stretch sm:self-start">
+        <SegmentedControl<'wind' | 'visibility'>
+          value={activeTab}
+          onChange={setActiveTab}
+          fullWidth
+          aria-label={t('weatherTabWind')}
+          items={[
+            {
+              value: 'wind',
+              icon: <Wind className="w-4 h-4 shrink-0 text-current" />,
+              label: t('weatherTabWind'),
+            },
+            {
+              value: 'visibility',
+              icon: <SunHorizon className="w-4 h-4 shrink-0 text-current" />,
+              label: (
+                <span className="inline-flex items-center gap-1.5">
+                  <span>{t('weatherTabVisibility')}</span>
+                  {isCriticalOptical && (
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 animate-beacon-pulse ${CHIP_TOKENS.rose.dot}`} />
+                  )}
+                </span>
+              ),
+            },
+          ]}
+        />
       </div>
 
       {/* ════════════════════════════════════════════════════════════════════════════

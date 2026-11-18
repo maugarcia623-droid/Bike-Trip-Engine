@@ -33,7 +33,6 @@ import {
 } from '../../types/trip';
 import { buildDefaultNewTripTemplate } from '../../utils/storage';
 import { parseRouteFile } from '../../utils/routeFileParser';
-import { importRouteFromUrl } from '../../utils/routeUrlImporter';
 import {
   getCachedStravaStatus,
   startStravaOAuthConnect,
@@ -719,6 +718,7 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
     setImportSuccessName(null);
     setIsImportingRoute(true);
     try {
+      const { importRouteFromUrl } = await import('../../utils/routeUrlImporter');
       const outcome = await importRouteFromUrl(routeLinkInput.trim());
       if (outcome.ok && outcome.parsed) {
         launchFromParsedRoute(

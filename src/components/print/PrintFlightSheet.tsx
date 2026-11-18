@@ -15,6 +15,10 @@ import {
   getRouteHashKey,
 } from '../../services/overpassCorridor';
 import { computeSurfaceBreakdown } from '../../utils/surfaceProfile';
+import {
+  computeClimbSplitsAndFueling,
+  formatClimbCategoryLabel,
+} from '../../utils/climbSplits';
 import { formatCriticalGapAdvice, formatGapDetail, formatKm } from '../../utils/waterGapCopy';
 import { TriangleAlert, Droplet, Bed } from '@/components/icons';
 import {
@@ -127,6 +131,14 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
     bidonSizeMl: effectiveSpecs.bidonSizeMl,
     frameBottleSlots: effectiveSpecs.frameBottleSlots,
     activeChips: trip.customChips || [],
+  });
+  const climbSplitsSummary = computeClimbSplitsAndFueling(trip, physicsResult, lang, {
+    ftpWatts: effectiveSpecs.ftpWatts,
+    carbTargetGPerHr: effectiveSpecs.carbTargetGPerHr,
+    nutritionPreference: effectiveSpecs.nutritionPreference,
+    departureTimeHHMM: solvedTimeline.departureTimeHHMM,
+    bidonSizeMl: effectiveSpecs.bidonSizeMl,
+    frameBottleSlots: effectiveSpecs.frameBottleSlots,
   });
   const routeCoords = trip.route.coordinates;
   const stageId = activeStage?.id || trip.id;
@@ -607,6 +619,78 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
           ))}
         </div>
       </div>
+
+      {/* Climb Splits & Fueling Checkpoints */}
+      {(climbSplitsSummary.climbs.length > 0 || climbSplitsSummary.checkpoints.length > 0) && (
+        <div className="mb-6">
+          <h2 className="text-xs font-bold border-b border-gray-400 pb-1 mb-2">
+            {isFr
+              ? 'Cols & Points de Ravitaillement (Allure ajustée)'
+              : 'Climb Splits & Fueling Checkpoints (Climb-Adjusted)'}
+          </h2>
+
+          {climbSplitsSummary.climbs.length > 0 && (
+            <table className="w-full text-[10px] border-collapse mb-3 tnum">
+              <thead>
+                <tr className="border-b border-gray-300 text-left text-gray-600">
+                  <th className="py-1 pr-2">{isFr ? 'Cat.' : 'Cat'}</th>
+                  <th className="py-1 pr-2">{isFr ? 'Ascension' : 'Climb'}</th>
+                  <th className="py-1 pr-2">Km</th>
+                  <th className="py-1 pr-2">{isFr ? 'D+ / Pente' : 'Gain / Grade'}</th>
+                  <th className="py-1 pr-2">{isFr ? 'Puissance cible' : 'Target Power'}</th>
+                  <th className="py-1 pr-2">{isFr ? 'ETA / Durée' : 'ETA / Dur.'}</th>
+                  <th className="py-1">{isFr ? 'Ravitaillement' : 'Fueling Cue'}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {climbSplitsSummary.climbs.map((climb) => (
+                  <tr key={climb.index} className="border-b border-gray-100">
+                    <td className="py-1 pr-2 font-bold">
+                      {formatClimbCategoryLabel(climb.category, lang)}
+                    </td>
+                    <td className="py-1 pr-2 font-semibold">{climb.name}</td>
+                    <td className="py-1 pr-2">
+                      {climb.startKm}–{climb.endKm}
+                    </td>
+                    <td className="py-1 pr-2">
+                      +{climb.elevationGainM} m · {climb.avgGradePct}%
+                    </td>
+                    <td className="py-1 pr-2 font-semibold">
+                      {climb.targetWatts} W ({climb.ftpPercent}% FTP · {climb.wattsPerKg} W/kg)
+                    </td>
+                    <td className="py-1 pr-2">
+                      {climb.etaStartHHMM ? `${climb.etaStartHHMM} · ` : ''}
+                      {climb.durationFormatted}
+                    </td>
+                    <td className="py-1 text-gray-700">{climb.fuelingCue}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          {climbSplitsSummary.checkpoints.length > 0 && (
+            <div className="grid grid-cols-2 gap-2 text-[10px] tnum">
+              {climbSplitsSummary.checkpoints.map((cp) => (
+                <div
+                  key={cp.id}
+                  className="border border-gray-300 rounded px-2 py-1 flex items-center justify-between gap-2"
+                >
+                  <div>
+                    <span className="font-bold">{cp.label}</span>
+                    <div className="text-[9px] text-gray-600">{cp.detail}</div>
+                  </div>
+                  {cp.etaHHMM && (
+                    <span className="font-semibold text-gray-700 shrink-0">
+                      ETA {cp.etaHHMM}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Checklist Table & Footer Note */}
       <div>

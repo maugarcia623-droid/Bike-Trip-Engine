@@ -1286,6 +1286,17 @@ export const en = {
   rideModeTestAlertBtn: "Simulate / Test Alert",
   rideModeLastAlertLabel: "Last Alert",
   rideModeOffRouteWarning: "Off route by {meters} m",
+  rideModeDrinkFuelTitle: "Drink & Fuel Cue",
+  rideModeTargetPrefix: "Target",
+  navHomeLabel: "Home",
+  tripsPageHeading: "Trips",
+  noTripsSavedTitle: "No trips saved yet",
+  noTripsSavedDesc: "Create your first custom ride or load a demo profile to explore your Cadence ride plan.",
+  completedTripsHeading: "Your completed trips",
+  commuteTagLabel: "Commute",
+  readinessTooltipPrefix: "Ride readiness",
+  customizationSingular: "customization",
+  customizationPlural: "customizations",
 };
 
 export type TranslationKey = keyof typeof en;

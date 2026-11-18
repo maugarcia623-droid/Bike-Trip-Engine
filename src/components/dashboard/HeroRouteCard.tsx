@@ -41,6 +41,13 @@ import {
 import { downloadTripGpx, downloadTripTcx } from '../../utils/gpxExporter';
 import { downloadTripFit } from '../../utils/fitExporter';
 import {
+  getCachedHeadUnitStatuses,
+  HEADUNIT_PUSH_ENABLED,
+  HeadUnitProvider,
+  pushCourseToHeadUnit,
+  startHeadUnitOAuthConnect,
+} from '../../services/headUnitIntegration';
+import {
   getExpeditionPackStatus,
   OfflineExpeditionPackMeta,
   saveExpeditionPack,
@@ -1823,6 +1830,61 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   badge: '.TCX',
                   onSelect: () => runFileExport('.TCX', () => downloadTripTcx(trip)),
                 },
+                ...(HEADUNIT_PUSH_ENABLED
+                  ? (
+                      [
+                        { id: 'wahoo', label: 'Wahoo' },
+                        { id: 'hammerhead', label: 'Hammerhead' },
+                        { id: 'garmin', label: 'Garmin' },
+                      ] as Array<{ id: HeadUnitProvider; label: string }>
+                    )
+                  : []
+                ).map((hu) => {
+                  const isConnected = getCachedHeadUnitStatuses()[hu.id];
+                  return {
+                    id: `push-${hu.id}`,
+                    theme: 'amber' as ChipTheme,
+                    icon: ShareNetwork,
+                    title: isFr ? `Envoyer vers ${hu.label}` : `Send to ${hu.label}`,
+                    sub: isConnected
+                      ? isFr
+                        ? `Synchroniser le .FIT sans fil vers ${hu.label}`
+                        : `Wireless .FIT course push to ${hu.label}`
+                      : isFr
+                      ? `Connecter ${hu.label} pour l'envoi en 1 clic`
+                      : `Connect ${hu.label} for 1-tap wireless push`,
+                    badge: isConnected ? (isFr ? 'Prêt' : 'Push') : 'OAuth',
+                    onSelect: () => {
+                      if (!isConnected) {
+                        startHeadUnitOAuthConnect(hu.id);
+                        return;
+                      }
+                      const fitSpecs = riderSpecs ?? loadRiderBikeSpecs();
+                      void pushCourseToHeadUnit(trip, hu.id, {
+                        includeFuelingCues: includeFitFuelCues,
+                        includeClimbCues: includeFitFuelCues,
+                        lang,
+                        ftpWatts: fitSpecs.ftpWatts,
+                        carbTargetGPerHr: fitSpecs.carbTargetGPerHr,
+                        nutritionPreference: fitSpecs.nutritionPreference,
+                      }).then((res) => {
+                        setExportFeedback(
+                          res.ok
+                            ? {
+                                kind: 'ok',
+                                msg: isFr ? `Envoyé vers ${hu.label}` : `Sent to ${hu.label}`,
+                              }
+                            : {
+                                kind: 'err',
+                                msg: isFr
+                                  ? `Échec ${hu.label} (${res.reason || 'erreur'})`
+                                  : `${hu.label} push failed (${res.reason || 'error'})`,
+                              }
+                        );
+                      });
+                    },
+                  };
+                }),
               ];
 
               if (onPrint) {
@@ -2404,46 +2466,109 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   </div>
 
                   {trip.route.pacingMode === 'effort' ? (
-                    <div className="space-y-2">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <span className="text-lg font-bold tnum text-ink">
-                          {trip.route.targetEffortWatts || 160} W
-                        </span>
-                        <span className="text-[11px] tnum text-ink-secondary">
-                          → {physicsResult.effectiveSpeedKmH} km/h · {physicsResult.powerZone}
-                        </span>
-                      </div>
-                      <input
-                        type="range"
-                        min={80}
-                        max={360}
-                        step={5}
-                        value={trip.route.targetEffortWatts || 160}
-                        onChange={(e) =>
-                          handleUpdatePacing({ targetEffortWatts: parseInt(e.target.value, 10) || 160 })
-                        }
-                        className="w-full accent-[#a3b300] dark:accent-[#dfff00] cursor-pointer"
-                      />
-                      <div className="flex items-center justify-between gap-1.5">
-                        {[-15, -5, 5, 15].map((dw) => (
-                          <Button variant="ghost"
-                            key={dw}
-                            type="button"
-                            onClick={() =>
-                              handleUpdatePacing({
-                                targetEffortWatts: Math.max(
-                                  80,
-                                  Math.min(360, (trip.route.targetEffortWatts || 160) + dw)
-                                ),
-                              })
+                    (() => {
+                      const ftpWatts = Math.max(80, Math.round(physicsResult.ftpWatts || 210));
+                      const currentWatts = trip.route.targetEffortWatts || 160;
+                      const currentFtpPct = Math.round((currentWatts / ftpWatts) * 100);
+                      const clampedFtpPct = Math.max(45, Math.min(120, currentFtpPct));
+                      return (
+                        <div className="space-y-2.5">
+                          <div className="flex items-baseline justify-between gap-2">
+                            <span className="text-lg font-bold tnum text-ink">
+                              {currentWatts} W{' '}
+                              <span className="text-xs font-semibold text-ink-secondary">
+                                ({currentFtpPct}% FTP)
+                              </span>
+                            </span>
+                            <span className="text-[11px] tnum text-ink-secondary">
+                              → {physicsResult.effectiveSpeedKmH} km/h · {physicsResult.powerZone}
+                            </span>
+                          </div>
+                          <input
+                            type="range"
+                            min={80}
+                            max={360}
+                            step={5}
+                            value={currentWatts}
+                            onChange={(e) =>
+                              handleUpdatePacing({ targetEffortWatts: parseInt(e.target.value, 10) || 160 })
                             }
-                            className="flex-1 min-h-[44px] sm:min-h-[34px] rounded-full bg-pod hover:bg-chip text-[11px] font-semibold text-ink tnum cursor-pointer"
-                          >
-                            {dw > 0 ? `+${dw} W` : `${dw} W`}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
+                            aria-label={isFr ? 'Puissance cible (Watts)' : 'Target power (Watts)'}
+                            className="w-full accent-[#a3b300] dark:accent-[#dfff00] cursor-pointer"
+                          />
+                          <div className="space-y-1.5 pt-1 border-t border-dashed border-ink/10 dark:border-white/10">
+                            <div className="flex items-center justify-between text-[11px] text-ink-secondary tnum">
+                              <span className="font-semibold">
+                                {isFr ? 'Allure % FTP' : '% FTP Pacing'}
+                              </span>
+                              <span>
+                                {currentFtpPct}% · {ftpWatts} W FTP
+                              </span>
+                            </div>
+                            <input
+                              type="range"
+                              min={45}
+                              max={120}
+                              step={1}
+                              value={clampedFtpPct}
+                              onChange={(e) => {
+                                const pct = parseInt(e.target.value, 10) || 75;
+                                const nextWatts = Math.max(80, Math.min(450, Math.round((pct / 100) * ftpWatts)));
+                                handleUpdatePacing({ targetEffortWatts: nextWatts });
+                              }}
+                              aria-label={isFr ? 'Allure cible (% FTP)' : 'Target pacing (% FTP)'}
+                              className="w-full accent-[#a3b300] dark:accent-[#dfff00] cursor-pointer"
+                            />
+                            <div className="flex items-center justify-between gap-1.5">
+                              {[65, 75, 85, 95].map((pct) => {
+                                const active = Math.abs(currentFtpPct - pct) <= 1;
+                                return (
+                                  <Button
+                                    variant="ghost"
+                                    key={pct}
+                                    type="button"
+                                    onClick={() =>
+                                      handleUpdatePacing({
+                                        targetEffortWatts: Math.max(
+                                          80,
+                                          Math.min(450, Math.round((pct / 100) * ftpWatts))
+                                        ),
+                                      })
+                                    }
+                                    className={`flex-1 min-h-[36px] sm:min-h-[30px] rounded-full text-[11px] font-semibold tnum cursor-pointer ${
+                                      active
+                                        ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary}`
+                                        : 'bg-pod hover:bg-chip text-ink-secondary hover:text-ink'
+                                    }`}
+                                  >
+                                    {pct}%
+                                  </Button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between gap-1.5">
+                            {[-15, -5, 5, 15].map((dw) => (
+                              <Button variant="ghost"
+                                key={dw}
+                                type="button"
+                                onClick={() =>
+                                  handleUpdatePacing({
+                                    targetEffortWatts: Math.max(
+                                      80,
+                                      Math.min(360, currentWatts + dw)
+                                    ),
+                                  })
+                                }
+                                className="flex-1 min-h-[44px] sm:min-h-[34px] rounded-full bg-pod hover:bg-chip text-[11px] font-semibold text-ink tnum cursor-pointer"
+                              >
+                                {dw > 0 ? `+${dw} W` : `${dw} W`}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()
                   ) : (
                     <div className="space-y-2">
                       <div className="flex items-baseline justify-between gap-2">

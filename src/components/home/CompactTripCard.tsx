@@ -110,10 +110,9 @@ export const CompactTripCard: React.FC<CompactTripCardProps> = ({
       ? 'amber'
       : 'rose';
 
-  const customizationsLabel =
-    lang === 'fr'
-      ? `${customCount} personnalisation${customCount > 1 ? 's' : ''}`
-      : `${customCount} customization${customCount === 1 ? '' : 's'}`;
+  const customizationsLabel = `${customCount} ${
+    customCount === 1 ? t('customizationSingular') : t('customizationPlural')
+  }`;
 
   const readyLabel = t('readyCountLabel', {
     checked: String(checkedCount),
@@ -139,7 +138,7 @@ export const CompactTripCard: React.FC<CompactTripCardProps> = ({
             {dateInfo.countdownText}
           </Badge>
           <Badge variant={rideStyleBadge.variant} size="md" icon={rideStyleBadge.icon} className="h-9">
-            {trip.tag === 'VÉLOTAF' ? (lang === 'fr' ? 'Vélotaf' : 'Commute') : trip.tag}
+            {trip.tag === 'VÉLOTAF' ? t('commuteTagLabel') : trip.tag}
           </Badge>
           {isActive && (
             <Badge variant="yellow-vest" size="md" dot className="h-9">
@@ -191,7 +190,7 @@ export const CompactTripCard: React.FC<CompactTripCardProps> = ({
             {dateInfo.countdownText}
           </Badge>
           <Badge variant={rideStyleBadge.variant} size="md" icon={rideStyleBadge.icon} className="h-9">
-            {trip.tag === 'VÉLOTAF' ? (lang === 'fr' ? 'Vélotaf' : 'Commute') : trip.tag}
+            {trip.tag === 'VÉLOTAF' ? t('commuteTagLabel') : trip.tag}
           </Badge>
           {isActive && (
             <Badge variant="yellow-vest" size="md" dot className="h-9">
@@ -258,7 +257,7 @@ export const CompactTripCard: React.FC<CompactTripCardProps> = ({
         </div>
         <span
           className="inline-flex items-center shrink-0"
-          title={`${lang === 'fr' ? 'Prêt à partir' : 'Ride readiness'}: ${readiness.score}/100 · ${readiness.label}`}
+          title={`${t('readinessTooltipPrefix')}: ${readiness.score}/100 · ${readiness.label}`}
         >
           <ReadinessGauge
             score={readiness.score}

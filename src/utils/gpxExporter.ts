@@ -11,6 +11,12 @@ import {
   formatAmenityCueNote,
   getAmenityGpxSymbol,
 } from './cueSheet';
+import { calculatePhysics } from './physics';
+import {
+  ClimbCategory,
+  computeClimbSplitsAndFueling,
+  formatClimbCategoryLabel,
+} from './climbSplits';
 
 /**
  * Generate a smooth closed loop of GPS coordinates centered around an origin point.
@@ -446,13 +452,14 @@ export function exportTripToGpx(trip: TripProfile): string {
     `${trip.route.distanceKm} km ride · Planned with Cadence (bike-trip-engine)`;
   const time = points.length > 0 ? points[0].timestamp : new Date().toISOString();
 
-  const wptXml = buildStageWaypointsXml({
-    route: trip.route,
-    points,
-    pinnedAmenities,
-    departureTime: trip.departureTime,
-    lang,
-  });
+  const wptXml =
+    buildStageWaypointsXml({
+      route: trip.route,
+      points,
+      pinnedAmenities,
+      departureTime: trip.departureTime,
+      lang,
+    }) + buildClimbAndFuelGpxWaypointsXml(trip, points, lang);
 
   const rteXml = buildStageCueRouteXml({
     route: trip.route,
@@ -560,6 +567,74 @@ export function exportEntireTourToGpx(trip: TripProfile): string {
 ${wptXml}${rteXml}${trksXml}</gpx>`;
 }
 
+function mapClimbCategoryToTcxPointType(cat: ClimbCategory): string {
+  switch (cat) {
+    case 'HC':
+      return 'Hors Category';
+    case '1':
+      return '1st Category';
+    case '2':
+      return '2nd Category';
+    case '3':
+      return '3rd Category';
+    case '4':
+      return '4th Category';
+    default:
+      return 'Generic';
+  }
+}
+
+function buildClimbAndFuelGpxWaypointsXml(
+  trip: TripProfile,
+  points: TrackPointData[],
+  lang: 'en' | 'fr'
+): string {
+  if (points.length === 0) return '';
+  const physicsResult = calculatePhysics(trip.physics, trip.route, trip.weather, lang);
+  const splitSummary = computeClimbSplitsAndFueling(trip, physicsResult, lang, {
+    departureTimeHHMM: trip.departureTime,
+  });
+
+  let xml = '';
+  for (const climb of splitSummary.climbs) {
+    const pt = findNearestTrackPoint(points, climb.startKm);
+    if (!pt) continue;
+    const catLabel = formatClimbCategoryLabel(climb.category, lang);
+    const etaPart = climb.etaStartHHMM ? ` · ETA ${climb.etaStartHHMM}` : '';
+    const desc = `${climb.lengthKm} km @ ${climb.avgGradePct}% (+${climb.elevationGainM} m) · ${climb.targetWatts}W (${climb.ftpPercent}% FTP, ${climb.wattsPerKg} W/kg) · ${climb.durationFormatted}${etaPart} · ${climb.fuelingCue}`;
+    xml += formatGpxPointElement('wpt', '  ', {
+      lat: pt.lat,
+      lon: pt.lng,
+      ele: pt.eleM,
+      time: pt.timestamp,
+      name: `${catLabel} ${climb.name}`.slice(0, 48),
+      cmt: climb.fuelingCue,
+      desc,
+      sym: 'Summit',
+      type: 'Climb',
+    });
+  }
+
+  for (const cp of splitSummary.checkpoints) {
+    const pt = findNearestTrackPoint(points, cp.distKm);
+    if (!pt) continue;
+    const etaPart = cp.etaHHMM ? ` · ETA ${cp.etaHHMM}` : '';
+    xml += formatGpxPointElement('wpt', '  ', {
+      lat: pt.lat,
+      lon: pt.lng,
+      ele: pt.eleM,
+      time: pt.timestamp,
+      name: cp.label.slice(0, 48),
+      cmt: cp.shortFitCue,
+      desc: `${cp.detail}${etaPart}`,
+      sym: cp.kind === 'hydration' ? 'Drinking Water' : 'Food',
+      type: cp.kind === 'hydration' ? 'Hydration' : 'Fueling',
+    });
+  }
+
+  return xml;
+}
+
 /**
  * Generate Garmin TCX Course XML string with course laps, track points,
  * and <CoursePoint> turn-by-turn + pinned resupply cue sheet entries.
@@ -613,26 +688,88 @@ export function exportTripToTcx(trip: TripProfile): string {
     lang,
   });
 
-  let coursePointsXml = '';
+  const physicsResult = calculatePhysics(trip.physics, trip.route, trip.weather, lang);
+  const splitSummary = computeClimbSplitsAndFueling(trip, physicsResult, lang, {
+    departureTimeHHMM: trip.departureTime,
+  });
+
+  interface TcxCoursePoint {
+    distKm: number;
+    lat: number;
+    lon: number;
+    ele?: number;
+    time: string;
+    name: string;
+    pointType: string;
+    notes: string;
+  }
+
+  const allCoursePoints: TcxCoursePoint[] = [];
+
   for (const cue of cueEntries) {
     const nearPt = findNearestTrackPoint(points, cue.distKm, cue.lat, cue.lng);
-    const cpTime = nearPt?.timestamp || (points[0]?.timestamp ?? new Date().toISOString());
-    const cpEle = cue.amenity?.elevationMeters ?? nearPt?.eleM;
-    const cpName = escapeXml(cue.shortName.slice(0, 30));
-    const cpNotes = escapeXml(cue.desc);
+    allCoursePoints.push({
+      distKm: cue.distKm,
+      lat: cue.lat,
+      lon: cue.lng,
+      ele: cue.amenity?.elevationMeters ?? nearPt?.eleM,
+      time: nearPt?.timestamp || (points[0]?.timestamp ?? new Date().toISOString()),
+      name: cue.shortName.slice(0, 30),
+      pointType: cue.tcxPointType,
+      notes: cue.desc,
+    });
+  }
 
+  for (const climb of splitSummary.climbs) {
+    const nearPt = findNearestTrackPoint(points, climb.startKm);
+    if (!nearPt) continue;
+    const catTag =
+      climb.category === 'HC' ? 'HC' : climb.category === 'hill' ? 'Climb' : `C${climb.category}`;
+    const etaPart = climb.etaStartHHMM ? ` · ETA ${climb.etaStartHHMM}` : '';
+    allCoursePoints.push({
+      distKm: climb.startKm,
+      lat: nearPt.lat,
+      lon: nearPt.lng,
+      ele: nearPt.eleM,
+      time: nearPt.timestamp,
+      name: `${catTag} ${climb.lengthKm}km ${Math.round(climb.avgGradePct)}%`.slice(0, 30),
+      pointType: mapClimbCategoryToTcxPointType(climb.category),
+      notes: `${climb.targetWatts}W (${climb.ftpPercent}% FTP, ${climb.wattsPerKg} W/kg) · ${climb.durationFormatted}${etaPart} · ${climb.fuelingCue}`,
+    });
+  }
+
+  for (const cp of splitSummary.checkpoints) {
+    const nearPt = findNearestTrackPoint(points, cp.distKm);
+    if (!nearPt) continue;
+    const etaPart = cp.etaHHMM ? ` (ETA ${cp.etaHHMM})` : '';
+    allCoursePoints.push({
+      distKm: cp.distKm,
+      lat: nearPt.lat,
+      lon: nearPt.lng,
+      ele: nearPt.eleM,
+      time: nearPt.timestamp,
+      name: cp.shortFitCue.slice(0, 30),
+      pointType: cp.kind === 'hydration' ? 'Water' : 'Food',
+      notes: `${cp.detail}${etaPart}`,
+    });
+  }
+
+  allCoursePoints.sort((a, b) => a.distKm - b.distKm);
+
+  let coursePointsXml = '';
+  for (const cp of allCoursePoints) {
     coursePointsXml += `      <CoursePoint>\n`;
-    coursePointsXml += `        <Name>${cpName}</Name>\n`;
-    coursePointsXml += `        <Time>${cpTime}</Time>\n`;
+    coursePointsXml += `        <Name>${escapeXml(cp.name)}</Name>\n`;
+    coursePointsXml += `        <Time>${cp.time}</Time>\n`;
     coursePointsXml += `        <Position>\n`;
-    coursePointsXml += `          <LatitudeDegrees>${cue.lat.toFixed(6)}</LatitudeDegrees>\n`;
-    coursePointsXml += `          <LongitudeDegrees>${cue.lng.toFixed(6)}</LongitudeDegrees>\n`;
+    coursePointsXml += `          <LatitudeDegrees>${cp.lat.toFixed(6)}</LatitudeDegrees>\n`;
+    coursePointsXml += `          <LongitudeDegrees>${cp.lon.toFixed(6)}</LongitudeDegrees>\n`;
     coursePointsXml += `        </Position>\n`;
-    if (cpEle !== undefined && Number.isFinite(cpEle)) {
-      coursePointsXml += `        <AltitudeMeters>${cpEle.toFixed(1)}</AltitudeMeters>\n`;
+    if (cp.ele !== undefined && Number.isFinite(cp.ele)) {
+      coursePointsXml += `        <AltitudeMeters>${cp.ele.toFixed(1)}</AltitudeMeters>\n`;
     }
-    coursePointsXml += `        <PointType>${cue.tcxPointType}</PointType>\n`;
-    coursePointsXml += `        <Notes>${cpNotes}</Notes>\n`;
+    coursePointsXml += `        <PointType>${cp.pointType}</PointType>\n`;
+    coursePointsXml += `        <Notes>${escapeXml(cp.notes)}</Notes>\n`;
     coursePointsXml += `      </CoursePoint>\n`;
   }
 

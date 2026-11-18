@@ -1,9 +1,38 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '../services/supabase';
+import type { User, Session } from '@supabase/supabase-js';
 import { AuthContextType, SyncStatus } from '../types/auth';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+function hasPotentialSupabaseAuthState(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const hash = window.location.hash || '';
+    const search = window.location.search || '';
+    if (
+      hash.includes('access_token=') ||
+      hash.includes('type=recovery') ||
+      search.includes('code=') ||
+      search.includes('type=recovery')
+    ) {
+      return true;
+    }
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const k = window.localStorage.key(i);
+      if (k && k.startsWith('sb-') && k.endsWith('-auth-token')) {
+        return true;
+      }
+    }
+  } catch {
+    // Ignore storage access errors
+  }
+  return false;
+}
+
+async function getSupabaseClient() {
+  const mod = await import('../services/supabase');
+  return mod.supabase;
+}
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -34,48 +63,72 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  useEffect(() => {
-    let mounted = true;
+  const authSubRef = useRef<{ unsubscribe: () => void } | null>(null);
+  const mountedRef = useRef<boolean>(true);
 
-    // Check active session
-    supabase.auth.getSession().then(({ data: { session: initialSession }, error }) => {
-      if (error) {
-        console.warn('Error reading initial Supabase session:', error.message);
-      }
-      if (mounted) {
-        setSession(initialSession);
-        setUser(initialSession?.user ?? null);
+  const ensureSupabaseAuthInitialized = useCallback(async () => {
+    const supabase = await getSupabaseClient();
+    if (!authSubRef.current) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
+        if (!mountedRef.current) return;
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+        if (event === 'PASSWORD_RECOVERY') {
+          setIsPasswordRecoveryOpen(true);
+        }
+        if (!currentSession) {
+          setSyncStatus('idle');
+        }
         setIsAuthLoading(false);
-      }
-    }).catch((err) => {
-      console.warn('Failed to retrieve initial session:', err);
-      if (mounted) setIsAuthLoading(false);
-    });
+      });
+      authSubRef.current = subscription;
+    }
+    return supabase;
+  }, []);
 
-    // Listen for auth state changes (sign in, sign out, token refresh, password recovery)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
-      if (!mounted) return;
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
-      if (event === 'PASSWORD_RECOVERY') {
-        setIsPasswordRecoveryOpen(true);
-      }
-      if (!currentSession) {
-        setSyncStatus('idle');
-      }
+  useEffect(() => {
+    mountedRef.current = true;
+    if (!hasPotentialSupabaseAuthState()) {
       setIsAuthLoading(false);
-    });
+      return () => {
+        mountedRef.current = false;
+        authSubRef.current?.unsubscribe();
+        authSubRef.current = null;
+      };
+    }
+
+    ensureSupabaseAuthInitialized()
+      .then((supabase) => supabase.auth.getSession())
+      .then(({ data: { session: initialSession }, error }) => {
+        if (error) {
+          console.warn('Error reading initial Supabase session:', error.message);
+        }
+        if (mountedRef.current) {
+          setSession(initialSession);
+          setUser(initialSession?.user ?? null);
+          setIsAuthLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to retrieve initial session:', err);
+        if (mountedRef.current) setIsAuthLoading(false);
+      });
 
     return () => {
-      mounted = false;
-      subscription.unsubscribe();
+      mountedRef.current = false;
+      authSubRef.current?.unsubscribe();
+      authSubRef.current = null;
     };
-  }, []);
+  }, [ensureSupabaseAuthInitialized]);
 
-  const openAuthModal = useCallback((mode: 'login' | 'signup' = 'login') => {
-    setAuthModalMode(mode);
-    setIsAuthModalOpen(true);
-  }, []);
+  const openAuthModal = useCallback(
+    (mode: 'login' | 'signup' = 'login') => {
+      setAuthModalMode(mode);
+      setIsAuthModalOpen(true);
+      void ensureSupabaseAuthInitialized();
+    },
+    [ensureSupabaseAuthInitialized]
+  );
 
   const closeAuthModal = useCallback(() => {
     setIsAuthModalOpen(false);
@@ -83,6 +136,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = useCallback(async (email: string, password: string) => {
     try {
+      const supabase = await ensureSupabaseAuthInitialized();
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
@@ -99,10 +153,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err: any) {
       return { error: err as Error };
     }
-  }, []);
+  }, [ensureSupabaseAuthInitialized]);
 
   const signUp = useCallback(async (email: string, password: string) => {
     try {
+      const supabase = await ensureSupabaseAuthInitialized();
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
@@ -120,10 +175,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err: any) {
       return { error: err as Error, unconfirmed: false };
     }
-  }, []);
+  }, [ensureSupabaseAuthInitialized]);
 
   const signOut = useCallback(async () => {
     try {
+      const supabase = await ensureSupabaseAuthInitialized();
       await supabase.auth.signOut();
     } catch (err) {
       console.error('Error signing out:', err);
@@ -132,10 +188,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(null);
       setSyncStatus('idle');
     }
-  }, []);
+  }, [ensureSupabaseAuthInitialized]);
 
   const signInWithMagicLink = useCallback(async (email: string) => {
     try {
+      const supabase = await ensureSupabaseAuthInitialized();
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim(),
         options: {
@@ -146,10 +203,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err: any) {
       return { error: err as Error };
     }
-  }, []);
+  }, [ensureSupabaseAuthInitialized]);
 
   const resetPassword = useCallback(async (email: string) => {
     try {
+      const supabase = await ensureSupabaseAuthInitialized();
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
         redirectTo: window.location.origin,
       });
@@ -157,10 +215,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err: any) {
       return { error: err as Error };
     }
-  }, []);
+  }, [ensureSupabaseAuthInitialized]);
 
   const updatePassword = useCallback(async (newPassword: string) => {
     try {
+      const supabase = await ensureSupabaseAuthInitialized();
       const { error } = await supabase.auth.updateUser({
         password: newPassword,
       });

@@ -1,7 +1,12 @@
 import { GpxParseResult, parseGpxFileContent } from './gpxParser';
 import { parseFitFileBuffer, parseTcxFileContent } from './routeFileParser';
-import { isSupabaseConfigured, supabase } from '../services/supabase';
 import { getOrCreateIntegrationConnectionKey } from '../services/stravaIntegration';
+
+const isSupabaseConfigured = Boolean(
+  import.meta.env?.VITE_SUPABASE_URL &&
+    import.meta.env?.VITE_SUPABASE_ANON_KEY &&
+    import.meta.env?.VITE_SUPABASE_URL.startsWith('http')
+);
 
 export type RouteUrlProvider = 'komoot' | 'bikemap' | 'ridewithgps' | 'strava' | 'direct-file' | 'unknown';
 
@@ -30,6 +35,12 @@ export type RouteProxyInvoker = (
   url: string
 ) => Promise<{ data: RouteProxyPayload | null; error: unknown }>;
 
+function matchesDomain(host: string, domain: string): boolean {
+  const cleanHost = host.toLowerCase();
+  const cleanDomain = domain.toLowerCase();
+  return cleanHost === cleanDomain || cleanHost.endsWith(`.${cleanDomain}`);
+}
+
 export function detectRouteUrlProvider(rawUrl: string): {
   provider: RouteUrlProvider;
   url: URL | null;
@@ -52,19 +63,24 @@ export function detectRouteUrlProvider(rawUrl: string): {
   if (/\.(gpx|tcx|fit)$/i.test(path)) {
     return { provider: 'direct-file', url: parsedUrl };
   }
-  if (host.includes('komoot.')) {
+  if (
+    matchesDomain(host, 'komoot.com') ||
+    matchesDomain(host, 'komoot.de') ||
+    matchesDomain(host, 'komoot.fr') ||
+    matchesDomain(host, 'api.komoot.de')
+  ) {
     const m = path.match(/\/tour\/(\d+)/i);
     return { provider: 'komoot', url: parsedUrl, routeId: m?.[1] };
   }
-  if (host.includes('bikemap.')) {
+  if (matchesDomain(host, 'bikemap.net')) {
     const m = path.match(/\/r\/(\d+)/i);
     return { provider: 'bikemap', url: parsedUrl, routeId: m?.[1] };
   }
-  if (host.includes('ridewithgps.')) {
+  if (matchesDomain(host, 'ridewithgps.com')) {
     const m = path.match(/\/routes\/(\d+)/i);
     return { provider: 'ridewithgps', url: parsedUrl, routeId: m?.[1] };
   }
-  if (host.includes('strava.')) {
+  if (matchesDomain(host, 'strava.com') || matchesDomain(host, 'strava.app.link')) {
     const m = path.match(/\/routes\/(\d+)/i);
     return { provider: 'strava', url: parsedUrl, routeId: m?.[1] };
   }
@@ -165,6 +181,7 @@ async function defaultProxyInvoker(
   url: string
 ): Promise<{ data: RouteProxyPayload | null; error: unknown }> {
   const connectionKey = getOrCreateIntegrationConnectionKey();
+  const { supabase } = await import('../services/supabase');
   const { data, error } = await supabase.functions.invoke<RouteProxyPayload>('route-proxy', {
     body: { url, connectionKey },
   });

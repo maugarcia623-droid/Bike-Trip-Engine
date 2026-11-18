@@ -340,7 +340,7 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
           const alert: RideAlertEvent = {
             id: `fuel-${Date.now()}`,
             kind: 'fuel',
-            title: isFr ? 'Rappel hydratation & énergie' : 'Drink & Fuel Cue',
+            title: t('rideModeDrinkFuelTitle'),
             spokenText: spoken,
           };
           setLastAlert(alert);
@@ -602,7 +602,7 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
                   <span>{t('rideModeSpeedLabel')}</span>
                 </span>
                 <span className="tnum">
-                  {isFr ? 'Cible' : 'Target'} {Math.round(physicsResult.calmSpeedKmH)} km/h
+                  {t('rideModeTargetPrefix')} {Math.round(physicsResult.calmSpeedKmH)} km/h
                 </span>
               </div>
               <div className="flex items-baseline gap-2">

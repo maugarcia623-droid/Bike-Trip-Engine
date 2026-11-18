@@ -3,7 +3,13 @@ import { Language } from '../context/LanguageContext';
 import { NutritionPreference } from '../types/specs';
 import { computeCumulativeDistances, snapToPolyline } from '../services/overpassCorridor';
 import { calculatePhysics } from './physics';
-import { ClimbCategory, computeClimbSplitsAndFueling } from './climbSplits';
+import {
+  buildClimbAdjustedPacingCurve,
+  ClimbCategory,
+  computeClimbSplitsAndFueling,
+  interpolateElapsedSecondsAtKm,
+} from './climbSplits';
+import { synthesizeRouteElevationProfile } from './gpxParser';
 
 export interface FitExportOptions {
   /** Inject periodic nutrition/hydration course_points (every 30-45 min). Default true. */
@@ -214,8 +220,36 @@ export function exportTripToFit(
   const cumMeters = computeCumulativeDistances(coords);
   const rawTotalM = cumMeters[cumMeters.length - 1] || 1000;
   const targetTotalM = Math.max(rawTotalM, (trip.route.distanceKm || 0) * 1000);
-  const speedMs = Math.max(2, (trip.route.targetSpeedKmH || 22) / 3.6);
-  const totalElapsedSec = Math.max(60, Math.round(targetTotalM / speedMs));
+  const physicsResult = calculatePhysics(
+    trip.physics,
+    trip.route,
+    trip.weather,
+    lang,
+    ftpWatts
+  );
+  const avgSpeedKmH = Math.max(8, physicsResult.effectiveSpeedKmH || trip.route.targetSpeedKmH || 22);
+  const totalMassKg =
+    (trip.physics.riderWeightKg || 70) +
+    (trip.physics.bikeWeightKg || 9) +
+    (trip.physics.gearWeightKg || 2);
+  const pacingProfile =
+    trip.route.elevationProfile && trip.route.elevationProfile.length >= 2
+      ? trip.route.elevationProfile
+      : synthesizeRouteElevationProfile(trip.route).elevationProfile;
+  const pacingCurve = buildClimbAdjustedPacingCurve(
+    pacingProfile,
+    targetTotalM / 1000,
+    avgSpeedKmH,
+    totalMassKg
+  );
+  const totalElapsedSec = Math.max(
+    60,
+    Math.round(
+      pacingCurve.length > 0
+        ? pacingCurve[pacingCurve.length - 1].elapsedSec
+        : targetTotalM / Math.max(2, avgSpeedKmH / 3.6)
+    )
+  );
   const nowFitSec = Math.max(1, Math.floor(Date.now() / 1000) - FIT_EPOCH_OFFSET_SEC);
 
   const w = new FitByteWriter();
@@ -308,7 +342,7 @@ export function exportTripToFit(
   const distScale = rawTotalM > 0 ? targetTotalM / rawTotalM : 1;
   for (let i = 0; i < coords.length; i++) {
     const distM = cumMeters[i] * distScale;
-    const tSec = nowFitSec + Math.round((distM / targetTotalM) * totalElapsedSec);
+    const tSec = nowFitSec + Math.round(interpolateElapsedSecondsAtKm(pacingCurve, distM / 1000));
     const eleM = interpolateElevation(distM / 1000, trip.route.elevationProfile);
     const rawAlt = Math.max(0, Math.min(65534, Math.round((eleM + 500) * 5)));
 
@@ -354,13 +388,6 @@ export function exportTripToFit(
   }
 
   if (includeFuelingCues || includeClimbCues) {
-    const physicsResult = calculatePhysics(
-      trip.physics,
-      trip.route,
-      trip.weather,
-      lang,
-      ftpWatts
-    );
     const splitSummary = computeClimbSplitsAndFueling(trip, physicsResult, lang, {
       ftpWatts,
       carbTargetGPerHr,
@@ -437,7 +464,7 @@ export function exportTripToFit(
     w.writeUint8(6); w.writeUint8(16); w.writeUint8(7);  // name (16-byte string)
 
     for (const cp of coursePoints) {
-      const tSec = nowFitSec + Math.round((cp.distM / targetTotalM) * totalElapsedSec);
+      const tSec = nowFitSec + Math.round(interpolateElapsedSecondsAtKm(pacingCurve, cp.distM / 1000));
       w.writeUint8(0x05);
       w.writeUint32LE(tSec);
       w.writeSint32LE(degToSemicircles(cp.lat));

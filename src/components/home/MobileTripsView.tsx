@@ -183,7 +183,7 @@ export const MobileTripsView: React.FC<MobileTripsViewProps> = ({
           className="inline-flex items-center gap-1.5 min-h-[44px] h-10 px-4 rounded-full bg-card hover:bg-pod text-ink border border-ink/5 dark:border-white/5 text-xs font-semibold shadow-xs cursor-pointer active:scale-[0.98]"
         >
           <ArrowLeft className="w-4 h-4 text-current shrink-0" />
-          <span>{isFr ? 'Accueil' : 'Home'}</span>
+          <span>{t('navHomeLabel')}</span>
         </Button>
 
         <Button
@@ -199,7 +199,7 @@ export const MobileTripsView: React.FC<MobileTripsViewProps> = ({
 
       {/* Page Heading */}
       <h1 className="text-2xl font-semibold text-ink tracking-tight leading-tight">
-        {isFr ? 'Trajets' : 'Trips'}
+        {t('tripsPageHeading')}
       </h1>
 
       {/* Your Upcoming Trip Card (Original UpcomingTripCard design, collapsed by default on mobile) */}
@@ -280,7 +280,7 @@ export const MobileTripsView: React.FC<MobileTripsViewProps> = ({
             {plannedTrips.map(renderTripItem)}
           </div>
         ) : trips.length > 0 && completedTrips.length === 0 ? (
-          <div className="rounded-3xl bg-card border border-ink/10 dark:border-white/10 p-8 text-center shadow-xs space-y-3">
+          <div className="rounded-card bg-card border border-ink/10 dark:border-white/10 p-8 text-center shadow-xs space-y-3">
             <h3 className="text-base font-semibold text-ink">{t('noFilteredProfilesTitle')}</h3>
             <p className="text-xs text-ink-muted max-w-sm mx-auto">{t('noFilteredProfilesDesc')}</p>
             <Button
@@ -293,18 +293,16 @@ export const MobileTripsView: React.FC<MobileTripsViewProps> = ({
             </Button>
           </div>
         ) : trips.length === 0 ? (
-          <div className="rounded-3xl bg-card border border-ink/10 dark:border-white/10 p-8 text-center shadow-xs space-y-4">
+          <div className="rounded-card bg-card border border-ink/10 dark:border-white/10 p-8 text-center shadow-xs space-y-4">
             <div className="w-12 h-12 rounded-full bg-pod flex items-center justify-center mx-auto text-ink-muted">
               <Sparkle className="w-6 h-6 text-volt-dim dark:text-volt" />
             </div>
             <div className="space-y-1">
               <h3 className="text-lg font-bold text-ink">
-                {isFr ? 'Aucune sortie enregistrée' : 'No trips saved yet'}
+                {t('noTripsSavedTitle')}
               </h3>
               <p className="text-xs text-ink-muted max-w-md mx-auto leading-relaxed">
-                {isFr
-                  ? 'Configurez votre première sortie personnalisée ou chargez un profil démo pour explorer votre plan de route Cadence.'
-                  : 'Create your first custom ride or load a demo profile to explore your Cadence ride plan.'}
+                {t('noTripsSavedDesc')}
               </p>
             </div>
             <div className="flex items-center justify-center gap-3 pt-2 flex-wrap">
@@ -325,7 +323,7 @@ export const MobileTripsView: React.FC<MobileTripsViewProps> = ({
                   className="flex items-center gap-1.5 h-10 px-5 bg-pod hover:bg-chip text-ink border border-black/10 dark:border-white/15 font-semibold text-xs rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer"
                 >
                   <Sparkle className="w-4 h-4 text-volt-dim dark:text-volt" />
-                  <span>{isFr ? 'Charger un trajet démo' : 'Load Sample Trip (Demo)'}</span>
+                  <span>{t('loadSampleTripBtn')}</span>
                 </Button>
               )}
             </div>
@@ -337,7 +335,7 @@ export const MobileTripsView: React.FC<MobileTripsViewProps> = ({
       {completedTrips.length > 0 && (
         <motion.div layout transition={{ layout: cardSpring }} className="space-y-3.5 pt-2">
           <h2 className="text-base font-semibold tracking-tight text-ink">
-            {isFr ? 'Vos trajets terminés' : 'Your completed trips'}
+            {t('completedTripsHeading')}
           </h2>
           <div className="space-y-3.5">
             {completedTrips.map(renderTripItem)}

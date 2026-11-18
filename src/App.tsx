@@ -70,14 +70,18 @@ import { calculateReverseTimeline } from './utils/timeline';
 import { getChipsExtraBufferMinutes } from './utils/archetypeChips';
 import { decodePlanShareToken, SharedPlanMeta } from './utils/planShare';
 import { parseRouteFile } from './utils/routeFileParser';
-import { importRouteFromUrl } from './utils/routeUrlImporter';
 import { consumeStravaOAuthRedirectParams } from './services/stravaIntegration';
+import { consumeHeadUnitOAuthRedirectParams } from './services/headUnitIntegration';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { AuthModal } from './components/auth/AuthModal';
-import { ResetPasswordModal } from './components/auth/ResetPasswordModal';
-import { fetchCloudUserState, saveCloudUserState, isCloudDataEmpty } from './services/cloudSync';
 import { AppDataPayload } from './types/auth';
 import { loadUserProfile, saveUserProfile } from './utils/userProfileStorage';
+
+const AuthModal = React.lazy(() =>
+  import('./components/auth/AuthModal').then((m) => ({ default: m.AuthModal }))
+);
+const ResetPasswordModal = React.lazy(() =>
+  import('./components/auth/ResetPasswordModal').then((m) => ({ default: m.ResetPasswordModal }))
+);
 
 const STORAGE_KEY_ONBOARDED = 'bike_trip_engine_onboarded_v1';
 
@@ -172,7 +176,14 @@ function markOnboardingSeen(): void {
 function AppContent() {
   const { isDark } = useTheme();
   const { lang, t } = useTranslation();
-  const { user, setSyncStatus, setLastSyncedAt, registerForceSync } = useAuth();
+  const {
+    user,
+    setSyncStatus,
+    setLastSyncedAt,
+    registerForceSync,
+    isAuthModalOpen,
+    isPasswordRecoveryOpen,
+  } = useAuth();
   const [trips, setTrips] = useState<TripProfile[]>(() => loadTrips());
   const [activeTripId, setActiveTripId] = useState<string>(() =>
     getActiveTripId(trips)
@@ -340,9 +351,10 @@ function AppContent() {
     };
   }, []);
 
-  // Handle Strava OAuth redirect return query params (?strava_connected=1 / ?strava_error=...)
+  // Handle Strava & Head-Unit OAuth redirect return query params
   useEffect(() => {
     consumeStravaOAuthRedirectParams();
+    consumeHeadUnitOAuthRedirectParams();
   }, []);
 
   // PWA Share Target handler (?shared_file=1, ?shared_url=..., ?shared_text=...)
@@ -374,6 +386,7 @@ function AppContent() {
             parsedResult = await parseRouteFile(file);
           }
         } else if (sharedUrl || sharedText) {
+          const { importRouteFromUrl } = await import('./utils/routeUrlImporter');
           const outcome = await importRouteFromUrl(sharedUrl || sharedText);
           if (outcome.ok && outcome.parsed) {
             parsedResult = outcome.parsed;
@@ -436,6 +449,9 @@ function AppContent() {
 
     async function handleLoginSync() {
       try {
+        const { fetchCloudUserState, saveCloudUserState, isCloudDataEmpty } = await import(
+          './services/cloudSync'
+        );
         const { data, error } = await fetchCloudUserState(currentUserId);
         if (!isMounted) return;
 
@@ -562,6 +578,7 @@ function AppContent() {
           userProfile: currentUserProf || undefined,
         };
 
+        const { saveCloudUserState } = await import('./services/cloudSync');
         const { error } = await saveCloudUserState(currentUserId, payload);
         if (error) {
           console.error('Error auto-saving changes to Supabase user_state:', error);
@@ -599,6 +616,7 @@ function AppContent() {
           updatedAt: new Date().toISOString(),
           userProfile: currentUserProf || undefined,
         };
+        const { saveCloudUserState } = await import('./services/cloudSync');
         const { error } = await saveCloudUserState(currentUserId, payload);
         if (error) {
           setSyncStatus('error');
@@ -1244,10 +1262,18 @@ function AppContent() {
       )}
 
       {/* Supabase Authentication & Cloud Sync Modal */}
-      <AuthModal />
+      {isAuthModalOpen && (
+        <Suspense fallback={null}>
+          <AuthModal />
+        </Suspense>
+      )}
 
       {/* Supabase Password Recovery Modal */}
-      <ResetPasswordModal />
+      {isPasswordRecoveryOpen && (
+        <Suspense fallback={null}>
+          <ResetPasswordModal />
+        </Suspense>
+      )}
 
       {/* Cadence Feedback Modal */}
       <FeedbackModal

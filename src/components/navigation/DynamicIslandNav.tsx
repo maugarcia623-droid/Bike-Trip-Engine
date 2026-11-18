@@ -255,7 +255,7 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
               <div
                 role="listbox"
                 aria-label={t('activeTripAria')}
-                className="w-full bg-card rounded-[24px] p-3 text-ink shadow-[0_20px_50px_rgba(0,0,0,0.18)] dark:shadow-[0_24px_55px_rgba(0,0,0,0.7)] border border-ink/5 dark:border-white/10 animate-apple-popover"
+                className="w-full bg-card rounded-card p-3 text-ink shadow-[0_20px_50px_rgba(0,0,0,0.18)] dark:shadow-[0_24px_55px_rgba(0,0,0,0.7)] border border-ink/5 dark:border-white/10 animate-apple-popover"
               >
                 {/* Header with Active Trip Count & New Trip Action */}
                 <div className="flex items-center justify-between gap-2 pb-2.5 mb-2.5 border-b border-chip px-1">
@@ -343,7 +343,7 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
                           setIsSwitcherOpen(false);
                         }}
                         title={`${meta.name} — ${itemIsGo ? t('feasibilityOptimal') : itemIsCaution ? t('feasibilityCaution') : t('feasibilitySevere')}: ${itemPhysics.goStatusReason}`}
-                        className={`w-full min-h-[44px] flex items-center justify-between px-3 sm:px-3.5 py-2.5 rounded-xl text-[13px] text-left transition-all duration-150 active:scale-[0.98] cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                        className={`w-full min-h-[44px] flex items-center justify-between px-3 sm:px-3.5 py-2.5 rounded-pod text-[13px] text-left transition-all duration-150 active:scale-[0.98] cursor-pointer ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
                           isSelected
                             ? `${yellowVest.surface} ${yellowVest.primary} ${yellowVest.selectedRing}`
                             : `${CHIP_RING_UNSELECTED} bg-pod hover:bg-chip text-ink`

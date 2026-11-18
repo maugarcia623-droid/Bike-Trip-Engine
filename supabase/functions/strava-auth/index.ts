@@ -1,58 +1,22 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-
-const CORS_HEADERS: Record<string, string> = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-};
-
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+import {
+  CORS_HEADERS,
+  UUID_REGEX,
+  deleteOwnedIntegrationRow,
+  findOwnedIntegrationRow,
+  getFallbackRedirectOrigin,
+  isAllowedRedirectOrigin,
+  resolveRequestUser,
+  signOAuthState,
+  verifyOAuthState,
+} from "../_shared/security.ts";
 
 function jsonResponse(body: Record<string, unknown>, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
   });
-}
-
-function isAllowedRedirectOrigin(raw: string): string | null {
-  try {
-    const parsed = new URL(raw);
-    if (parsed.protocol === 'https:') return parsed.origin;
-    if (
-      parsed.protocol === 'http:' &&
-      (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1')
-    ) {
-      return parsed.origin;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-function encodeState(payload: { connectionKey: string; redirectOrigin: string }): string {
-  const bytes = new TextEncoder().encode(JSON.stringify(payload));
-  let binary = '';
-  for (const b of bytes) binary += String.fromCharCode(b);
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-}
-
-function decodeState(rawState: string): { connectionKey: string; redirectOrigin: string } | null {
-  try {
-    const padded = rawState.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((rawState.length + 3) % 4);
-    const binary = atob(padded);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    const parsed = JSON.parse(new TextDecoder().decode(bytes));
-    if (!parsed?.connectionKey || !UUID_REGEX.test(parsed.connectionKey)) return null;
-    const safeOrigin = isAllowedRedirectOrigin(String(parsed.redirectOrigin || ''));
-    if (!safeOrigin) return null;
-    return { connectionKey: parsed.connectionKey, redirectOrigin: safeOrigin };
-  } catch {
-    return null;
-  }
 }
 
 Deno.serve(async (req: Request) => {
@@ -65,42 +29,20 @@ Deno.serve(async (req: Request) => {
   const stravaClientId = Deno.env.get('STRAVA_CLIENT_ID') || '';
   const stravaClientSecret = Deno.env.get('STRAVA_CLIENT_SECRET') || '';
 
+  // GET is strictly reserved for the Strava OAuth callback (never accepts connection_key or arbitrary redirect_origin).
   if (req.method === 'GET') {
     const reqUrl = new URL(req.url);
     const action = reqUrl.searchParams.get('action');
-
-    // Step 1: Start Strava OAuth flow
     if (action === 'authorize') {
-      const connectionKey = reqUrl.searchParams.get('connection_key') || '';
-      const rawOrigin = reqUrl.searchParams.get('redirect_origin') || 'http://localhost:5173';
-      const redirectOrigin = isAllowedRedirectOrigin(rawOrigin) || 'http://localhost:5173';
-
-      if (!UUID_REGEX.test(connectionKey)) {
-        return Response.redirect(`${redirectOrigin}/?strava_error=invalid_connection_key`, 302);
-      }
-
-      if (!stravaClientId || !supabaseUrl) {
-        return Response.redirect(`${redirectOrigin}/?strava_error=missing_strava_secrets`, 302);
-      }
-
-      const callbackUrl = `${supabaseUrl}/functions/v1/strava-auth`;
-      const state = encodeState({ connectionKey, redirectOrigin });
-      const authorizeUrl =
-        `https://www.strava.com/oauth/authorize` +
-        `?client_id=${encodeURIComponent(stravaClientId)}` +
-        `&redirect_uri=${encodeURIComponent(callbackUrl)}` +
-        `&response_type=code` +
-        `&approval_prompt=auto` +
-        `&scope=read,read_all` +
-        `&state=${encodeURIComponent(state)}`;
-
-      return Response.redirect(authorizeUrl, 302);
+      return jsonResponse(
+        { ok: false, reason: 'use_post_authorize_url' },
+        405
+      );
     }
 
-    // Step 2: OAuth callback from Strava
     const rawState = reqUrl.searchParams.get('state') || '';
-    const state = decodeState(rawState);
-    const fallbackOrigin = 'http://localhost:5173';
+    const state = await verifyOAuthState(rawState);
+    const fallbackOrigin = getFallbackRedirectOrigin();
     const redirectOrigin = state?.redirectOrigin || fallbackOrigin;
 
     const stravaError = reqUrl.searchParams.get('error');
@@ -112,7 +54,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const code = reqUrl.searchParams.get('code') || '';
-    if (!code || !state) {
+    if (!code || !state || (state.provider && state.provider !== 'strava')) {
       return Response.redirect(`${redirectOrigin}/?strava_error=invalid_callback_state`, 302);
     }
 
@@ -153,9 +95,22 @@ Deno.serve(async (req: Request) => {
         'Strava Rider';
 
       const admin = createClient(supabaseUrl, serviceRoleKey);
+
+      const { data: existing } = await admin
+        .from('user_integrations')
+        .select('user_id')
+        .eq('connection_key', state.connectionKey)
+        .eq('provider', 'strava')
+        .maybeSingle();
+
+      if (existing?.user_id && existing.user_id !== state.userId) {
+        return Response.redirect(`${redirectOrigin}/?strava_error=state_ownership_mismatch`, 302);
+      }
+
       const { error: dbErr } = await admin.from('user_integrations').upsert(
         {
           connection_key: state.connectionKey,
+          user_id: state.userId ?? existing?.user_id ?? null,
           provider: 'strava',
           athlete_id: athleteId,
           athlete_name: athleteName,
@@ -182,17 +137,11 @@ Deno.serve(async (req: Request) => {
   }
 
   if (req.method === 'POST') {
-    let body: { action?: string; connectionKey?: string };
+    let body: { action?: string; connectionKey?: string; redirectOrigin?: string };
     try {
       body = await req.json();
     } catch {
       return jsonResponse({ ok: false, reason: 'Invalid JSON body.' }, 400);
-    }
-
-    const action = body?.action || 'status';
-    const connectionKey = typeof body?.connectionKey === 'string' ? body.connectionKey.trim() : '';
-    if (!UUID_REGEX.test(connectionKey)) {
-      return jsonResponse({ ok: true, connected: false });
     }
 
     if (!supabaseUrl || !serviceRoleKey) {
@@ -200,22 +149,70 @@ Deno.serve(async (req: Request) => {
     }
 
     const admin = createClient(supabaseUrl, serviceRoleKey);
+    const auth = await resolveRequestUser(req, admin);
+    if (auth.invalidToken) {
+      return jsonResponse({ ok: false, reason: 'invalid_auth_token' }, 401);
+    }
+
+    const action = body?.action || 'status';
+    const connectionKey = typeof body?.connectionKey === 'string' ? body.connectionKey.trim() : '';
+
+    if (action === 'authorize_url') {
+      const safeOrigin = isAllowedRedirectOrigin(String(body?.redirectOrigin || ''));
+      if (!safeOrigin) {
+        return jsonResponse({ ok: false, reason: 'disallowed_redirect_origin' }, 400);
+      }
+
+      const resolvedKey = UUID_REGEX.test(connectionKey)
+        ? connectionKey
+        : auth.userId
+        ? crypto.randomUUID()
+        : '';
+
+      if (!resolvedKey) {
+        return jsonResponse({ ok: false, reason: 'invalid_connection_key' }, 400);
+      }
+
+      if (!stravaClientId) {
+        return jsonResponse({ ok: false, reason: 'missing_strava_secrets' });
+      }
+
+      const state = await signOAuthState({
+        provider: 'strava',
+        connectionKey: resolvedKey,
+        redirectOrigin: safeOrigin,
+        userId: auth.userId ?? undefined,
+      });
+
+      if (!state) {
+        return jsonResponse({ ok: false, reason: 'missing_oauth_state_secret' }, 500);
+      }
+
+      const callbackUrl = `${supabaseUrl}/functions/v1/strava-auth`;
+      const authorizeUrl =
+        `https://www.strava.com/oauth/authorize` +
+        `?client_id=${encodeURIComponent(stravaClientId)}` +
+        `&redirect_uri=${encodeURIComponent(callbackUrl)}` +
+        `&response_type=code` +
+        `&approval_prompt=auto` +
+        `&scope=read,read_all` +
+        `&state=${encodeURIComponent(state)}`;
+
+      return jsonResponse({ ok: true, authorizeUrl });
+    }
 
     if (action === 'disconnect') {
-      await admin
-        .from('user_integrations')
-        .delete()
-        .eq('connection_key', connectionKey)
-        .eq('provider', 'strava');
+      await deleteOwnedIntegrationRow(admin, { userId: auth.userId, connectionKey }, 'strava');
       return jsonResponse({ ok: true, connected: false });
     }
 
-    const { data } = await admin
-      .from('user_integrations')
-      .select('athlete_id, athlete_name, expires_at')
-      .eq('connection_key', connectionKey)
-      .eq('provider', 'strava')
-      .maybeSingle();
+    const rows = await findOwnedIntegrationRow(
+      admin,
+      { userId: auth.userId, connectionKey },
+      'strava',
+      'athlete_id, athlete_name, expires_at'
+    );
+    const data = rows[0];
 
     return jsonResponse({
       ok: true,

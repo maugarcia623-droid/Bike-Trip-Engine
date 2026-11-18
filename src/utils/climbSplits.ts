@@ -289,6 +289,115 @@ function buildShortFitCue(carbsG: number, fluidMl: number, isFr: boolean): strin
   return isFr ? `Boire ${fluidMl}ml` : `Drink ${fluidMl}ml`;
 }
 
+export interface PacingCurvePoint {
+  distKm: number;
+  elapsedSec: number;
+}
+
+/**
+ * Builds a non-linear climb-adjusted cumulative time curve along an elevation profile.
+ * Steep climbs realistically reduce speed (stretching elapsed time per km), while
+ * descents accelerate safely up to a technical cornering cap.
+ */
+export function buildClimbAdjustedPacingCurve(
+  profile: ElevationProfilePoint[],
+  totalDistanceKm: number,
+  avgFlatSpeedKmH: number,
+  totalMassKg: number = 80
+): PacingCurvePoint[] {
+  const safeDistKm = Math.max(0.5, totalDistanceKm);
+  const v0 = Math.max(2.5, avgFlatSpeedKmH / 3.6);
+  const massKg = Math.max(45, totalMassKg);
+
+  if (!profile || profile.length < 2) {
+    return [
+      { distKm: 0, elapsedSec: 0 },
+      { distKm: safeDistKm, elapsedSec: (safeDistKm * 1000) / v0 },
+    ];
+  }
+
+  const cAero = 0.21;
+  const cRoll = massKg * 9.81 * 0.0045;
+  const pFlat = cAero * v0 * v0 * v0 + cRoll * v0;
+
+  const profileLastKm = profile[profile.length - 1].distKm;
+  const scaleKm = profileLastKm > 0 ? safeDistKm / profileLastKm : 1;
+
+  const curve: PacingCurvePoint[] = [{ distKm: 0, elapsedSec: 0 }];
+  let elapsedSec = 0;
+
+  for (let i = 1; i < profile.length; i++) {
+    const prevKm = profile[i - 1].distKm * scaleKm;
+    const currKm = profile[i].distKm * scaleKm;
+    const segDistKm = currKm - prevKm;
+    if (segDistKm <= 0.0001) continue;
+
+    const dEleM = profile[i].eleM - profile[i - 1].eleM;
+    const gradePct = Math.max(-15, Math.min(25, (dEleM / (segDistKm * 1000)) * 100));
+
+    let segSpeedMs = v0;
+    if (gradePct > 0.3) {
+      const effortMult = 1 + Math.min(0.24, gradePct * 0.022);
+      const targetPower = pFlat * effortMult;
+      const kLin = cRoll + massKg * 9.81 * (gradePct / 100);
+      let v = Math.max(1.5, v0 * 0.55);
+      for (let iter = 0; iter < 8; iter++) {
+        const f = cAero * v * v * v + kLin * v - targetPower;
+        const df = 3 * cAero * v * v + kLin;
+        v = Math.max(1.3, v - f / Math.max(1e-3, df));
+      }
+      segSpeedMs = v;
+    } else if (gradePct < -0.5) {
+      segSpeedMs = Math.min(v0 * 1.45, v0 * (1 + Math.min(0.45, -gradePct * 0.055)));
+    }
+
+    elapsedSec += (segDistKm * 1000) / Math.max(1.3, segSpeedMs);
+    curve.push({ distKm: currKm, elapsedSec });
+  }
+
+  if (curve.length === 1) {
+    curve.push({ distKm: safeDistKm, elapsedSec: (safeDistKm * 1000) / v0 });
+  }
+
+  return curve;
+}
+
+export function interpolateElapsedSecondsAtKm(curve: PacingCurvePoint[], distKm: number): number {
+  if (curve.length === 0) return 0;
+  if (distKm <= curve[0].distKm) return curve[0].elapsedSec;
+  const last = curve[curve.length - 1];
+  if (distKm >= last.distKm) return last.elapsedSec;
+
+  for (let i = 1; i < curve.length; i++) {
+    if (curve[i].distKm >= distKm) {
+      const a = curve[i - 1];
+      const b = curve[i];
+      const span = b.distKm - a.distKm;
+      const ratio = span > 0 ? (distKm - a.distKm) / span : 0;
+      return a.elapsedSec + ratio * (b.elapsedSec - a.elapsedSec);
+    }
+  }
+  return last.elapsedSec;
+}
+
+export function interpolateDistKmAtSeconds(curve: PacingCurvePoint[], targetSec: number): number {
+  if (curve.length === 0) return 0;
+  if (targetSec <= curve[0].elapsedSec) return curve[0].distKm;
+  const last = curve[curve.length - 1];
+  if (targetSec >= last.elapsedSec) return last.distKm;
+
+  for (let i = 1; i < curve.length; i++) {
+    if (curve[i].elapsedSec >= targetSec) {
+      const a = curve[i - 1];
+      const b = curve[i];
+      const span = b.elapsedSec - a.elapsedSec;
+      const ratio = span > 0 ? (targetSec - a.elapsedSec) / span : 0;
+      return a.distKm + ratio * (b.distKm - a.distKm);
+    }
+  }
+  return last.distKm;
+}
+
 /**
  * Computes climb-by-climb pacing splits (target watts, W/kg, %FTP, duration)
  * and km-by-km fueling/hydration checkpoints along the route.
@@ -342,6 +451,17 @@ export function computeClimbSplitsAndFueling(
 
   const avgSpeedKmH = Math.max(10, physicsResult.effectiveSpeedKmH || trip.route.targetSpeedKmH || 24);
   const departureTimeHHMM = options.departureTimeHHMM ?? trip.departureTime;
+  const totalDistanceKm = Math.max(1, trip.route.distanceKm || 1);
+  const totalMassKg =
+    (trip.physics.riderWeightKg || 70) +
+    (trip.physics.bikeWeightKg || 9) +
+    (trip.physics.gearWeightKg || 2);
+  const pacingCurve = buildClimbAdjustedPacingCurve(
+    profile,
+    totalDistanceKm,
+    avgSpeedKmH,
+    totalMassKg
+  );
 
   const climbs: ClimbSplit[] = detected.map((climb) => {
     // Sustainable climbing target power: lift effort smoothly on climbs without exceeding realistic threshold caps
@@ -375,7 +495,9 @@ export function computeClimbSplitsAndFueling(
       (climb.elevationGainM / Math.max(60, climbPhys.movingTimeSeconds)) * 3600
     );
 
-    const elapsedToStartMin = Math.round((climb.startKm / avgSpeedKmH) * 60);
+    const elapsedToStartMin = Math.round(
+      interpolateElapsedSecondsAtKm(pacingCurve, climb.startKm) / 60
+    );
     const etaStartHHMM = shiftHHMM(departureTimeHHMM, elapsedToStartMin);
 
     const preClimbKm = Math.max(0.5, Number((climb.startKm - 1.5).toFixed(1)));
@@ -403,8 +525,9 @@ export function computeClimbSplitsAndFueling(
 
   // Build periodic km-by-km fueling & hydration checkpoints (every 30–45 min, default 35 min)
   const intervalMin = Math.max(25, Math.min(45, options.checkpointIntervalMinutes ?? 35));
-  const totalRideMin = Math.round(rideHours * 60);
-  const totalDistanceKm = Math.max(1, trip.route.distanceKm || 1);
+  const curveTotalSec =
+    pacingCurve.length > 0 ? pacingCurve[pacingCurve.length - 1].elapsedSec : rideHours * 3600;
+  const totalRideMin = Math.max(Math.round(rideHours * 60), Math.round(curveTotalSec / 60));
   const checkpoints: FuelingCheckpoint[] = [];
 
   if (totalRideMin >= intervalMin) {
@@ -413,7 +536,7 @@ export function computeClimbSplitsAndFueling(
 
     for (let min = intervalMin; min <= totalRideMin - 10; min += intervalMin) {
       const distKm = Number(
-        Math.min(totalDistanceKm - 0.5, (min / totalRideMin) * totalDistanceKm).toFixed(1)
+        Math.min(totalDistanceKm - 0.5, interpolateDistKmAtSeconds(pacingCurve, min * 60)).toFixed(1)
       );
       if (distKm < 1) continue;
 

@@ -576,10 +576,15 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
               </div>
 
               {currentPacingMode === 'effort' ? (
-                <div>
-                  <label className="block text-xs font-medium text-ink-secondary mb-1.5 px-1">
-                    {isFr ? 'Effort cible (Watts)' : 'Target effort (Watts)'}
-                  </label>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between px-1">
+                    <label className="block text-xs font-medium text-ink-secondary">
+                      {isFr ? 'Effort cible (Watts / % FTP)' : 'Target effort (Watts / % FTP)'}
+                    </label>
+                    <span className="text-[11px] font-semibold text-ink-secondary tnum">
+                      {Math.round(((trip.route.targetEffortWatts || calmPresetWatts) / Math.max(80, livePhysics.ftpWatts)) * 100)}% FTP
+                    </span>
+                  </div>
                   <input
                     type="number"
                     step="5"
@@ -588,6 +593,26 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                     value={trip.route.targetEffortWatts || calmPresetWatts}
                     onChange={(e) => updateRoute('targetEffortWatts', parseInt(e.target.value, 10) || calmPresetWatts)}
                     className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
+                  />
+                  <input
+                    type="range"
+                    min={45}
+                    max={120}
+                    step={1}
+                    value={Math.max(
+                      45,
+                      Math.min(
+                        120,
+                        Math.round(((trip.route.targetEffortWatts || calmPresetWatts) / Math.max(80, livePhysics.ftpWatts)) * 100)
+                      )
+                    )}
+                    onChange={(e) => {
+                      const pct = parseInt(e.target.value, 10) || 75;
+                      const nextWatts = Math.max(80, Math.min(450, Math.round((pct / 100) * Math.max(80, livePhysics.ftpWatts))));
+                      updateRoute('targetEffortWatts', nextWatts);
+                    }}
+                    aria-label={isFr ? 'Allure cible (% FTP)' : 'Target pacing (% FTP)'}
+                    className="w-full accent-[#10b981] cursor-pointer"
                   />
                 </div>
               ) : (

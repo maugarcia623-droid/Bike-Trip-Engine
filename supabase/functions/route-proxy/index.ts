@@ -1,5 +1,13 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import {
+  CORS_HEADERS,
+  UUID_REGEX,
+  assertSafePublicUrl,
+  findOwnedIntegrationRow,
+  resolveRequestUser,
+  safeFetchWithManualRedirects,
+} from "../_shared/security.ts";
 
 type RouteProvider = 'komoot' | 'bikemap' | 'ridewithgps' | 'strava' | 'direct-file' | 'unknown';
 type RouteFormat = 'gpx' | 'tcx' | 'fit';
@@ -20,12 +28,6 @@ interface ProxyErrorPayload {
   routeId?: string;
   reason: string;
 }
-
-const CORS_HEADERS: Record<string, string> = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
 
 const UPSTREAM_TIMEOUT_MS = 8000;
 const MAX_UPSTREAM_BYTES = 10 * 1024 * 1024; // 10 MB cap
@@ -51,65 +53,63 @@ function jsonResponse(body: ProxySuccessPayload | ProxyErrorPayload, status = 20
   });
 }
 
-function isIpLiteral(hostname: string): boolean {
-  const clean = hostname.replace(/^\[|\]$/g, '');
-  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(clean)) return true;
-  if (clean.includes(':')) return true;
-  return false;
+function matchesDomain(host: string, domain: string): boolean {
+  const cleanHost = host.toLowerCase();
+  const cleanDomain = domain.toLowerCase();
+  return cleanHost === cleanDomain || cleanHost.endsWith(`.${cleanDomain}`);
 }
 
-function isAllowedRouteUrl(rawUrl: string): URL | null {
-  let parsed: URL;
-  try {
-    parsed = new URL(rawUrl.trim());
-  } catch {
-    return null;
-  }
+async function isAllowedRouteUrl(rawUrl: string): Promise<URL | null> {
+  const safePublic = await assertSafePublicUrl(rawUrl);
+  if (!safePublic) return null;
 
-  if (parsed.protocol !== 'https:') return null;
-
-  const host = parsed.hostname.toLowerCase();
-  if (!host || host === 'localhost' || host.endsWith('.local') || host.endsWith('.internal')) {
-    return null;
-  }
-  if (isIpLiteral(host)) {
-    return null;
-  }
-
-  const matchesKnownDomain = ALLOWED_PROVIDER_DOMAINS.some(
-    (domain) => host === domain || host.endsWith(`.${domain}`)
+  const host = safePublic.hostname.toLowerCase();
+  const matchesKnownDomain = ALLOWED_PROVIDER_DOMAINS.some((domain) =>
+    matchesDomain(host, domain)
   );
   if (matchesKnownDomain) {
-    return parsed;
+    return safePublic;
   }
 
-  if (/\.(gpx|tcx|fit)$/i.test(parsed.pathname)) {
-    return parsed;
+  if (/\.(gpx|tcx|fit)$/i.test(safePublic.pathname)) {
+    return safePublic;
   }
 
   return null;
 }
 
-function detectProvider(url: URL): { provider: RouteProvider; routeId?: string } {
+function detectProvider(url: URL): {
+  provider: RouteProvider;
+  routeId?: string;
+  isStravaShortLink?: boolean;
+} {
   const host = url.hostname.toLowerCase();
   const path = url.pathname;
 
   if (/\.(gpx|tcx|fit)$/i.test(path)) {
     return { provider: 'direct-file' };
   }
-  if (host.includes('komoot.')) {
+  if (
+    matchesDomain(host, 'komoot.com') ||
+    matchesDomain(host, 'komoot.de') ||
+    matchesDomain(host, 'komoot.fr') ||
+    matchesDomain(host, 'api.komoot.de')
+  ) {
     const m = path.match(/\/tour\/(\d+)/i);
     return { provider: 'komoot', routeId: m?.[1] };
   }
-  if (host.includes('bikemap.')) {
+  if (matchesDomain(host, 'bikemap.net')) {
     const m = path.match(/\/r\/(\d+)/i);
     return { provider: 'bikemap', routeId: m?.[1] };
   }
-  if (host.includes('ridewithgps.')) {
+  if (matchesDomain(host, 'ridewithgps.com')) {
     const m = path.match(/\/routes\/(\d+)/i);
     return { provider: 'ridewithgps', routeId: m?.[1] };
   }
-  if (host.includes('strava.')) {
+  if (matchesDomain(host, 'strava.app.link')) {
+    return { provider: 'strava', isStravaShortLink: true };
+  }
+  if (matchesDomain(host, 'strava.com')) {
     const m = path.match(/\/routes\/(\d+)/i);
     return { provider: 'strava', routeId: m?.[1] };
   }
@@ -161,37 +161,50 @@ function uint8ToBase64(bytes: Uint8Array): string {
 async function fetchUpstream(
   url: string,
   accept = '*/*'
-): Promise<{ status: number; contentType: string; bytes: Uint8Array } | null> {
-  try {
-    const res = await fetch(url, {
-      method: 'GET',
-      redirect: 'follow',
-      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-      headers: {
-        'User-Agent': 'CadenceRouteProxy/1.0 (+https://cadence.app)',
-        Accept: accept,
-      },
-    });
-    if (!res.ok) return null;
+): Promise<{ status: number; contentType: string; bytes: Uint8Array; finalUrl: URL } | null> {
+  const res = await safeFetchWithManualRedirects(url, {
+    accept,
+    timeoutMs: UPSTREAM_TIMEOUT_MS,
+    maxBytes: MAX_UPSTREAM_BYTES,
+  });
+  if (!res) return null;
+  return res;
+}
 
-    const declaredLen = Number(res.headers.get('content-length') || '0');
-    if (Number.isFinite(declaredLen) && declaredLen > MAX_UPSTREAM_BYTES) {
-      return null;
-    }
+async function fetchUpstreamWithAuth(
+  url: string,
+  accessToken: string
+): Promise<{ contentType: string; bytes: Uint8Array } | null> {
+  const res = await safeFetchWithManualRedirects(url, {
+    authorization: `Bearer ${accessToken}`,
+    timeoutMs: UPSTREAM_TIMEOUT_MS,
+    maxBytes: MAX_UPSTREAM_BYTES,
+    validateHopUrl: (hopUrl) => matchesDomain(hopUrl.hostname, 'strava.com'),
+  });
+  if (!res) return null;
+  return { contentType: res.contentType, bytes: res.bytes };
+}
 
-    const buf = await res.arrayBuffer();
-    if (buf.byteLength < 16 || buf.byteLength > MAX_UPSTREAM_BYTES) {
-      return null;
-    }
+async function resolveStravaShortLink(shortUrl: URL): Promise<string | undefined> {
+  const res = await safeFetchWithManualRedirects(shortUrl.toString(), {
+    accept: 'text/html,application/xhtml+xml,*/*',
+    timeoutMs: UPSTREAM_TIMEOUT_MS,
+    maxBytes: 2 * 1024 * 1024,
+    validateHopUrl: (hopUrl) =>
+      matchesDomain(hopUrl.hostname, 'strava.app.link') ||
+      matchesDomain(hopUrl.hostname, 'strava.com'),
+  });
+  if (!res) return undefined;
 
-    return {
-      status: res.status,
-      contentType: (res.headers.get('content-type') || '').toLowerCase(),
-      bytes: new Uint8Array(buf),
-    };
-  } catch {
-    return null;
+  const finalMatch = res.finalUrl.pathname.match(/\/routes\/(\d+)/i);
+  if (finalMatch?.[1]) {
+    return finalMatch[1];
   }
+
+  // Branch.io fallback HTML often embeds https://www.strava.com/routes/<id>
+  const html = new TextDecoder('utf-8').decode(res.bytes);
+  const htmlMatch = html.match(/https:\/\/(?:www\.)?strava\.com\/routes\/(\d+)/i);
+  return htmlMatch?.[1];
 }
 
 function inspectRawPayload(
@@ -286,7 +299,6 @@ function extractKomootTourFromHtml(html: string): {
   name?: string;
   points: Array<{ lat: number; lon: number; ele?: number }>;
 } | null {
-  // Match raw or JSON-escaped "coordinates":{"items":[...]}
   const match =
     html.match(/"coordinates"\s*:\s*\{\s*"items"\s*:\s*(\[[^\]]+\])/i) ||
     html.match(/\\"coordinates\\"\s*:\s*\{\s*\\"items\\"\s*:\s*(\[[^\]]+\])/i);
@@ -354,57 +366,27 @@ async function tryBikemap(routeId: string): Promise<ProxySuccessPayload | null> 
   return inspectRawPayload(gpxRes.bytes, gpxRes.contentType, 'bikemap', routeId);
 }
 
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-async function fetchUpstreamWithAuth(
-  url: string,
-  accessToken: string
-): Promise<{ contentType: string; bytes: Uint8Array } | null> {
-  try {
-    const res = await fetch(url, {
-      method: 'GET',
-      redirect: 'follow',
-      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-      headers: {
-        'User-Agent': 'CadenceRouteProxy/1.0 (+https://cadence.app)',
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
-    if (!res.ok) return null;
-    const buf = await res.arrayBuffer();
-    if (buf.byteLength < 16 || buf.byteLength > MAX_UPSTREAM_BYTES) return null;
-    return {
-      contentType: (res.headers.get('content-type') || '').toLowerCase(),
-      bytes: new Uint8Array(buf),
-    };
-  } catch {
-    return null;
-  }
-}
-
 async function tryStravaRoute(
+  // deno-lint-ignore no-explicit-any
+  admin: any,
+  userId: string | null,
   routeId: string,
   connectionKey: string
 ): Promise<{ payload?: ProxySuccessPayload; reason?: string }> {
-  if (!UUID_REGEX.test(connectionKey)) {
+  if (!userId && !UUID_REGEX.test(connectionKey)) {
     return { reason: 'strava_not_connected' };
   }
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
   const stravaClientId = Deno.env.get('STRAVA_CLIENT_ID') || '';
   const stravaClientSecret = Deno.env.get('STRAVA_CLIENT_SECRET') || '';
-  if (!supabaseUrl || !serviceRoleKey) {
-    return { reason: 'missing_supabase_config' };
-  }
 
-  const admin = createClient(supabaseUrl, serviceRoleKey);
-  const { data: row } = await admin
-    .from('user_integrations')
-    .select('access_token, refresh_token, expires_at')
-    .eq('connection_key', connectionKey)
-    .eq('provider', 'strava')
-    .maybeSingle();
+  const rows = await findOwnedIntegrationRow(
+    admin,
+    { userId, connectionKey },
+    'strava',
+    'id, access_token, refresh_token, expires_at'
+  );
+  const row = rows[0];
 
   if (!row?.access_token) {
     return { reason: 'strava_not_connected' };
@@ -446,8 +428,7 @@ async function tryStravaRoute(
           expires_at: new Date(Number(refreshed.expires_at || 0) * 1000).toISOString(),
           updated_at: new Date().toISOString(),
         })
-        .eq('connection_key', connectionKey)
-        .eq('provider', 'strava');
+        .eq('id', row.id);
     } catch {
       return { reason: 'strava_token_refresh_failed' };
     }
@@ -493,9 +474,22 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ ok: false, provider: 'unknown', reason: 'Invalid JSON body.' }, 400);
   }
 
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+  const admin = supabaseUrl && serviceRoleKey ? createClient(supabaseUrl, serviceRoleKey) : null;
+
+  let verifiedUserId: string | null = null;
+  if (admin) {
+    const auth = await resolveRequestUser(req, admin);
+    if (auth.invalidToken) {
+      return jsonResponse({ ok: false, provider: 'unknown', reason: 'invalid_auth_token' }, 401);
+    }
+    verifiedUserId = auth.userId;
+  }
+
   const rawUrl = typeof body?.url === 'string' ? body.url.trim() : '';
   const connectionKey = typeof body?.connectionKey === 'string' ? body.connectionKey.trim() : '';
-  const safeUrl = isAllowedRouteUrl(rawUrl);
+  const safeUrl = await isAllowedRouteUrl(rawUrl);
   if (!safeUrl) {
     return jsonResponse({
       ok: false,
@@ -504,10 +498,24 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  const { provider, routeId } = detectProvider(safeUrl);
+  const detected = detectProvider(safeUrl);
+  const provider = detected.provider;
+  let routeId = detected.routeId;
+
+  if (provider === 'strava' && detected.isStravaShortLink && !routeId) {
+    routeId = await resolveStravaShortLink(safeUrl);
+  }
 
   if (provider === 'strava' && routeId) {
-    const stravaResult = await tryStravaRoute(routeId, connectionKey);
+    if (!admin) {
+      return jsonResponse({
+        ok: false,
+        provider: 'strava',
+        routeId,
+        reason: 'missing_supabase_config',
+      });
+    }
+    const stravaResult = await tryStravaRoute(admin, verifiedUserId, routeId, connectionKey);
     if (stravaResult.payload) {
       return jsonResponse(stravaResult.payload);
     }
@@ -539,11 +547,13 @@ Deno.serve(async (req: Request) => {
     if (result) return jsonResponse(result);
   }
 
-  // Fallback / direct file fetch
-  const directRes = await fetchUpstream(safeUrl.toString());
-  if (directRes) {
-    const parsed = inspectRawPayload(directRes.bytes, directRes.contentType, provider, routeId);
-    if (parsed) return jsonResponse(parsed);
+  // Direct file fallback (only on validated public direct-file URLs using manual redirect checks)
+  if (provider === 'direct-file') {
+    const directRes = await fetchUpstream(safeUrl.toString());
+    if (directRes) {
+      const parsed = inspectRawPayload(directRes.bytes, directRes.contentType, provider, routeId);
+      if (parsed) return jsonResponse(parsed);
+    }
   }
 
   return jsonResponse({

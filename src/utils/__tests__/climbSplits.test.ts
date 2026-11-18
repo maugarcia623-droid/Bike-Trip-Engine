@@ -1,11 +1,14 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  buildClimbAdjustedPacingCurve,
   computeClimbSplitsAndFueling,
   detectClimbs,
   formatClimbCategoryLabel,
+  interpolateElapsedSecondsAtKm,
 } from '../climbSplits';
 import { calculatePhysics } from '../physics';
+import { exportTripToGpx, exportTripToTcx } from '../gpxExporter';
 import type { ElevationProfilePoint, TripProfile } from '../../types/trip';
 
 function makeClimbingTrip(): TripProfile {
@@ -152,5 +155,35 @@ describe('climbSplits.ts', () => {
     const firstClimb = summary.climbs[0];
     const expectedWattsPerKg = Number((firstClimb.targetWatts / 85).toFixed(2));
     assert.ok(Math.abs(firstClimb.wattsPerKg - expectedWattsPerKg) <= 0.05);
+  });
+
+  it('buildClimbAdjustedPacingCurve slows ETA non-linearly on steep climbs vs flat segments', () => {
+    const profile = [
+      { distKm: 0, eleM: 100, gradePct: 0 },
+      { distKm: 10, eleM: 100, gradePct: 0 }, // 10 km flat
+      { distKm: 20, eleM: 1000, gradePct: 9.0 }, // 10 km @ 9% climb
+    ];
+    const curve = buildClimbAdjustedPacingCurve(profile, 20, 28, 78);
+    const flat10Sec = interpolateElapsedSecondsAtKm(curve, 10);
+    const end20Sec = interpolateElapsedSecondsAtKm(curve, 20);
+    const climb10Sec = end20Sec - flat10Sec;
+
+    assert.ok(climb10Sec > flat10Sec * 1.8, `Expected climb 10km (${climb10Sec}s) >> flat 10km (${flat10Sec}s)`);
+  });
+
+  it('includes climb-by-climb splits and fueling checkpoints in GPX and TCX exports', () => {
+    const trip = makeClimbingTrip();
+    const gpx = exportTripToGpx(trip);
+    const tcx = exportTripToTcx(trip);
+
+    assert.match(gpx, /<wpt /);
+    assert.match(gpx, /<sym>Summit<\/sym>/);
+    assert.match(gpx, /<sym>(Food|Drinking Water)<\/sym>/);
+    assert.match(gpx, /% FTP/);
+
+    assert.match(tcx, /<CoursePoint>/);
+    assert.match(tcx, /<PointType>(Hors Category|1st Category|2nd Category|3rd Category|4th Category)<\/PointType>/);
+    assert.match(tcx, /<PointType>(Food|Water)<\/PointType>/);
+    assert.match(tcx, /% FTP/);
   });
 });

@@ -32,6 +32,16 @@ import {
   StravaConnectionStatus,
   subscribeStravaStatus,
 } from '../../services/stravaIntegration';
+import {
+  disconnectHeadUnit,
+  fetchHeadUnitStatuses,
+  getCachedHeadUnitStatuses,
+  HEADUNIT_PUSH_ENABLED,
+  HeadUnitProvider,
+  HeadUnitStatuses,
+  startHeadUnitOAuthConnect,
+  subscribeHeadUnitStatuses,
+} from '../../services/headUnitIntegration';
 import { useTranslation } from '../../context/LanguageContext';
 import { IconBadge } from '../common/IconBadge';
 import { Badge } from '../common/Badge';
@@ -69,10 +79,19 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
     getCachedStravaStatus()
   );
   const [isDisconnectingStrava, setIsDisconnectingStrava] = useState(false);
+  const [headUnitStatuses, setHeadUnitStatuses] = useState<HeadUnitStatuses>(() =>
+    getCachedHeadUnitStatuses()
+  );
 
   useEffect(() => {
-    const unsub = subscribeStravaStatus(() => setStravaStatus(getCachedStravaStatus()));
-    return unsub;
+    const unsubStrava = subscribeStravaStatus(() => setStravaStatus(getCachedStravaStatus()));
+    const unsubHeadUnits = subscribeHeadUnitStatuses(() =>
+      setHeadUnitStatuses(getCachedHeadUnitStatuses())
+    );
+    return () => {
+      unsubStrava();
+      unsubHeadUnits();
+    };
   }, []);
 
   useEffect(() => {
@@ -82,6 +101,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
       setShowFtpEstimator(false);
       setShowAdvancedBike(false);
       void fetchStravaConnectionStatus().then((status) => setStravaStatus(status));
+      void fetchHeadUnitStatuses().then((statuses) => setHeadUnitStatuses(statuses));
     }
   }, [isOpen, specs]);
 
@@ -987,6 +1007,40 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                       </Button>
                     )}
                   </div>
+
+                  {/* Bike Computers: Wahoo / Hammerhead / Garmin (shelved until API keys are added) */}
+                  {HEADUNIT_PUSH_ENABLED && (
+                    <div className="pt-2 border-t border-ink/5 dark:border-white/5 flex flex-wrap items-center gap-1.5">
+                      {(['wahoo', 'hammerhead', 'garmin'] as HeadUnitProvider[]).map((hu) => {
+                        const isConnected = headUnitStatuses[hu];
+                        const label =
+                          hu === 'wahoo' ? 'Wahoo' : hu === 'hammerhead' ? 'Hammerhead' : 'Garmin';
+                        return (
+                          <Button
+                            key={hu}
+                            variant="ghost"
+                            type="button"
+                            onClick={() =>
+                              isConnected
+                                ? void disconnectHeadUnit(hu)
+                                : startHeadUnitOAuthConnect(hu)
+                            }
+                            className={`min-h-[36px] px-3 rounded-full text-[11px] font-rounded font-semibold cursor-pointer transition-colors ${
+                              isConnected
+                                ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary}`
+                                : 'bg-pod hover:bg-chip text-ink-secondary hover:text-ink'
+                            }`}
+                          >
+                            {isConnected
+                              ? `${label} ✓`
+                              : isFr
+                              ? `Connecter ${label}`
+                              : `Connect ${label}`}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

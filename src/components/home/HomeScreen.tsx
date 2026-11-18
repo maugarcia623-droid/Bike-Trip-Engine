@@ -726,7 +726,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               </div>
             ) : trips.length > 0 ? (
               /* Empty state for filtered archetype */
-              <div className="rounded-3xl bg-card border border-ink/10 dark:border-white/10 p-8 text-center shadow-xs space-y-3">
+              <div className="rounded-card bg-card border border-ink/10 dark:border-white/10 p-8 text-center shadow-xs space-y-3">
                 <h3 className="text-base font-semibold text-ink">
                   {t('noFilteredProfilesTitle')}
                 </h3>
@@ -744,7 +744,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               </div>
             ) : (
               /* Global Empty State (No trips at all) */
-              <div className="rounded-3xl bg-card border border-ink/10 dark:border-white/10 p-8 sm:p-12 text-center shadow-xs space-y-4 animate-apple-in stagger-3">
+              <div className="rounded-card bg-card border border-ink/10 dark:border-white/10 p-8 sm:p-12 text-center shadow-xs space-y-4 animate-apple-in stagger-3">
                 <div className="w-12 h-12 rounded-full bg-pod flex items-center justify-center mx-auto text-ink-muted">
                   <Sparkle className="w-6 h-6 text-volt-dim dark:text-volt" />
                 </div>
