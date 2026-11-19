@@ -1,3 +1,5 @@
+import type { BikeCategory } from '../../types/specs';
+
 export type RidePurposeId = 'commute' | 'sport' | 'bikepacking' | 'leisure';
 
 export interface PurposeDefinition {
@@ -35,6 +37,8 @@ export interface BikeOption {
   cda: number;
   crr: number;
   isTubeless: boolean;
+  tireWidthMm: number;
+  bikeCategory: BikeCategory;
   drivetrainEfficiency: number;
 }
 

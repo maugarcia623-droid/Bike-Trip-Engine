@@ -43,9 +43,17 @@ import { geocodeLocation, LocationSuggestion } from '../../services/locationServ
 import { getLocalTodayIso } from '../../services/weatherService';
 import { LocationAutocompleteInput } from '../configurator/LocationAutocompleteInput';
 import { Collapsible } from '../common/Collapsible';
+import { addMinutesToTime, subtractMinutesFromTime } from '../../utils/nutrition';
+import { ArchetypeMode, getChipsExtraBufferMinutes } from '../../utils/archetypeChips';
 
 export type QuickRideTypeId = 'coffee' | 'sport' | 'gravel' | 'commute';
-export type QuickDeparturePresetId = 'today-next-hour' | 'tomorrow-08' | 'sat-0830' | 'custom';
+export type QuickDeparturePresetId =
+  | 'today-next-hour'
+  | 'tomorrow-08'
+  | 'tomorrow-09'
+  | 'weekday-09'
+  | 'sat-0830'
+  | 'custom';
 export type QuickPacePresetId = 'easy' | 'steady' | 'brisk' | 'fast' | 'custom';
 export type QuickOpenPopover = 'type' | 'distance' | 'departure' | 'pace' | null;
 
@@ -136,6 +144,7 @@ const RIDE_TYPE_OPTIONS: RideTypeOption[] = [
 ];
 
 const DISTANCE_PRESETS = [15, 30, 60, 100];
+const COMMUTE_DISTANCE_PRESETS = [10, 15, 30, 60];
 
 const PACE_PRESETS: PacePresetOption[] = [
   { id: 'easy', labelEn: 'Easy', labelFr: 'Cool', speedKmH: 15, hintEn: 'Conversational spin', hintFr: 'Allure détente' },
@@ -253,13 +262,6 @@ function getNextWeekdayIso(): string {
   return formatLocalDateIso(next);
 }
 
-function addMinutesToTime(timeStr: string, deltaMin: number): string {
-  const [hRaw, mRaw] = timeStr.split(':').map((n) => parseInt(n, 10));
-  const totalMin = ((Number.isFinite(hRaw) ? hRaw : 8) * 60 + (Number.isFinite(mRaw) ? mRaw : 0) + deltaMin) % 1440;
-  const wrapped = totalMin < 0 ? totalMin + 1440 : totalMin;
-  return `${String(Math.floor(wrapped / 60)).padStart(2, '0')}:${String(wrapped % 60).padStart(2, '0')}`;
-}
-
 function offsetLatLng(origin: [number, number], distanceKm: number, bearingDeg: number): [number, number] {
   const [lat, lng] = origin;
   const rad = (bearingDeg * Math.PI) / 180;
@@ -308,7 +310,9 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
   const [distanceKm, setDistanceKm] = useState<number>(30);
   const [isCustomDistance, setIsCustomDistance] = useState<boolean>(false);
   const [customDistanceDraft, setCustomDistanceDraft] = useState<string>('45');
+  const [distanceManuallySet, setDistanceManuallySet] = useState<boolean>(false);
 
+  const [arriveAtMode, setArriveAtMode] = useState<boolean>(false);
   const [departurePreset, setDeparturePreset] = useState<QuickDeparturePresetId>('tomorrow-08');
   const [customDate, setCustomDate] = useState<string>(() => getLocalTomorrowIso());
   const [customTime, setCustomTime] = useState<string>('08:00');
@@ -319,6 +323,8 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
 
   const [startLocationText, setStartLocationText] = useState<string>('');
   const [startLocationCoords, setStartLocationCoords] = useState<[number, number] | null>(null);
+  const [destLocationText, setDestLocationText] = useState<string>('');
+  const [destLocationCoords, setDestLocationCoords] = useState<[number, number] | null>(null);
 
   // Optional 1-tap vibe toggles
   const [vibeBakeryStop, setVibeBakeryStop] = useState<boolean>(false);
@@ -371,12 +377,19 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
         return { date: nextHourSchedule.dateIso, time: nextHourSchedule.timeStr };
       case 'tomorrow-08':
         return { date: getLocalTomorrowIso(), time: '08:00' };
+      case 'tomorrow-09':
+        return { date: getLocalTomorrowIso(), time: '09:00' };
+      case 'weekday-09':
+        return { date: getNextWeekdayIso(), time: '09:00' };
       case 'sat-0830':
         return { date: getNextSaturdayIso(8), time: '08:30' };
       case 'custom':
-        return { date: customDate || getLocalTomorrowIso(), time: customTime || '08:00' };
+        return {
+          date: customDate || getLocalTomorrowIso(),
+          time: customTime || (arriveAtMode ? '09:00' : '08:00'),
+        };
     }
-  }, [departurePreset, nextHourSchedule, customDate, customTime]);
+  }, [departurePreset, nextHourSchedule, customDate, customTime, arriveAtMode]);
 
   const resolvedSpeedKmH = useMemo(() => {
     if (pacePreset === 'custom') {
@@ -394,8 +407,10 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
     speedKmH: number;
     dateIso: string;
     timeStr: string;
+    arriveAtMode?: boolean;
     originLabel: string;
     destLabel: string;
+    gateName?: string;
     chips: string[];
     luggageWeightKg: number;
     routeMode: 'manual-radius' | 'corridor' | 'gpx';
@@ -415,8 +430,38 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
     const safeDist = Math.max(1, Number(params.distKm.toFixed(1)));
     const safeSpeed = Math.min(45, Math.max(8, Math.round(params.speedKmH)));
     const ridingMinutes = Math.max(5, Math.round((safeDist / safeSpeed) * 60));
-    const dwellMin = params.chips.includes('coffee-stop') ? 15 : 0;
-    const arrivalTimeStr = addMinutesToTime(params.timeStr, ridingMinutes + dwellMin);
+    const isCommute = params.tag === 'VÉLOTAF';
+    const isArriveAt = Boolean(params.arriveAtMode);
+    const urbanDelay = isCommute ? 8 : 3;
+    const gateDelay = isCommute ? 4 : 0;
+    const lockerRefuelMinutes = isCommute ? 5 : 0;
+    const showerChangeMinutes = params.chips.includes('shower-locker') ? 15 : 0;
+    const breakRoomBreakfastMinutes = 0;
+    const postGateMinutes = lockerRefuelMinutes + showerChangeMinutes + breakRoomBreakfastMinutes;
+
+    const archetype: ArchetypeMode = isCommute
+      ? 'COMMUTE'
+      : params.tag === 'SPORT'
+      ? 'SPORT'
+      : params.tag === 'BIKEPACKING'
+      ? 'BIKEPACKING'
+      : 'ESCAPADE';
+    const chipsExtraMin = getChipsExtraBufferMinutes(archetype, params.chips);
+    const totalEnRouteMin = ridingMinutes + urbanDelay + gateDelay + chipsExtraMin;
+
+    let departureTimeStr: string;
+    let targetGateArrivalTimeStr: string;
+    let shiftStartTimeStr: string;
+
+    if (isArriveAt) {
+      shiftStartTimeStr = params.timeStr;
+      targetGateArrivalTimeStr = subtractMinutesFromTime(shiftStartTimeStr, postGateMinutes);
+      departureTimeStr = subtractMinutesFromTime(targetGateArrivalTimeStr, totalEnRouteMin);
+    } else {
+      departureTimeStr = params.timeStr;
+      targetGateArrivalTimeStr = addMinutesToTime(departureTimeStr, totalEnRouteMin);
+      shiftStartTimeStr = addMinutesToTime(targetGateArrivalTimeStr, postGateMinutes);
+    }
 
     const checklist = generateTripChecklist(params.tag, safeDist, weather, {
       lang,
@@ -439,8 +484,8 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
       tag: params.tag,
       description: params.description,
       departureDate: params.dateIso,
-      departureTime: params.timeStr,
-      arriveAtMode: false,
+      departureTime: departureTimeStr,
+      arriveAtMode: isArriveAt,
       customChips: params.chips,
       weather,
       route: {
@@ -450,8 +495,8 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
         distanceKm: safeDist,
         targetSpeedKmH: safeSpeed,
         pacingMode: 'speed',
-        urbanTrafficDelayMinutes: params.tag === 'VÉLOTAF' ? 8 : 3,
-        gateSecurityDelayMinutes: params.tag === 'VÉLOTAF' ? 4 : 0,
+        urbanTrafficDelayMinutes: urbanDelay,
+        gateSecurityDelayMinutes: gateDelay,
         routeMode: params.routeMode,
         radiusMeters:
           params.routeMode === 'manual-radius'
@@ -469,17 +514,23 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
       },
       office: {
         ...base.office,
-        shiftStartTime: arrivalTimeStr,
-        targetGateArrivalTime: arrivalTimeStr,
-        lockerRefuelMinutes: params.tag === 'VÉLOTAF' ? 5 : 0,
-        showerChangeMinutes: params.tag === 'VÉLOTAF' ? 10 : 0,
-        breakRoomBreakfastMinutes: 0,
-        badgeRequiredForGate: params.tag === 'VÉLOTAF',
+        shiftStartTime: shiftStartTimeStr,
+        targetGateArrivalTime: targetGateArrivalTimeStr,
+        ...(params.gateName
+          ? { gateName: params.gateName }
+          : isCommute
+          ? { gateName: params.destLabel }
+          : {}),
+        lockerRefuelMinutes,
+        showerChangeMinutes,
+        breakRoomBreakfastMinutes,
+        badgeRequiredForGate: isCommute,
       },
       physics: {
         ...base.physics,
         riderWeightKg: effectiveRider.riderWeightKg,
         bikeWeightKg: activeBike.weightKg,
+        gearWeightKg: params.luggageWeightKg,
         luggageWeightKg: params.luggageWeightKg,
         cda: activeBike.cda,
         crr: activeBike.crr,
@@ -498,8 +549,27 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
     }
     if (option.id === 'commute') {
       setVibeCircularLoop(false);
-    } else if (option.id === 'coffee' || option.id === 'gravel') {
-      setVibeCircularLoop(true);
+      setArriveAtMode(true);
+      setDeparturePreset('tomorrow-09');
+      setCustomDate(getLocalTomorrowIso());
+      setCustomTime('09:00');
+      if (!distanceManuallySet) {
+        setDistanceKm(10);
+        setIsCustomDistance(false);
+      }
+    } else {
+      setArriveAtMode(false);
+      if (departurePreset === 'tomorrow-09' || departurePreset === 'weekday-09') {
+        setDeparturePreset('tomorrow-08');
+        setCustomTime('08:00');
+      }
+      if (!distanceManuallySet) {
+        setDistanceKm(30);
+        setIsCustomDistance(false);
+      }
+      if (option.id === 'coffee' || option.id === 'gravel') {
+        setVibeCircularLoop(true);
+      }
     }
     setOpenPopover(null);
   };
@@ -519,6 +589,8 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
       );
       const luggageKg = vibeLightPack ? 0.5 : activeType.defaultLuggageKg;
       const trimmedStart = startLocationText.trim();
+      const trimmedDest = destLocationText.trim();
+      const isPointToPoint = !vibeCircularLoop;
 
       let originCoords = startLocationCoords;
       if (!originCoords && trimmedStart.length >= 2) {
@@ -526,16 +598,29 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
         originCoords = await Promise.race([geocodeLocation(trimmedStart, lang), timeoutPromise]);
       }
 
+      let resolvedDestCoords = isPointToPoint ? destLocationCoords : null;
+      if (isPointToPoint && !resolvedDestCoords && trimmedDest.length >= 2) {
+        const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500));
+        resolvedDestCoords = await Promise.race([geocodeLocation(trimmedDest, lang), timeoutPromise]);
+      }
+
       const originLabel = trimmedStart || (isFr ? 'Point de départ' : 'Starting point');
       const destLabel = vibeCircularLoop
         ? trimmedStart || (isFr ? `Boucle ${distanceKm} km` : `${distanceKm} km Loop`)
-        : isFr
-          ? `Aller-retour (${distanceKm} km)`
-          : `Out & back (${distanceKm} km)`;
+        : trimmedDest ||
+          (rideTypeId === 'commute'
+            ? isFr
+              ? 'Destination bureau'
+              : 'Work destination'
+            : isFr
+              ? `Aller simple (${distanceKm} km)`
+              : `Point-to-point (${distanceKm} km)`);
 
       let routeMode: 'manual-radius' | 'corridor' = 'manual-radius';
       let finalCoords: [number, number][] | undefined = originCoords ? [originCoords] : [];
-      let destCoords: [number, number] | undefined = vibeCircularLoop ? originCoords ?? undefined : undefined;
+      let destCoords: [number, number] | undefined = vibeCircularLoop
+        ? originCoords ?? undefined
+        : resolvedDestCoords ?? undefined;
       let finalDistKm = distanceKm;
       let elevGain: number | undefined;
       let elevLoss: number | undefined;
@@ -543,11 +628,29 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
       let terrainSummary: TripProfile['route']['terrainSummary'];
       let cueSheet: TripProfile['route']['cueSheet'];
 
-      // Attempt fast deterministic OSRM bike route around user's selected origin if available
-      if (originCoords && distanceKm >= 4) {
+      // Attempt fast deterministic OSRM bike route (true A->B when destination is provided, else loop/out-and-back)
+      if (originCoords && isPointToPoint && resolvedDestCoords) {
+        const osrmRace = await Promise.race([
+          calculateAutoBikeRoute(originLabel, destLabel, originCoords, resolvedDestCoords),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 4500)),
+        ]);
+
+        if (osrmRace && osrmRace.coordinates.length >= 2) {
+          routeMode = 'corridor';
+          finalCoords = osrmRace.coordinates;
+          destCoords = resolvedDestCoords;
+          finalDistKm = osrmRace.distanceKm > 0.5 ? Number(osrmRace.distanceKm.toFixed(1)) : distanceKm;
+          elevGain = osrmRace.elevationGainM;
+          elevLoss = osrmRace.elevationLossM;
+          elevProfile = osrmRace.elevationProfile;
+          cueSheet = osrmRace.cueSheet;
+        }
+      } else if (originCoords && distanceKm >= 4) {
         const radiusKm = vibeCircularLoop
           ? Math.max(1.2, distanceKm / 4.2)
-          : Math.max(1.5, distanceKm / 2.2);
+          : rideTypeId === 'commute'
+            ? Math.max(1.2, distanceKm / 1.25)
+            : Math.max(1.5, distanceKm / 2.2);
         const wp1Coords = offsetLatLng(originCoords, radiusKm, 35);
         const wp2Coords = vibeCircularLoop ? offsetLatLng(originCoords, radiusKm, 105) : null;
         const routeWaypoints = wp2Coords
@@ -581,9 +684,16 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
         }
       }
 
-      const tripName = trimmedStart
-        ? `${isFr ? activeType.labelFr : activeType.labelEn} · ${trimmedStart.split(',')[0]} (${Math.round(finalDistKm)} km)`
-        : `${isFr ? activeType.labelFr : activeType.labelEn} · ${Math.round(finalDistKm)} km`;
+      const originShort = trimmedStart.split(',')[0].trim();
+      const destShort = trimmedDest.split(',')[0].trim();
+      const tripName =
+        isPointToPoint && originShort && destShort
+          ? `${originShort} → ${destShort} (${Math.round(finalDistKm)} km)`
+          : isPointToPoint && destShort
+          ? `${isFr ? activeType.labelFr : activeType.labelEn} → ${destShort} (${Math.round(finalDistKm)} km)`
+          : originShort
+          ? `${isFr ? activeType.labelFr : activeType.labelEn} · ${originShort} (${Math.round(finalDistKm)} km)`
+          : `${isFr ? activeType.labelFr : activeType.labelEn} · ${Math.round(finalDistKm)} km`;
 
       const builtTrip = buildBaseTrip({
         name: tripName,
@@ -595,8 +705,10 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
         speedKmH: resolvedSpeedKmH,
         dateIso: resolvedSchedule.date,
         timeStr: resolvedSchedule.time,
+        arriveAtMode,
         originLabel,
         destLabel,
+        gateName: destShort || undefined,
         chips,
         luggageWeightKg: luggageKg,
         routeMode,
@@ -705,8 +817,10 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
       speedKmH: resolvedSpeedKmH,
       dateIso: resolvedSchedule.date,
       timeStr: resolvedSchedule.time,
+      arriveAtMode,
       originLabel: parsed.originLabel || (isFr ? 'Départ trace' : 'Route start'),
       destLabel: parsed.destLabel || (isFr ? 'Arrivée trace' : 'Route finish'),
+      gateName: parsed.destLabel || undefined,
       chips: Array.from(new Set([...activeType.baseChips, ...(vibeBakeryStop ? ['coffee-stop'] : [])])),
       luggageWeightKg: vibeLightPack ? 0.5 : activeType.defaultLuggageKg,
       routeMode: 'gpx',
@@ -784,11 +898,67 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
     if (departurePreset === 'tomorrow-08') {
       return isFr ? 'Demain · 08:00' : 'Tomorrow · 08:00';
     }
+    if (departurePreset === 'tomorrow-09') {
+      return isFr ? 'Demain · 09:00' : 'Tomorrow · 09:00';
+    }
+    if (departurePreset === 'weekday-09') {
+      return isFr ? 'Prochain ouvré · 09:00' : 'Next weekday · 09:00';
+    }
     if (departurePreset === 'sat-0830') {
       return isFr ? 'Sam · 08:30' : 'Sat · 08:30';
     }
     return `${resolvedSchedule.date} · ${resolvedSchedule.time}`;
   }, [departurePreset, nextHourSchedule.timeStr, resolvedSchedule, isFr]);
+
+  const activeDistancePresets =
+    rideTypeId === 'commute' ? COMMUTE_DISTANCE_PRESETS : DISTANCE_PRESETS;
+  const showDestinationInput = !vibeCircularLoop;
+
+  const vibeToggleGroup = (
+    <div className={`flex flex-wrap items-center gap-1.5 ${showDestinationInput ? '' : 'pb-0.5'}`}>
+      <button
+        type="button"
+        aria-pressed={vibeBakeryStop}
+        onClick={() => setVibeBakeryStop((v) => !v)}
+        className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] px-3 rounded-full text-xs font-semibold border transition-colors cursor-pointer ${
+          vibeBakeryStop
+            ? `${CHIP_TOKENS.teal.surface} ${CHIP_TOKENS.teal.primary} border-teal-500/40`
+            : 'bg-pod hover:bg-chip border-ink/10 dark:border-white/10 text-ink-secondary hover:text-ink'
+        }`}
+      >
+        <Bakery className="w-3.5 h-3.5" />
+        <span>{isFr ? 'Arrêt boulangerie' : 'Bakery stop'}</span>
+      </button>
+
+      <button
+        type="button"
+        aria-pressed={vibeCircularLoop}
+        onClick={() => setVibeCircularLoop((v) => !v)}
+        className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] px-3 rounded-full text-xs font-semibold border transition-colors cursor-pointer ${
+          vibeCircularLoop
+            ? `${CHIP_TOKENS.teal.surface} ${CHIP_TOKENS.teal.primary} border-teal-500/40`
+            : 'bg-pod hover:bg-chip border-ink/10 dark:border-white/10 text-ink-secondary hover:text-ink'
+        }`}
+      >
+        <RefreshCw className="w-3.5 h-3.5" />
+        <span>{isFr ? 'Boucle' : 'Circular loop'}</span>
+      </button>
+
+      <button
+        type="button"
+        aria-pressed={vibeLightPack}
+        onClick={() => setVibeLightPack((v) => !v)}
+        className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] px-3 rounded-full text-xs font-semibold border transition-colors cursor-pointer ${
+          vibeLightPack
+            ? `${CHIP_TOKENS.teal.surface} ${CHIP_TOKENS.teal.primary} border-teal-500/40`
+            : 'bg-pod hover:bg-chip border-ink/10 dark:border-white/10 text-ink-secondary hover:text-ink'
+        }`}
+      >
+        <Feather className="w-3.5 h-3.5" />
+        <span>{isFr ? 'Sac léger' : 'Light pack'}</span>
+      </button>
+    </div>
+  );
 
   const pacePillLabel = useMemo(() => {
     if (pacePreset === 'custom') {
@@ -901,7 +1071,7 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
                   className="absolute left-0 top-full mt-2 w-64 bg-white dark:bg-[#161618] border border-ink/10 dark:border-white/10 rounded-pod shadow-xl p-2.5 z-50 space-y-2"
                 >
                   <div className="grid grid-cols-2 gap-1.5">
-                    {DISTANCE_PRESETS.map((km) => {
+                    {activeDistancePresets.map((km) => {
                       const selected = !isCustomDistance && distanceKm === km;
                       return (
                         <button
@@ -910,6 +1080,7 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
                           onClick={() => {
                             setIsCustomDistance(false);
                             setDistanceKm(km);
+                            setDistanceManuallySet(true);
                             setOpenPopover(null);
                           }}
                           className={`min-h-[44px] sm:min-h-[36px] px-3 rounded-xl tnum text-sm font-bold border transition-colors cursor-pointer ${
@@ -936,6 +1107,7 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
                           if (Number.isFinite(parsed) && parsed >= 3) {
                             setIsCustomDistance(true);
                             setDistanceKm(Math.min(400, Math.max(3, Math.round(parsed))));
+                            setDistanceManuallySet(true);
                             setOpenPopover(null);
                           }
                         }
@@ -952,6 +1124,7 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
                         if (Number.isFinite(parsed) && parsed >= 3) {
                           setIsCustomDistance(true);
                           setDistanceKm(Math.min(400, Math.max(3, Math.round(parsed))));
+                          setDistanceManuallySet(true);
                           setOpenPopover(null);
                         }
                       }}
@@ -963,9 +1136,17 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
               )}
             </div>
 
-            <span>{isFr ? 'prévue' : 'leaving'}</span>
+            <span>
+              {arriveAtMode
+                ? isFr
+                  ? 'arrivée pour'
+                  : 'arriving by'
+                : isFr
+                ? 'prévue'
+                : 'leaving'}
+            </span>
 
-            {/* Pill 3: Departure Timing */}
+            {/* Pill 3: Timing (Arrive by / Depart at) */}
             <div className="relative inline-block">
               <button
                 type="button"
@@ -982,23 +1163,92 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
               {openPopover === 'departure' && (
                 <div
                   role="listbox"
-                  aria-label={isFr ? 'Heure de départ' : 'Departure schedule'}
+                  aria-label={
+                    arriveAtMode
+                      ? isFr
+                        ? 'Heure d’arrivée cible'
+                        : 'Target arrival schedule'
+                      : isFr
+                      ? 'Heure de départ'
+                      : 'Departure schedule'
+                  }
                   className="absolute left-0 top-full mt-2 w-72 bg-white dark:bg-[#161618] border border-ink/10 dark:border-white/10 rounded-pod shadow-xl p-2 z-50 space-y-1"
                 >
-                  {[
-                    {
-                      id: 'today-next-hour' as const,
-                      label: isFr ? `Aujourd'hui · ${nextHourSchedule.timeStr}` : `Today · ${nextHourSchedule.timeStr}`,
-                    },
-                    {
-                      id: 'tomorrow-08' as const,
-                      label: isFr ? 'Demain · 08:00' : 'Tomorrow · 08:00',
-                    },
-                    {
-                      id: 'sat-0830' as const,
-                      label: isFr ? 'Sam · 08:30' : 'Sat · 08:30',
-                    },
-                  ].map((item) => {
+                  <div
+                    role="radiogroup"
+                    aria-label={isFr ? 'Mode horaire' : 'Schedule mode'}
+                    className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-pod mb-1.5"
+                  >
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={arriveAtMode}
+                      onClick={() => {
+                        setArriveAtMode(true);
+                        if (departurePreset === 'tomorrow-08' || departurePreset === 'sat-0830') {
+                          setDeparturePreset('tomorrow-09');
+                          setCustomTime('09:00');
+                        }
+                      }}
+                      className={`min-h-[34px] rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                        arriveAtMode
+                          ? `${CHIP_TOKENS.teal.surface} ${CHIP_TOKENS.teal.primary} shadow-xs`
+                          : 'text-ink-secondary hover:text-ink'
+                      }`}
+                    >
+                      {isFr ? 'Arrivée à' : 'Arrive by'}
+                    </button>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={!arriveAtMode}
+                      onClick={() => {
+                        setArriveAtMode(false);
+                        if (departurePreset === 'tomorrow-09' || departurePreset === 'weekday-09') {
+                          setDeparturePreset('tomorrow-08');
+                          setCustomTime('08:00');
+                        }
+                      }}
+                      className={`min-h-[34px] rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                        !arriveAtMode
+                          ? `${CHIP_TOKENS.teal.surface} ${CHIP_TOKENS.teal.primary} shadow-xs`
+                          : 'text-ink-secondary hover:text-ink'
+                      }`}
+                    >
+                      {isFr ? 'Départ à' : 'Depart at'}
+                    </button>
+                  </div>
+
+                  {(arriveAtMode
+                    ? [
+                        {
+                          id: 'tomorrow-09' as const,
+                          label: isFr ? 'Demain · 09:00' : 'Tomorrow · 09:00',
+                        },
+                        {
+                          id: 'weekday-09' as const,
+                          label: isFr ? 'Prochain ouvré · 09:00' : 'Next weekday · 09:00',
+                        },
+                        {
+                          id: 'today-next-hour' as const,
+                          label: isFr ? `Aujourd'hui · ${nextHourSchedule.timeStr}` : `Today · ${nextHourSchedule.timeStr}`,
+                        },
+                      ]
+                    : [
+                        {
+                          id: 'today-next-hour' as const,
+                          label: isFr ? `Aujourd'hui · ${nextHourSchedule.timeStr}` : `Today · ${nextHourSchedule.timeStr}`,
+                        },
+                        {
+                          id: 'tomorrow-08' as const,
+                          label: isFr ? 'Demain · 08:00' : 'Tomorrow · 08:00',
+                        },
+                        {
+                          id: 'sat-0830' as const,
+                          label: isFr ? 'Sam · 08:30' : 'Sat · 08:30',
+                        },
+                      ]
+                  ).map((item) => {
                     const selected = departurePreset === item.id;
                     return (
                       <button
@@ -1134,73 +1384,70 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
       </div>
 
       <Collapsible open={isComposerOpen}>
-          {/* Optional Start Location + Vibe Pills + Build CTAs */}
+          {/* Optional Start/Destination Location + Vibe Pills + Build CTAs */}
           <div className="mt-4 pt-4 border-t border-ink/10 dark:border-white/10 flex flex-col lg:flex-row lg:items-end gap-3 justify-between">
-            <div className="flex-1 grid grid-cols-1 md:grid-cols-[minmax(220px,1fr)_auto] gap-3 items-end">
-              <div className="relative z-30">
-                <LocationAutocompleteInput
-                  id="quick-ride-start-location"
-                  label={isFr ? 'Départ (optionnel)' : 'Start Location (optional)'}
-                  value={startLocationText}
-                  placeholder={isFr ? 'Ville ou adresse (ex: Lyon, Annecy…)' : 'City or trailhead (e.g. Portland, Ghent…)'}
-                  onChange={(val) => {
-                    setStartLocationText(val);
-                    setStartLocationCoords(null);
-                  }}
-                  onSelectLocation={(suggestion: LocationSuggestion) => {
-                    setStartLocationText(suggestion.name);
-                    setStartLocationCoords(suggestion.coordinates);
-                  }}
-                  onKeyDownEnter={() => {
-                    void handleBuildFromComposer('dashboard');
-                  }}
-                />
+            <div className="flex-1 flex flex-col gap-3">
+              <div
+                className={`grid grid-cols-1 gap-3 items-end ${
+                  showDestinationInput ? 'sm:grid-cols-2' : 'md:grid-cols-[minmax(220px,1fr)_auto]'
+                }`}
+              >
+                <div className="relative z-30 focus-within:z-50">
+                  <LocationAutocompleteInput
+                    id="quick-ride-start-location"
+                    label={
+                      showDestinationInput
+                        ? isFr
+                          ? 'Départ (A · optionnel)'
+                          : 'Start (A · optional)'
+                        : isFr
+                        ? 'Départ (optionnel)'
+                        : 'Start Location (optional)'
+                    }
+                    value={startLocationText}
+                    placeholder={isFr ? 'Ville ou adresse (ex: Lyon, Annecy…)' : 'City or trailhead (e.g. Portland, Ghent…)'}
+                    onChange={(val) => {
+                      setStartLocationText(val);
+                      setStartLocationCoords(null);
+                    }}
+                    onSelectLocation={(suggestion: LocationSuggestion) => {
+                      setStartLocationText(suggestion.name);
+                      setStartLocationCoords(suggestion.coordinates);
+                    }}
+                    onKeyDownEnter={() => {
+                      void handleBuildFromComposer('dashboard');
+                    }}
+                  />
+                </div>
+
+                {showDestinationInput && (
+                  <div className="relative z-20 focus-within:z-50">
+                    <LocationAutocompleteInput
+                      id="quick-ride-dest-location"
+                      label={isFr ? 'Destination (B · optionnel)' : 'Destination (B · optional)'}
+                      value={destLocationText}
+                      biasCoords={startLocationCoords ?? undefined}
+                      dropdownAlign="right"
+                      placeholder={isFr ? 'Bureau, gare, adresse…' : 'Work, station, address…'}
+                      onChange={(val) => {
+                        setDestLocationText(val);
+                        setDestLocationCoords(null);
+                      }}
+                      onSelectLocation={(suggestion: LocationSuggestion) => {
+                        setDestLocationText(suggestion.name);
+                        setDestLocationCoords(suggestion.coordinates);
+                      }}
+                      onKeyDownEnter={() => {
+                        void handleBuildFromComposer('dashboard');
+                      }}
+                    />
+                  </div>
+                )}
+
+                {!showDestinationInput && vibeToggleGroup}
               </div>
 
-              {/* Optional 1-Tap Vibe Pills */}
-              <div className="flex flex-wrap items-center gap-1.5 pb-0.5">
-                <button
-                  type="button"
-                  aria-pressed={vibeBakeryStop}
-                  onClick={() => setVibeBakeryStop((v) => !v)}
-                  className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] px-3 rounded-full text-xs font-semibold border transition-colors cursor-pointer ${
-                    vibeBakeryStop
-                      ? `${CHIP_TOKENS.teal.surface} ${CHIP_TOKENS.teal.primary} border-teal-500/40`
-                      : 'bg-pod hover:bg-chip border-ink/10 dark:border-white/10 text-ink-secondary hover:text-ink'
-                  }`}
-                >
-                  <Bakery className="w-3.5 h-3.5" />
-                  <span>{isFr ? 'Arrêt boulangerie' : 'Bakery stop'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  aria-pressed={vibeCircularLoop}
-                  onClick={() => setVibeCircularLoop((v) => !v)}
-                  className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] px-3 rounded-full text-xs font-semibold border transition-colors cursor-pointer ${
-                    vibeCircularLoop
-                      ? `${CHIP_TOKENS.teal.surface} ${CHIP_TOKENS.teal.primary} border-teal-500/40`
-                      : 'bg-pod hover:bg-chip border-ink/10 dark:border-white/10 text-ink-secondary hover:text-ink'
-                  }`}
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>{isFr ? 'Boucle' : 'Circular loop'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  aria-pressed={vibeLightPack}
-                  onClick={() => setVibeLightPack((v) => !v)}
-                  className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] px-3 rounded-full text-xs font-semibold border transition-colors cursor-pointer ${
-                    vibeLightPack
-                      ? `${CHIP_TOKENS.teal.surface} ${CHIP_TOKENS.teal.primary} border-teal-500/40`
-                      : 'bg-pod hover:bg-chip border-ink/10 dark:border-white/10 text-ink-secondary hover:text-ink'
-                  }`}
-                >
-                  <Feather className="w-3.5 h-3.5" />
-                  <span>{isFr ? 'Sac léger' : 'Light pack'}</span>
-                </button>
-              </div>
+              {showDestinationInput && vibeToggleGroup}
             </div>
 
             {/* Build Actions */}

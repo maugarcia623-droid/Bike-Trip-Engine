@@ -356,7 +356,7 @@ function evaluateDirectionPhysics(
  * evaluates per-sector cycling physics (watts, time, carbs, wind-chill), and compares
  * forward vs. reverse direction on loops (clockwise vs. anticlockwise).
  */
-function buildSectorCacheKey(
+export function buildSectorCacheKey(
   trip: TripProfile,
   targetDate: string,
   departureTime: string,
@@ -565,7 +565,7 @@ export async function fetchRouteSectorForecast(
 
   sectorCache.set(cacheKey, analysis);
   if (source !== 'simulated') {
-    void saveSectorWeatherToIdb(cacheKey, analysis);
+    await saveSectorWeatherToIdb(cacheKey, analysis).catch(() => {});
   }
   return analysis;
 }

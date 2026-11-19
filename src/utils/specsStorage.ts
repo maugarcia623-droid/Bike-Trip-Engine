@@ -10,6 +10,7 @@ import {
   FrameBottleSlots,
   getEffectiveRiderSpecs,
   formatFuelTarget,
+  resolveBikeTireWidthMm,
 } from '../types/specs';
 
 export { getEffectiveRiderSpecs, formatFuelTarget };
@@ -48,12 +49,20 @@ export function normalizeRiderBikeSpecs(parsed: Partial<RiderBikeSpecs> | Record
 
   bikes = bikes.map((bike) => {
     const defaultMatch = DEFAULT_RIDER_BIKE_SPECS.bikes.find((d) => d.id === bike.id);
+    const resolvedWidth = resolveBikeTireWidthMm({
+      ...defaultMatch,
+      ...bike,
+    });
     return {
       ...bike,
       isTubeless:
         typeof bike.isTubeless === 'boolean'
           ? bike.isTubeless
           : defaultMatch?.isTubeless ?? false,
+      tireWidthMm: resolvedWidth,
+      bikeCategory: bike.bikeCategory ?? defaultMatch?.bikeCategory,
+      casingType: bike.casingType ?? defaultMatch?.casingType,
+      isHookless: typeof bike.isHookless === 'boolean' ? bike.isHookless : defaultMatch?.isHookless ?? false,
     };
   });
 

@@ -157,7 +157,7 @@ export function switchActiveStage(trip: TripProfile, targetIndex: number): TripP
  *    - route.destination is "" (ready for the user to input their next checkpoint).
  *    - route.distanceKm is 45, route.elevationGainM is 200, route.coordinates is undefined.
  *    - departureDate is incremented by +1 calendar day from the previous stage's departureDate.
- *    - office.targetGateArrivalTime defaults to '17:30'.
+ *    - office.targetGateArrivalTime preserves the previous stage's curfew (defaulting to '17:30').
  *    - customChips inherits the previous stage's chips.
  * 3. Appends the new stage and switches activeStageIndex to the newly created stage.
  */
@@ -236,7 +236,7 @@ export function addNextStage(trip: TripProfile): TripProfile {
     },
     office: {
       ...previousStage.office,
-      targetGateArrivalTime: '17:30',
+      targetGateArrivalTime: previousStage.office?.targetGateArrivalTime || '17:30',
     },
     weather: nextWeather,
     customChips: [...(previousStage.customChips || [])],

@@ -1,14 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, ArrowRight } from '@/components/icons';
 import { Button } from '@/components/arc';
-import { TripProfile, RouteWaypoint, ElevationProfilePoint } from '../types/trip';
-import { generateTripChecklist } from '../types/trip';
+import {
+  TripProfile,
+  RouteWaypoint,
+  ElevationProfilePoint,
+  WeatherCondition,
+  generateTripChecklist,
+} from '../types/trip';
 import { useTranslation } from '../context/LanguageContext';
 import { OnboardingHeader } from './onboarding/OnboardingHeader';
 import { Screen1Welcome } from './onboarding/Screen1Welcome';
 import { Screen2Purpose } from './onboarding/Screen2Purpose';
 import { Screen3Route } from './onboarding/Screen3Route';
-import { Screen4TimingPace } from './onboarding/Screen4TimingPace';
+import {
+  Screen4TimingPace,
+  computeOnboardingChronometry,
+  derivePrecipRiskFromWeatherCode,
+  normalizeOnboardingChipId,
+} from './onboarding/Screen4TimingPace';
 import { Screen5RiderBike } from './onboarding/Screen5RiderBike';
 import { Screen6RideReady } from './onboarding/Screen6RideReady';
 import { Screen7SaveSync } from './onboarding/Screen7SaveSync';
@@ -22,6 +32,7 @@ import {
 import { RidePurposeId } from './onboarding/types';
 import { saveUserProfile } from '../utils/userProfileStorage';
 import { loadRiderBikeSpecs, saveRiderBikeSpecs } from '../utils/specsStorage';
+import { subtractMinutesFromTime } from '../utils/nutrition';
 
 export interface OnboardingModalProps {
   isOpen: boolean;
@@ -55,18 +66,6 @@ function formatRideDate(dateStr: string, isFr: boolean, includeYear: boolean = f
     // Fallback
   }
   return dateStr;
-}
-
-function parseTimeToMinutes(timeStr: string): number {
-  const [h, m] = (timeStr || '09:00').split(':').map(Number);
-  return (h || 0) * 60 + (m || 0);
-}
-
-function formatMinutesToTime(totalMins: number): string {
-  const normalized = ((totalMins % 1440) + 1440) % 1440;
-  const h = Math.floor(normalized / 60);
-  const m = normalized % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
 function getLocalTomorrowIso(): string {
@@ -123,11 +122,11 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   const [weatherSummary, setWeatherSummary] = useState<string | undefined>();
   const [headwindKmH, setHeadwindKmH] = useState<number>(9);
   const [gradientPercent, setGradientPercent] = useState<number>(0.3);
-  const [weatherCondition, setWeatherCondition] = useState({
+  const [weatherCondition, setWeatherCondition] = useState<WeatherCondition>({
     temperatureC: 14,
     baseWindSpeedKmH: 9,
     windDirectionDegrees: 245,
-    windDirection: 'headwind' as const,
+    windDirection: 'headwind',
     isHeadwindActive: true,
     precipitationRiskPercent: 10,
     estuaryGustKmH: 15,
@@ -139,6 +138,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   const [luggageWeightKg, setLuggageWeightKg] = useState<number>(0);
   const [selectedBikeId, setSelectedBikeId] = useState<string>('city');
   const [bikeWeightKg, setBikeWeightKg] = useState<number>(12.5);
+  const [tireWidthMm, setTireWidthMm] = useState<number>(40);
   const [isTubeless, setIsTubeless] = useState<boolean>(false);
   const [cda, setCda] = useState<number>(0.42);
   const [crr, setCrr] = useState<number>(0.0065);
@@ -191,7 +191,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     if (newPurpose === 'commute') {
       setTargetMode('arrive');
       setTargetTime('09:00');
-      setSelectedChips(['coffee-stop']);
+      setSelectedChips([]);
       setCustomSpeedKmH(null);
       setTargetEffortWatts(null);
       setUsePowerWatts(false);
@@ -220,8 +220,11 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
 
   // Toggle archetype chips
   const handleToggleChip = (chipId: string) => {
+    const canonicalId = normalizeOnboardingChipId(chipId);
     setSelectedChips((prev) =>
-      prev.includes(chipId) ? prev.filter((id) => id !== chipId) : [...prev, chipId]
+      prev.includes(canonicalId)
+        ? prev.filter((id) => id !== canonicalId)
+        : [...prev, canonicalId]
     );
   };
 
@@ -234,27 +237,26 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
           Math.max(ONBOARDING_SPEED_BOUNDS.minKmH, Math.round(customSpeedKmH))
         )
       : selectedPaceDef.speedKmH;
-  const ridingMinutes = Math.max(1, Math.round((distanceKm / speedKmH) * 60));
 
-  // Chronometry calculation
-  const targetMins = parseTimeToMinutes(targetTime);
-  let leaveTimeFormatted = '';
-  let arriveTimeFormatted = '';
-  let readyTimeFormatted = '';
-
-  if (targetMode === 'arrive') {
-    readyTimeFormatted = formatMinutesToTime(targetMins);
-    const arriveMins = targetMins - parkingBufferMin;
-    arriveTimeFormatted = formatMinutesToTime(arriveMins);
-    const leaveMins = arriveMins - ridingMinutes;
-    leaveTimeFormatted = formatMinutesToTime(leaveMins);
-  } else {
-    leaveTimeFormatted = formatMinutesToTime(targetMins);
-    const arriveMins = targetMins + ridingMinutes;
-    arriveTimeFormatted = formatMinutesToTime(arriveMins);
-    const readyMins = arriveMins + parkingBufferMin;
-    readyTimeFormatted = formatMinutesToTime(readyMins);
-  }
+  // Chronometry calculation aligned with BentoDashboard reverse timeline
+  const chronometry = computeOnboardingChronometry({
+    purposeId: purpose,
+    targetMode,
+    targetTime,
+    distanceKm,
+    speedKmH,
+    parkingBufferMin,
+    selectedChips,
+    rideDate,
+    coordinates,
+  });
+  const {
+    ridingMinutes,
+    officePrepMin,
+    leaveTimeFormatted,
+    arriveTimeFormatted,
+    readyTimeFormatted,
+  } = chronometry;
 
   // Compile final calibrated TripProfile
   const compileCalibratedTrip = (customOverrides?: Partial<TripProfile>): TripProfile => {
@@ -309,6 +311,46 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
       console.warn('Storage sync skipped during onboarding compile', e);
     }
 
+    const { office: overrideOffice, customChips: overrideChips, ...restOverrides } =
+      customOverrides || {};
+    const effectiveCustomChips = Array.from(
+      new Set((overrideChips ?? selectedChips).map(normalizeOnboardingChipId))
+    );
+    const tripChronometry = overrideChips
+      ? computeOnboardingChronometry({
+          purposeId: purpose,
+          targetMode,
+          targetTime,
+          distanceKm,
+          speedKmH,
+          parkingBufferMin,
+          selectedChips: effectiveCustomChips,
+          rideDate,
+          coordinates,
+        })
+      : chronometry;
+
+    const hasShowerLocker = effectiveCustomChips.includes('shower-locker');
+    const lockerRefuelMinutes =
+      overrideOffice?.lockerRefuelMinutes ?? tripChronometry.parkingBufferMin;
+    const showerChangeMinutes =
+      overrideOffice?.showerChangeMinutes ?? (hasShowerLocker ? 15 : 0);
+    const breakRoomBreakfastMinutes =
+      overrideOffice?.breakRoomBreakfastMinutes ?? 0;
+    const officeShiftStart =
+      overrideOffice?.shiftStartTime ?? tripChronometry.readyTimeFormatted;
+    const officePrepMinutes =
+      Math.max(0, lockerRefuelMinutes) +
+      Math.max(0, showerChangeMinutes) +
+      Math.max(0, breakRoomBreakfastMinutes);
+    const resolvedGateArrival =
+      overrideOffice?.targetGateArrivalTime ??
+      (purpose === 'commute' && targetMode === 'arrive'
+        ? officePrepMinutes > 0
+          ? subtractMinutesFromTime(officeShiftStart, officePrepMinutes)
+          : officeShiftStart
+        : tripChronometry.arriveTimeFormatted);
+
     const trip: TripProfile = {
       id: `trip-calibrated-${Date.now()}`,
       name: tripName,
@@ -318,14 +360,14 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
         : `${distanceKm.toFixed(1)} km ${purposeDef.name.toLowerCase()} ride with ${chosenBike.name}. Pace: ${speedKmH} km/h (${paceLabel}).`,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      departureTime: leaveTimeFormatted,
+      departureTime: tripChronometry.leaveTimeFormatted,
       departureDate: rideDate,
       physics: {
         riderWeightKg: Number(riderWeightKg) || 75,
         bikeWeightKg: bikeWeightKg,
         gearWeightKg: Number(luggageWeightKg) || 0,
         cda: cda,
-        crr: isTubeless ? Math.max(0.0035, crr - 0.0008) : crr,
+        crr: crr,
         rho: 1.225,
         drivetrainEfficiency: drivetrainEfficiency,
         grossMechanicalEfficiency: 0.22,
@@ -357,40 +399,43 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
             : undefined,
       },
       office: {
-        shiftStartTime: readyTimeFormatted,
-        targetGateArrivalTime: arriveTimeFormatted,
         gateName: destShort,
-        lockerRefuelMinutes: parkingBufferMin,
-        showerChangeMinutes: selectedChips.includes('shower-buffer') ? 15 : 0,
-        breakRoomBreakfastMinutes: selectedChips.includes('coffee-stop') ? 15 : 0,
         strictNoFoodInOpenSpace: false,
         badgeRequiredForGate: purpose === 'commute',
         notes: '',
+        ...(overrideOffice || {}),
+        shiftStartTime: officeShiftStart,
+        targetGateArrivalTime: resolvedGateArrival,
+        lockerRefuelMinutes,
+        showerChangeMinutes,
+        breakRoomBreakfastMinutes,
       },
       weather: weatherCondition,
-      checklist: generateTripChecklist(tripTag, distanceKm, undefined, {
+      checklist: generateTripChecklist(tripTag, distanceKm, weatherCondition, {
         lang: isFr ? 'fr' : 'en',
-        includeExtraRavito: selectedChips.includes('real-food'),
-        customChips: selectedChips,
+        includeExtraRavito: effectiveCustomChips.includes('real-food'),
+        customChips: effectiveCustomChips,
         isTubeless,
         carbTargetGPerHr: 60,
-        nutritionPreference: selectedChips.includes('real-food') ? 'real-food' : 'mixed',
+        nutritionPreference: effectiveCustomChips.includes('real-food') ? 'real-food' : 'mixed',
       }),
-      customChips: selectedChips,
+      customChips: effectiveCustomChips,
       arriveAtMode: targetMode === 'arrive',
-      ...customOverrides,
+      ...restOverrides,
     };
 
     (trip as any).__onboardingSpecs = {
       purpose,
       isTubeless,
+      tireWidthMm,
+      bikeCategory: chosenBike.bikeCategory,
       riderLevel: isDataDrivenSport ? 'regular' : 'occasional',
       ftpWatts: resolvedFtp,
       cockpitViewMode: resolvedCockpitMode,
       telemetryMode: resolvedTelemetryMode,
       pacingInputMode: resolvedPacingInputMode,
       carbTargetGPerHr: 60,
-      nutritionPreference: selectedChips.includes('real-food') ? 'real-food' : 'mixed',
+      nutritionPreference: effectiveCustomChips.includes('real-food') ? 'real-food' : 'mixed',
     };
 
     return trip;
@@ -584,11 +629,59 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 onWeatherFetched={(weatherData) => {
                   setIsWeatherFetched(true);
                   setWeatherSummary(`${weatherData.tempC}°C · ${weatherData.windKmH} km/h ${weatherData.windDirection}`);
-                  setWeatherCondition((prev) => ({
-                    ...prev,
-                    temperatureC: weatherData.tempC,
-                    baseWindSpeedKmH: weatherData.windKmH,
-                  }));
+                  setWeatherCondition((prev) => {
+                    const nextWeatherCode =
+                      typeof weatherData.weatherCode === 'number'
+                        ? weatherData.weatherCode
+                        : prev.weatherCode;
+                    const nextPrecipRisk =
+                      typeof weatherData.precipitationRiskPercent === 'number'
+                        ? weatherData.precipitationRiskPercent
+                        : typeof weatherData.weatherCode === 'number'
+                        ? derivePrecipRiskFromWeatherCode(weatherData.weatherCode)
+                        : prev.precipitationRiskPercent;
+                    const nextGusts =
+                      typeof weatherData.windGustsKmH === 'number'
+                        ? weatherData.windGustsKmH
+                        : Math.max(prev.estuaryGustKmH, Math.round(weatherData.windKmH * 1.4));
+                    const nextWindDirection: WeatherCondition['windDirection'] =
+                      weatherData.headwindKmH > 2
+                        ? 'headwind'
+                        : weatherData.headwindKmH < -2
+                        ? 'tailwind'
+                        : 'calm';
+
+                    return {
+                      ...prev,
+                      temperatureC: weatherData.tempC,
+                      baseWindSpeedKmH: weatherData.windKmH,
+                      effectiveHeadwindKmH: weatherData.headwindKmH,
+                      isHeadwindActive:
+                        typeof weatherData.isHeadwindActive === 'boolean'
+                          ? weatherData.isHeadwindActive
+                          : weatherData.headwindKmH > 2,
+                      windDirection: nextWindDirection,
+                      ...(typeof weatherData.windDirectionDegrees === 'number'
+                        ? { windDirectionDegrees: weatherData.windDirectionDegrees }
+                        : {}),
+                      precipitationRiskPercent: nextPrecipRisk,
+                      estuaryGustKmH: nextGusts,
+                      ...(typeof nextWeatherCode === 'number' ? { weatherCode: nextWeatherCode } : {}),
+                      ...(typeof weatherData.isDay === 'boolean' ? { isDay: weatherData.isDay } : {}),
+                      ...(typeof weatherData.visibilityKm === 'number'
+                        ? { visibilityKm: weatherData.visibilityKm }
+                        : {}),
+                      ...(typeof weatherData.airDensityRho === 'number'
+                        ? { airDensityRho: weatherData.airDensityRho }
+                        : {}),
+                      ...(weatherData.source ? { source: weatherData.source } : {}),
+                      ...(typeof weatherData.isBeyondForecastWindow === 'boolean'
+                        ? { isBeyondForecastWindow: weatherData.isBeyondForecastWindow }
+                        : {}),
+                      ...(weatherData.sunrise ? { sunrise: weatherData.sunrise } : {}),
+                      ...(weatherData.sunset ? { sunset: weatherData.sunset } : {}),
+                    };
+                  });
                 }}
               />
             )}
@@ -604,6 +697,8 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 onChangeSelectedBike={setSelectedBikeId}
                 bikeWeightKg={bikeWeightKg}
                 onChangeBikeWeight={setBikeWeightKg}
+                tireWidthMm={tireWidthMm}
+                onChangeTireWidth={setTireWidthMm}
                 isTubeless={isTubeless}
                 onChangeIsTubeless={setIsTubeless}
                 cda={cda}
@@ -634,7 +729,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 leaveTimeFormatted={leaveTimeFormatted}
                 arriveTimeFormatted={arriveTimeFormatted}
                 readyTimeFormatted={readyTimeFormatted}
-                parkingBufferMin={parkingBufferMin}
+                parkingBufferMin={officePrepMin}
                 targetMode={targetMode}
                 isWeatherFetched={isWeatherFetched}
                 weatherSummary={weatherSummary}

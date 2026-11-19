@@ -276,6 +276,11 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
   // Intensity-modulated carbohydrate target (EQ-13 upgrade)
   const pctFtp = physicsResult?.ftpPercent ?? 72;
   const powerZoneLabel = physicsResult?.powerZone || 'Z2';
+  const isLockedCarbTarget =
+    riderSpecs?.carbPacingMode === 'locked' ||
+    (riderSpecs?.carbPacingMode !== 'auto' &&
+      riderSpecs?.riderLevel === 'pro' &&
+      carbTarget >= 60);
   const dynamicCarb = calculateIntensityModulatedCarbTarget({
     rideHours: movingMinutes / 60,
     pctFtp,
@@ -284,10 +289,8 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
     gutCeilingGPerHr: carbTarget,
     totalDays,
     activeChips,
+    isLockedCarbTarget,
   });
-  const isLockedCarbTarget =
-    riderSpecs?.carbPacingMode === 'locked' ||
-    (riderSpecs?.riderLevel === 'pro' && carbTarget >= 60);
   const effectiveCeilingGPerHr = dynamicCarb.effectiveCeilingGPerHr;
   const recommendedGPerHr = isLockedCarbTarget
     ? effectiveCeilingGPerHr
@@ -389,6 +392,9 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
     lang,
     {
       carbTargetGPerHr: carbTarget,
+      isLockedCarbTarget,
+      carbPacingMode: riderSpecs?.carbPacingMode,
+      riderLevel: riderSpecs?.riderLevel,
       rideHours: movingMinutes / 60,
       nutritionPreference: nutPref,
       pctFtp,

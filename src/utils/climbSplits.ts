@@ -3,7 +3,9 @@ import {
   PhysicsCalculationResult,
   TripProfile,
 } from '../types/trip';
+import type { RiderLevel } from '../types/specs';
 import { Language } from '../context/LanguageContext';
+import { loadRiderBikeSpecs } from './specsStorage';
 import { calculatePhysics, PowerZoneCode } from './physics';
 import {
   calculateHydrationPlan,
@@ -75,6 +77,9 @@ export interface DetectClimbsOptions {
 export interface ClimbSplitsOptions {
   ftpWatts?: number;
   carbTargetGPerHr?: number;
+  isLockedCarbTarget?: boolean;
+  carbPacingMode?: 'auto' | 'locked';
+  riderLevel?: RiderLevel;
   nutritionPreference?: 'real-food' | 'mixed' | 'sports-fuel';
   departureTimeHHMM?: string;
   bidonSizeMl?: number;
@@ -423,9 +428,18 @@ export function computeClimbSplitsAndFueling(
     lang,
   });
 
+  const storedSpecs = loadRiderBikeSpecs();
   const ftpWatts = Math.max(80, Math.round(options.ftpWatts ?? physicsResult.ftpWatts ?? 210));
   const rideHours = Math.max(0.25, physicsResult.movingTimeSeconds / 3600);
-  const gutCeiling = Math.max(30, Math.min(120, options.carbTargetGPerHr ?? 60));
+  const gutCeiling = Math.max(30, Math.min(120, options.carbTargetGPerHr ?? storedSpecs.carbTargetGPerHr ?? 60));
+  const resolvedRiderLevel = options.riderLevel ?? storedSpecs.riderLevel;
+  const resolvedCarbPacingMode = options.carbPacingMode ?? storedSpecs.carbPacingMode;
+  const isLockedCarbTarget =
+    options.isLockedCarbTarget ??
+    (resolvedCarbPacingMode === 'locked' ||
+      (resolvedCarbPacingMode !== 'auto' &&
+        resolvedRiderLevel === 'pro' &&
+        gutCeiling >= 60));
   const pref = options.nutritionPreference ?? 'mixed';
   const bidonSizeMl = options.bidonSizeMl ?? 650;
   const frameBottleSlots = options.frameBottleSlots ?? 2;
@@ -437,6 +451,7 @@ export function computeClimbSplitsAndFueling(
     gutCeilingGPerHr: gutCeiling,
     totalDays: trip.stages?.length || 1,
     activeChips: trip.customChips || [],
+    isLockedCarbTarget,
   });
 
   const hydrationPlan = calculateHydrationPlan({

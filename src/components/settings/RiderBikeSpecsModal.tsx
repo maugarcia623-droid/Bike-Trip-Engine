@@ -17,12 +17,19 @@ import {
 import {
   RiderBikeSpecs,
   BikeSpec,
+  BikeCategory,
+  CasingType,
   RiderLevel,
   TelemetryMode,
   BidonSizeMl,
   FrameBottleSlots,
+  BIKE_CATEGORY_DEFAULTS,
+  TIRE_WIDTH_PRESETS,
+  estimateCrrFromTire,
+  resolveBikeTireWidthMm,
 } from '../../types/specs';
 import { saveRiderBikeSpecs, getActiveBike } from '../../utils/specsStorage';
+import { calculateTyrePressure, inferBikeCategory } from '../../utils/tyrePressure';
 import { saveUserProfile } from '../../utils/userProfileStorage';
 import {
   disconnectStravaAccount,
@@ -75,6 +82,9 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
   const [activeTab, setActiveTab] = useState<'rider' | 'bike' | 'pantry'>('rider');
   const [showFtpEstimator, setShowFtpEstimator] = useState(false);
   const [showAdvancedBike, setShowAdvancedBike] = useState(false);
+  const [tireWidthDraft, setTireWidthDraft] = useState<string>('');
+  const [customCrrBikeIds, setCustomCrrBikeIds] = useState<Record<string, boolean>>({});
+  const [hasCustomizedCarbs, setHasCustomizedCarbs] = useState(false);
   const [stravaStatus, setStravaStatus] = useState<StravaConnectionStatus>(() =>
     getCachedStravaStatus()
   );
@@ -100,14 +110,41 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
       setActiveTab('rider');
       setShowFtpEstimator(false);
       setShowAdvancedBike(false);
+      setCustomCrrBikeIds({});
+      setHasCustomizedCarbs(false);
       void fetchStravaConnectionStatus().then((status) => setStravaStatus(status));
       void fetchHeadUnitStatuses().then((statuses) => setHeadUnitStatuses(statuses));
     }
   }, [isOpen, specs]);
 
+  const activeBike = getActiveBike(localSpecs);
+  const activeTireWidthMm = resolveBikeTireWidthMm(activeBike);
+  const activeBikeCategory = inferBikeCategory(
+    activeTireWidthMm,
+    activeBike.name,
+    activeBike.bikeCategory
+  );
+
+  useEffect(() => {
+    setTireWidthDraft(String(activeTireWidthMm));
+  }, [activeBike.id, activeTireWidthMm]);
+
   if (!isOpen) return null;
 
-  const activeBike = getActiveBike(localSpecs);
+  const previewPressure = calculateTyrePressure({
+    systemMassKg: (localSpecs.riderWeightKg || 68) + (activeBike.weightKg || 10) + 1.5,
+    tireWidthMm: activeTireWidthMm,
+    isTubeless: Boolean(activeBike.isTubeless),
+    pavedPct: activeBikeCategory === 'road' || activeBikeCategory === 'urban' ? 95 : 65,
+    gravelPct: activeBikeCategory === 'road' || activeBikeCategory === 'urban' ? 5 : 30,
+    singletrackPct: activeBikeCategory === 'mtb' ? 35 : activeBikeCategory === 'road' || activeBikeCategory === 'urban' ? 0 : 5,
+    gearWeightKg: 1.5,
+    bikeCategory: activeBikeCategory,
+    casingType: activeBike.casingType,
+    isHookless: activeBike.isHookless,
+    bikeName: activeBike.name,
+  });
+
   const currentWkg = Number(
     ((localSpecs.ftpWatts || 210) / Math.max(35, localSpecs.riderWeightKg || 68)).toFixed(2)
   );
@@ -121,13 +158,18 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
 
   const handleAddBike = () => {
     const newId = `bike-${Date.now()}`;
+    const defaults = BIKE_CATEGORY_DEFAULTS.gravel;
     const newBike: BikeSpec = {
       id: newId,
       name: t('newBikeDefaultName', { num: localSpecs.bikes.length + 1 }),
-      weightKg: 9.5,
-      crr: 0.0055,
-      cda: 0.38,
-      isTubeless: true,
+      weightKg: defaults.weightKg,
+      crr: defaults.crr,
+      cda: defaults.cda,
+      isTubeless: defaults.isTubeless,
+      tireWidthMm: defaults.tireWidthMm,
+      bikeCategory: 'gravel',
+      casingType: defaults.casingType,
+      isHookless: false,
     };
     setLocalSpecs((prev) => ({
       ...prev,
@@ -150,7 +192,43 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
     });
   };
 
+  const isBikeCrrAutoEstimated = (bike: BikeSpec): boolean => {
+    if (customCrrBikeIds[bike.id]) return false;
+    const widthMm = resolveBikeTireWidthMm(bike);
+    const cat = inferBikeCategory(widthMm, bike.name, bike.bikeCategory);
+    const catDefaultCrr = BIKE_CATEGORY_DEFAULTS[cat]?.crr;
+    const estCurrent = estimateCrrFromTire(
+      widthMm,
+      Boolean(bike.isTubeless),
+      bike.casingType ?? 'standard'
+    );
+    const estDefaultCasing = estimateCrrFromTire(
+      widthMm,
+      Boolean(bike.isTubeless),
+      BIKE_CATEGORY_DEFAULTS[cat]?.casingType ?? 'standard'
+    );
+    return (
+      Math.abs(bike.crr - estCurrent) < 0.00015 ||
+      Math.abs(bike.crr - estDefaultCasing) < 0.00015 ||
+      (catDefaultCrr !== undefined && Math.abs(bike.crr - catDefaultCrr) < 0.00015) ||
+      (bike.id === 'bike-urban' && Math.abs(bike.crr - 0.007) < 0.00015)
+    );
+  };
+
+  const getSuggestedCarbsForLevel = (level: RiderLevel, mode: TelemetryMode): number => {
+    if (mode === 'fuel-first') {
+      return level === 'occasional' ? 45 : level === 'pro' ? 85 : 60;
+    }
+    if (mode === 'intuitive') {
+      return 60;
+    }
+    return level === 'occasional' ? 40 : level === 'pro' ? 90 : 60;
+  };
+
   const handleUpdateActiveBike = (field: keyof BikeSpec, value: any) => {
+    if (field === 'crr') {
+      setCustomCrrBikeIds((prev) => ({ ...prev, [activeBike.id]: true }));
+    }
     setLocalSpecs((prev) => ({
       ...prev,
       bikes: prev.bikes.map((b) =>
@@ -159,20 +237,82 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
     }));
   };
 
+  const handleSelectBikeCategory = (nextCat: BikeCategory) => {
+    setLocalSpecs((prev) => ({
+      ...prev,
+      bikes: prev.bikes.map((b) => {
+        if (b.id !== prev.activeBikeId) return b;
+        const prevCat = inferBikeCategory(resolveBikeTireWidthMm(b), b.name, b.bikeCategory);
+        const prevDefault = BIKE_CATEGORY_DEFAULTS[prevCat];
+        const nextDefault = BIKE_CATEGORY_DEFAULTS[nextCat];
+        const currentWidth = resolveBikeTireWidthMm(b);
+        const shouldAdoptWidth =
+          b.tireWidthMm === undefined || currentWidth === prevDefault.tireWidthMm;
+        const nextWidth = shouldAdoptWidth ? nextDefault.tireWidthMm : currentWidth;
+        const nextTubeless = shouldAdoptWidth ? nextDefault.isTubeless : Boolean(b.isTubeless);
+        const nextCasing = b.casingType ?? nextDefault.casingType;
+        return {
+          ...b,
+          bikeCategory: nextCat,
+          tireWidthMm: nextWidth,
+          isTubeless: nextTubeless,
+          casingType: nextCasing,
+          cda: Math.abs(b.cda - prevDefault.cda) < 0.02 ? nextDefault.cda : b.cda,
+          crr: isBikeCrrAutoEstimated(b)
+            ? estimateCrrFromTire(nextWidth, nextTubeless, nextCasing)
+            : b.crr,
+        };
+      }),
+    }));
+  };
+
+  const handleUpdateTireWidth = (nextWidthRaw: number) => {
+    const clamped = Math.max(23, Math.min(65, Math.round(nextWidthRaw)));
+    setLocalSpecs((prev) => ({
+      ...prev,
+      bikes: prev.bikes.map((b) => {
+        if (b.id !== prev.activeBikeId) return b;
+        return {
+          ...b,
+          tireWidthMm: clamped,
+          crr: isBikeCrrAutoEstimated(b)
+            ? estimateCrrFromTire(clamped, Boolean(b.isTubeless), b.casingType ?? 'standard')
+            : b.crr,
+        };
+      }),
+    }));
+  };
+
   const handleToggleTubeless = (nextTubeless: boolean) => {
     setLocalSpecs((prev) => ({
       ...prev,
       bikes: prev.bikes.map((b) => {
         if (b.id !== prev.activeBikeId) return b;
-        // Gently adjust rolling resistance baseline when switching between tubeless & inner tube
-        const prevTubeless = Boolean(b.isTubeless);
-        let nextCrr = b.crr;
-        if (prevTubeless !== nextTubeless) {
-          nextCrr = Number(
-            Math.max(0.003, Math.min(0.009, b.crr + (nextTubeless ? -0.0005 : 0.0005))).toFixed(4)
-          );
-        }
-        return { ...b, isTubeless: nextTubeless, crr: nextCrr };
+        const widthMm = resolveBikeTireWidthMm(b);
+        return {
+          ...b,
+          isTubeless: nextTubeless,
+          crr: isBikeCrrAutoEstimated(b)
+            ? estimateCrrFromTire(widthMm, nextTubeless, b.casingType ?? 'standard')
+            : b.crr,
+        };
+      }),
+    }));
+  };
+
+  const handleSelectCasing = (nextCasing: CasingType) => {
+    setLocalSpecs((prev) => ({
+      ...prev,
+      bikes: prev.bikes.map((b) => {
+        if (b.id !== prev.activeBikeId) return b;
+        const widthMm = resolveBikeTireWidthMm(b);
+        return {
+          ...b,
+          casingType: nextCasing,
+          crr: isBikeCrrAutoEstimated(b)
+            ? estimateCrrFromTire(widthMm, Boolean(b.isTubeless), nextCasing)
+            : b.crr,
+        };
       }),
     }));
   };
@@ -180,24 +320,19 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
   const handleSelectRiderLevel = (level: RiderLevel) => {
     setLocalSpecs((prev) => {
       const mode = prev.telemetryMode ?? 'fuel-first';
-      const suggestedCarbs =
-        mode === 'fuel-first'
-          ? level === 'occasional'
-            ? 45
-            : level === 'pro'
-            ? 85
-            : 60
-          : mode === 'intuitive'
-          ? 60
-          : level === 'occasional'
-          ? 40
-          : level === 'pro'
-          ? 90
-          : 60;
+      const currentCarbs = prev.carbTargetGPerHr;
+      const prevLevel = prev.riderLevel ?? 'regular';
+      const matchesPrevDefault =
+        currentCarbs === undefined ||
+        currentCarbs === getSuggestedCarbsForLevel(prevLevel, mode) ||
+        currentCarbs === getSuggestedCarbsForLevel(prevLevel, 'fuel-first') ||
+        currentCarbs === getSuggestedCarbsForLevel(prevLevel, 'quantitative');
+      const isCustomized = hasCustomizedCarbs || !matchesPrevDefault;
+      const suggestedCarbs = getSuggestedCarbsForLevel(level, mode);
       return {
         ...prev,
         riderLevel: level,
-        carbTargetGPerHr: suggestedCarbs,
+        carbTargetGPerHr: isCustomized ? currentCarbs ?? suggestedCarbs : suggestedCarbs,
       };
     });
   };
@@ -399,7 +534,12 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                       <Button variant="ghost"
                         type="button"
                         onClick={() =>
-                          setLocalSpecs((prev) => ({ ...prev, cockpitViewMode: 'pro' }))
+                          setLocalSpecs((prev) => ({
+                            ...prev,
+                            cockpitViewMode: 'pro',
+                            telemetryMode: 'quantitative',
+                            pacingInputMode: 'power',
+                          }))
                         }
                         className={`min-h-[44px] sm:min-h-[36px] px-3 rounded-sub-pod text-xs font-rounded font-semibold transition-all cursor-pointer ${
                           isProView
@@ -708,7 +848,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                     </Badge>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-1.5 p-1 rounded-pod bg-pod">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 p-1 rounded-pod bg-pod">
                     {(
                       [
                         {
@@ -741,20 +881,20 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                             setLocalSpecs((prev) => ({
                               ...prev,
                               telemetryMode: modeOpt.id,
-                              carbTargetGPerHr: modeOpt.id === 'intuitive' ? 60 : prev.carbTargetGPerHr || 60,
+                              carbTargetGPerHr: prev.carbTargetGPerHr || 60,
                             }));
                           }}
-                          className={`flex flex-col items-start min-h-[44px] p-2.5 rounded-sub-pod text-left transition-all cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                          className={`flex flex-col items-start justify-start h-full min-h-[44px] p-2.5 rounded-sub-pod text-left transition-all cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
                             isSelected
                               ? 'bg-card text-ink shadow-xs ring-1 ring-ink/10 dark:ring-white/10'
                               : 'text-ink-muted hover:text-ink hover:bg-card/40'
                           }`}
                         >
-                          <div className="flex items-center gap-1.5 w-full">
-                            <ModeIcon className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-amber-500' : 'text-current'}`} />
-                            <span className="text-xs font-rounded font-bold truncate">{modeOpt.label}</span>
+                          <div className="flex items-start gap-1.5 w-full min-w-0">
+                            <ModeIcon className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${isSelected ? 'text-amber-500' : 'text-current'}`} />
+                            <span className="text-xs font-rounded font-bold leading-tight break-words whitespace-normal">{modeOpt.label}</span>
                           </div>
-                          <span className="text-[10px] leading-tight opacity-75 mt-1 line-clamp-2">
+                          <span className="text-[10px] leading-tight opacity-75 mt-1 break-words whitespace-normal">
                             {modeOpt.sub}
                           </span>
                         </Button>
@@ -798,12 +938,13 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                       max={105}
                       step={5}
                       value={localSpecs.carbTargetGPerHr ?? 60}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        setHasCustomizedCarbs(true);
                         setLocalSpecs((prev) => ({
                           ...prev,
                           carbTargetGPerHr: parseInt(e.target.value, 10) || 60,
-                        }))
-                      }
+                        }));
+                      }}
                       aria-label={isFr ? 'Glucides par heure' : 'Carbohydrates per hour'}
                       className="w-full peloton-slider accent-amber-500 cursor-pointer"
                     />
@@ -820,9 +961,10 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                           <Button variant="ghost"
                             key={opt.val}
                             type="button"
-                            onClick={() =>
-                              setLocalSpecs((prev) => ({ ...prev, carbTargetGPerHr: opt.val }))
-                            }
+                            onClick={() => {
+                              setHasCustomizedCarbs(true);
+                              setLocalSpecs((prev) => ({ ...prev, carbTargetGPerHr: opt.val }));
+                            }}
                             className={`min-h-[44px] sm:min-h-[34px] px-2 rounded-full text-[11px] font-rounded font-semibold transition-colors cursor-pointer tnum break-words leading-tight text-center ${
                               active
                                 ? `${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.amber.selectedRing}`
@@ -891,12 +1033,13 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                           <Button variant="ghost"
                             key={tierOpt.tier}
                             type="button"
-                            onClick={() =>
+                            onClick={() => {
+                              setHasCustomizedCarbs(true);
                               setLocalSpecs((prev) => ({
                                 ...prev,
                                 carbTargetGPerHr: tierOpt.tier,
-                              }))
-                            }
+                              }));
+                            }}
                             className={`min-h-[44px] p-2.5 rounded-sub-pod text-left transition-all cursor-pointer ${
                               active
                                 ? `${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.amber.selectedRing}`
@@ -1117,8 +1260,8 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                       )}
                     </div>
                     <div className="flex items-center justify-between gap-1 mt-1.5 text-[11px] font-rounded tnum opacity-85">
-                      <span>{bike.weightKg} kg</span>
-                      <span>{bike.isTubeless ? 'Tubeless' : 'Tube'}</span>
+                      <span>{bike.weightKg} kg · {resolveBikeTireWidthMm(bike)} mm</span>
+                      <span>{bike.isTubeless ? 'Tubeless' : isFr ? 'Chambre' : 'Tube'}</span>
                     </div>
                   </div>
                 );
@@ -1127,69 +1270,189 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
 
             {/* Active Bike Details */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start">
-              {/* Left Column: Model Name + Tire & Sealant Configuration */}
+              {/* Left Column: Model Name, Bike Style & Friendly Tires Card */}
               <div className="space-y-3.5">
-                <div className="px-4 py-2.5 rounded-pod bg-card flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-3">
-                  <label className="text-xs font-rounded text-ink-muted shrink-0">
-                    {t('modelNameLabel')}
-                  </label>
-                  <input
-                    type="text"
-                    value={activeBike.name}
-                    onChange={(e) => handleUpdateActiveBike('name', e.target.value)}
-                    className="w-full min-h-[44px] sm:min-h-[34px] text-base sm:text-sm font-rounded font-semibold text-ink text-left sm:text-right bg-transparent focus:outline-none"
-                  />
+                <div className="p-3.5 rounded-pod bg-card space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-3">
+                    <label className="text-xs font-rounded text-ink-muted shrink-0">
+                      {t('modelNameLabel')}
+                    </label>
+                    <input
+                      type="text"
+                      value={activeBike.name}
+                      onChange={(e) => handleUpdateActiveBike('name', e.target.value)}
+                      className="w-full min-h-[44px] sm:min-h-[34px] text-base sm:text-sm font-rounded font-semibold text-ink text-left sm:text-right bg-transparent focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="lane-divider" aria-hidden="true" />
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-rounded font-bold text-ink">
+                        {isFr ? 'Type de vélo' : 'Bike style'}
+                      </span>
+                      <span className="text-[11px] text-ink-muted">
+                        {isFr ? 'Adapte les valeurs par défaut' : 'Sets smart defaults'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-5 gap-1">
+                      {(
+                        [
+                          { id: 'road' as BikeCategory, label: isFr ? 'Route' : 'Road' },
+                          { id: 'gravel' as BikeCategory, label: 'Gravel' },
+                          { id: 'urban' as BikeCategory, label: isFr ? 'Ville' : 'City' },
+                          { id: 'touring' as BikeCategory, label: isFr ? 'Rando' : 'Tour' },
+                          { id: 'mtb' as BikeCategory, label: isFr ? 'VTT' : 'MTB' },
+                        ] as const
+                      ).map((catOpt) => {
+                        const active = activeBikeCategory === catOpt.id;
+                        return (
+                          <Button
+                            variant="ghost"
+                            key={catOpt.id}
+                            type="button"
+                            onClick={() => handleSelectBikeCategory(catOpt.id)}
+                            className={`min-h-[40px] sm:min-h-[32px] px-1.5 rounded-full text-[11px] font-rounded font-semibold cursor-pointer transition-colors text-center truncate ${
+                              active
+                                ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
+                                : `bg-pod text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
+                            }`}
+                          >
+                            {catOpt.label}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
 
-                {/* Tire & Sealant Config Card */}
-                <div className="p-3.5 rounded-pod bg-card space-y-2.5">
-                  <div>
-                    <span className="text-xs font-rounded font-bold text-ink block">
-                      {isFr ? 'Type de pneus' : 'Tire setup'}
-                    </span>
-                    <span className="text-[11px] text-ink-muted">
-                      {activeBike.isTubeless
-                        ? isFr
-                          ? 'Basse pression confort (2,4–2,6 bar) · mèches & préventif dans la check-list'
-                          : 'Comfortable lower pressure (2.4–2.6 bar) · includes plug kit reminder'
-                        : isFr
-                        ? 'Pression classique (3,0–3,2 bar) · chambre à air & démonte-pneus'
-                        : 'Standard pressure (3.0–3.2 bar) · includes spare tube reminder'}
-                    </span>
+                {/* Friendly Tire Width & Setup Card */}
+                <div className="p-3.5 rounded-pod bg-card space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <span className="text-xs font-rounded font-bold text-ink block">
+                        {isFr ? 'Largeur & montage des pneus' : 'Tires & width'}
+                      </span>
+                      <span className="text-[11px] text-ink-muted leading-snug block mt-0.5">
+                        {isFr
+                          ? 'Indiqué sur le flanc (ex. 28 ou 38), ou choisissez au plus proche'
+                          : 'Printed on the tire sidewall (e.g. 28 or 38), or pick closest'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 px-2.5 py-1 rounded-sub-pod bg-pod shrink-0">
+                      <input
+                        type="number"
+                        min={23}
+                        max={65}
+                        step={1}
+                        aria-label={isFr ? 'Largeur du pneu en mm' : 'Tire width in mm'}
+                        value={tireWidthDraft}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          setTireWidthDraft(raw);
+                          const parsed = parseInt(raw, 10);
+                          if (Number.isFinite(parsed) && parsed >= 23 && parsed <= 65) {
+                            handleUpdateTireWidth(parsed);
+                          }
+                        }}
+                        onBlur={() => {
+                          const parsed = parseInt(tireWidthDraft, 10);
+                          if (Number.isFinite(parsed)) {
+                            const clamped = Math.max(23, Math.min(65, parsed));
+                            handleUpdateTireWidth(clamped);
+                            setTireWidthDraft(String(clamped));
+                          } else {
+                            setTireWidthDraft(String(activeTireWidthMm));
+                          }
+                        }}
+                        className="w-10 text-right text-sm font-rounded font-bold text-ink bg-transparent focus:outline-none tnum"
+                      />
+                      <span className="text-[11px] font-rounded font-semibold text-ink-muted">mm</span>
+                    </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      {
-                        val: true,
-                        title: isFr ? 'Tubeless' : 'Tubeless Ready',
-                        sub: isFr ? 'Confort · anti-pincement' : 'Lower drag · pinch resistant',
-                      },
-                      {
-                        val: false,
-                        title: isFr ? 'Chambre à air' : 'Inner Tube',
-                        sub: isFr ? 'Classique · simple' : 'Classic setup · spare tube',
-                      },
-                    ].map((opt) => {
-                      const active = Boolean(activeBike.isTubeless) === opt.val;
+
+                  {/* Quick Sidewall Presets */}
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {TIRE_WIDTH_PRESETS.map((preset) => {
+                      const active = Math.abs(activeTireWidthMm - preset.widthMm) <= 2;
                       return (
-                        <Button variant="ghost"
-                          key={String(opt.val)}
+                        <Button
+                          variant="ghost"
+                          key={preset.widthMm}
                           type="button"
-                          onClick={() => handleToggleTubeless(opt.val)}
-                          className={`min-h-[44px] p-2.5 rounded-sub-pod text-left transition-all cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                          onClick={() => handleUpdateTireWidth(preset.widthMm)}
+                          className={`min-h-[44px] sm:min-h-[40px] px-1 py-1.5 rounded-sub-pod text-center transition-all cursor-pointer flex flex-col items-center justify-center ${
                             active
                               ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.emerald.selectedRing}`
                               : `bg-pod text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
                           }`}
                         >
-                          <div className="text-xs font-rounded font-bold flex items-center gap-1.5 flex-wrap">
-                            <Lightning className="w-3.5 h-3.5 text-current shrink-0" />
-                            <span className="break-words leading-tight">{opt.title}</span>
-                          </div>
-                          <div className="text-[10px] opacity-80 mt-0.5 break-words leading-tight">{opt.sub}</div>
+                          <span className="text-[11px] font-rounded font-bold tnum leading-tight">
+                            {preset.widthMm}
+                          </span>
+                          <span className="text-[9px] opacity-80 leading-tight truncate max-w-full">
+                            {isFr ? preset.hintFr : preset.hintEn}
+                          </span>
                         </Button>
                       );
                     })}
+                  </div>
+
+                  <div className="lane-divider" aria-hidden="true" />
+
+                  {/* Tubeless vs Inner Tube Toggle + Live Pressure Preview */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-rounded font-semibold text-ink-secondary">
+                        {isFr ? 'Chambre à air ou Tubeless ?' : 'Inner tube or Tubeless?'}
+                      </span>
+                      <Badge variant="sky" size="xs" className="tnum font-rounded">
+                        {isFr
+                          ? `~${String(previewPressure.frontBar).replace('.', ',')}/${String(previewPressure.rearBar).replace('.', ',')} bar`
+                          : `~${previewPressure.frontBar}/${previewPressure.rearBar} bar`}
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        {
+                          val: true,
+                          title: 'Tubeless',
+                          sub: isFr ? 'Sans chambre · basse pression' : 'No tube · supple ride',
+                        },
+                        {
+                          val: false,
+                          title: isFr ? 'Chambre à air' : 'Inner Tube',
+                          sub: isFr ? 'Le plus courant · simple' : 'Most common · classic',
+                        },
+                      ].map((opt) => {
+                        const active = Boolean(activeBike.isTubeless) === opt.val;
+                        return (
+                          <Button
+                            variant="ghost"
+                            key={String(opt.val)}
+                            type="button"
+                            onClick={() => handleToggleTubeless(opt.val)}
+                            className={`min-h-[44px] p-2.5 rounded-sub-pod text-left transition-all cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                              active
+                                ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.emerald.selectedRing}`
+                                : `bg-pod text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
+                            }`}
+                          >
+                            <div className="text-xs font-rounded font-bold flex items-center gap-1.5 flex-wrap">
+                              <Lightning className="w-3.5 h-3.5 text-current shrink-0" />
+                              <span className="break-words leading-tight">{opt.title}</span>
+                            </div>
+                            <div className="text-[10px] opacity-80 mt-0.5 break-words leading-tight">{opt.sub}</div>
+                          </Button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[10px] text-ink-muted leading-snug">
+                      {isFr
+                        ? 'Pas sûr ? La plupart des vélos de ville ou loisir ont une chambre à air.'
+                        : 'Not sure? Most city and entry-level bikes use inner tubes.'}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -1287,7 +1550,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                   </div>
                 </div>
 
-                {/* Collapsible Advanced Bike Settings (Crr / CdA tucked neatly away) */}
+                {/* Collapsible Advanced Bike & Tire Settings (tucked neatly away) */}
                 <div className="rounded-pod bg-card p-3.5">
                   <Button variant="ghost"
                     type="button"
@@ -1295,7 +1558,11 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                     onClick={() => setShowAdvancedBike((v) => !v)}
                     className="w-full min-h-[44px] sm:min-h-[34px] flex items-center justify-between gap-2 text-xs font-rounded font-bold text-ink-secondary hover:text-ink cursor-pointer"
                   >
-                    <span>{isFr ? 'Réglages vélo avancés (Crr · CdA)' : 'Advanced bike settings (Crr · CdA)'}</span>
+                    <span>
+                      {isFr
+                        ? 'Réglages avancés (carcasse · hookless · Crr · CdA)'
+                        : 'Advanced tire & aero settings (optional)'}
+                    </span>
                     <ChevronDown
                       className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
                         showAdvancedBike ? 'rotate-180' : ''
@@ -1306,83 +1573,158 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                   {showAdvancedBike && (
                     <>
                       <div className="lane-divider my-3" aria-hidden="true" />
-                      <div className="grid grid-cols-2 gap-2.5 animate-apple-fade-in">
-                      <div className="p-3 rounded-sub-pod bg-pod">
-                        <label className="block text-[11px] font-rounded text-ink-muted mb-1">
-                          {t('tireCrrLabel')}
-                        </label>
-                        <input
-                          type="number"
-                          step="0.0005"
-                          value={activeBike.crr}
-                          onChange={(e) =>
-                            handleUpdateActiveBike('crr', parseFloat(e.target.value) || 0.0055)
-                          }
-                          className="w-full min-h-[44px] sm:min-h-[32px] text-base sm:text-lg font-semibold text-ink bg-transparent focus:outline-none tnum"
-                        />
-                        <div className="flex flex-wrap gap-1 mt-1.5">
-                          {[
-                            { val: 0.004, short: '28c' },
-                            { val: 0.0055, short: '38c' },
-                            { val: 0.007, short: '42c' },
-                          ].map((p) => {
-                            const active = Math.abs(activeBike.crr - p.val) < 0.0006;
-                            return (
-                              <Button variant="ghost"
-                                key={p.val}
-                                type="button"
-                                onClick={() => handleUpdateActiveBike('crr', p.val)}
-                                className={`px-2 py-1 rounded-full text-[10px] font-rounded font-semibold cursor-pointer transition-colors tnum ${
-                                  active
-                                    ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary}`
-                                    : 'bg-card text-ink-muted hover:text-ink'
-                                }`}
-                              >
-                                {p.short}
-                              </Button>
-                            );
-                          })}
+                      <div className="space-y-3 animate-apple-fade-in">
+                        {/* Casing Stiffness */}
+                        <div className="p-3 rounded-sub-pod bg-pod space-y-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-rounded font-semibold text-ink-secondary">
+                              {isFr ? 'Carcasse du pneu' : 'Tire casing'}
+                            </span>
+                            <span className="text-[10px] text-ink-muted">
+                              {isFr ? 'Souple vs renforcée' : 'Race supple vs reinforced'}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-1.5">
+                            {(
+                              [
+                                { id: 'supple' as CasingType, label: isFr ? 'Souple' : 'Supple' },
+                                { id: 'standard' as CasingType, label: 'Standard' },
+                                { id: 'reinforced' as CasingType, label: isFr ? 'Renforcée' : 'Reinforced' },
+                              ] as const
+                            ).map((cOpt) => {
+                              const currentCasing =
+                                activeBike.casingType ??
+                                (activeBikeCategory === 'road' ? 'supple' : 'standard');
+                              const active = currentCasing === cOpt.id;
+                              return (
+                                <Button
+                                  variant="ghost"
+                                  key={cOpt.id}
+                                  type="button"
+                                  onClick={() => handleSelectCasing(cOpt.id)}
+                                  className={`min-h-[36px] px-2 rounded-full text-[11px] font-rounded font-semibold cursor-pointer transition-colors ${
+                                    active
+                                      ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.emerald.selectedRing}`
+                                      : `bg-card text-ink-muted hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
+                                  }`}
+                                >
+                                  {cOpt.label}
+                                </Button>
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
 
-                      <div className="p-3 rounded-sub-pod bg-pod">
-                        <label className="block text-[11px] font-rounded text-ink-muted mb-1">
-                          {t('aeroCdaLabel')}
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={activeBike.cda}
-                          onChange={(e) =>
-                            handleUpdateActiveBike('cda', parseFloat(e.target.value) || 0.38)
-                          }
-                          className="w-full min-h-[44px] sm:min-h-[32px] text-base sm:text-lg font-semibold text-ink bg-transparent focus:outline-none tnum"
-                        />
-                        <div className="flex flex-wrap gap-1 mt-1.5">
-                          {[
-                            { val: 0.32, short: '0.32' },
-                            { val: 0.38, short: '0.38' },
-                            { val: 0.44, short: '0.44' },
-                          ].map((p) => {
-                            const active = Math.abs(activeBike.cda - p.val) < 0.015;
-                            return (
-                              <Button variant="ghost"
-                                key={p.val}
-                                type="button"
-                                onClick={() => handleUpdateActiveBike('cda', p.val)}
-                                className={`px-2 py-1 rounded-full text-[10px] font-rounded font-semibold cursor-pointer transition-colors tnum ${
-                                  active
-                                    ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary}`
-                                    : 'bg-card text-ink-muted hover:text-ink'
-                                }`}
-                              >
-                                {p.short}
-                              </Button>
-                            );
-                          })}
+                        {/* Hookless Rim Toggle */}
+                        <div className="p-3 rounded-sub-pod bg-pod flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <span className="text-[11px] font-rounded font-semibold text-ink-secondary block">
+                              {isFr ? 'Jantes Hookless (sans crochets)' : 'Hookless rims'}
+                            </span>
+                            <span className="text-[10px] text-ink-muted block leading-tight">
+                              {isFr ? 'Plafonne la pression à 5,0 bar (ETRTO)' : 'Caps pressure at 5.0 bar ETRTO limit'}
+                            </span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            type="button"
+                            onClick={() =>
+                              handleUpdateActiveBike('isHookless', !Boolean(activeBike.isHookless))
+                            }
+                            className={`min-h-[36px] px-3 rounded-full text-[11px] font-rounded font-semibold cursor-pointer transition-colors shrink-0 ${
+                              activeBike.isHookless
+                                ? `${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.amber.selectedRing}`
+                                : `bg-card text-ink-muted hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
+                            }`}
+                          >
+                            {activeBike.isHookless
+                              ? isFr
+                                ? 'Hookless (5 bar)'
+                                : 'Hookless (5 bar)'
+                              : isFr
+                              ? 'Standard'
+                              : 'Hooked'}
+                          </Button>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2.5">
+                          <div className="p-3 rounded-sub-pod bg-pod">
+                            <label className="block text-[11px] font-rounded text-ink-muted mb-1">
+                              {t('tireCrrLabel')}
+                            </label>
+                            <input
+                              type="number"
+                              step="0.0005"
+                              value={activeBike.crr}
+                              onChange={(e) =>
+                                handleUpdateActiveBike('crr', parseFloat(e.target.value) || 0.0055)
+                              }
+                              className="w-full min-h-[44px] sm:min-h-[32px] text-base sm:text-lg font-semibold text-ink bg-transparent focus:outline-none tnum"
+                            />
+                            <div className="flex flex-wrap gap-1 mt-1.5">
+                              {[
+                                { val: 0.004, short: isFr ? 'Rapide' : 'Fast' },
+                                { val: 0.0055, short: isFr ? 'Mixte' : 'Mixed' },
+                                { val: 0.007, short: isFr ? 'Robuste' : 'Rugged' },
+                              ].map((p) => {
+                                const active = Math.abs(activeBike.crr - p.val) < 0.0006;
+                                return (
+                                  <Button variant="ghost"
+                                    key={p.val}
+                                    type="button"
+                                    onClick={() => handleUpdateActiveBike('crr', p.val)}
+                                    className={`px-2 py-1 rounded-full text-[10px] font-rounded font-semibold cursor-pointer transition-colors tnum ${
+                                      active
+                                        ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary}`
+                                        : 'bg-card text-ink-muted hover:text-ink'
+                                    }`}
+                                  >
+                                    {p.short}
+                                  </Button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          <div className="p-3 rounded-sub-pod bg-pod">
+                            <label className="block text-[11px] font-rounded text-ink-muted mb-1">
+                              {t('aeroCdaLabel')}
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={activeBike.cda}
+                              onChange={(e) =>
+                                handleUpdateActiveBike('cda', parseFloat(e.target.value) || 0.38)
+                              }
+                              className="w-full min-h-[44px] sm:min-h-[32px] text-base sm:text-lg font-semibold text-ink bg-transparent focus:outline-none tnum"
+                            />
+                            <div className="flex flex-wrap gap-1 mt-1.5">
+                              {[
+                                { val: 0.32, short: '0.32' },
+                                { val: 0.38, short: '0.38' },
+                                { val: 0.44, short: '0.44' },
+                              ].map((p) => {
+                                const active = Math.abs(activeBike.cda - p.val) < 0.015;
+                                return (
+                                  <Button variant="ghost"
+                                    key={p.val}
+                                    type="button"
+                                    onClick={() => handleUpdateActiveBike('cda', p.val)}
+                                    className={`px-2 py-1 rounded-full text-[10px] font-rounded font-semibold cursor-pointer transition-colors tnum ${
+                                      active
+                                        ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary}`
+                                        : 'bg-card text-ink-muted hover:text-ink'
+                                    }`}
+                                  >
+                                    {p.short}
+                                  </Button>
+                                );
+                              })}
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
                     </>
                   )}
                 </div>

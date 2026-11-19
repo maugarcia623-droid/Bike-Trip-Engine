@@ -160,27 +160,41 @@ export function findNextStopAndTurn(
 ): NextNavigationTargets {
   let nextTurn: CueSheetEntry | null = null;
   let distanceToTurnKm: number | null = null;
-  let nextStop: CueSheetEntry | null = null;
-  let distanceToStopKm: number | null = null;
+  let nextResupplyStop: CueSheetEntry | null = null;
+  let distanceToResupplyKm: number | null = null;
+  let nextWaypointStop: CueSheetEntry | null = null;
+  let distanceToWaypointKm: number | null = null;
 
   for (const entry of cueEntries) {
     if (entry.distKm + 0.02 < distanceCoveredKm) continue;
     const deltaKm = Math.max(0, entry.distKm - distanceCoveredKm);
+    const roundedDeltaKm = Math.round(deltaKm * 100) / 100;
 
-    if (entry.direction === 'resupply' || entry.direction === 'waypoint') {
-      if (!nextStop) {
-        nextStop = entry;
-        distanceToStopKm = Math.round(deltaKm * 100) / 100;
+    if (entry.direction === 'resupply' || Boolean(entry.amenity)) {
+      if (!nextResupplyStop) {
+        nextResupplyStop = entry;
+        distanceToResupplyKm = roundedDeltaKm;
+      }
+    } else if (entry.direction === 'waypoint') {
+      // Keep generic shaping waypoints as a fallback only so they never mask upcoming water/resupply stops
+      if (!nextWaypointStop) {
+        nextWaypointStop = entry;
+        distanceToWaypointKm = roundedDeltaKm;
       }
     } else if (entry.direction !== 'depart') {
       if (!nextTurn) {
         nextTurn = entry;
-        distanceToTurnKm = Math.round(deltaKm * 100) / 100;
+        distanceToTurnKm = roundedDeltaKm;
       }
     }
 
-    if (nextTurn && nextStop) break;
+    if (nextTurn && nextResupplyStop) break;
   }
+
+  const nextStop = nextResupplyStop ?? nextWaypointStop;
+  const distanceToStopKm = nextResupplyStop
+    ? distanceToResupplyKm
+    : distanceToWaypointKm;
 
   return {
     nextTurn,
@@ -433,9 +447,9 @@ export function primeRideAudio(): void {
 
 export function speakRideCue(
   text: string,
-  options: { lang: 'en' | 'fr'; muted?: boolean; chime?: boolean }
+  options: { lang: 'en' | 'fr'; muted?: boolean; chime?: boolean; queue?: boolean }
 ): boolean {
-  const { lang, muted = false, chime = true } = options;
+  const { lang, muted = false, chime = true, queue = false } = options;
   if (muted || !text.trim()) return false;
 
   if (chime) {
@@ -448,7 +462,7 @@ export function speakRideCue(
 
   try {
     const synth = window.speechSynthesis;
-    if (synth.speaking) {
+    if (!queue && synth.speaking) {
       synth.cancel();
     }
     const utterance = new SpeechSynthesisUtterance(text);
@@ -465,9 +479,45 @@ export function speakRideCue(
       utterance.voice = matchingVoice;
     }
 
+    if (synth.paused && typeof synth.resume === 'function') {
+      synth.resume();
+    }
     synth.speak(utterance);
     return true;
   } catch {
     return false;
   }
+}
+
+/**
+ * Enqueues and speaks multiple ride cues sequentially without cancelling
+ * earlier utterances in the same batch.
+ */
+export function speakRideCueSequence(
+  texts: string[],
+  options: { lang: 'en' | 'fr'; muted?: boolean; chime?: boolean; queue?: boolean }
+): number {
+  const { lang, muted = false, chime = true, queue = true } = options;
+  if (muted || !Array.isArray(texts) || texts.length === 0) return 0;
+
+  let chimePending = chime;
+  let queueNext = queue;
+  let spokenCount = 0;
+
+  for (const text of texts) {
+    if (!text.trim()) continue;
+    const ok = speakRideCue(text, {
+      lang,
+      muted,
+      chime: chimePending,
+      queue: queueNext,
+    });
+    chimePending = false;
+    queueNext = true;
+    if (ok) {
+      spokenCount++;
+    }
+  }
+
+  return spokenCount;
 }

@@ -9,7 +9,7 @@ import {
   normalizeRiderBikeSpecs,
 } from "./utils/specsStorage";
 import { ConfirmModal } from "./components/common/ConfirmModal";
-import { RiderBikeSpecs } from "./types/specs";
+import { BikeCategory, RiderBikeSpecs } from "./types/specs";
 import { Analytics } from '@vercel/analytics/react';
 import { IconContext } from '@/components/icons';
 import { generateTripChecklist, TripProfile, WeatherCondition } from "./types/trip";
@@ -876,6 +876,8 @@ function AppContent() {
       | {
           purpose?: 'commute' | 'sport' | 'bikepacking' | 'leisure';
           isTubeless?: boolean;
+          tireWidthMm?: number;
+          bikeCategory?: BikeCategory;
           riderLevel?: 'occasional' | 'regular' | 'pro';
           carbTargetGPerHr?: number;
           nutritionPreference?: 'real-food' | 'mixed' | 'sports-fuel';
@@ -932,6 +934,11 @@ function AppContent() {
                   typeof onboardingSpecsHint?.isTubeless === 'boolean'
                     ? onboardingSpecsHint.isTubeless
                     : b.isTubeless,
+                tireWidthMm:
+                  typeof onboardingSpecsHint?.tireWidthMm === 'number'
+                    ? onboardingSpecsHint.tireWidthMm
+                    : b.tireWidthMm,
+                bikeCategory: onboardingSpecsHint?.bikeCategory ?? b.bikeCategory,
               }
             : b
         ),

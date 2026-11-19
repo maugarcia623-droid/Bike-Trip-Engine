@@ -42,6 +42,123 @@ export interface BikeSpec {
   isHookless?: boolean;
 }
 
+export const BIKE_CATEGORY_DEFAULTS: Record<
+  BikeCategory,
+  {
+    tireWidthMm: number;
+    crr: number;
+    cda: number;
+    isTubeless: boolean;
+    casingType: CasingType;
+    weightKg: number;
+  }
+> = {
+  road: {
+    tireWidthMm: 28,
+    crr: 0.0040,
+    cda: 0.32,
+    isTubeless: true,
+    casingType: 'supple',
+    weightKg: 8.2,
+  },
+  gravel: {
+    tireWidthMm: 38,
+    crr: 0.0055,
+    cda: 0.38,
+    isTubeless: true,
+    casingType: 'standard',
+    weightKg: 10.2,
+  },
+  urban: {
+    tireWidthMm: 40,
+    crr: 0.0065,
+    cda: 0.44,
+    isTubeless: false,
+    casingType: 'reinforced',
+    weightKg: 12.8,
+  },
+  touring: {
+    tireWidthMm: 42,
+    crr: 0.0062,
+    cda: 0.45,
+    isTubeless: false,
+    casingType: 'reinforced',
+    weightKg: 13.5,
+  },
+  mtb: {
+    tireWidthMm: 54,
+    crr: 0.0075,
+    cda: 0.48,
+    isTubeless: true,
+    casingType: 'standard',
+    weightKg: 12.0,
+  },
+};
+
+export interface TireWidthPreset {
+  widthMm: number;
+  labelEn: string;
+  labelFr: string;
+  hintEn: string;
+  hintFr: string;
+}
+
+export const TIRE_WIDTH_PRESETS: TireWidthPreset[] = [
+  { widthMm: 28, labelEn: '28 mm', labelFr: '28 mm', hintEn: 'Road', hintFr: 'Route' },
+  { widthMm: 32, labelEn: '32 mm', labelFr: '32 mm', hintEn: 'All-road', hintFr: 'Polyvalent' },
+  { widthMm: 38, labelEn: '38 mm', labelFr: '38 mm', hintEn: 'Gravel', hintFr: 'Gravel' },
+  { widthMm: 45, labelEn: '45 mm', labelFr: '45 mm', hintEn: 'Rough', hintFr: 'Chemins' },
+  { widthMm: 54, labelEn: '54 mm', labelFr: '54 mm', hintEn: 'MTB', hintFr: 'VTT' },
+];
+
+/**
+ * Estimates baseline rolling resistance (Crr) from plain tire traits
+ * so beginners never need to know Crr numbers directly.
+ */
+export function estimateCrrFromTire(
+  tireWidthMm: number,
+  isTubeless: boolean,
+  casingType: CasingType = 'standard'
+): number {
+  const w = Math.max(23, Math.min(65, Number.isFinite(tireWidthMm) ? tireWidthMm : 38));
+  let base: number;
+  if (w <= 26) base = 0.0042;
+  else if (w <= 31) base = 0.0045;
+  else if (w <= 36) base = 0.0052;
+  else if (w <= 41) base = 0.0058;
+  else if (w <= 47) base = 0.0068;
+  else base = 0.0076;
+
+  const tubelessDelta = isTubeless ? -0.0005 : 0;
+  const casingDelta =
+    casingType === 'supple' ? -0.0003 : casingType === 'reinforced' ? 0.0004 : 0;
+
+  return Number(Math.max(0.0034, Math.min(0.0095, base + tubelessDelta + casingDelta)).toFixed(4));
+}
+
+/**
+ * Resolves a valid tire width in mm from explicit width, bike category, or Crr fallback.
+ */
+export function resolveBikeTireWidthMm(bike?: Partial<BikeSpec> | null): number {
+  if (
+    typeof bike?.tireWidthMm === 'number' &&
+    Number.isFinite(bike.tireWidthMm) &&
+    bike.tireWidthMm >= 23 &&
+    bike.tireWidthMm <= 65
+  ) {
+    return Math.round(bike.tireWidthMm);
+  }
+  if (bike?.bikeCategory && BIKE_CATEGORY_DEFAULTS[bike.bikeCategory]) {
+    return BIKE_CATEGORY_DEFAULTS[bike.bikeCategory].tireWidthMm;
+  }
+  if (typeof bike?.crr === 'number' && Number.isFinite(bike.crr)) {
+    if (bike.crr <= 0.0045) return 28;
+    if (bike.crr <= 0.0062) return 38;
+    return 42;
+  }
+  return 38;
+}
+
 export interface RiderBikeSpecs {
   riderName?: string;
   riderWeightKg: number;

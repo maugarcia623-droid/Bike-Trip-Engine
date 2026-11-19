@@ -3,6 +3,7 @@ import { Check, ChevronRight, SlidersHorizontal, Lightning } from '@/components/
 import { Button } from '@/components/arc';
 import { useTranslation } from '../../context/LanguageContext';
 import { BIKE_OPTIONS } from './constants';
+import { TIRE_WIDTH_PRESETS, estimateCrrFromTire } from '../../types/specs';
 
 interface Screen5RiderBikeProps {
   purposeId?: string;
@@ -14,6 +15,8 @@ interface Screen5RiderBikeProps {
   onChangeSelectedBike: (bikeId: string) => void;
   bikeWeightKg: number;
   onChangeBikeWeight: (kg: number) => void;
+  tireWidthMm: number;
+  onChangeTireWidth: (mm: number) => void;
   isTubeless: boolean;
   onChangeIsTubeless: (tubeless: boolean) => void;
   cda: number;
@@ -40,6 +43,8 @@ export const Screen5RiderBike: React.FC<Screen5RiderBikeProps> = ({
   onChangeSelectedBike,
   bikeWeightKg,
   onChangeBikeWeight,
+  tireWidthMm,
+  onChangeTireWidth,
   isTubeless,
   onChangeIsTubeless,
   cda,
@@ -88,6 +93,7 @@ export const Screen5RiderBike: React.FC<Screen5RiderBikeProps> = ({
     const bikeDef = BIKE_OPTIONS.find((b) => b.id === newBikeId);
     if (bikeDef) {
       onChangeBikeWeight(bikeDef.weightKg);
+      onChangeTireWidth(bikeDef.tireWidthMm);
       onChangeCda(bikeDef.cda);
       onChangeCrr(bikeDef.crr);
       onChangeIsTubeless(bikeDef.isTubeless);
@@ -226,7 +232,7 @@ export const Screen5RiderBike: React.FC<Screen5RiderBikeProps> = ({
                             {isFr ? bike.nameFr : bike.name}
                           </div>
                           <div className="text-[11px] text-ink-muted tnum">
-                            {bike.weightKg} kg ·{' '}
+                            {bike.weightKg} kg · {bike.tireWidthMm} mm ·{' '}
                             {bike.isTubeless
                               ? 'Tubeless'
                               : isFr
@@ -366,6 +372,72 @@ export const Screen5RiderBike: React.FC<Screen5RiderBikeProps> = ({
                   </div>
                 </div>
 
+                {/* Friendly Tire Width Presets */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <span className="text-ink font-medium block">
+                        {isFr ? 'Largeur des pneus' : 'Tire width'}
+                      </span>
+                      <span className="text-[11px] text-ink-muted">
+                        {isFr
+                          ? 'Indiquée sur le flanc (ou choisissez au plus proche)'
+                          : 'Printed on tire sidewall (or pick closest style)'}
+                      </span>
+                    </div>
+                    <div className="relative flex items-center w-24 shrink-0">
+                      <input
+                        type="number"
+                        min={23}
+                        max={65}
+                        step={1}
+                        aria-label={isFr ? 'Largeur du pneu en mm' : 'Tire width in mm'}
+                        value={tireWidthMm}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value, 10);
+                          if (Number.isFinite(val)) {
+                            const clamped = Math.max(23, Math.min(65, val));
+                            onChangeTireWidth(clamped);
+                            onChangeCrr(estimateCrrFromTire(clamped, isTubeless));
+                          }
+                        }}
+                        className="w-full min-h-[38px] px-2.5 pr-9 rounded-sub-pod bg-card border border-black/15 dark:border-white/20 text-ink text-sm sm:text-xs font-rounded font-bold tnum focus:outline-none"
+                      />
+                      <span className="absolute right-2.5 text-[10px] font-medium text-ink-muted pointer-events-none">
+                        mm
+                      </span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {TIRE_WIDTH_PRESETS.map((preset) => {
+                      const active = Math.abs(tireWidthMm - preset.widthMm) <= 2;
+                      return (
+                        <Button
+                          key={preset.widthMm}
+                          type="button"
+                          variant="ghost"
+                          onClick={() => {
+                            onChangeTireWidth(preset.widthMm);
+                            onChangeCrr(estimateCrrFromTire(preset.widthMm, isTubeless));
+                          }}
+                          className={`min-h-[40px] px-1 py-1 rounded-sub-pod text-center flex flex-col items-center justify-center transition-all cursor-pointer ${
+                            active
+                              ? 'bg-ink text-canvas dark:bg-white dark:text-black shadow-xs'
+                              : 'bg-card border border-black/10 dark:border-white/15 text-ink-secondary hover:text-ink'
+                          }`}
+                        >
+                          <span className="text-[11px] font-rounded font-bold tnum leading-tight">
+                            {preset.widthMm}
+                          </span>
+                          <span className="text-[9px] opacity-80 leading-tight truncate max-w-full">
+                            {isFr ? preset.hintFr : preset.hintEn}
+                          </span>
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 {/* Tubeless Toggle */}
                 <div className="flex items-center justify-between">
                   <div>
@@ -373,13 +445,17 @@ export const Screen5RiderBike: React.FC<Screen5RiderBikeProps> = ({
                       {isFr ? 'Montage Tubeless' : 'Tubeless setup'}
                     </span>
                     <span className="text-[11px] text-ink-muted">
-                      {isFr ? 'Réduit la résistance au roulement Crr' : 'Lowers rolling resistance Crr'}
+                      {isFr ? 'Basse pression confort & anti-pincement' : 'Lower pressure & pinch-flat protection'}
                     </span>
                   </div>
                   <Button
                     type="button"
                     variant="ghost"
-                    onClick={() => onChangeIsTubeless(!isTubeless)}
+                    onClick={() => {
+                      const next = !isTubeless;
+                      onChangeIsTubeless(next);
+                      onChangeCrr(estimateCrrFromTire(tireWidthMm, next));
+                    }}
                     className={`min-h-[34px] px-3 py-1 rounded-full text-xs font-rounded font-bold transition-all cursor-pointer ${
                       isTubeless
                         ? 'bg-ink text-canvas dark:bg-white dark:text-black shadow-xs'

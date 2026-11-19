@@ -91,14 +91,24 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
   // Collapsed summary view by default: 4 headline KPIs visible, deep drawers tucked until clicked
   const [showDidactics, setShowDidactics] = useState<boolean>(false);
   const [showSectional, setShowSectional] = useState<boolean>(false);
-  const [showClimbSplits, setShowClimbSplits] = useState<boolean>(false);
+  const [showClimbSplits, setShowClimbSplits] = useState<boolean>(() => !isEssential);
   const [showTelemetryDrawer, setShowTelemetryDrawer] = useState<boolean>(false);
+
+  const carbTargetGPerHr = specs.carbTargetGPerHr ?? 60;
+  const isLockedCarbTarget =
+    specs.carbPacingMode === 'locked' ||
+    (specs.carbPacingMode !== 'auto' &&
+      specs.riderLevel === 'pro' &&
+      carbTargetGPerHr >= 60);
 
   const climbSplits = useMemo(
     () =>
       computeClimbSplitsAndFueling(trip, physicsResult, lang, {
         ftpWatts: specs.ftpWatts,
         carbTargetGPerHr: specs.carbTargetGPerHr,
+        isLockedCarbTarget,
+        carbPacingMode: specs.carbPacingMode,
+        riderLevel: specs.riderLevel,
         nutritionPreference: specs.nutritionPreference,
         departureTimeHHMM: trip.departureTime,
         bidonSizeMl: specs.bidonSizeMl,
@@ -110,13 +120,21 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
       lang,
       specs.ftpWatts,
       specs.carbTargetGPerHr,
+      isLockedCarbTarget,
+      specs.carbPacingMode,
+      specs.riderLevel,
       specs.nutritionPreference,
+      specs.bidonSizeMl,
+      specs.frameBottleSlots,
     ]
   );
 
   useEffect(() => {
     if (isEssential) {
+      setShowClimbSplits(false);
       setShowTelemetryDrawer(false);
+    } else {
+      setShowClimbSplits(true);
     }
   }, [isEssential]);
 
@@ -266,6 +284,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
             onClick={() => {
               setShowDidactics(false);
               setShowSectional(false);
+              setShowClimbSplits(false);
               setShowTelemetryDrawer(false);
               onToggleViewMode('essential');
             }}
@@ -285,6 +304,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
             onClick={() => {
               setShowDidactics(false);
               setShowSectional(true);
+              setShowClimbSplits(true);
               setShowTelemetryDrawer(true);
               onToggleViewMode('pro');
             }}
@@ -720,8 +740,8 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
           ) : (
             <div className="rounded-sub-pod bg-card border border-ink/10 p-2.5 text-[11px] text-ink-muted">
               {isFr
-                ? 'Aucune ascension significative détectée (seuil ≥ 30 m D+ et ≥ 3 %). Maintenez une allure aérobie régulière.'
-                : 'No major climbs detected (threshold ≥ 30 m gain at ≥ 3% grade). Maintain steady aerobic cadence.'}
+                ? 'Aucune ascension significative détectée (seuil ≥ 35 m D+ et ≥ 2,5 %). Maintenez une allure aérobie régulière.'
+                : 'No major climbs detected (threshold ≥ 35 m gain at ≥ 2.5% grade). Maintain steady aerobic cadence.'}
             </div>
           )}
 

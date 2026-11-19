@@ -185,6 +185,17 @@ const ARRIVAL_STEP_PRIORITY_IDS = new Set([
   'sport-session-finish',
 ]);
 
+const POST_ARRIVAL_STEP_PRIORITY_IDS = new Set([
+  'locker-refuel',
+  'shower-groom',
+  'shift-start',
+  'sport-post-recovery',
+  'bp-camp-settle',
+  'hotel-checkin',
+  'freshen-up',
+  'town-explore',
+]);
+
 function resolveAmenityStopMeta(
   category: AmenityCategory,
   isFr: boolean
@@ -565,16 +576,29 @@ export function calculateReverseTimeline(
   const isDepartAtMode =
     physicsSpeedOverride?.arriveAtMode === false && Boolean(physicsSpeedOverride?.departureTime);
 
+  const lockerRefuelMinutes = Math.max(0, office.lockerRefuelMinutes ?? 10);
+  const showerChangeMinutes = Math.max(0, office.showerChangeMinutes ?? 0);
+  const breakRoomBreakfastMinutes = Math.max(0, office.breakRoomBreakfastMinutes ?? 0);
+  const postGateOfficeMinutes =
+    lockerRefuelMinutes + showerChangeMinutes + breakRoomBreakfastMinutes;
+
+  const isCommute = !isSport && !isBikepacking && !isEscapade;
+  let arriveAnchor = office.targetGateArrivalTime || office.shiftStartTime || defaultAnchor;
+  if (isCommute && !isDepartAtMode && office.shiftStartTime && postGateOfficeMinutes > 0) {
+    const gapToShiftMin =
+      (parseHHMM(office.shiftStartTime) - parseHHMM(arriveAnchor) + 1440) % 1440;
+    if (gapToShiftMin < postGateOfficeMinutes || gapToShiftMin > 720) {
+      arriveAnchor = subtractMinutesFromTime(office.shiftStartTime, postGateOfficeMinutes);
+    }
+  }
+
   const hardDepartureTime = isDepartAtMode
     ? (physicsSpeedOverride!.departureTime as string)
-    : subtractMinutesFromTime(
-        office.targetGateArrivalTime || office.shiftStartTime || defaultAnchor,
-        totalEnRouteMinutes
-      );
+    : subtractMinutesFromTime(arriveAnchor, totalEnRouteMinutes);
 
   const targetArrival = isDepartAtMode
     ? addMinutesToTime(hardDepartureTime, totalEnRouteMinutes)
-    : office.targetGateArrivalTime || office.shiftStartTime || defaultAnchor;
+    : arriveAnchor;
 
   const recoveryRule = getStationaryRecoveryRule({
     rolloutTimeHHMM: hardDepartureTime,
@@ -582,12 +606,6 @@ export function calculateReverseTimeline(
     coordinates: route.coordinates?.[0],
   });
 
-  const postGateOfficeMinutes = Math.max(
-    15,
-    (office.lockerRefuelMinutes ?? 10) +
-      (office.showerChangeMinutes ?? 10) +
-      (office.breakRoomBreakfastMinutes ?? 10)
-  );
   const resolvedShiftStartTime =
     isSport || isBikepacking || isEscapade
       ? targetArrival
@@ -1142,7 +1160,7 @@ export function calculateReverseTimeline(
     // ── COMMUTE / VÉLOTAF MILESTONES ──
     const gateArrivalAnchor = targetArrival;
     const gateTurnstileTime = subtractMinutesFromTime(gateArrivalAnchor, arrivalBuffer);
-    const lockerRefuelEnd = addMinutesToTime(gateArrivalAnchor, office.lockerRefuelMinutes || 10);
+    const showerStartTime = addMinutesToTime(gateArrivalAnchor, lockerRefuelMinutes);
     const isFasted = physicsSpeedOverride?.logistics?.preRideStyle === 'fasted-rollout';
 
     steps = [
@@ -1249,23 +1267,33 @@ export function calculateReverseTimeline(
         location: isFr ? 'À l’arrivée' : 'At work',
         category: 'nutrition',
         isCrucialCheckpoint: true,
-        description: isFr
-          ? 'Collation rapide avant la douche.'
-          : 'Quick snack before showering.',
+        description:
+          showerChangeMinutes > 0
+            ? isFr
+              ? 'Collation rapide avant la douche.'
+              : 'Quick snack before showering.'
+            : isFr
+            ? 'Collation rapide et rangement du vélo.'
+            : 'Quick snack and bike lockup.',
         iconName: 'Zap',
       },
-      {
-        id: 'shower-groom',
-        time: lockerRefuelEnd,
-        title: isFr ? 'Douche & Tenue de Travail' : 'Shower & Clean Kit Change',
-        location: isFr ? 'Douches' : 'Showers',
-        category: 'office',
-        isCrucialCheckpoint: false,
-        description: isFr
-          ? 'Douche et passage en tenue de bureau propre.'
-          : 'Shower and swap into work attire.',
-        iconName: 'ShowerHead',
-      },
+      ...(showerChangeMinutes > 0
+        ? [
+            {
+              id: 'shower-groom',
+              time: showerStartTime,
+              formattedDuration: `${showerChangeMinutes} min`,
+              title: isFr ? 'Douche & Tenue de Travail' : 'Shower & Clean Kit Change',
+              location: isFr ? 'Douches' : 'Showers',
+              category: 'office' as const,
+              isCrucialCheckpoint: true,
+              description: isFr
+                ? `Douche et passage en tenue de bureau propre (${showerChangeMinutes} min, prêt pour ${resolvedShiftStartTime}).`
+                : `Shower and swap into work attire (${showerChangeMinutes} min, ready by ${resolvedShiftStartTime}).`,
+              iconName: 'ShowerHead',
+            },
+          ]
+        : []),
       {
         id: 'shift-start',
         time: resolvedShiftStartTime,
@@ -1459,6 +1487,7 @@ export function calculateReverseTimeline(
   const getStepSortRank = (step: TimelineStep): number => {
     if (ROLLOUT_STEP_PRIORITY_IDS.has(step.id)) return -1;
     if (ARRIVAL_STEP_PRIORITY_IDS.has(step.id)) return 1;
+    if (POST_ARRIVAL_STEP_PRIORITY_IDS.has(step.id)) return 2;
     return 0;
   };
   const anchorMinutes = toMinutes(wakeUpTime);

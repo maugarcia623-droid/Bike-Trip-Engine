@@ -3,7 +3,7 @@ import {
   TripProfile,
 } from '../types/trip';
 import { StageAmenity } from '../types/amenities';
-import { RiderBikeSpecs } from '../types/specs';
+import { BikeSpec, RiderBikeSpecs, resolveBikeTireWidthMm } from '../types/specs';
 import { Language } from '../context/LanguageContext';
 import { getActiveBike, loadRiderBikeSpecs } from './specsStorage';
 import { calculateTyrePressure, TyrePressureResult } from './tyrePressure';
@@ -23,7 +23,6 @@ import { getArchetypeFromTag, getPlannedRestStopMinutes } from './archetypeChips
 import { getStationaryRecoveryRuleForTrip } from './stationaryRecovery';
 import { calculateRideVisibility } from './solarVisibility';
 import { degreesToCompassCardinal } from '../services/weatherService';
-import { BikeSpec } from '../types/specs';
 import { computeRideReadiness, RideReadiness } from './rideReadiness';
 import { buildEffectiveChecklist } from './effectiveChecklist';
 
@@ -222,7 +221,7 @@ function buildRideBriefCardMeta(input: {
   const gusts = Math.round(trip.weather.estuaryGustKmH ?? Math.round(baseWind * 1.4));
   const rainRisk = Math.round(trip.weather.precipitationRiskPercent ?? 0);
   const windCardinal = degreesToCompassCardinal(trip.weather.windDirectionDegrees ?? 245, isFr ? 'fr' : 'en');
-  const tireWidthMm = activeBike.tireWidthMm ?? 32;
+  const tireWidthMm = resolveBikeTireWidthMm(activeBike);
 
   const gravelPct =
     trip.route?.terrainSummary?.surfaceBreakdown?.gravelPct ??
@@ -704,7 +703,7 @@ export function buildRideBrief(params: {
       : [];
 
   // 1. Tyre Pressure (continuous 15%-drop model)
-  const bikeTireWidthMm = activeBike.tireWidthMm ?? 32;
+  const bikeTireWidthMm = resolveBikeTireWidthMm(activeBike);
   const sb = trip.route?.terrainSummary?.surfaceBreakdown;
   const pavedPct = sb?.pavedPct ?? (bikeTireWidthMm >= 34 ? 55 : 95);
   const gravelPct = sb?.gravelPct ?? (bikeTireWidthMm >= 34 ? 40 : 5);

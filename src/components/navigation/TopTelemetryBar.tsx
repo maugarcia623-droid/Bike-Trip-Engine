@@ -13,7 +13,6 @@ import {
   Moon,
   Bicycle,
   Printer,
-  Receipt,
   User,
   Send,
   X,
@@ -24,7 +23,8 @@ import {
   RefreshCw,
   Download,
   Compass,
-  ShieldCheck,
+  Check,
+  ShareNetwork,
   Calculator,
   ArrowLeft,
   SlidersHorizontal,
@@ -67,7 +67,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
   onPrint,
   onShareReceipt,
   onOpenFeedback,
-  onOpenRideBrief,
+  onOpenRideBrief: _onOpenRideBrief,
   onOpenTools,
   riderSpecs,
   isMenuOpen: propIsMenuOpen,
@@ -90,6 +90,26 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
   };
   const menuContainerRef = useRef<HTMLDivElement>(null);
   const mobileSheetRef = useRef<HTMLDivElement>(null);
+  const [exportedFormat, setExportedFormat] = useState<'FIT' | 'GPX' | 'TCX' | null>(null);
+  const exportFeedbackTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (exportFeedbackTimerRef.current !== null) {
+        window.clearTimeout(exportFeedbackTimerRef.current);
+      }
+    };
+  }, []);
+
+  const triggerExportFeedback = (fmt: 'FIT' | 'GPX' | 'TCX') => {
+    setExportedFormat(fmt);
+    if (exportFeedbackTimerRef.current !== null) {
+      window.clearTimeout(exportFeedbackTimerRef.current);
+    }
+    exportFeedbackTimerRef.current = window.setTimeout(() => {
+      setExportedFormat(null);
+    }, 1500);
+  };
 
   // Close overlay on click outside or Escape, while preserving persistent state when modals are active
   useEffect(() => {
@@ -307,7 +327,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
           size="md"
           role="menuitem"
           onClick={onClick}
-          className={`${base} justify-start font-normal rounded-none cursor-pointer transition-colors active:scale-[0.99] ${
+          className={`${base} justify-start text-left whitespace-normal font-normal rounded-none cursor-pointer transition-colors active:scale-[0.99] ${
             danger
               ? 'hover:bg-rose-500/[0.07] active:bg-rose-500/10'
               : 'hover:bg-ink/[0.035] dark:hover:bg-white/[0.04] active:bg-ink/[0.06] dark:active:bg-white/[0.07]'
@@ -325,11 +345,13 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
       options,
       onChange,
       ariaLabel,
+      iconOnlyOnMobile = false,
     }: {
       value: T;
       options: { value: T; label: string; icon?: React.ElementType }[];
       onChange: (v: T) => void;
       ariaLabel: string;
+      iconOnlyOnMobile?: boolean;
     }) => (
       <div
         role="radiogroup"
@@ -346,17 +368,25 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
               size="sm"
               role="radio"
               aria-checked={active}
+              aria-label={opt.label}
+              title={opt.label}
               onClick={() => onChange(opt.value)}
-              className={`inline-flex items-center gap-1.5 rounded-full font-semibold transition-all duration-150 cursor-pointer focus:outline-none ${
-                m ? 'min-h-[44px] px-3.5 text-[13px]' : 'h-8 px-2.5 text-xs'
+              className={`inline-flex items-center justify-center gap-1.5 rounded-full font-semibold transition-all duration-150 cursor-pointer focus:outline-none ${
+                m
+                  ? iconOnlyOnMobile && OptIcon
+                    ? 'min-h-[44px] w-11 sm:w-auto sm:px-3.5 text-[13px]'
+                    : 'min-h-[44px] px-3.5 text-[13px]'
+                  : 'h-8 px-2.5 text-xs'
               } ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
                 active
                   ? `${yellowVest.surface} ${yellowVest.primary} ${yellowVest.selectedRing} shadow-xs`
                   : 'ring-transparent text-ink-muted hover:text-ink'
               }`}
             >
-              {OptIcon && <OptIcon className="w-3.5 h-3.5 shrink-0 text-current" aria-hidden="true" />}
-              <span>{opt.label}</span>
+              {OptIcon && <OptIcon className="w-4 h-4 sm:w-3.5 sm:h-3.5 shrink-0 text-current" aria-hidden="true" />}
+              <span className={iconOnlyOnMobile && OptIcon ? 'hidden sm:inline' : undefined}>
+                {opt.label}
+              </span>
             </Button>
           );
         })}
@@ -472,6 +502,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
             trailing={
               <Segmented
                 ariaLabel={t('onboardingThemePrompt')}
+                iconOnlyOnMobile
                 value={isDark ? 'dark' : 'light'}
                 onChange={(v) => {
                   if ((v === 'dark') !== isDark) toggleTheme();
@@ -502,161 +533,187 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
           />
         </Group>
 
-        {/* ── Ride tools ── */}
-        <SectionLabel>{isFr ? 'Sortie' : 'Ride'}</SectionLabel>
-        <Group>
-          {onOpenSpecs && (
-            <Row
-              theme="sky"
-              icon={Bicycle}
-              label={t('specsModalTitle')}
-              sub={
-                riderSpecs && activeBike
-                  ? riderSpecs.cockpitViewMode === 'pro'
-                    ? `${activeBike.name} · ${riderSpecs.ftpWatts} W · ${
-                        activeBike.isTubeless ? 'Tubeless' : isFr ? 'Chambre' : 'Tube'
-                      }`
-                    : activeBike.name
-                  : undefined
-              }
-              onClick={() => {
-                setIsMenuOpen(false);
-                onOpenSpecs();
-              }}
-            />
-          )}
-          {activeTrip && onOpenRideBrief && (
-            <>
-              {onOpenSpecs && <Divider />}
-              <Row
-                theme="yellow-vest"
-                icon={ShieldCheck}
-                label={isFr ? 'Brief de la veille (1 écran)' : 'Night-Before Ride Brief'}
-                sub={isFr ? 'Verdict GO, pression, glucides & lien groupe' : 'Go status, leave-by, 3 key numbers & group link'}
-                onClick={() => {
-                  setIsMenuOpen(false);
-                  onOpenRideBrief();
-                }}
-              />
-            </>
-          )}
-          {(activeTrip || onPrint || onShareReceipt) && (
-            <>
-              {(onOpenSpecs || (activeTrip && onOpenRideBrief)) && <Divider />}
-              <div className="px-3.5 py-3">
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <span className={`${subCls} font-rounded font-semibold text-ink-muted`}>
-                    {isFr ? 'Export & partage rapide' : 'Quick export & share'}
-                  </span>
-                  <span className="text-[10px] font-rounded font-bold text-emerald-700 dark:text-emerald-300">
-                    {isFr ? '100% Gratuit' : '100% Free'}
-                  </span>
-                </div>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {activeTrip && (
-                    <>
+        {/* ── Ride ── */}
+        {(onOpenSpecs || onOpenTools) && (
+          <>
+            <SectionLabel>{isFr ? 'Sortie' : 'Ride'}</SectionLabel>
+            <Group>
+              {onOpenSpecs && (
+                <Row
+                  theme="sky"
+                  icon={Bicycle}
+                  label={t('specsModalTitle')}
+                  sub={
+                    riderSpecs && activeBike
+                      ? riderSpecs.cockpitViewMode === 'pro'
+                        ? `${activeBike.name} · ${riderSpecs.ftpWatts} W · ${
+                            activeBike.isTubeless ? 'Tubeless' : isFr ? 'Chambre' : 'Tube'
+                          }`
+                        : activeBike.name
+                      : undefined
+                  }
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    onOpenSpecs();
+                  }}
+                />
+              )}
+              {onOpenSpecs && onOpenTools && <Divider />}
+              {onOpenTools && (
+                <Row
+                  theme="purple"
+                  icon={Calculator}
+                  label={isFr ? 'Outils' : 'Tools'}
+                  sub={isFr ? 'Vent · Heure de départ · Pression' : 'Wind · Leave-by · Tire pressure'}
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    onOpenTools('wind');
+                  }}
+                />
+              )}
+            </Group>
+          </>
+        )}
+
+        {/* ── Export & share ── */}
+        {(activeTrip || onPrint || onShareReceipt) && (
+          <>
+            <SectionLabel>{isFr ? 'Export & partage' : 'Export & share'}</SectionLabel>
+            <Group>
+              <div className="p-3 space-y-2.5">
+                {activeTrip && activeMeta && (
+                  <div className="flex items-center justify-between gap-2 px-1">
+                    <span className={`${subCls} font-medium text-ink truncate`}>
+                      {activeMeta.name}
+                    </span>
+                    <span className="text-[11px] font-rounded font-semibold text-ink-muted tnum shrink-0">
+                      {activeTrip.route.distanceKm} km
+                    </span>
+                  </div>
+                )}
+
+                {activeTrip && (
+                  <div className="grid grid-cols-3 gap-2">
+                    {(
+                      [
+                        {
+                          id: 'FIT' as const,
+                          label: '.FIT',
+                          hint: 'Garmin · Wahoo',
+                          icon: Download,
+                          iconCls: 'text-amber-600 dark:text-amber-400',
+                          onExport: () =>
+                            void import('../../utils/fitExporter').then(({ downloadTripFit }) =>
+                              downloadTripFit(activeTrip, {
+                                lang,
+                                ftpWatts: riderSpecs?.ftpWatts,
+                                carbTargetGPerHr: riderSpecs?.carbTargetGPerHr,
+                                nutritionPreference: riderSpecs?.nutritionPreference,
+                              })
+                            ),
+                        },
+                        {
+                          id: 'GPX' as const,
+                          label: '.GPX',
+                          hint: isFr ? 'Universel' : 'Universal',
+                          icon: Download,
+                          iconCls: 'text-sky-600 dark:text-sky-400',
+                          onExport: () =>
+                            void import('../../utils/gpxExporter').then(({ downloadTripGpx }) =>
+                              downloadTripGpx(activeTrip)
+                            ),
+                        },
+                        {
+                          id: 'TCX' as const,
+                          label: '.TCX',
+                          hint: isFr ? 'Parcours' : 'Courses',
+                          icon: Compass,
+                          iconCls: 'text-emerald-600 dark:text-emerald-400',
+                          onExport: () =>
+                            void import('../../utils/gpxExporter').then(({ downloadTripTcx }) =>
+                              downloadTripTcx(activeTrip)
+                            ),
+                        },
+                      ] as const
+                    ).map((fmt) => {
+                      const isDone = exportedFormat === fmt.id;
+                      const FmtIcon = isDone ? Check : fmt.icon;
+                      return (
+                        <Button
+                          key={fmt.id}
+                          variant="ghost"
+                          size="sm"
+                          role="menuitem"
+                          onClick={() => {
+                            fmt.onExport();
+                            triggerExportFeedback(fmt.id);
+                          }}
+                          className={`min-h-[48px] px-2 py-2 rounded-[14px] flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer active:scale-[0.98] ${
+                            isDone
+                              ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ring-1 ring-inset ring-emerald-500/35`
+                              : 'bg-card dark:bg-white/[0.07] hover:bg-chip text-ink ring-1 ring-inset ring-ink/[0.04] dark:ring-white/[0.06]'
+                          }`}
+                        >
+                          <div className="inline-flex items-center gap-1 text-xs font-rounded font-bold tnum">
+                            <FmtIcon
+                              className={`w-3.5 h-3.5 shrink-0 ${
+                                isDone ? 'text-current' : fmt.iconCls
+                              }`}
+                              aria-hidden="true"
+                            />
+                            <span>{isDone ? (isFr ? 'Enregistré' : 'Saved') : fmt.label}</span>
+                          </div>
+                          <span className="text-[10px] font-medium text-ink-muted leading-tight truncate max-w-full">
+                            {fmt.hint}
+                          </span>
+                        </Button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {(onShareReceipt || onPrint) && (
+                  <div
+                    className={`grid gap-2 ${
+                      onShareReceipt && onPrint ? 'grid-cols-2' : 'grid-cols-1'
+                    }`}
+                  >
+                    {onShareReceipt && (
                       <Button
                         variant="ghost"
                         size="sm"
                         role="menuitem"
                         onClick={() => {
-                          void import('../../utils/fitExporter').then(({ downloadTripFit }) =>
-                            downloadTripFit(activeTrip, {
-                              lang,
-                              ftpWatts: riderSpecs?.ftpWatts,
-                              carbTargetGPerHr: riderSpecs?.carbTargetGPerHr,
-                              nutritionPreference: riderSpecs?.nutritionPreference,
-                            })
-                          );
                           setIsMenuOpen(false);
+                          onShareReceipt();
                         }}
-                        className="min-h-[44px] sm:min-h-[36px] px-3 rounded-full bg-card dark:bg-white/[0.08] hover:bg-chip text-ink text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer"
+                        className="min-h-[44px] px-3 rounded-[14px] bg-card dark:bg-white/[0.07] hover:bg-chip text-ink text-xs font-rounded font-semibold inline-flex items-center justify-center gap-1.5 cursor-pointer ring-1 ring-inset ring-ink/[0.04] dark:ring-white/[0.06] active:scale-[0.98]"
                       >
-                        <Download className="w-3.5 h-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
-                        <span>.FIT</span>
+                        <ShareNetwork className="w-3.5 h-3.5 shrink-0 text-lime-700 dark:text-lime-400" aria-hidden="true" />
+                        <span>{isFr ? 'Partager' : 'Share ride'}</span>
                       </Button>
+                    )}
+                    {onPrint && (
                       <Button
                         variant="ghost"
                         size="sm"
                         role="menuitem"
                         onClick={() => {
-                          void import('../../utils/gpxExporter').then(({ downloadTripGpx }) =>
-                            downloadTripGpx(activeTrip)
-                          );
                           setIsMenuOpen(false);
+                          requestAnimationFrame(() => onPrint());
                         }}
-                        className="min-h-[44px] sm:min-h-[36px] px-3 rounded-full bg-card dark:bg-white/[0.08] hover:bg-chip text-ink text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer"
+                        className="min-h-[44px] px-3 rounded-[14px] bg-card dark:bg-white/[0.07] hover:bg-chip text-ink text-xs font-rounded font-semibold inline-flex items-center justify-center gap-1.5 cursor-pointer ring-1 ring-inset ring-ink/[0.04] dark:ring-white/[0.06] active:scale-[0.98]"
                       >
-                        <Download className="w-3.5 h-3.5 shrink-0 text-sky-600 dark:text-sky-400" />
-                        <span>.GPX</span>
+                        <Printer className="w-3.5 h-3.5 shrink-0 text-blue-600 dark:text-blue-400" aria-hidden="true" />
+                        <span>{isFr ? 'Imprimer A4' : 'Print A4'}</span>
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        role="menuitem"
-                        onClick={() => {
-                          void import('../../utils/gpxExporter').then(({ downloadTripTcx }) =>
-                            downloadTripTcx(activeTrip)
-                          );
-                          setIsMenuOpen(false);
-                        }}
-                        className="min-h-[44px] sm:min-h-[36px] px-3 rounded-full bg-card dark:bg-white/[0.08] hover:bg-chip text-ink text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <Compass className="w-3.5 h-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                        <span>.TCX</span>
-                      </Button>
-                    </>
-                  )}
-                  {onPrint && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      role="menuitem"
-                      onClick={() => {
-                        setIsMenuOpen(false);
-                        requestAnimationFrame(() => onPrint());
-                      }}
-                      className="min-h-[44px] sm:min-h-[36px] px-3 rounded-full bg-card dark:bg-white/[0.08] hover:bg-chip text-ink text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <Printer className="w-3.5 h-3.5 shrink-0 text-blue-600 dark:text-blue-400" />
-                      <span>{isFr ? 'Imprimer A4' : 'Print A4'}</span>
-                    </Button>
-                  )}
-                  {onShareReceipt && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      role="menuitem"
-                      onClick={() => {
-                        setIsMenuOpen(false);
-                        onShareReceipt();
-                      }}
-                      className="min-h-[44px] sm:min-h-[36px] px-3 rounded-full bg-card dark:bg-white/[0.08] hover:bg-chip text-ink text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <Receipt className="w-3.5 h-3.5 shrink-0 text-lime-700 dark:text-lime-400" />
-                      <span>{isFr ? 'Partager' : 'Share'}</span>
-                    </Button>
-                  )}
-                </div>
+                    )}
+                  </div>
+                )}
               </div>
-            </>
-          )}
-          {onOpenTools && (
-            <>
-              {(onOpenSpecs || (activeTrip && onOpenRideBrief) || activeTrip || onPrint || onShareReceipt) && <Divider />}
-              <Row
-                theme="purple"
-                icon={Calculator}
-                label={isFr ? 'Outils gratuits (Vent · Départ · Pneus)' : 'Free Cycling Tools (Wind · Leave-By · Pressure)'}
-                sub={isFr ? 'Calculateurs navigateur sans compte' : 'Standalone browser calculators'}
-                onClick={() => {
-                  setIsMenuOpen(false);
-                  onOpenTools('wind');
-                }}
-              />
-            </>
-          )}
-        </Group>
+            </Group>
+          </>
+        )}
 
         {/* ── Support & account ── */}
         {(onOpenFeedback || user) && (

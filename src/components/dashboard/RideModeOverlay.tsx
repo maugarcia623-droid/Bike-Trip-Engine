@@ -14,11 +14,13 @@ import {
   ArrowUpLeft,
   ArrowUpRight,
   Baguette,
+  BatteryCharging,
   BellRing,
   CircleStop,
   Compass,
   Droplet,
   Flag,
+  Flashlight,
   Gauge,
   LocateFixed,
   LocateOff,
@@ -32,8 +34,10 @@ import {
   Unlock,
   Volume,
   VolumeX,
+  Wind,
   Wrench,
 } from '@/components/icons';
+import { calculateRideVisibility } from '../../utils/solarVisibility';
 import {
   buildSimulatedAlert,
   computeFuelingIntervals,
@@ -44,6 +48,7 @@ import {
   projectPositionOntoRoute,
   RideAlertEvent,
   speakRideCue,
+  speakRideCueSequence,
 } from '../../utils/rideVoiceAlerts';
 import {
   CHIP_TOKENS,
@@ -140,12 +145,51 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
 
   const totalDistanceKm = Math.max(0.1, trip.route.distanceKm || 1);
 
-  const pinnedStops = useMemo<StageAmenity[]>(() => {
+  const explicitPinnedStops = useMemo<StageAmenity[]>(() => {
     if (trip.pinnedAmenities && trip.pinnedAmenities.length > 0) {
       return trip.pinnedAmenities;
     }
     return loadedAmenities.filter((a) => a.isPinned);
   }, [trip.pinnedAmenities, loadedAmenities]);
+
+  const hasExplicitPinnedStops = explicitPinnedStops.length > 0;
+
+  // Fall back to nearest unpinned water / cemetery stops when no stops are pinned
+  const pinnedStops = useMemo<StageAmenity[]>(() => {
+    if (explicitPinnedStops.length > 0) {
+      return explicitPinnedStops;
+    }
+    return [...loadedAmenities]
+      .filter((a) => a.category === 'water' || a.category === 'cemetery')
+      .sort((a, b) => a.routeKm - b.routeKm || a.detourMeters - b.detourMeters);
+  }, [explicitPinnedStops, loadedAmenities]);
+
+  const targetSpeedKmH =
+    physicsResult.effectiveSpeedKmH ||
+    physicsResult.calmSpeedKmH ||
+    trip.route.targetSpeedKmH ||
+    24;
+
+  const rideVisibility = useMemo(
+    () =>
+      calculateRideVisibility(
+        trip,
+        trip.departureDate,
+        trip.departureTime,
+        targetSpeedKmH
+      ),
+    [trip, targetSpeedKmH]
+  );
+
+  const baseWindKmH = trip.weather?.baseWindSpeedKmH ?? 0;
+  const maxGust = Math.round(
+    trip.weather?.estuaryGustKmH ||
+      (trip.weather?.isHeadwindActive
+        ? Math.round(baseWindKmH * 1.5)
+        : Math.round(baseWindKmH * 1.4))
+  );
+  const tempC = trip.weather?.temperatureC ?? (rideVisibility.isWinterTrip ? 2 : 14);
+  const isColdBatteryWarning = tempC <= 6;
 
   const cueEntries = useMemo<CueSheetEntry[]>(() => {
     return buildStageCueSheet({
@@ -153,7 +197,7 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
       coords: routeCoords,
       pinnedAmenities: pinnedStops,
       departureTime: trip.departureTime || '08:00',
-      speedKmH: physicsResult.calmSpeedKmH || trip.route.targetSpeedKmH || 24,
+      speedKmH: targetSpeedKmH,
       lang,
     });
   }, [
@@ -161,7 +205,7 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
     routeCoords,
     pinnedStops,
     trip.departureTime,
-    physicsResult.calmSpeedKmH,
+    targetSpeedKmH,
     lang,
   ]);
 
@@ -220,10 +264,24 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const isMutedRef = useRef<boolean>(false);
   const [lastAlert, setLastAlert] = useState<RideAlertEvent | null>(null);
+  const [mutedSimulateNotice, setMutedSimulateNotice] = useState<boolean>(false);
+  const hasUserPrimedAudioRef = useRef<boolean>(false);
+  const tRef = useRef(t);
+  tRef.current = t;
 
   useEffect(() => {
     isMutedRef.current = isMuted;
+    if (!isMuted) {
+      setMutedSimulateNotice(false);
+    }
   }, [isMuted]);
+
+  const primeAudioOnGesture = useCallback(() => {
+    if (!hasUserPrimedAudioRef.current) {
+      hasUserPrimedAudioRef.current = true;
+      primeRideAudio();
+    }
+  }, []);
   const triggeredAlertsRef = useRef<Set<string>>(new Set());
   const prevFixRef = useRef<{ lat: number; lng: number; timestamp: number } | null>(null);
 
@@ -302,6 +360,7 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
 
     wantWakeLockRef.current = true;
     void requestWakeLock();
+    primeRideAudio();
 
     const handleVisibility = () => {
       if (document.visibilityState === 'visible' && wantWakeLockRef.current) {
@@ -334,24 +393,31 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
   // Fueling & Hydration 1s Countdown Timer
   useEffect(() => {
     const id = window.setInterval(() => {
-      setFuelSecondsLeft((prev) => {
-        if (prev <= 1) {
-          const spoken = formatFuelingVoiceCue('both', lang);
-          const alert: RideAlertEvent = {
-            id: `fuel-${Date.now()}`,
-            kind: 'fuel',
-            title: t('rideModeDrinkFuelTitle'),
-            spokenText: spoken,
-          };
-          setLastAlert(alert);
-          speakRideCue(spoken, { lang, muted: isMutedRef.current, chime: true });
-          return intervalSeconds;
-        }
-        return prev - 1;
-      });
+      setFuelSecondsLeft((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => window.clearInterval(id);
-  }, [intervalSeconds, lang, isFr]);
+  }, []);
+
+  // Trigger fueling / hydration voice cue outside state updater when timer hits 0
+  useEffect(() => {
+    if (fuelSecondsLeft > 0 || intervalSeconds <= 0) return;
+    const cueType = fuelingIntervals.carbIntervalMin === 0 ? 'drink' : 'both';
+    const spoken = formatFuelingVoiceCue(cueType, lang);
+    const alert: RideAlertEvent = {
+      id: `fuel-${Date.now()}`,
+      kind: 'fuel',
+      title:
+        cueType === 'drink'
+          ? isFr
+            ? 'Rappel hydratation'
+            : 'Hydration Cue'
+          : tRef.current('rideModeDrinkFuelTitle'),
+      spokenText: spoken,
+    };
+    setLastAlert(alert);
+    speakRideCue(spoken, { lang, muted: isMutedRef.current, chime: true });
+    setFuelSecondsLeft(intervalSeconds);
+  }, [fuelSecondsLeft, intervalSeconds, fuelingIntervals.carbIntervalMin, lang, isFr]);
 
   // Live GPS Watch
   useEffect(() => {
@@ -412,9 +478,21 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
         }
 
         if (alerts.length > 0) {
-          const primary = alerts[0];
-          setLastAlert(primary);
-          speakRideCue(primary.spokenText, { lang, muted: isMutedRef.current, chime: true });
+          const combinedAlert: RideAlertEvent =
+            alerts.length === 1
+              ? alerts[0]
+              : {
+                  id: alerts.map((a) => a.id).join('+'),
+                  kind: alerts[0].kind,
+                  title: alerts.map((a) => a.title).join(' · '),
+                  spokenText: alerts.map((a) => a.spokenText).join(' '),
+                  distanceMeters: alerts[0].distanceMeters,
+                };
+          setLastAlert(combinedAlert);
+          speakRideCueSequence(
+            alerts.map((a) => a.spokenText),
+            { lang, muted: isMutedRef.current, chime: true, queue: true }
+          );
         }
       },
       (err) => {
@@ -442,9 +520,16 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
   );
 
   const handleSimulateAlert = () => {
+    primeRideAudio();
+    hasUserPrimedAudioRef.current = true;
     const sim = buildSimulatedAlert(lang, nextStop, nextTurn);
     setLastAlert(sim);
-    speakRideCue(sim.spokenText, { lang, muted: isMuted, chime: true });
+    if (isMuted) {
+      setMutedSimulateNotice(true);
+      return;
+    }
+    setMutedSimulateNotice(false);
+    speakRideCue(sim.spokenText, { lang, muted: false, chime: true });
   };
 
   const fuelMinutesLeft = Math.max(1, Math.ceil(fuelSecondsLeft / 60));
@@ -485,10 +570,12 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
       aria-modal="true"
       aria-label={t('rideModeTitle')}
       data-testid="ride-mode-overlay"
-      className="fixed inset-0 z-[1200] h-[100dvh] max-h-[100dvh] w-full overflow-hidden overscroll-none touch-none select-none bg-canvas text-ink flex flex-col"
+      onPointerDown={primeAudioOnGesture}
+      onClick={primeAudioOnGesture}
+      className="fixed inset-0 z-[1200] h-[100dvh] max-h-[100dvh] w-full overflow-y-auto overscroll-contain touch-pan-y select-none bg-canvas text-ink"
     >
       <div
-        className="w-full max-w-3xl mx-auto flex flex-col gap-1.5 sm:gap-3 h-full overflow-hidden"
+        className="w-full max-w-3xl mx-auto flex flex-col gap-1.5 sm:gap-3 min-h-full"
         style={{
           paddingTop: 'max(0.75rem, env(safe-area-inset-top))',
           paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
@@ -549,11 +636,12 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
               size="sm"
               data-testid="ride-mode-mute-btn"
               onClick={() => {
-                setIsMuted((prev) => {
-                  const next = !prev;
-                  if (!next) primeRideAudio();
-                  return next;
-                });
+                if (isMuted) {
+                  primeRideAudio();
+                  hasUserPrimedAudioRef.current = true;
+                  setMutedSimulateNotice(false);
+                }
+                setIsMuted((prev) => !prev);
               }}
               className={`min-h-[44px] px-2 sm:px-3.5 rounded-full inline-flex items-center justify-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-rounded font-bold transition-all cursor-pointer whitespace-nowrap ${
                 isMuted
@@ -598,19 +686,65 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
           </div>
         )}
 
-        {/* ── MAIN PROPORTIONAL STACK (FILLS SCREEN WITH ZERO DEAD SPACE & ZERO SCROLL) ── */}
-        <div className="flex-1 min-h-0 flex flex-col gap-2 sm:gap-3">
+        {/* ── COMPACT HIGH-CONTRAST RIDE CONDITIONS STRIP ── */}
+        <div
+          data-testid="ride-mode-conditions-strip"
+          className="flex flex-wrap items-center gap-1.5 sm:gap-2 px-3 py-2 rounded-pod bg-card border border-ink/15 dark:border-white/15 shadow-xs shrink-0 text-xs font-rounded font-bold text-ink"
+        >
+          <span
+            data-testid="ride-mode-gusts-badge"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-pod text-ink border border-ink/10 dark:border-white/10 tnum"
+          >
+            <Wind className="w-3.5 h-3.5 shrink-0 text-sky-600 dark:text-sky-400" />
+            <span>
+              {isFr ? `Rafales ${maxGust} km/h` : `Gusts ${maxGust} km/h`}
+            </span>
+          </span>
+
+          <span
+            data-testid="ride-mode-lumens-badge"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-pod text-ink border border-ink/10 dark:border-white/10 tnum"
+          >
+            <Flashlight className="w-3.5 h-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <span>
+              {isFr ? 'Phare' : 'Light'} {rideVisibility.lightingGear.recommendedLumens}
+            </span>
+          </span>
+
+          {isColdBatteryWarning && (
+            <span
+              data-testid="ride-mode-cold-battery-badge"
+              title={
+                isFr
+                  ? rideVisibility.lightingGear.batteryNoticeFr
+                  : rideVisibility.lightingGear.batteryNoticeEn
+              }
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full tnum ${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.amber.selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+            >
+              <BatteryCharging className="w-3.5 h-3.5 shrink-0 text-current" />
+              <span>
+                {isFr
+                  ? `Batterie < 5°C (-30%) · ${Math.round(tempC)}°C`
+                  : `Sub-5°C battery (-30%) · ${Math.round(tempC)}°C`}
+              </span>
+            </span>
+          )}
+        </div>
+
+        {/* ── MAIN PROPORTIONAL STACK (FILLS VIEWPORT, SCROLLABLE ON COMPACT SCREENS) ── */}
+        <div className="flex-1 flex flex-col gap-2 sm:gap-3">
           {/* 1. Primary Telemetry: Live Speed & Distance Remaining (Full-width stacked on mobile, 2-col on sm+) */}
-          <section className="flex-[2.2] sm:flex-[1.3] min-h-0 flex flex-col sm:grid sm:grid-cols-2 gap-2 sm:gap-3.5">
+          <section className="flex-[2.2] sm:flex-[1.3] flex flex-col sm:grid sm:grid-cols-2 gap-2 sm:gap-3.5">
             {/* Live Speed */}
-            <div className="flex-1 min-h-0 bg-card rounded-card px-4 py-2.5 sm:p-5 border border-ink/10 dark:border-white/10 shadow-sm flex flex-col justify-between">
+            <div className="flex-1 min-w-0 bg-card rounded-card px-4 py-2.5 sm:p-5 border border-ink/10 dark:border-white/10 shadow-sm flex flex-col justify-between">
               <div className="flex items-center justify-between text-xs font-rounded font-bold uppercase tracking-wider text-ink-secondary">
                 <span className="inline-flex items-center gap-1.5">
                   <Gauge className="w-4 h-4 text-ink" />
                   <span>{t('rideModeSpeedLabel')}</span>
                 </span>
-                <span className="tnum">
-                  {t('rideModeTargetPrefix')} {Math.round(physicsResult.calmSpeedKmH)} km/h
+                <span data-testid="ride-mode-target-speed" className="tnum">
+                  {t('rideModeTargetPrefix')}{' '}
+                  {Math.round(physicsResult.effectiveSpeedKmH ?? physicsResult.calmSpeedKmH)} km/h
                 </span>
               </div>
               <div className="flex items-baseline gap-2">
@@ -627,7 +761,7 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
             </div>
 
             {/* Distance Remaining / Covered */}
-            <div className="flex-1 min-h-0 bg-card rounded-card px-4 py-2.5 sm:p-5 border border-ink/10 dark:border-white/10 shadow-sm flex flex-col justify-between">
+            <div className="flex-1 min-w-0 bg-card rounded-card px-4 py-2.5 sm:p-5 border border-ink/10 dark:border-white/10 shadow-sm flex flex-col justify-between">
               <div className="flex items-center justify-between text-xs font-rounded font-bold uppercase tracking-wider text-ink-secondary">
                 <span>{t('rideModeRemainingLabel')}</span>
                 <span className="tnum">
@@ -654,10 +788,10 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
             </div>
           </section>
 
-          {/* 2. Next Turn & Next Pinned Resupply Stop (Full-width stacked on mobile so text never truncates) */}
-          <section className="flex-[1.7] sm:flex-1 min-h-0 flex flex-col sm:grid sm:grid-cols-2 gap-2 sm:gap-3.5">
+          {/* 2. Next Turn & Next Pinned / Fallback Resupply Stop */}
+          <section className="flex-[1.7] sm:flex-1 flex flex-col sm:grid sm:grid-cols-2 gap-2 sm:gap-3.5">
             {/* Next Turn */}
-            <div className="flex-1 min-h-0 bg-card rounded-card px-4 py-2.5 sm:p-4 border border-ink/10 dark:border-white/10 flex items-center gap-3.5">
+            <div className="flex-1 min-w-0 bg-card rounded-card px-4 py-2.5 sm:p-4 border border-ink/10 dark:border-white/10 flex items-center gap-3.5">
               <div
                 className={`w-11 h-11 sm:w-12 sm:h-12 rounded-pod flex items-center justify-center shrink-0 ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
               >
@@ -676,14 +810,19 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
               </div>
             </div>
 
-            {/* Next Pinned Resupply Stop */}
-            <div className="flex-1 min-h-0 bg-card rounded-card px-4 py-2.5 sm:p-4 border border-ink/10 dark:border-white/10 flex items-center gap-3.5">
+            {/* Next Pinned / Fallback Resupply Stop */}
+            <div className="flex-1 min-w-0 bg-card rounded-card px-4 py-2.5 sm:p-4 border border-ink/10 dark:border-white/10 flex items-center gap-3.5">
               <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-pod bg-pod flex items-center justify-center shrink-0">
                 <StopCategoryIcon amenity={nextStop?.amenity} />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-[11px] font-rounded font-bold uppercase tracking-wider text-ink-secondary">
-                  {t('rideModeNextStopLabel')}
+                <div className="text-[11px] font-rounded font-bold uppercase tracking-wider text-ink-secondary flex items-center gap-1.5 flex-wrap">
+                  <span>{t('rideModeNextStopLabel')}</span>
+                  {!hasExplicitPinnedStops && nextStop?.amenity && (
+                    <span className="text-[10px] font-bold normal-case tracking-normal px-1.5 py-0.5 rounded-full bg-sky-500/15 text-sky-700 dark:text-sky-300">
+                      {isFr ? 'Eau auto' : 'Nearest water'}
+                    </span>
+                  )}
                 </div>
                 <div className="text-sm sm:text-lg font-rounded font-extrabold text-ink truncate">
                   {nextStop ? nextStop.amenity?.name || nextStop.shortName : t('rideModeNoStopPinned')}
@@ -691,12 +830,38 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
                 <div className="text-xs sm:text-sm font-rounded font-bold tnum text-ink-secondary">
                   {nextStop ? formatDistanceCountdown(distanceToStopKm) : '--'}
                 </div>
+                {nextStop?.cmt && (
+                  <div
+                    data-testid="ride-mode-next-stop-cmt"
+                    className="text-[11px] font-rounded font-medium text-ink-secondary leading-snug break-words"
+                  >
+                    {nextStop.cmt}
+                  </div>
+                )}
+                {nextStop?.amenity?.category === 'cemetery' && (
+                  <div
+                    data-testid="ride-mode-cemetery-shutoff-note"
+                    className={`mt-0.5 text-[11px] font-rounded font-semibold leading-snug ${
+                      rideVisibility.isWinterTrip || tempC <= 6
+                        ? 'text-amber-700 dark:text-amber-300'
+                        : 'text-ink-secondary'
+                    }`}
+                  >
+                    {rideVisibility.isWinterTrip || tempC <= 6
+                      ? isFr
+                        ? 'Risque coupure hivernale : robinet parfois fermé hors gel'
+                        : 'Winter shutoff risk: cemetery water may be turned off for frost'
+                      : isFr
+                      ? 'Note saisonnière : robinet parfois coupé en hiver'
+                      : 'Seasonal note: cemetery taps may be shut off in winter'}
+                  </div>
+                )}
               </div>
             </div>
           </section>
 
-          {/* 3. Fueling & Hydration Timer Countdown (Full-width stacked layout matching first iteration) */}
-          <section className="flex-[1.35] sm:flex-1 min-h-0 bg-card rounded-card px-4 py-3 sm:p-5 border border-ink/10 dark:border-white/10 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
+          {/* 3. Fueling & Hydration Timer Countdown */}
+          <section className="flex-[1.35] sm:flex-1 bg-card rounded-card px-4 py-3 sm:p-5 border border-ink/10 dark:border-white/10 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
             <div className="flex items-center gap-3.5 min-w-0">
               <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-pod bg-pod flex items-center justify-center shrink-0">
                 <Timer className="w-5 h-5 sm:w-6 sm:h-6 text-ink" />
@@ -709,7 +874,11 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
                   data-testid="ride-mode-fuel-cue"
                   className="text-sm sm:text-lg font-rounded font-extrabold text-ink leading-snug"
                 >
-                  {t('rideModeNextCueIn', { min: fuelMinutesLeft })}
+                  {fuelingIntervals.carbIntervalMin === 0
+                    ? isFr
+                      ? `Prochain rappel hydratation dans ${fuelMinutesLeft} min`
+                      : `Next drink cue in ${fuelMinutesLeft} min`
+                    : t('rideModeNextCueIn', { min: fuelMinutesLeft })}
                 </div>
                 <div className="text-xs font-rounded text-ink-secondary truncate">
                   {t('rideModeDrinkEvery', { min: fuelingIntervals.drinkIntervalMin })}
@@ -731,7 +900,11 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
                 variant="ghost"
                 size="md"
                 data-testid="ride-mode-reset-timer-btn"
-                onClick={() => setFuelSecondsLeft(intervalSeconds)}
+                onClick={() => {
+                  primeRideAudio();
+                  hasUserPrimedAudioRef.current = true;
+                  setFuelSecondsLeft(intervalSeconds);
+                }}
                 className="min-h-[44px] sm:min-h-[48px] px-5 rounded-full bg-pod hover:bg-chip border border-ink/10 dark:border-white/10 text-xs sm:text-sm font-rounded font-extrabold text-ink inline-flex items-center gap-1.5 cursor-pointer"
               >
                 <TimerReset className="w-4 h-4 shrink-0" />
@@ -744,12 +917,28 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
         {/* ── LAST SPOKEN ALERT + SIMULATE / TEST ALERT CTA ── */}
         <footer className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 shrink-0">
           <div className="flex-1 min-w-0 bg-pod rounded-pod px-4 py-2.5 border border-ink/10 dark:border-white/10">
-            <div className="text-[10px] font-rounded font-bold uppercase tracking-wider text-ink-secondary">
-              {t('rideModeLastAlertLabel')}
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <span className="text-[10px] font-rounded font-bold uppercase tracking-wider text-ink-secondary">
+                {t('rideModeLastAlertLabel')}
+              </span>
+              {mutedSimulateNotice && isMuted && (
+                <span
+                  role="status"
+                  data-testid="ride-mode-muted-feedback"
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-rounded font-bold ${CHIP_TOKENS.rose.surface} ${CHIP_TOKENS.rose.primary}`}
+                >
+                  <VolumeX className="w-3 h-3 shrink-0 text-current" />
+                  <span>
+                    {isFr
+                      ? 'Son coupé : réactivez la voix pour entendre les alertes'
+                      : 'Voice muted: unmute above to hear spoken alerts'}
+                  </span>
+                </span>
+              )}
             </div>
             <div
               data-testid="ride-mode-last-alert"
-              className="text-xs sm:text-sm font-rounded font-semibold text-ink line-clamp-2"
+              className="text-xs sm:text-sm font-rounded font-semibold text-ink line-clamp-3"
             >
               {lastAlert
                 ? lastAlert.spokenText

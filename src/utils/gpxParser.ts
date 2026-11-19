@@ -400,8 +400,8 @@ export function parseGpxFileContent(gpxText: string, fileNameHint: string = ''):
       }
     }
 
-    // Build ~72 distance-uniform samples for the elevation chart & physics engine
-    const targetSamples = Math.min(72, Math.max(16, rawPoints.length - 1));
+    // Build ~360 distance-uniform samples for the elevation chart & physics engine
+    const targetSamples = Math.min(360, Math.max(16, rawPoints.length - 1));
     let cursor = 0;
     for (let s = 0; s <= targetSamples; s++) {
       const targetDist = (s / targetSamples) * totalDistKm;
@@ -415,7 +415,7 @@ export function parseGpxFileContent(gpxText: string, fileNameHint: string = ''):
       const span = p1.cumDistKm - p0.cumDistKm;
       const ratio = span > 0.0001 ? Math.max(0, Math.min(1, (targetDist - p0.cumDistKm) / span)) : 0;
       const interpEle = Number((e0 + (e1 - e0) * ratio).toFixed(1));
-      const distVal = Number(targetDist.toFixed(2));
+      const distVal = Number(targetDist.toFixed(3));
 
       let gradePct = 0;
       if (elevationProfile.length > 0) {
@@ -442,8 +442,8 @@ export function parseGpxFileContent(gpxText: string, fileNameHint: string = ''):
     }).elevationProfile;
   }
 
-  // Downsample coordinates to at most 360 points (preserving start, peak, and finish)
-  const maxCoords = 360;
+  // Downsample coordinates to at most 1200 points (preserving start, peak, and finish)
+  const maxCoords = 1200;
   let coordinates: [number, number][];
   if (rawPoints.length <= maxCoords) {
     coordinates = rawPoints.map((p) => [Number(p.lat.toFixed(5)), Number(p.lng.toFixed(5))]);

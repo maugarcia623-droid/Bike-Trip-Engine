@@ -120,6 +120,8 @@ export const BIKE_OPTIONS: BikeOption[] = [
     cda: 0.42,
     crr: 0.0065,
     isTubeless: false,
+    tireWidthMm: 40,
+    bikeCategory: 'urban',
     drivetrainEfficiency: 0.95,
   },
   {
@@ -130,6 +132,8 @@ export const BIKE_OPTIONS: BikeOption[] = [
     cda: 0.32,
     crr: 0.0040,
     isTubeless: true,
+    tireWidthMm: 28,
+    bikeCategory: 'road',
     drivetrainEfficiency: 0.97,
   },
   {
@@ -140,6 +144,8 @@ export const BIKE_OPTIONS: BikeOption[] = [
     cda: 0.38,
     crr: 0.0055,
     isTubeless: true,
+    tireWidthMm: 38,
+    bikeCategory: 'gravel',
     drivetrainEfficiency: 0.96,
   },
   {
@@ -150,6 +156,8 @@ export const BIKE_OPTIONS: BikeOption[] = [
     cda: 0.45,
     crr: 0.0060,
     isTubeless: false,
+    tireWidthMm: 42,
+    bikeCategory: 'touring',
     drivetrainEfficiency: 0.94,
   },
   {
@@ -160,6 +168,8 @@ export const BIKE_OPTIONS: BikeOption[] = [
     cda: 0.52,
     crr: 0.0070,
     isTubeless: false,
+    tireWidthMm: 50,
+    bikeCategory: 'urban',
     drivetrainEfficiency: 0.93,
   },
   {
@@ -170,6 +180,8 @@ export const BIKE_OPTIONS: BikeOption[] = [
     cda: 0.44,
     crr: 0.0060,
     isTubeless: false,
+    tireWidthMm: 42,
+    bikeCategory: 'urban',
     drivetrainEfficiency: 0.95,
   },
 ];

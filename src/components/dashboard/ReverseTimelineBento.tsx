@@ -64,6 +64,17 @@ const ARRIVAL_STEP_IDS = new Set([
   'sport-session-finish',
 ]);
 
+const POST_ARRIVAL_STEP_IDS = new Set([
+  'locker-refuel',
+  'shower-groom',
+  'shift-start',
+  'sport-post-recovery',
+  'bp-camp-settle',
+  'hotel-checkin',
+  'freshen-up',
+  'town-explore',
+]);
+
 const PHASE_BRAND_THEME: Record<TimelinePhase, ChipTheme> = {
   'pre-ride': 'amber',
   ride: 'yellow-vest',
@@ -76,7 +87,9 @@ function computeStepPhases(steps: TimelineStep[]): Record<string, TimelinePhase>
 
   const map: Record<string, TimelinePhase> = {};
   steps.forEach((step, idx) => {
-    if (rolloutIdx !== -1 && idx < rolloutIdx) {
+    if (POST_ARRIVAL_STEP_IDS.has(step.id)) {
+      map[step.id] = 'post-ride';
+    } else if (rolloutIdx !== -1 && idx < rolloutIdx) {
       map[step.id] = 'pre-ride';
     } else if (arrivalIdx !== -1 && idx > arrivalIdx) {
       map[step.id] = 'post-ride';
@@ -257,7 +270,10 @@ export const ReverseTimelineBento: React.FC<ReverseTimelineBentoProps> = ({
             <span className="sr-only">{t('checkpointPill')}</span>
           </span>
         ) : undefined,
-        meta: step.location || undefined,
+        meta:
+          step.location && step.formattedDuration
+            ? `${step.location} · ${step.formattedDuration}`
+            : step.location || step.formattedDuration || undefined,
         timeLabel: step.time,
         timeFull: `${step.time} — ${step.title}`,
         highlight: isHardDeparture,

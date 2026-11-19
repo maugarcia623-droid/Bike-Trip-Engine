@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Button } from '@/components/arc';
 import { TripProfile, PhysicsCalculationResult } from '../../types/trip';
-import { RiderBikeSpecs } from '../../types/specs';
+import { RiderBikeSpecs, resolveBikeTireWidthMm } from '../../types/specs';
 import { StageAmenity } from '../../types/amenities';
 import { RideBriefData, buildRideBrief } from '../../utils/rideBrief';
 import { ReadinessActionKind } from '../../utils/rideReadiness';
@@ -1178,7 +1178,7 @@ export const ReadinessActionCard: React.FC<ReadinessActionCardProps> = ({
                       </span>
                     </div>
                     <span className="text-[11px] font-medium text-ink-muted font-body tnum">
-                      {bike.tireWidthMm ?? 32} mm {bike.isTubeless ? 'TL' : isFr ? 'chambre' : 'tubes'} ·{' '}
+                      {resolveBikeTireWidthMm(bike)} mm {bike.isTubeless ? 'TL' : isFr ? 'chambre' : 'tubes'} ·{' '}
                       {isFr ? 'Terrain' : 'Terrain'} {terrainScore}/100
                       {isActive ? (isFr ? ' · Actuel' : ' · Active') : ''}
                     </span>

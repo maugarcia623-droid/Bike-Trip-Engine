@@ -17,7 +17,6 @@ import {
   Gauge,
   Lightning,
   Shield,
-  FaceSmile,
   CloudSun,
 } from '@/components/icons';
 import { TripProfile, PhysicsCalculationResult } from '../../types/trip';
@@ -73,11 +72,26 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isManualOverride, setIsManualOverride] = useState(false);
+  const [isOnline, setIsOnline] = useState<boolean>(() =>
+    typeof navigator === 'undefined' ? true : navigator.onLine !== false
+  );
   // Collapsed summary view by default when opening the Cockpit
   const [isCardExpanded, setIsCardExpanded] = useState<boolean>(false);
   const [isKitOpen, setIsKitOpen] = useState<boolean>(false);
   const toggleCardExpanded = () => setIsCardExpanded((prev) => !prev);
   const toggleKitOpen = () => setIsKitOpen((prev) => !prev);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Measure stage width dynamically so SVG coordinates and CSS pixels align 1:1 without distortion
   const stageRef = useRef<HTMLDivElement>(null);
@@ -107,7 +121,14 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
   const currentDateStr = trip.departureDate || getLocalTodayIso();
   const currentTimeStr = hardRolloutTime || trip.departureTime || trip.office.targetGateArrivalTime || '07:30';
   const horizon = checkForecastHorizon(currentDateStr);
-  const isBeyondHorizon = trip.weather.isBeyondForecastWindow ?? !horizon.isAvailable;
+  const isBeyondHorizon = !horizon.isAvailable;
+  const isSimulatedStage = trip.weather?.source === 'simulated';
+  const activeSyncKey = `${trip.id}:${trip.activeStageIndex ?? 0}:${currentDateStr}:${currentTimeStr}`;
+  const tripRef = useRef(trip);
+  tripRef.current = trip;
+  const activeSyncKeyRef = useRef(activeSyncKey);
+  activeSyncKeyRef.current = activeSyncKey;
+  const autoSyncedKeyRef = useRef<string | null>(null);
 
   // Wind metrics
   const isHeadwind = trip.weather.isHeadwindActive;
@@ -214,18 +235,24 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
   };
 
   const handleSyncForecast = async () => {
+    const requestKey = activeSyncKeyRef.current;
     setIsSyncing(true);
     setIsManualOverride(false);
     try {
+      const currentTrip = tripRef.current;
       const coords =
-        trip.route.coordinates?.[Math.floor((trip.route.coordinates?.length || 1) / 2)] || [47.25, -1.88];
-      const bearing = computeRouteBearing(trip.route.coordinates);
+        currentTrip.route.coordinates?.[Math.floor((currentTrip.route.coordinates?.length || 1) / 2)] ||
+        currentTrip.route.originCoords ||
+        [47.25, -1.88];
+      const bearing = computeRouteBearing(currentTrip.route.coordinates);
       const live = await fetchHourlyWeather(coords[0], coords[1], currentDateStr, currentTimeStr, bearing);
 
+      if (activeSyncKeyRef.current !== requestKey) return;
+
       onUpdateTrip({
-        ...trip,
+        ...currentTrip,
         weather: {
-          ...trip.weather,
+          ...currentTrip.weather,
           source: live.source,
           temperatureC: live.temperatureC,
           baseWindSpeedKmH: live.windSpeedKmH,
@@ -249,7 +276,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
           sunset: live.sunsetIso,
         },
         physics: {
-          ...trip.physics,
+          ...currentTrip.physics,
           rho: live.airDensityRho,
         },
       });
@@ -259,6 +286,24 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
       setIsSyncing(false);
     }
   };
+
+  useEffect(() => {
+    setIsManualOverride(false);
+  }, [trip.id, trip.activeStageIndex]);
+
+  useEffect(() => {
+    if (
+      isSimulatedStage &&
+      horizon.isAvailable &&
+      isOnline &&
+      !isManualOverride &&
+      !isSyncing &&
+      autoSyncedKeyRef.current !== activeSyncKey
+    ) {
+      autoSyncedKeyRef.current = activeSyncKey;
+      void handleSyncForecast();
+    }
+  }, [isSimulatedStage, horizon.isAvailable, isOnline, isManualOverride, isSyncing, activeSyncKey]);
 
   const fillPercent = Math.min(100, Math.max(0, (windSpeed / 45) * 100));
   const activeBarColor = windSpeed >= 30 ? '#FF3B30' : isDarkMode ? '#F2F455' : '#111111';
@@ -391,6 +436,17 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
   bikeDurationPathD += ' Z';
 
   const isCriticalOptical = visibilityAnalysis.opticalHazardLevel === 'critical';
+  const effectiveColdTempC =
+    trip.weather?.temperatureC ?? (visibilityAnalysis.isWinterTrip ? 2 : 14);
+  const showColdVisibilityAlerts =
+    visibilityAnalysis.isWinterTrip || effectiveColdTempC <= 6;
+  const showBlackIceAlert =
+    showColdVisibilityAlerts &&
+    visibilityAnalysis.surfaceCaution.isBlackIceRisk &&
+    Boolean(
+      visibilityAnalysis.surfaceCaution.messageEn ||
+        visibilityAnalysis.surfaceCaution.messageFr
+    );
 
   const phaseLabel = (() => {
     switch (visibilityAnalysis.rolloutPhase) {
@@ -427,6 +483,10 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
               <Badge variant="amber" size="sm" dot>
                 {t('badgeBaseline')}
               </Badge>
+            ) : isSimulatedStage ? (
+              <Badge variant="amber" size="sm" dot>
+                {isFr ? 'Base simulée — appuyer sur Actualiser' : 'Simulated baseline — tap Sync'}
+              </Badge>
             ) : (
               <Badge variant="emerald" size="sm" icon={CloudSun}>
                 {t('badgeLive')}
@@ -439,6 +499,14 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
               ? t('subSimulatedOverride')
               : isBeyondHorizon
               ? t('subSeasonalModel')
+              : isSimulatedStage
+              ? isSyncing
+                ? isFr
+                  ? 'Synchronisation météo…'
+                  : 'Syncing forecast…'
+                : isFr
+                ? 'Base simulée — appuyer sur Actualiser'
+                : 'Simulated baseline — tap Sync'
               : t('subOpenMeteoSync')}
           </p>
         </div>
@@ -517,74 +585,54 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
          ════════════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'wind' && (
         <div className="animate-apple-step-in flex flex-col justify-between">
-          {/* Status Chain-Link Capsule Callout */}
-          <div className="flex items-start sm:items-center gap-3 pl-3 pr-4 sm:pr-5 py-3 sm:py-2.5 rounded-pod sm:rounded-full bg-pod mb-3">
-            <IconBadge
-              theme={
-                goStatus === 'GO'
-                  ? 'emerald'
-                  : goStatus === 'CAUTION'
-                  ? 'yellow-vest'
-                  : 'rose'
-              }
-              icon={
-                goStatus === 'GO'
-                  ? CheckCircle
-                  : goStatus === 'CAUTION'
-                  ? Warning
-                  : XCircle
-              }
-              size="spine"
-              isSelected
-              solidBacker
-              className="w-9 h-9 sm:w-9 sm:h-9 shrink-0 mt-0.5 sm:mt-0"
-            />
+          {/* Unified Status & Pacing Capsule Callout */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pl-3 pr-4 sm:pr-5 py-3 sm:py-2.5 rounded-pod bg-pod mb-4">
+            <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
+              <IconBadge
+                theme={
+                  goStatus === 'GO'
+                    ? 'emerald'
+                    : goStatus === 'CAUTION'
+                    ? 'yellow-vest'
+                    : 'rose'
+                }
+                icon={
+                  goStatus === 'GO'
+                    ? CheckCircle
+                    : goStatus === 'CAUTION'
+                    ? Warning
+                    : XCircle
+                }
+                size="spine"
+                isSelected
+                solidBacker
+                className="w-9 h-9 sm:w-9 sm:h-9 shrink-0 mt-0.5 sm:mt-0"
+              />
 
-            <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-semibold text-ink leading-tight">
-                {goStatus === 'GO'
-                  ? t('clearanceGo')
-                  : goStatus === 'CAUTION'
-                  ? t('clearanceCaution')
-                  : t('clearanceNoGo')}
-              </div>
-              <p className="text-xs text-ink-secondary leading-snug mt-0.5">
-                {goReason}
-              </p>
-            </div>
-          </div>
-
-          {/* Warm Pre-Ride Reassurance & Stress-Reducing Coach Note */}
-          {goStatus !== 'NO-GO' && (
-            <div className="rounded-pod bg-pod px-3.5 py-2.5 mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-              <div className="flex items-start gap-2.5 min-w-0">
-                <FaceSmile
-                  className={`w-4 h-4 shrink-0 mt-0.5 ${CHIP_TOKENS.emerald.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
-                />
-                <p className="text-xs text-ink-secondary leading-relaxed">
-                  {!isHeadwind || windSpeed < 8
-                    ? t('weatherReassuranceCalm')
-                    : windSpeed < 16
-                    ? t('weatherReassuranceBreeze')
-                    : pacingMode === 'effort'
-                    ? t('weatherReassuranceHeadwindEffort', {
-                        watts: cappedWatts,
-                        zone: powerZone,
-                      })
-                    : t('weatherReassuranceHeadwindSpeed')}
+              <div className="min-w-0 flex-1">
+                <div className="text-[13px] font-semibold text-ink leading-tight">
+                  {goStatus === 'GO'
+                    ? t('clearanceGo')
+                    : goStatus === 'CAUTION'
+                    ? t('clearanceCaution')
+                    : t('clearanceNoGo')}
+                </div>
+                <p className="text-xs text-ink-secondary leading-snug mt-0.5">
+                  {goReason}
                 </p>
               </div>
-              {isHeadwind && windSpeed >= 12 && pacingMode === 'speed' && (
-                <Button variant="ghost"
-                  type="button"
-                  onClick={() => handlePacingModeChange('effort')}
-                  className={`shrink-0 min-h-[44px] sm:min-h-[34px] px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-colors ${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary}`}
-                >
-                  {t('weatherSwitchToEffortCapBtn')}
-                </Button>
-              )}
             </div>
-          )}
+
+            {goStatus !== 'NO-GO' && isHeadwind && windSpeed >= 12 && pacingMode === 'speed' && (
+              <Button variant="ghost"
+                type="button"
+                onClick={() => handlePacingModeChange('effort')}
+                className={`shrink-0 self-start sm:self-center min-h-[44px] sm:min-h-[34px] px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-colors ${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary}`}
+              >
+                {t('weatherSwitchToEffortCapBtn')}
+              </Button>
+            )}
+          </div>
 
           {/* Road Compass Instrument Pod */}
           <div className="rounded-pod bg-pod p-3.5 sm:p-4 flex items-center gap-3 sm:gap-4 mb-4">
@@ -1084,6 +1132,60 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
               </p>
             </div>
           </div>
+
+          {showBlackIceAlert && (
+            <div className="mt-2.5 p-3.5 rounded-pod bg-pod flex items-start gap-3 transition-colors">
+              <IconBadge
+                theme="rose"
+                icon={Warning}
+                size="md"
+                solidBacker
+                className="mt-0.5"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <h4 className="text-xs font-bold text-ink tracking-tight">
+                    {isFr ? 'Alerte verglas' : 'Black ice alert'}
+                  </h4>
+                  <Badge variant="rose" size="xs" className="tnum font-bold shrink-0">
+                    {effectiveColdTempC}&deg;C
+                  </Badge>
+                </div>
+                <p className="text-xs text-ink-secondary leading-relaxed mt-1">
+                  {isFr
+                    ? visibilityAnalysis.surfaceCaution.messageFr
+                    : visibilityAnalysis.surfaceCaution.messageEn}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {showColdVisibilityAlerts && (
+            <div className="mt-2.5 p-3.5 rounded-pod bg-pod flex items-start gap-3 transition-colors">
+              <IconBadge
+                theme="amber"
+                icon={Lightning}
+                size="md"
+                solidBacker
+                className="mt-0.5"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <h4 className="text-xs font-bold text-ink tracking-tight">
+                    {t('batteryNoticeLabel')}
+                  </h4>
+                  <Badge variant="amber" size="xs" className="tnum font-bold shrink-0">
+                    {isFr ? 'Batterie -30%' : 'Battery -30%'}
+                  </Badge>
+                </div>
+                <p className="text-xs text-ink-secondary leading-relaxed mt-1">
+                  {isFr
+                    ? visibilityAnalysis.lightingGear.batteryNoticeFr
+                    : visibilityAnalysis.lightingGear.batteryNoticeEn}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

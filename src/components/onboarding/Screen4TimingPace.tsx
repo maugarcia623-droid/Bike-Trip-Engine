@@ -5,6 +5,7 @@ import {
   Check,
   Coffee,
   Shower,
+  CloudRain,
   Gauge,
   Apple,
   Moon,
@@ -20,8 +21,13 @@ import { useTranslation } from '../../context/LanguageContext';
 import { Button } from '@/components/arc';
 import { ONBOARDING_SPEED_BOUNDS, PACE_TIERS } from './constants';
 import { Chip } from '../common/Chip';
-import { fetchHourlyWeather, degreesToCompassCardinal } from '../../services/weatherService';
-import { LayeredTokenTheme, CHIP_TOKENS, CHIP_RING_BASE } from '../../tokens/chipTokens';
+import {
+  fetchHourlyWeather,
+  degreesToCompassCardinal,
+  getCachedWeeklyWeather,
+} from '../../services/weatherService';
+import { getChipsExtraBufferMinutes } from '../../utils/archetypeChips';
+import { CHIP_TOKENS, CHIP_RING_BASE } from '../../tokens/chipTokens';
 
 interface ArchetypeChipItem {
   id: string;
@@ -34,11 +40,12 @@ interface ArchetypeChipItem {
 
 const ARCHETYPE_CHIPS_BY_PURPOSE: Record<string, ArchetypeChipItem[]> = {
   commute: [
-    { id: 'coffee-stop', labelEn: 'Coffee stop (+15 min)', labelFr: 'Pause café (+15 min)', theme: 'amber', icon: Coffee, addedBufferMin: 15 },
-    { id: 'shower-buffer', labelEn: 'Shower & changing (+15 min)', labelFr: 'Douche & changement (+15 min)', theme: 'teal', icon: Shower, addedBufferMin: 15 },
-    { id: 'rush-hour-buffer', labelEn: 'Rush hour buffer (+10 min)', labelFr: 'Marge heure de pointe (+10 min)', theme: 'orange', icon: Gauge, addedBufferMin: 10 },
+    { id: 'coffee-stop', labelEn: 'Coffee stop (+15 min)', labelFr: 'Pause café (+15 min)', theme: 'amber', icon: Coffee },
+    { id: 'shower-locker', labelEn: 'Shower & changing (+15 min)', labelFr: 'Douche & changement (+15 min)', theme: 'teal', icon: Shower },
+    { id: 'rush-hour-buffer', labelEn: 'Rush hour buffer (+12 min)', labelFr: 'Marge heure de pointe (+12 min)', theme: 'orange', icon: Gauge },
+    { id: 'bad-weather-prep', labelEn: 'Rain & Splash guard (+6 min)', labelFr: 'Équipement pluie & garde-boue (+6 min)', theme: 'sky', icon: CloudRain },
     { id: 'real-food', labelEn: 'Real food fuel', labelFr: 'Aliments naturels', theme: 'emerald', icon: Apple },
-    { id: 'night-transit', labelEn: 'Night lights setup', labelFr: 'Éclairage nocturne', theme: 'purple', icon: Moon },
+    { id: 'night-ride', labelEn: 'Night lights setup (+10 min)', labelFr: 'Éclairage nocturne (+10 min)', theme: 'purple', icon: Moon },
   ],
   sport: [
     { id: 'aero-bars', labelEn: 'Aero riding position', labelFr: 'Position aérodynamique', theme: 'sky', icon: BikeFast },
@@ -56,6 +63,25 @@ const ARCHETYPE_CHIPS_BY_PURPOSE: Record<string, ArchetypeChipItem[]> = {
     { id: 'picnic-stop', labelEn: 'Picnic break (+30 min)', labelFr: 'Pause pique-nique (+30 min)', theme: 'teal', icon: Utensils, addedBufferMin: 30 },
   ],
 };
+
+export interface OnboardingWeatherFetchedData {
+  tempC: number;
+  windKmH: number;
+  headwindKmH: number;
+  windDirection: string;
+  windDirectionDegrees?: number;
+  isHeadwindActive?: boolean;
+  precipitationRiskPercent?: number;
+  weatherCode?: number;
+  windGustsKmH?: number;
+  isDay?: boolean;
+  visibilityKm?: number;
+  airDensityRho?: number;
+  source?: 'live' | 'planned' | 'simulated';
+  isBeyondForecastWindow?: boolean;
+  sunrise?: string;
+  sunset?: string;
+}
 
 interface Screen4TimingPaceProps {
   purposeId?: string;
@@ -81,12 +107,7 @@ interface Screen4TimingPaceProps {
   onChangeHeadwind: (val: number) => void;
   gradientPercent: number;
   onChangeGradient: (val: number) => void;
-  onWeatherFetched?: (weatherData: {
-    tempC: number;
-    windKmH: number;
-    headwindKmH: number;
-    windDirection: string;
-  }) => void;
+  onWeatherFetched?: (weatherData: OnboardingWeatherFetchedData) => void;
 }
 
 function formatMinutesToTime(totalMins: number): string {
@@ -99,6 +120,143 @@ function formatMinutesToTime(totalMins: number): string {
 function parseTimeToMinutes(timeStr: string): number {
   const [h, m] = (timeStr || '09:00').split(':').map(Number);
   return (h || 0) * 60 + (m || 0);
+}
+
+/**
+ * Normalizes legacy onboarding chip identifiers to canonical TripProfile chip IDs.
+ */
+export function normalizeOnboardingChipId(chipId: string): string {
+  if (chipId === 'shower-buffer') return 'shower-locker';
+  if (chipId === 'night-transit') return 'night-ride';
+  return chipId;
+}
+
+/**
+ * Maps a WMO weather code to an estimated precipitation probability percentage.
+ */
+export function derivePrecipRiskFromWeatherCode(weatherCode?: number): number {
+  if (typeof weatherCode !== 'number' || !Number.isFinite(weatherCode)) return 10;
+  if (weatherCode === 0) return 5;
+  if (weatherCode === 1 || weatherCode === 2) return 10;
+  if (weatherCode === 3) return 20;
+  if (weatherCode === 45 || weatherCode === 48) return 30;
+  if (weatherCode >= 51 && weatherCode <= 55) return 60;
+  if (weatherCode >= 56 && weatherCode <= 57) return 70;
+  if (weatherCode >= 61 && weatherCode <= 65) return 85;
+  if (weatherCode >= 66 && weatherCode <= 67) return 90;
+  if (weatherCode >= 71 && weatherCode <= 77) return 85;
+  if (weatherCode >= 80 && weatherCode <= 82) return 80;
+  if (weatherCode >= 85 && weatherCode <= 86) return 85;
+  if (weatherCode >= 95) return 95;
+  return 25;
+}
+
+export interface OnboardingChronometryInput {
+  purposeId: string;
+  targetMode: 'arrive' | 'depart';
+  targetTime: string;
+  distanceKm: number;
+  speedKmH: number;
+  parkingBufferMin: number;
+  selectedChips: string[];
+  rideDate?: string;
+  coordinates?: [number, number][];
+}
+
+export interface OnboardingChronometryResult {
+  normalizedChips: string[];
+  ridingMinutes: number;
+  parkingBufferMin: number;
+  showerPrepMin: number;
+  officePrepMin: number;
+  chipsExtraBufferMin: number;
+  leaveTimeFormatted: string;
+  arriveTimeFormatted: string;
+  readyTimeFormatted: string;
+}
+
+/**
+ * Computes onboarding chronometry aligned minute-for-minute with BentoDashboard's reverse timeline.
+ */
+export function computeOnboardingChronometry({
+  purposeId,
+  targetMode,
+  targetTime,
+  distanceKm,
+  speedKmH,
+  parkingBufferMin,
+  selectedChips,
+  rideDate,
+  coordinates,
+}: OnboardingChronometryInput): OnboardingChronometryResult {
+  const normalizedChips = Array.from(
+    new Set((selectedChips || []).map(normalizeOnboardingChipId))
+  );
+  const ridingMinutes = Math.max(1, Math.round((distanceKm / Math.max(5, speedKmH)) * 60));
+  const targetMins = parseTimeToMinutes(targetTime);
+  const safeParkingMin = Math.max(0, Number(parkingBufferMin) || 0);
+
+  const isCommute = purposeId === 'commute';
+  const showerPrepMin = isCommute && normalizedChips.includes('shower-locker') ? 15 : 0;
+  const officePrepMin = safeParkingMin + showerPrepMin;
+
+  let chipsExtraBufferMin = 0;
+  if (isCommute) {
+    const estimatedRolloutMins =
+      targetMode === 'arrive'
+        ? targetMins - officePrepMin - ridingMinutes
+        : targetMins;
+    chipsExtraBufferMin = getChipsExtraBufferMinutes(
+      'COMMUTE',
+      normalizedChips,
+      rideDate
+        ? {
+            rolloutTimeHHMM: formatMinutesToTime(estimatedRolloutMins),
+            departureDate: rideDate,
+            coordinates: coordinates?.[0],
+          }
+        : undefined
+    );
+  } else {
+    const archetypeChips = ARCHETYPE_CHIPS_BY_PURPOSE[purposeId] || [];
+    chipsExtraBufferMin = archetypeChips.reduce(
+      (sum, chip) =>
+        normalizedChips.includes(chip.id) && chip.addedBufferMin
+          ? sum + chip.addedBufferMin
+          : sum,
+      0
+    );
+  }
+
+  let leaveTimeFormatted = '';
+  let arriveTimeFormatted = '';
+  let readyTimeFormatted = '';
+
+  if (targetMode === 'arrive') {
+    readyTimeFormatted = formatMinutesToTime(targetMins);
+    const arriveMins = targetMins - officePrepMin;
+    arriveTimeFormatted = formatMinutesToTime(arriveMins);
+    const leaveMins = arriveMins - ridingMinutes - chipsExtraBufferMin;
+    leaveTimeFormatted = formatMinutesToTime(leaveMins);
+  } else {
+    leaveTimeFormatted = formatMinutesToTime(targetMins);
+    const arriveMins = targetMins + ridingMinutes + chipsExtraBufferMin;
+    arriveTimeFormatted = formatMinutesToTime(arriveMins);
+    const readyMins = arriveMins + officePrepMin;
+    readyTimeFormatted = formatMinutesToTime(readyMins);
+  }
+
+  return {
+    normalizedChips,
+    ridingMinutes,
+    parkingBufferMin: safeParkingMin,
+    showerPrepMin,
+    officePrepMin,
+    chipsExtraBufferMin,
+    leaveTimeFormatted,
+    arriveTimeFormatted,
+    readyTimeFormatted,
+  };
 }
 
 export const Screen4TimingPace: React.FC<Screen4TimingPaceProps> = ({
@@ -143,27 +301,26 @@ export const Screen4TimingPace: React.FC<Screen4TimingPaceProps> = ({
   // Calculate dynamic buffer additions from active chips
   const activeArchetypeChips = ARCHETYPE_CHIPS_BY_PURPOSE[purposeId] || ARCHETYPE_CHIPS_BY_PURPOSE.commute;
 
-  // Chronometry calculation
-  const ridingMinutes = Math.max(1, Math.round((distanceKm / speedKmH) * 60));
-  const targetMins = parseTimeToMinutes(targetTime);
-
-  let leaveTimeFormatted = '';
-  let arriveTimeFormatted = '';
-  let readyTimeFormatted = '';
-
-  if (targetMode === 'arrive') {
-    readyTimeFormatted = formatMinutesToTime(targetMins);
-    const arriveMins = targetMins - parkingBufferMin;
-    arriveTimeFormatted = formatMinutesToTime(arriveMins);
-    const leaveMins = arriveMins - ridingMinutes;
-    leaveTimeFormatted = formatMinutesToTime(leaveMins);
-  } else {
-    leaveTimeFormatted = formatMinutesToTime(targetMins);
-    const arriveMins = targetMins + ridingMinutes;
-    arriveTimeFormatted = formatMinutesToTime(arriveMins);
-    const readyMins = arriveMins + parkingBufferMin;
-    readyTimeFormatted = formatMinutesToTime(readyMins);
-  }
+  // Chronometry calculation aligned with BentoDashboard reverse timeline
+  const {
+    normalizedChips,
+    ridingMinutes,
+    showerPrepMin,
+    chipsExtraBufferMin,
+    leaveTimeFormatted,
+    arriveTimeFormatted,
+    readyTimeFormatted,
+  } = computeOnboardingChronometry({
+    purposeId,
+    targetMode,
+    targetTime,
+    distanceKm,
+    speedKmH,
+    parkingBufferMin,
+    selectedChips,
+    rideDate,
+    coordinates,
+  });
 
   const handleFetchWeather = async () => {
     setIsFetchingWeather(true);
@@ -177,12 +334,37 @@ export const Screen4TimingPace: React.FC<Screen4TimingPaceProps> = ({
       const windDir = degreesToCompassCardinal(weather.windDirectionDegrees, isFr ? 'fr' : 'en');
       onChangeHeadwind(Math.abs(weather.effectiveHeadwindKmH));
 
+      const cachedWeekly = getCachedWeeklyWeather(lat, lon);
+      const cachedDayPrecip = cachedWeekly?.days?.find((d) => d.date === rideDate)?.precipitationProbMax;
+      const rawPrecip =
+        (weather as { precipitationRiskPercent?: number; precipitationProbability?: number }).precipitationRiskPercent ??
+        (weather as { precipitationProbability?: number }).precipitationProbability;
+      const codePrecip = derivePrecipRiskFromWeatherCode(weather.weatherCode);
+      const resolvedPrecipRisk =
+        typeof rawPrecip === 'number' && Number.isFinite(rawPrecip)
+          ? Math.max(0, Math.min(100, Math.round(rawPrecip)))
+          : typeof cachedDayPrecip === 'number' && Number.isFinite(cachedDayPrecip)
+          ? Math.max(0, Math.min(100, Math.round(Math.max(cachedDayPrecip, weather.weatherCode >= 45 ? codePrecip : 0))))
+          : codePrecip;
+
       if (onWeatherFetched) {
         onWeatherFetched({
           tempC: weather.temperatureC,
           windKmH: weather.windSpeedKmH,
           headwindKmH: weather.effectiveHeadwindKmH,
           windDirection: windDir,
+          windDirectionDegrees: weather.windDirectionDegrees,
+          isHeadwindActive: weather.isHeadwindActive,
+          precipitationRiskPercent: resolvedPrecipRisk,
+          weatherCode: weather.weatherCode,
+          windGustsKmH: weather.windGustsKmH,
+          isDay: weather.isDay,
+          visibilityKm: weather.visibilityKm,
+          airDensityRho: weather.airDensityRho,
+          source: weather.source,
+          isBeyondForecastWindow: weather.isBeyondForecastWindow,
+          sunrise: weather.sunriseIso,
+          sunset: weather.sunsetIso,
         });
       }
 
@@ -616,7 +798,7 @@ export const Screen4TimingPace: React.FC<Screen4TimingPaceProps> = ({
             </div>
             <div className="flex flex-wrap gap-2">
               {activeArchetypeChips.map((chipDef) => {
-                const isSelected = selectedChips.includes(chipDef.id);
+                const isSelected = normalizedChips.includes(chipDef.id);
                 return (
                   <Chip
                     key={chipDef.id}
@@ -624,16 +806,7 @@ export const Screen4TimingPace: React.FC<Screen4TimingPaceProps> = ({
                     theme={chipDef.theme}
                     icon={chipDef.icon}
                     isSelected={isSelected}
-                    onClick={() => {
-                      onToggleChip(chipDef.id);
-                      if (chipDef.addedBufferMin) {
-                        onChangeParkingBuffer(
-                          isSelected
-                            ? Math.max(0, parkingBufferMin - chipDef.addedBufferMin)
-                            : parkingBufferMin + chipDef.addedBufferMin
-                        );
-                      }
-                    }}
+                    onClick={() => onToggleChip(chipDef.id)}
                   />
                 );
               })}
@@ -732,6 +905,22 @@ export const Screen4TimingPace: React.FC<Screen4TimingPaceProps> = ({
                   {parkingBufferMin} min
                 </span>
               </div>
+              {showerPrepMin > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-ink-muted">{isFr ? 'Douche & changement' : 'Shower & changing'}</span>
+                  <span className="font-rounded font-bold text-ink tnum text-sm">
+                    +{showerPrepMin} min
+                  </span>
+                </div>
+              )}
+              {chipsExtraBufferMin > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-ink-muted">{isFr ? 'Marges options trajet' : 'Ride options buffer'}</span>
+                  <span className="font-rounded font-bold text-ink tnum text-sm">
+                    +{chipsExtraBufferMin} min
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Big Hero Chronometry Callout */}

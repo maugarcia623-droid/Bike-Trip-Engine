@@ -57,7 +57,7 @@ import {
 import { TripProfile, PhysicsCalculationResult, SurfaceSegment, SurfaceType } from '../../types/trip';
 import { StageAmenity } from '../../types/amenities';
 import { ResupplyRadarOverlay } from './ResupplyRadarOverlay';
-import { RiderBikeSpecs } from '../../types/specs';
+import { RiderBikeSpecs, resolveBikeTireWidthMm } from '../../types/specs';
 import { getActiveBike, loadRiderBikeSpecs } from '../../utils/specsStorage';
 import { synthesizeRouteElevationProfile } from '../../utils/gpxParser';
 import { computeSurfaceBreakdown, SURFACE_VISUAL_META } from '../../utils/surfaceProfile';
@@ -1527,7 +1527,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     })
                   : `${trip.route.origin || 'Nord-sur-Erdre'} ⇄ ${trip.route.destination || meta.gateName || 'Redon'} (${t('heroFlipReturnBtn')})`
               }
-              className={`relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 w-9 h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${isInteractive ? 'cursor-pointer' : 'opacity-60 cursor-default'} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+              className={`relative w-9 h-9 min-[360px]:w-10 min-[360px]:h-10 sm:w-9 sm:h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${isInteractive ? 'cursor-pointer' : 'opacity-60 cursor-default'} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
               {isRadiusMode ? (
                 <Path className="w-4 h-4 text-current" />
@@ -1550,11 +1550,11 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   ? ` (${trip.pinnedAmenities.length} ${t('pinnedStop')})`
                   : ''
               }`}
-              className={`relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 w-9 h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+              className={`relative w-9 h-9 min-[360px]:w-10 min-[360px]:h-10 sm:w-9 sm:h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
               <Radar className="w-4 h-4 text-current" />
               {trip.pinnedAmenities && trip.pinnedAmenities.length > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-volt text-[#111111] font-rounded font-extrabold text-[10px] leading-none flex items-center justify-center shadow-xs ring-1 ring-card tnum">
+                <span className="pointer-events-none absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-volt text-[#111111] font-rounded font-extrabold text-[10px] leading-none flex items-center justify-center shadow-xs ring-1 ring-card tnum">
                   {trip.pinnedAmenities.length}
                 </span>
               )}
@@ -1577,7 +1577,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   ? `${activeBike.name} · ${activeBike.weightKg} kg · ${activeBike.isTubeless ? 'TL' : 'Tube'} (${t('heroBikeSwitchAria')})`
                   : t('heroBikeSwitchAria')
               }
-              className={`relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 w-9 h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+              className={`relative w-9 h-9 min-[360px]:w-10 min-[360px]:h-10 sm:w-9 sm:h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
               <Bicycle className="w-4 h-4 text-current shrink-0" />
             </Button>
@@ -1591,7 +1591,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                 onClick={onStartRideMode}
                 aria-label={isFr ? 'Mode Vélo' : 'Ride Mode'}
                 title={t('startRideModeBtn')}
-                className={`relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 w-9 h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                className={`relative w-9 h-9 min-[360px]:w-10 min-[360px]:h-10 sm:w-9 sm:h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
               >
                 <Play className="w-4 h-4 shrink-0 text-current" />
               </Button>
@@ -1624,7 +1624,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   ? 'Enregistrer carte, arrêts, surface et météo pour rouler sans réseau'
                   : 'Save map, stops, surface & weather for zero-signal rides'
               }
-              className={`relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 w-9 h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+              className={`relative w-9 h-9 min-[360px]:w-10 min-[360px]:h-10 sm:w-9 sm:h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
               {isSavingOffline ? (
                 <LoaderCircle className="w-4 h-4 shrink-0 animate-spin text-current" />
@@ -1648,7 +1648,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
               aria-haspopup="menu"
               aria-label={isFr ? 'Exporter ou envoyer le parcours' : 'Export or send route'}
               title={isFr ? 'Exporter ou envoyer le parcours' : 'Export or send route'}
-              className={`relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 w-9 h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+              className={`relative w-9 h-9 min-[360px]:w-10 min-[360px]:h-10 sm:w-9 sm:h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
               <ShareNetwork className="w-4 h-4 shrink-0 text-current" />
             </Button>
@@ -1678,7 +1678,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   ? 'Carte en plein écran'
                   : 'Fullscreen map'
               }
-              className={`relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 w-9 h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+              className={`relative w-9 h-9 min-[360px]:w-10 min-[360px]:h-10 sm:w-9 sm:h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
               {isMapFullscreen ? (
                 <Minimize2 className="w-4 h-4 shrink-0 text-current" />
@@ -1731,7 +1731,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                           <div className="min-w-0">
                             <div className="text-xs font-semibold break-words leading-tight">{bike.name}</div>
                             <div className="text-[11px] tnum opacity-80 mt-0.5">
-                              {bike.weightKg} kg · {bike.isTubeless ? 'Tubeless' : 'Tube'} · {bike.tireWidthMm}c
+                              {bike.weightKg} kg · {bike.isTubeless ? 'Tubeless' : 'Tube'} · {resolveBikeTireWidthMm(bike)} mm
                             </div>
                           </div>
                           {selected && <Check className="w-3.5 h-3.5 shrink-0 text-current" />}
@@ -2002,6 +2002,17 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                           {includeFitFuelCues ? <Check className="w-2.5 h-2.5" /> : null}
                         </span>
                       </button>
+
+                      {!HEADUNIT_PUSH_ENABLED && (
+                        <p
+                          data-testid="hero-export-sideload-note"
+                          className="text-[11px] font-medium text-ink-secondary leading-tight px-0.5"
+                        >
+                          {isFr
+                            ? 'Garmin / Wahoo : téléchargez le .FIT ci-dessous'
+                            : 'Garmin / Wahoo: download .FIT below'}
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-1.5">

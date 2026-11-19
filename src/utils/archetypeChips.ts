@@ -37,13 +37,15 @@ import {
   CloudSun as PhCloudSun,
   IconProps,
 } from '@/components/icons';
-import { TripProfile, generateTripChecklist } from '../types/trip';
+import { TripProfile, LogisticsSettings, generateTripChecklist } from '../types/trip';
 import { getActiveBike, loadRiderBikeSpecs } from './specsStorage';
 import { subtractMinutesFromTime } from './nutrition';
 import { CHIP_TOKENS, ChipTheme } from '../tokens/chipTokens';
 import {
+  getStationaryRecoveryRule,
   getStationaryRecoveryRuleForTrip,
   resolveEffectiveRestStopMinutes,
+  type StationaryRecoveryRule,
 } from './stationaryRecovery';
 
 export type ArchetypeMode = 'BIKEPACKING' | 'SPORT' | 'COMMUTE' | 'ESCAPADE';
@@ -1705,26 +1707,66 @@ export function findChipDef(chipId: string): ArchetypeChipDef | undefined {
   return undefined;
 }
 
+export interface ChipsExtraBufferContext {
+  rolloutTimeHHMM?: string;
+  departureDate?: string;
+  coordinates?: [number, number];
+  ruleSettings?: LogisticsSettings;
+}
+
+const UNRESTRICTED_RECOVERY_RULE: StationaryRecoveryRule = {
+  isRestricted: false,
+  maxRestMinutes: null,
+  disableLunchBreak: false,
+  isWinter: false,
+  isBeforeDawn: false,
+  civilDawnHHMM: '07:00',
+  rolloutHHMM: '08:00',
+};
+
 /**
  * Calculates extra buffer minutes introduced by currently active custom chips
  * plus any explicitly planned mid-ride recovery stop (`ruleSettings.plannedLongStopMin`).
  */
-export function getChipsExtraBufferMinutes(trip: TripProfile): number {
-  const ruleSettings = trip.ruleSettings || {};
-  const recoveryRule = getStationaryRecoveryRuleForTrip(trip);
+export function getChipsExtraBufferMinutes(trip: TripProfile): number;
+export function getChipsExtraBufferMinutes(
+  archetype: ArchetypeMode,
+  customChips?: string[],
+  context?: ChipsExtraBufferContext
+): number;
+export function getChipsExtraBufferMinutes(
+  tripOrArchetype: TripProfile | ArchetypeMode,
+  customChipsArg?: string[],
+  context?: ChipsExtraBufferContext
+): number {
+  const isTripObj = typeof tripOrArchetype === 'object' && tripOrArchetype !== null;
+  const ruleSettings: LogisticsSettings = isTripObj
+    ? tripOrArchetype.ruleSettings || {}
+    : context?.ruleSettings || {};
+  const customChips = isTripObj ? tripOrArchetype.customChips || [] : customChipsArg || [];
+  const recoveryRule: StationaryRecoveryRule = isTripObj
+    ? getStationaryRecoveryRuleForTrip(tripOrArchetype)
+    : context?.rolloutTimeHHMM
+    ? getStationaryRecoveryRule({
+        rolloutTimeHHMM: context.rolloutTimeHHMM,
+        departureDate: context.departureDate,
+        coordinates: context.coordinates,
+      })
+    : UNRESTRICTED_RECOVERY_RULE;
+
   let extra = resolveEffectiveRestStopMinutes(
     Number(ruleSettings['plannedLongStopMin'] ?? 0),
     recoveryRule
   );
-  if (!trip.customChips || trip.customChips.length === 0) return extra;
+  if (customChips.length === 0) return extra;
 
-  for (const chipId of trip.customChips) {
+  for (const chipId of customChips) {
     if (chipId === 'coffee-stop') {
       extra += resolveEffectiveRestStopMinutes(
         Number(ruleSettings['coffeeDurationMin'] ?? 15),
         recoveryRule
       );
-    } else if (chipId === 'night-ride') {
+    } else if (chipId === 'night-ride' || chipId === 'night-transit') {
       extra += Number(ruleSettings['nightCautionBufferMin'] ?? 10);
     } else if (chipId === 'hill-climb') {
       extra += Number(ruleSettings['climbingBufferMin'] ?? 8);
