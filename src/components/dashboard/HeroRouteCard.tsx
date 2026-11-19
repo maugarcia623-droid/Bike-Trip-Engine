@@ -1495,7 +1495,9 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
 
       <div
         className={`relative z-20 p-4 flex flex-col justify-between pointer-events-none ${
-          isMapFullscreen ? 'h-full' : 'min-h-[460px] sm:min-h-[490px] lg:min-h-[520px]'
+          isMapFullscreen
+            ? 'h-full pt-[calc(env(safe-area-inset-top,0px)+1rem)] pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] pl-[calc(env(safe-area-inset-left,0px)+1rem)] pr-[calc(env(safe-area-inset-right,0px)+1rem)]'
+            : 'min-h-[460px] sm:min-h-[490px] lg:min-h-[520px]'
         }`}
       >
         <div className="relative z-30 flex flex-wrap items-center justify-start gap-2 mb-24 sm:mb-20 pointer-events-none max-w-full">

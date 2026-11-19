@@ -545,7 +545,13 @@ export const InteractiveRouteMap: React.FC<InteractiveRouteMapProps> = ({
       </div>
 
       {/* Top Floating Prompt & Click Banner (offset from top-left Leaflet zoom controls) */}
-      <div className="absolute top-2.5 left-14 right-2.5 z-10 pointer-events-none flex items-center justify-between gap-2">
+      <div
+        className={`absolute z-10 pointer-events-none flex items-center justify-between gap-2 ${
+          isFullscreen
+            ? 'top-[calc(env(safe-area-inset-top,0px)+0.625rem)] left-[calc(env(safe-area-inset-left,0px)+3.5rem)] right-[calc(env(safe-area-inset-right,0px)+0.625rem)]'
+            : 'top-2.5 left-14 right-2.5'
+        }`}
+      >
         <div className="pointer-events-auto bg-card/90 dark:bg-card/90 backdrop-blur-md px-2.5 py-1.5 rounded-full shadow-md flex items-center gap-2 text-[11px] text-ink font-medium max-w-[calc(100%-80px)] sm:max-w-none">
           <span className="w-2 h-2 rounded-full bg-volt ring-2 ring-volt/40 animate-pulse shrink-0" />
           <span className="leading-tight truncate">
