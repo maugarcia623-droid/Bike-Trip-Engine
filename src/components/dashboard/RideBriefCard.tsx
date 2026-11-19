@@ -11,6 +11,10 @@ import { buildPlanShareUrl } from '../../utils/planShare';
 import { downloadTripFit } from '../../utils/fitExporter';
 import { downloadTripGpx, downloadEntireTourGpx } from '../../utils/gpxExporter';
 import { useTranslation, getLocalizedTripMeta } from '../../context/LanguageContext';
+import {
+  getStationaryRecoveryRuleForTrip,
+  resolveEffectiveRestStopMinutes,
+} from '../../utils/stationaryRecovery';
 import { Badge } from '../common/Badge';
 import { IconBadge } from '../common/IconBadge';
 import { Collapsible } from '../common/Collapsible';
@@ -111,7 +115,9 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
   const [appliedFeedback, setAppliedFeedback] = React.useState<ReadinessActionAppliedInfo | null>(null);
   const readiness = brief.readiness;
   const effectiveSpecs = riderSpecs ?? loadRiderBikeSpecs();
-  const plannedLongStopMin = Math.max(0, Math.round(Number(trip.ruleSettings?.plannedLongStopMin ?? 0)));
+  const rawPlannedLongStopMin = Math.max(0, Math.round(Number(trip.ruleSettings?.plannedLongStopMin ?? 0)));
+  const recoveryRule = getStationaryRecoveryRuleForTrip(trip, brief.leaveByHHMM);
+  const plannedLongStopMin = resolveEffectiveRestStopMinutes(rawPlannedLongStopMin, recoveryRule);
 
   React.useEffect(() => {
     setActiveReadinessAction(null);
@@ -507,6 +513,22 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
                   {isFr ? `Pause ${plannedLongStopMin} min` : `${plannedLongStopMin} min stop`}
                 </Badge>
               </button>
+            )}
+
+            {recoveryRule.isRestricted && (
+              <Badge
+                variant="sky"
+                size="md"
+                icon={ThermometerSimple}
+                className="tnum"
+                title={
+                  isFr
+                    ? 'Départ hivernal avant l’aube : pauses ≤ 5 min max et pauses déjeuner (30 min+) désactivées'
+                    : 'Pre-dawn winter start: rest stops capped at 5 min max and 30-min+ lunch breaks disabled'
+                }
+              >
+                {isFr ? 'Pauses ≤ 5 min (hiver avant l’aube)' : 'Stops ≤ 5 min (pre-dawn winter)'}
+              </Badge>
             )}
 
             {showLoopBadge && loopComp && (

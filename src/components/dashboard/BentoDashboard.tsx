@@ -371,6 +371,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
           logistics: trip.ruleSettings,
           pinnedAmenities: trip.pinnedAmenities,
           departureDate: activeStage?.departureDate || trip.departureDate,
+          isMultiDayTour: Boolean(trip.stages && trip.stages.length > 1),
         }
       ),
     [

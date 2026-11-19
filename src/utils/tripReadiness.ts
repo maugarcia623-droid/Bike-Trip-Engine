@@ -6,6 +6,7 @@ import { calculateRideVisibility } from './solarVisibility';
 import { getKitRecommendation } from './kitAdvisor';
 import { buildEffectiveChecklist } from './effectiveChecklist';
 import { getPlannedRestStopMinutes } from './archetypeChips';
+import { getStationaryRecoveryRuleForTrip } from './stationaryRecovery';
 
 /**
  * Lightweight readiness calculation for home-page trip cards (no Overpass/sector-weather lookup).
@@ -70,6 +71,7 @@ export function computeTripReadiness(
       powerZone: physics.powerZone,
       riderLevel: riderSpecs.riderLevel,
       plannedStopMinutes: getPlannedRestStopMinutes(trip),
+      isPreDawnWinter: getStationaryRecoveryRuleForTrip(trip, timeline.hardDepartureTime).isRestricted,
     },
     checklist: {
       total: checklistItems.length,

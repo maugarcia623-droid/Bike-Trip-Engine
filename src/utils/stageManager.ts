@@ -506,6 +506,7 @@ export function getTourAggregateSummary(
         departureTime: stage.departureTime,
         movingTimeSeconds: physics.movingTimeSeconds,
         pinnedAmenities: stage.pinnedAmenities,
+        isMultiDayTour: stages.length > 1,
       }
     );
 

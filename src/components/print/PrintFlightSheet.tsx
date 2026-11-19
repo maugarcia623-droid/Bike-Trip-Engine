@@ -88,6 +88,7 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
       movingTimeSeconds: physicsResult.movingTimeSeconds,
       logistics: trip.ruleSettings,
       pinnedAmenities: trip.pinnedAmenities,
+      isMultiDayTour: hasMultipleStages,
     }
   );
   const solvedTimeline = solveTripTimeline(

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   calculateIntensityModulatedCarbTarget,
   calculateHydrationPlan,
+  resolveEffectiveFuelSplit,
 } from '../nutrition';
 
 describe('nutrition.ts', () => {
@@ -109,5 +110,25 @@ describe('nutrition.ts', () => {
       frameBottleSlots: 2,
     });
     assert.equal(coolPlan.sodiumMgPerL, 500);
+  });
+
+  it('strips savory palate resets on Single Day rides and enables them only for Multi-Day Tours', () => {
+    const singleDay = resolveEffectiveFuelSplit({
+      rideHours: 4,
+      pctFtp: 72,
+      tempC: 20,
+      enableSavoryPalateResets: true,
+      isMultiDayTour: false,
+    });
+    assert.equal(singleDay.savoryResetCount, 0);
+
+    const multiDay = resolveEffectiveFuelSplit({
+      rideHours: 4,
+      pctFtp: 72,
+      tempC: 20,
+      enableSavoryPalateResets: true,
+      isMultiDayTour: true,
+    });
+    assert.equal(multiDay.savoryResetCount, 2);
   });
 });

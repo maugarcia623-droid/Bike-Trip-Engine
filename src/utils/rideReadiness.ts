@@ -79,6 +79,8 @@ export interface RideReadinessInput {
     riderLevel?: RiderLevel;
     /** Planned intentional rest/recovery stop duration in minutes (breaks up long endurance fatigue). */
     plannedStopMinutes?: number;
+    /** When true, pre-dawn winter stationary recovery rule caps stops at 5 min and disables lunch breaks. */
+    isPreDawnWinter?: boolean;
   };
   checklist: {
     total: number;
@@ -322,6 +324,10 @@ function scoreEffort(e: RideReadinessInput['effort'], isFr: boolean) {
       ? isFr
         ? ` · pause ${plannedStopMin} min`
         : ` · ${plannedStopMin} min stop`
+      : e.isPreDawnWinter && plannedStopMin > 0
+      ? isFr
+        ? ` · pause ${plannedStopMin} min max`
+        : ` · ${plannedStopMin} min max stop`
       : '';
   const note = `${zone}${formatHours(hours)} · ${Math.round(e.ftpPercent)}% FTP${stopNote}`;
 
@@ -333,6 +339,12 @@ function scoreEffort(e: RideReadinessInput['effort'], isFr: boolean) {
       tip = isFr ? 'Baissez l’allure d’une zone' : 'Ease the pace by one zone';
       action = 'effort-pace';
       ctaLabel = isFr ? 'Baisser l’allure' : 'Ease pace';
+    } else if (e.isPreDawnWinter) {
+      tip = isFr
+        ? 'Raccourcissez la trace (pauses limitées à 5 min avant l’aube en hiver)'
+        : 'Shorten the route (stops capped at 5 min pre-dawn in winter)';
+      action = 'effort-load';
+      ctaLabel = isFr ? 'Raccourcir la trace' : 'Shorten route';
     } else if (plannedStopMin >= 30) {
       tip = isFr
         ? 'Raccourcissez la trace ou allongez la pause'

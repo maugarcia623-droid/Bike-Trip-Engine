@@ -81,6 +81,7 @@ export const CompactTripCard: React.FC<CompactTripCardProps> = ({
       arriveAtMode: trip.arriveAtMode,
       departureTime: trip.departureTime,
       pinnedAmenities: trip.pinnedAmenities,
+      isMultiDayTour: Boolean(trip.stages && trip.stages.length > 1),
     }
   );
   const meta = getLocalizedTripMeta(trip, lang);

@@ -12,6 +12,7 @@ import {
   Sparkle,
   Timer,
   Clock,
+  Warning,
 } from '@/components/icons';
 import { TripProfile } from '../../types/trip';
 import { RiderBikeSpecs } from '../../types/specs';
@@ -82,6 +83,7 @@ export const TimelineContextualBanner: React.FC<TimelineContextualBannerProps> =
   const isHeadwind = Boolean(weather?.isHeadwindActive);
   const headwindKmH = weather?.baseWindSpeedKmH || 0;
   const headwindImpactMin = timeline.weatherHeadwindImpactMinutes || 0;
+  const isSevereHeadwind = Boolean(timeline.severeHeadwindWarning);
   const isCold = (weather?.temperatureC ?? 20) < 10;
   const isWet = (weather?.precipitationRiskPercent ?? 0) >= 25;
 
@@ -128,7 +130,9 @@ export const TimelineContextualBanner: React.FC<TimelineContextualBannerProps> =
             : isFr
             ? `Maintenez un apport régulier (${rateLabel}) dès les 20 premières minutes pour lisser l’effort.`
             : `Keep a steady fueling rhythm (${rateLabel}) starting 20 min in for smooth endurance.`,
-          contextNote: isHeadwind
+          contextNote: isSevereHeadwind
+            ? t('severeHeadwindWarningBody')
+            : isHeadwind
             ? t('ctxSportNoteWind', { speed: headwindKmH, min: headwindImpactMin })
             : t('ctxSportNoteCalm', { dest }),
           metrics: [
@@ -156,7 +160,9 @@ export const TimelineContextualBanner: React.FC<TimelineContextualBannerProps> =
           icon: Backpack,
           theme: 'orange',
           primaryAdvice: t('ctxBpAdvice'),
-          contextNote: isHeadwind
+          contextNote: isSevereHeadwind
+            ? t('severeHeadwindWarningBody')
+            : isHeadwind
             ? t('ctxBpNoteWind', { speed: headwindKmH })
             : t('ctxBpNoteCalm', { gear: gearWeight, rig: totalRigMass, dest }),
           metrics: [
@@ -183,7 +189,9 @@ export const TimelineContextualBanner: React.FC<TimelineContextualBannerProps> =
           icon: Compass,
           theme: 'emerald',
           primaryAdvice: t('ctxEscAdvice', { time: checkInTime }),
-          contextNote: t('ctxEscNote', { min: timeline.bufferMinutes, dest }),
+          contextNote: isSevereHeadwind
+            ? t('severeHeadwindWarningBody')
+            : t('ctxEscNote', { min: timeline.bufferMinutes, dest }),
           metrics: [
             { label: t('ctxEscMetric1Label'), value: `${route?.distanceKm || 45} km`, sub: t('ctxEscMetric1Sub') },
             { label: t('ctxEscMetric2Label'), value: checkInTime, sub: dest },
@@ -210,7 +218,9 @@ export const TimelineContextualBanner: React.FC<TimelineContextualBannerProps> =
           icon: Briefcase,
           theme: 'yellow-vest',
           primaryAdvice: t('ctxComAdvice', { gateTime, shiftTime }),
-          contextNote: isHeadwind
+          contextNote: isSevereHeadwind
+            ? t('severeHeadwindWarningBody')
+            : isHeadwind
             ? t('ctxComNoteWind', {
                 speed: headwindKmH,
                 min: headwindImpactMin,
@@ -235,6 +245,7 @@ export const TimelineContextualBanner: React.FC<TimelineContextualBannerProps> =
     isHeadwind,
     headwindKmH,
     headwindImpactMin,
+    isSevereHeadwind,
     trip?.physics,
     carbTarget,
     isQuantitative,
@@ -283,11 +294,15 @@ export const TimelineContextualBanner: React.FC<TimelineContextualBannerProps> =
           >
             {t('bannerBufferPill', { min: timeline.bufferMinutes })}
           </Badge>
-          {isHeadwind && headwindImpactMin > 0 && (
+          {isSevereHeadwind ? (
+            <Badge variant="rose" size="sm" icon={Warning} className="tnum">
+              {t('severeHeadwindWarningPill', { min: headwindImpactMin })}
+            </Badge>
+          ) : isHeadwind && headwindImpactMin > 0 ? (
             <Badge variant="amber" size="sm" icon={Wind} className="hidden md:inline-flex tnum">
               +{headwindImpactMin} min
             </Badge>
-          )}
+          ) : null}
         </span>
 
         <DisclosureChevron open={isExpanded} />
@@ -318,8 +333,18 @@ export const TimelineContextualBanner: React.FC<TimelineContextualBannerProps> =
           {(isHeadwind || isCold || isWet) && (
             <div className="flex flex-wrap items-center gap-2">
               {isHeadwind && (
-                <Badge variant="amber" size="md" icon={Wind} className="tnum">
-                  {t('bannerHeadwindPill', { min: headwindImpactMin, speed: headwindKmH })}
+                <Badge
+                  variant={isSevereHeadwind ? 'rose' : 'amber'}
+                  size="md"
+                  icon={isSevereHeadwind ? Warning : Wind}
+                  className="tnum"
+                >
+                  {isSevereHeadwind
+                    ? t('severeHeadwindWarningTitle', {
+                        min: headwindImpactMin,
+                        dist: Math.round(route?.distanceKm ?? 0),
+                      })
+                    : t('bannerHeadwindPill', { min: headwindImpactMin, speed: headwindKmH })}
                 </Badge>
               )}
               {isCold && (

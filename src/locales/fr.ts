@@ -241,6 +241,9 @@ export const fr: TranslationDictionary = {
   bannerHide: "Masquer",
   bannerDetails: "Détails",
   bannerHeadwindPill: "Vent de face +{min} min ({speed} km/h)",
+  severeHeadwindWarningPill: "Vent sévère · +{min} min",
+  severeHeadwindWarningTitle: "Alerte vent de face sévère (+{min} min sur {dist} km)",
+  severeHeadwindWarningBody: "Le vent de face ajoute plus de 45 min sur ce trajet de moins de 100 km. Envisagez de revoir votre itinéraire ou de prendre le train.",
   bannerColdPill: "Froid ambiant {temp}°C",
   bannerRainPill: "Risque pluie {risk}%",
 

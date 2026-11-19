@@ -13,6 +13,10 @@ import {
   formatHHMM,
 } from '../../utils/timeline';
 import { getChipsExtraBufferMinutes, toggleArchetypeChip } from '../../utils/archetypeChips';
+import {
+  getStationaryRecoveryRuleForTrip,
+  PRE_DAWN_WINTER_MAX_REST_MIN,
+} from '../../utils/stationaryRecovery';
 import { buildEffectiveChecklist } from '../../utils/effectiveChecklist';
 import { getChecklistItemLabel } from '../../context/LanguageContext';
 import { calculateRideVisibility } from '../../utils/solarVisibility';
@@ -194,6 +198,7 @@ function evaluateCandidate(
       movingTimeSeconds: phys.movingTimeSeconds,
       logistics: candidateTrip.ruleSettings,
       pinnedAmenities: candidateTrip.pinnedAmenities,
+      isMultiDayTour: Boolean(candidateTrip.stages && candidateTrip.stages.length > 1),
       departureDate: activeStage?.departureDate || candidateTrip.departureDate,
     }
   );
@@ -258,14 +263,30 @@ export const ReadinessActionCard: React.FC<ReadinessActionCardProps> = ({
   const currentScore = brief.readiness.score;
 
   // ── Effort-load state (Add long stop vs Shorten route) ──
+  const recoveryRule = useMemo(
+    () => getStationaryRecoveryRuleForTrip(trip, timeline.hardDepartureTime),
+    [trip, timeline.hardDepartureTime]
+  );
   const existingStopMin = Math.max(0, Math.round(Number(trip.ruleSettings?.plannedLongStopMin ?? 0)));
   const [effortTab, setEffortTab] = useState<'stop' | 'shorten'>(
-    existingStopMin >= 45 ? 'shorten' : 'stop'
+    recoveryRule.isRestricted || existingStopMin >= 45 ? 'shorten' : 'stop'
   );
-  const [stopMinutes, setStopMinutes] = useState<number>(existingStopMin > 0 ? existingStopMin : 45);
+  const [stopMinutes, setStopMinutes] = useState<number>(
+    recoveryRule.isRestricted
+      ? PRE_DAWN_WINTER_MAX_REST_MIN
+      : existingStopMin > 0
+      ? existingStopMin
+      : 45
+  );
   const [stopLabel, setStopLabel] = useState<string>(
     trip.ruleSettings?.plannedLongStopLabel ||
-      (isFr ? 'Pause déjeuner & récupération' : 'Mid-ride lunch & recovery')
+      (recoveryRule.isRestricted
+        ? isFr
+          ? 'Arrêt express (5 min max)'
+          : 'Quick stop (5 min max)'
+        : isFr
+        ? 'Pause déjeuner & récupération'
+        : 'Mid-ride lunch & recovery')
   );
   const currentDistKm = Math.max(2, Number((trip.route.distanceKm || 30).toFixed(1)));
   const defaultShortKm = Math.max(2, Math.round(currentDistKm * 0.75 * 10) / 10);
@@ -282,14 +303,26 @@ export const ReadinessActionCard: React.FC<ReadinessActionCardProps> = ({
   // Sync defaults when trip or action changes
   useEffect(() => {
     const curStop = Math.max(0, Math.round(Number(trip.ruleSettings?.plannedLongStopMin ?? 0)));
-    setStopMinutes(curStop > 0 ? curStop : 45);
+    setStopMinutes(
+      recoveryRule.isRestricted
+        ? PRE_DAWN_WINTER_MAX_REST_MIN
+        : curStop > 0
+        ? curStop
+        : 45
+    );
     setStopLabel(
       trip.ruleSettings?.plannedLongStopLabel ||
-        (isFr ? 'Pause déjeuner & récupération' : 'Mid-ride lunch & recovery')
+        (recoveryRule.isRestricted
+          ? isFr
+            ? 'Arrêt express (5 min max)'
+            : 'Quick stop (5 min max)'
+          : isFr
+          ? 'Pause déjeuner & récupération'
+          : 'Mid-ride lunch & recovery')
     );
-    setEffortTab(curStop >= 45 ? 'shorten' : 'stop');
+    setEffortTab(recoveryRule.isRestricted || curStop >= 45 ? 'shorten' : 'stop');
     setTargetDistKm(Math.max(2, Math.round((trip.route.distanceKm || 30) * 0.75 * 10) / 10));
-  }, [trip.id, action, trip.route.distanceKm, trip.ruleSettings?.plannedLongStopMin, trip.ruleSettings?.plannedLongStopLabel, isFr]);
+  }, [trip.id, action, trip.route.distanceKm, trip.ruleSettings?.plannedLongStopMin, trip.ruleSettings?.plannedLongStopLabel, isFr, recoveryRule.isRestricted]);
 
   // ── Previews ──
   const stopPreview = useMemo(() => {
@@ -641,7 +674,15 @@ export const ReadinessActionCard: React.FC<ReadinessActionCardProps> = ({
               }`}
             >
               <Coffee className="w-3.5 h-3.5" />
-              <span>{isFr ? 'Planifier une pause longue' : 'Plan a long stop'}</span>
+              <span>
+                {recoveryRule.isRestricted
+                  ? isFr
+                    ? 'Arrêt express (5 min max)'
+                    : 'Quick stop (5 min max)'
+                  : isFr
+                  ? 'Planifier une pause longue'
+                  : 'Plan a long stop'}
+              </span>
             </button>
             <button
               type="button"
@@ -659,21 +700,51 @@ export const ReadinessActionCard: React.FC<ReadinessActionCardProps> = ({
 
           {effortTab === 'stop' && stopPreview && (
             <div className="rounded-pod bg-card p-3.5 space-y-3">
+              {recoveryRule.isRestricted && (
+                <div className="rounded-xl bg-amber-500/10 border border-amber-500/25 px-3 py-2 text-[11px] leading-snug text-amber-800 dark:text-amber-300 font-body">
+                  {isFr
+                    ? `Départ hivernal avant l’aube (${recoveryRule.rolloutHHMM}, aube ${recoveryRule.civilDawnHHMM}) : les pauses sont limitées à 5 min max pour éviter la chute de température corporelle, et les pauses déjeuner (30 min+) sont désactivées.`
+                    : `Pre-dawn winter start (${recoveryRule.rolloutHHMM}, dawn ${recoveryRule.civilDawnHHMM}): mid-ride rest stops are capped at 5 min max to prevent core temperature drop, and 30-min+ lunch breaks are disabled.`}
+                </div>
+              )}
               <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
                 <div className="space-y-1.5">
                   <span className="text-[12px] font-semibold font-rounded text-ink-secondary block">
                     {isFr ? 'Durée de la pause à mi-parcours' : 'Mid-ride stop duration'}
                   </span>
                   <div className="flex flex-wrap items-center gap-2">
+                    {recoveryRule.isRestricted && (
+                      <button
+                        type="button"
+                        onClick={() => setStopMinutes(PRE_DAWN_WINTER_MAX_REST_MIN)}
+                        className={`px-3.5 py-1.5 rounded-full text-xs font-rounded font-bold tnum transition-all cursor-pointer active:scale-[0.98] ${
+                          stopMinutes === PRE_DAWN_WINTER_MAX_REST_MIN
+                            ? 'bg-volt text-[#111111] ring-2 ring-inset ring-[#a3b300]'
+                            : 'bg-pod hover:bg-chip text-ink-secondary hover:text-ink'
+                        }`}
+                      >
+                        {PRE_DAWN_WINTER_MAX_REST_MIN} min max
+                      </button>
+                    )}
                     {[30, 45, 60].map((min) => (
                       <button
                         key={min}
                         type="button"
-                        onClick={() => setStopMinutes(min)}
-                        className={`px-3.5 py-1.5 rounded-full text-xs font-rounded font-bold tnum transition-all cursor-pointer active:scale-[0.98] ${
-                          stopMinutes === min
-                            ? 'bg-volt text-[#111111] ring-2 ring-inset ring-[#a3b300]'
-                            : 'bg-pod hover:bg-chip text-ink-secondary hover:text-ink'
+                        disabled={recoveryRule.isRestricted}
+                        onClick={() => !recoveryRule.isRestricted && setStopMinutes(min)}
+                        title={
+                          recoveryRule.isRestricted
+                            ? isFr
+                              ? 'Désactivé avant l’aube en hiver (limite 5 min max)'
+                              : 'Disabled pre-dawn in winter (5 min max cap)'
+                            : undefined
+                        }
+                        className={`px-3.5 py-1.5 rounded-full text-xs font-rounded font-bold tnum transition-all ${
+                          recoveryRule.isRestricted
+                            ? 'bg-pod text-ink-muted opacity-40 cursor-not-allowed line-through'
+                            : stopMinutes === min
+                            ? 'bg-volt text-[#111111] ring-2 ring-inset ring-[#a3b300] cursor-pointer active:scale-[0.98]'
+                            : 'bg-pod hover:bg-chip text-ink-secondary hover:text-ink cursor-pointer active:scale-[0.98]'
                         }`}
                       >
                         {min} min

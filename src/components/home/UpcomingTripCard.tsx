@@ -213,6 +213,7 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
           arriveAtMode: trip.arriveAtMode,
           departureTime: trip.departureTime,
           pinnedAmenities: trip.pinnedAmenities,
+          isMultiDayTour: Boolean(trip.stages && trip.stages.length > 1),
         }
       ),
     [trip, physicsResult, extraBufferMinutes, lang]

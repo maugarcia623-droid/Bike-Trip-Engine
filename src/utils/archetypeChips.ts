@@ -41,6 +41,10 @@ import { TripProfile, generateTripChecklist } from '../types/trip';
 import { getActiveBike, loadRiderBikeSpecs } from './specsStorage';
 import { subtractMinutesFromTime } from './nutrition';
 import { CHIP_TOKENS, ChipTheme } from '../tokens/chipTokens';
+import {
+  getStationaryRecoveryRuleForTrip,
+  resolveEffectiveRestStopMinutes,
+} from './stationaryRecovery';
 
 export type ArchetypeMode = 'BIKEPACKING' | 'SPORT' | 'COMMUTE' | 'ESCAPADE';
 
@@ -1707,12 +1711,19 @@ export function findChipDef(chipId: string): ArchetypeChipDef | undefined {
  */
 export function getChipsExtraBufferMinutes(trip: TripProfile): number {
   const ruleSettings = trip.ruleSettings || {};
-  let extra = Math.max(0, Math.round(Number(ruleSettings['plannedLongStopMin'] ?? 0)));
+  const recoveryRule = getStationaryRecoveryRuleForTrip(trip);
+  let extra = resolveEffectiveRestStopMinutes(
+    Number(ruleSettings['plannedLongStopMin'] ?? 0),
+    recoveryRule
+  );
   if (!trip.customChips || trip.customChips.length === 0) return extra;
 
   for (const chipId of trip.customChips) {
     if (chipId === 'coffee-stop') {
-      extra += Number(ruleSettings['coffeeDurationMin'] ?? 15);
+      extra += resolveEffectiveRestStopMinutes(
+        Number(ruleSettings['coffeeDurationMin'] ?? 15),
+        recoveryRule
+      );
     } else if (chipId === 'night-ride') {
       extra += Number(ruleSettings['nightCautionBufferMin'] ?? 10);
     } else if (chipId === 'hill-climb') {
@@ -1722,25 +1733,40 @@ export function getChipsExtraBufferMinutes(trip: TripProfile): number {
     } else if (chipId === 'rush-hour-buffer') {
       extra += Number(ruleSettings['peakRushBufferMin'] ?? 12);
     } else if (chipId === 'historical-tour') {
-      extra += Number(ruleSettings['monumentPauseMin'] ?? 30);
+      extra += resolveEffectiveRestStopMinutes(
+        Number(ruleSettings['monumentPauseMin'] ?? 30),
+        recoveryRule
+      );
     } else if (chipId === 'photography-spots') {
-      extra += Number(ruleSettings['shootingPausesTotalMin'] ?? 15);
+      extra += resolveEffectiveRestStopMinutes(
+        Number(ruleSettings['shootingPausesTotalMin'] ?? 15),
+        recoveryRule
+      );
     } else if (chipId === 'scenic-route') {
-      extra += Number(ruleSettings['photoStopsTotalMin'] ?? 30);
+      extra += resolveEffectiveRestStopMinutes(
+        Number(ruleSettings['photoStopsTotalMin'] ?? 30),
+        recoveryRule
+      );
     } else if (chipId === 'resupply-points') {
-      extra += 12;
+      extra += resolveEffectiveRestStopMinutes(12, recoveryRule);
     } else if (chipId === 'spa-wellness') {
-      extra += 20;
+      extra += resolveEffectiveRestStopMinutes(20, recoveryRule);
     } else if (chipId === 'gravel-trail-master') {
       extra += Number(ruleSettings['trailSectorBufferMin'] ?? 12);
     } else if (chipId === 'climbing-kom-hunt') {
       extra += 8;
     } else if (chipId === 'cultural-audio-guide') {
-      extra += Number(ruleSettings['audioStopBufferMin'] ?? 15);
+      extra += resolveEffectiveRestStopMinutes(
+        Number(ruleSettings['audioStopBufferMin'] ?? 15),
+        recoveryRule
+      );
     } else if (chipId === 'picnic-outing') {
-      extra += Number(ruleSettings['picnicDurationMin'] ?? 45);
+      extra += resolveEffectiveRestStopMinutes(
+        Number(ruleSettings['picnicDurationMin'] ?? 45),
+        recoveryRule
+      );
     } else if (chipId === 'local-gastronomy') {
-      extra += 10;
+      extra += resolveEffectiveRestStopMinutes(10, recoveryRule);
     }
   }
   return extra;
@@ -1753,12 +1779,22 @@ export function getChipsExtraBufferMinutes(trip: TripProfile): number {
 export function getPlannedRestStopMinutes(trip: TripProfile): number {
   const ruleSettings = trip.ruleSettings || {};
   const chips = trip.customChips || [];
-  let rest = Math.max(0, Math.round(Number(ruleSettings['plannedLongStopMin'] ?? 0)));
+  const recoveryRule = getStationaryRecoveryRuleForTrip(trip);
+  let rest = resolveEffectiveRestStopMinutes(
+    Number(ruleSettings['plannedLongStopMin'] ?? 0),
+    recoveryRule
+  );
   if (chips.includes('coffee-stop')) {
-    rest += Math.max(0, Math.round(Number(ruleSettings['coffeeDurationMin'] ?? 15)));
+    rest += resolveEffectiveRestStopMinutes(
+      Number(ruleSettings['coffeeDurationMin'] ?? 15),
+      recoveryRule
+    );
   }
   if (chips.includes('picnic-outing')) {
-    rest += Math.max(0, Math.round(Number(ruleSettings['picnicDurationMin'] ?? 45)));
+    rest += resolveEffectiveRestStopMinutes(
+      Number(ruleSettings['picnicDurationMin'] ?? 45),
+      recoveryRule
+    );
   }
   return rest;
 }

@@ -428,6 +428,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
       departureTime: trip.departureTime,
       pinnedAmenities: trip.pinnedAmenities,
       departureDate: trip.departureDate,
+      isMultiDayTour: isMultiDayFormat || Boolean(trip.stages && trip.stages.length > 1),
     }
   );
   const archetype = getTripArchetype(trip.tag, trip.name);

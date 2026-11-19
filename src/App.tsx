@@ -1023,6 +1023,7 @@ function AppContent() {
             departureDate:
               activeTrip.stages?.[activeTrip.activeStageIndex ?? 0]?.departureDate ||
               activeTrip.departureDate,
+            isMultiDayTour: Boolean(activeTrip.stages && activeTrip.stages.length > 1),
           }
         )
       : undefined;

@@ -8,6 +8,11 @@ import { formatFuelTarget } from '../types/specs';
 import { resolveCompliantPantry, getCafeSnackSuggestion } from '../data/pantryCatalog';
 import { Language, getCurrentLanguage } from '../context/LanguageContext';
 import { evaluateOpeningHoursAtArrival } from './openingHours';
+import {
+  getStationaryRecoveryRule,
+  resolveEffectiveRestStopMinutes,
+  type StationaryRecoveryRule,
+} from './stationaryRecovery';
 
 export interface SolvedTripTimeline {
   departureTimeHHMM: string;
@@ -44,20 +49,24 @@ export function formatHHMM(totalMinutes: number): string {
 
 export function calculateDwellMinutes(
   activeChips: string[] = [],
-  logistics?: Partial<LogisticsSettings>
+  logistics?: Partial<LogisticsSettings>,
+  recoveryRule?: StationaryRecoveryRule
 ): number {
+  const applyCap = (minutes: number) =>
+    recoveryRule ? resolveEffectiveRestStopMinutes(minutes, recoveryRule) : Math.max(0, Math.round(minutes));
+
   let dwell = 0;
   if (activeChips.includes('coffee-stop')) {
-    dwell += logistics?.coffeeDurationMin ?? 15;
+    dwell += applyCap(logistics?.coffeeDurationMin ?? 15);
   }
   if (activeChips.includes('picnic-outing')) {
-    dwell += 45;
+    dwell += applyCap(45);
   }
   if (activeChips.includes('resupply-points')) {
-    dwell += 15;
+    dwell += applyCap(15);
   }
   if (logistics?.plannedLongStopMin && logistics.plannedLongStopMin > 0) {
-    dwell += Math.round(logistics.plannedLongStopMin);
+    dwell += applyCap(logistics.plannedLongStopMin);
   }
   return dwell;
 }
@@ -66,29 +75,48 @@ export function solveTripTimeline(
   movingSeconds: number,
   activeChips: string[] = [],
   logistics?: Partial<LogisticsSettings>,
-  overrideTimes?: { departureTimeHHMM?: string; arrivalTimeHHMM?: string }
+  overrideTimes?: { departureTimeHHMM?: string; arrivalTimeHHMM?: string },
+  context?: { departureDate?: string; coordinates?: [number, number] }
 ): SolvedTripTimeline {
-  const dwellMin = calculateDwellMinutes(activeChips, logistics);
   const movingMin = Math.ceil(Math.max(60, movingSeconds) / 60);
-  const totalTransitMin = movingMin + dwellMin;
-
   const anchorMode = logistics?.timelineAnchorMode ?? 'arrive-by';
   const defaultAnchor = anchorMode === 'arrive-by' ? '08:30' : '07:35';
   const anchorTime = logistics?.anchorTimeHHMM || defaultAnchor;
 
-  let resolvedDepartureMin: number;
-  let resolvedArrivalMin: number;
+  const solveWithDwell = (dwell: number) => {
+    const totalTransit = movingMin + dwell;
+    let depMin: number;
+    let arrMin: number;
+    if (overrideTimes?.departureTimeHHMM && overrideTimes?.arrivalTimeHHMM) {
+      depMin = parseHHMM(overrideTimes.departureTimeHHMM);
+      arrMin = parseHHMM(overrideTimes.arrivalTimeHHMM);
+    } else if (anchorMode === 'arrive-by') {
+      arrMin = parseHHMM(anchorTime);
+      depMin = arrMin - totalTransit;
+    } else {
+      depMin = parseHHMM(anchorTime);
+      arrMin = depMin + totalTransit;
+    }
+    return { depMin, arrMin, totalTransit };
+  };
 
-  if (overrideTimes?.departureTimeHHMM && overrideTimes?.arrivalTimeHHMM) {
-    resolvedDepartureMin = parseHHMM(overrideTimes.departureTimeHHMM);
-    resolvedArrivalMin = parseHHMM(overrideTimes.arrivalTimeHHMM);
-  } else if (anchorMode === 'arrive-by') {
-    resolvedArrivalMin = parseHHMM(anchorTime);
-    resolvedDepartureMin = resolvedArrivalMin - totalTransitMin;
-  } else {
-    resolvedDepartureMin = parseHHMM(anchorTime);
-    resolvedArrivalMin = resolvedDepartureMin + totalTransitMin;
+  let dwellMin = calculateDwellMinutes(activeChips, logistics);
+  let solved = solveWithDwell(dwellMin);
+
+  const recoveryRule = getStationaryRecoveryRule({
+    rolloutTimeHHMM: formatHHMM(solved.depMin),
+    departureDate: context?.departureDate,
+    coordinates: context?.coordinates,
+  });
+
+  if (recoveryRule.isRestricted) {
+    dwellMin = calculateDwellMinutes(activeChips, logistics, recoveryRule);
+    solved = solveWithDwell(dwellMin);
   }
+
+  const resolvedDepartureMin = solved.depMin;
+  const resolvedArrivalMin = solved.arrMin;
+  const totalTransitMin = solved.totalTransit;
 
   const departureTimeHHMM = formatHHMM(resolvedDepartureMin);
   const arrivalTimeHHMM = formatHHMM(resolvedArrivalMin);
@@ -140,6 +168,8 @@ export interface ReverseTimelineCalculation {
   bufferMinutes: number;
   steps: TimelineStep[];
   weatherHeadwindImpactMinutes: number;
+  severeHeadwindWarning: boolean;
+  stationaryRecoveryRule?: StationaryRecoveryRule;
 }
 
 const ROLLOUT_STEP_PRIORITY_IDS = new Set([
@@ -197,6 +227,85 @@ function resolveAmenityStopMeta(
         category: 'transit',
       };
   }
+}
+
+const COMMERCIAL_FOOD_NAME_REGEX =
+  /\b(caf[eé]|roaster(?:y|ie)?|baker(?:y|ies)|boulangerie|p[aâ]tisserie|espresso|coffee(?:\s+(?:shop|stop|bar))?|bistro|supermarket|grocery|[eé]picerie|restaurant|brasserie|tea\s*room|salon\s+de\s+th[eé])\b/i;
+
+const COMMERCIAL_FOOD_SUBTYPES = new Set([
+  'bakery',
+  'cafe',
+  'roastery',
+  'coffee',
+  'supermarket',
+  'convenience',
+  'restaurant',
+  'pub',
+  'bistro',
+  'pastry',
+  'deli',
+  'grocery',
+]);
+
+const COMMERCIAL_RETAIL_SUBTYPES = new Set(['bicycle', 'pharmacy']);
+
+/**
+ * Returns true when an arrival time (HH:MM) falls inside the off-hours commercial
+ * window [19:00, 07:00), when cafes, roasteries, and bakeries are typically closed.
+ */
+export function isOffHoursCommercialWindow(timeHHMM: string): boolean {
+  if (!timeHHMM || typeof timeHHMM !== 'string' || !timeHHMM.includes(':')) {
+    return false;
+  }
+  const minutes = parseHHMM(timeHHMM);
+  return minutes >= 19 * 60 || minutes < 7 * 60;
+}
+
+function classifyCommercialWaypoint(
+  name: string,
+  amenity?: StageAmenity
+): 'food' | 'retail' | null {
+  if (amenity) {
+    const subType = (amenity.subType || '').toLowerCase();
+    if (amenity.category === 'food' || COMMERCIAL_FOOD_SUBTYPES.has(subType)) {
+      return 'food';
+    }
+    if (COMMERCIAL_RETAIL_SUBTYPES.has(subType)) {
+      return 'retail';
+    }
+    if (
+      amenity.category === 'water' ||
+      amenity.category === 'cemetery' ||
+      amenity.category === 'bailout'
+    ) {
+      return null;
+    }
+  }
+  if (COMMERCIAL_FOOD_NAME_REGEX.test(name || '')) {
+    return 'food';
+  }
+  return null;
+}
+
+function buildSelfSupportedFuelStep(
+  id: string,
+  time: string,
+  location: string,
+  isFr: boolean,
+  closedStopName?: string
+): TimelineStep {
+  return {
+    id,
+    time,
+    title: isFr ? 'Arrêt Ravitaillement Autonome' : 'Self-Supported Fuel Stop',
+    location,
+    category: 'nutrition',
+    isCrucialCheckpoint: true,
+    description: isFr
+      ? `Arrivée prévue à ${time} (19:00–07:00)${closedStopName ? ` — ${closedStopName} fermé` : ''}. Ravitaillement autonome embarqué.`
+      : `Calculated arrival at ${time} (19:00–07:00)${closedStopName ? ` — ${closedStopName} closed` : ''}. Rely on onboard self-supported fuel.`,
+    iconName: 'Zap',
+  };
 }
 
 /**
@@ -308,12 +417,22 @@ function buildIntermediateStopSteps(
   const minOffset = totalRideMinutes >= 2 ? 1 : 0;
   const maxOffset = totalRideMinutes >= 2 ? totalRideMinutes - 1 : safeRideMinutes;
 
-  return normalized.map((stop) => {
+  const steps: TimelineStep[] = [];
+
+  for (const stop of normalized) {
     const clampedKm = Math.max(0, Math.min(totalKm, stop.stopKm));
     const rawOffset = Math.round((clampedKm / totalKm) * safeRideMinutes);
     const offsetMinutes = Math.max(minOffset, Math.min(maxOffset, rawOffset));
     const time = addMinutesToTime(hardDepartureTime, offsetMinutes);
     const location = `KM ${clampedKm.toFixed(1)}`;
+
+    const commercialKind = classifyCommercialWaypoint(stop.name, stop.amenity);
+    if (commercialKind && isOffHoursCommercialWindow(time)) {
+      if (commercialKind === 'food') {
+        steps.push(buildSelfSupportedFuelStep(stop.id, time, location, isFr, stop.name));
+      }
+      continue;
+    }
 
     if (stop.amenity) {
       const meta = resolveAmenityStopMeta(stop.amenity.category, isFr);
@@ -349,7 +468,7 @@ function buildIntermediateStopSteps(
         );
       }
 
-      return {
+      steps.push({
         id: stop.id,
         time,
         title: stop.name,
@@ -358,10 +477,11 @@ function buildIntermediateStopSteps(
         isCrucialCheckpoint: true,
         description: parts.join(' · '),
         iconName: meta.iconName,
-      };
+      });
+      continue;
     }
 
-    return {
+    steps.push({
       id: stop.id,
       time,
       title: stop.name,
@@ -372,8 +492,10 @@ function buildIntermediateStopSteps(
         ? 'Point de passage intermédiaire sur le parcours'
         : 'Intermediate stop along the route',
       iconName: 'MapPin',
-    };
-  });
+    });
+  }
+
+  return steps;
 }
 
 export function calculateReverseTimeline(
@@ -395,6 +517,7 @@ export function calculateReverseTimeline(
     savoryResetCount?: number;
     pinnedAmenities?: StageAmenity[];
     departureDate?: string;
+    isMultiDayTour?: boolean;
   }
 ): ReverseTimelineCalculation {
   const isFr = lang === 'fr';
@@ -426,6 +549,10 @@ export function calculateReverseTimeline(
   const rawMovingMinutes = Math.round((route.distanceKm / calmSpeed) * 60);
   const actualMovingMinutes = Math.round((route.distanceKm / effectiveSpeedKmH) * 60);
   const weatherHeadwindImpactMinutes = Math.max(0, actualMovingMinutes - rawMovingMinutes);
+  const severeHeadwindWarning =
+    Boolean(weather.isHeadwindActive) &&
+    weatherHeadwindImpactMinutes > 45 &&
+    route.distanceKm < 100;
 
   const totalRideMinutes = actualMovingMinutes;
   const routeBuffer = (isEscapade || isBikepacking) ? 15 : isSport ? 5 : (route.urbanTrafficDelayMinutes ?? 8);
@@ -448,6 +575,12 @@ export function calculateReverseTimeline(
   const targetArrival = isDepartAtMode
     ? addMinutesToTime(hardDepartureTime, totalEnRouteMinutes)
     : office.targetGateArrivalTime || office.shiftStartTime || defaultAnchor;
+
+  const recoveryRule = getStationaryRecoveryRule({
+    rolloutTimeHHMM: hardDepartureTime,
+    departureDate: physicsSpeedOverride?.departureDate,
+    coordinates: route.coordinates?.[0],
+  });
 
   const postGateOfficeMinutes = Math.max(
     15,
@@ -775,18 +908,37 @@ export function calculateReverseTimeline(
     }
 
     if (customChips.includes('resupply-points')) {
-      steps.push({
-        id: 'bp-resupply-stop',
-        time: addMinutesToTime(hardDepartureTime, Math.round(totalRideMinutes * 0.35)),
-        title: isFr ? 'Ravitaillement Boulangerie & Eau de Source' : 'Village Bakery & Spring Water Resupply',
-        location: isFr ? 'Fontaine du Village' : 'Village Spring Waypoint',
-        category: 'nutrition',
-        isCrucialCheckpoint: false,
-        description: isFr
-          ? 'Recharge des 2L d’eau, approvisionnement en pain frais, fruits secs et bananes.'
-          : 'Top off 2L water capacity, pick up fresh bread, dried fruit & energy rations.',
-        iconName: 'UtensilsCrossed',
-      });
+      const resupplyTime = addMinutesToTime(hardDepartureTime, Math.round(totalRideMinutes * 0.35));
+      if (isOffHoursCommercialWindow(resupplyTime)) {
+        steps.push(
+          buildSelfSupportedFuelStep(
+            'bp-resupply-stop',
+            resupplyTime,
+            isFr ? 'En autonomie sur le parcours' : 'On-route self-supported',
+            isFr,
+            isFr ? 'Boulangerie de village' : 'Village Bakery'
+          )
+        );
+      } else {
+        const resupplyDurText = recoveryRule.isRestricted ? '5 min max' : undefined;
+        steps.push({
+          id: 'bp-resupply-stop',
+          time: resupplyTime,
+          ...(resupplyDurText ? { formattedDuration: resupplyDurText } : {}),
+          title: isFr ? 'Ravitaillement Boulangerie & Eau de Source' : 'Village Bakery & Spring Water Resupply',
+          location: isFr ? 'Fontaine du Village' : 'Village Spring Waypoint',
+          category: 'nutrition',
+          isCrucialCheckpoint: false,
+          description: recoveryRule.isRestricted
+            ? isFr
+              ? 'Arrêt express de 5 min max (départ hivernal avant l’aube) pour éviter le refroidissement : recharge eau et pain/fruits secs.'
+              : 'Quick 5-min max stop (pre-dawn winter cap) to prevent core temp drop: top off water & grab rations.'
+            : isFr
+            ? 'Recharge des 2L d’eau, approvisionnement en pain frais, fruits secs et bananes.'
+            : 'Top off 2L water capacity, pick up fresh bread, dried fruit & energy rations.',
+          iconName: 'UtensilsCrossed',
+        });
+      }
     }
 
     if (customChips.includes('bivouac-camp')) {
@@ -925,7 +1077,7 @@ export function calculateReverseTimeline(
       },
     ];
 
-    if (customChips.includes('picnic-outing')) {
+    if (customChips.includes('picnic-outing') && !recoveryRule.disableLunchBreak) {
       const hasDietaryFilters = (specs.dietaryFilters?.length ?? 0) > 0;
       const primarySolid = compliantPantry.onBikeSolids[0] || compliantPantry.preRide;
       steps.push({
@@ -946,7 +1098,7 @@ export function calculateReverseTimeline(
       });
     }
 
-    if (customChips.includes('historical-tour')) {
+    if (customChips.includes('historical-tour') && !recoveryRule.disableLunchBreak) {
       steps.push({
         id: 'esc-historical-chateau',
         time: addMinutesToTime(hardDepartureTime, Math.round(totalRideMinutes * 0.35)),
@@ -1049,12 +1201,22 @@ export function calculateReverseTimeline(
       {
         id: 'estuary-transit',
         time: addMinutesToTime(hardDepartureTime, Math.round(totalRideMinutes * 0.45)),
-        title: isFr ? 'Secteur Allure & Traversée Exposée' : 'Mid-Ride Pacing Sector',
+        title: severeHeadwindWarning
+          ? isFr
+            ? 'Alerte vent de face sévère'
+            : 'Severe Headwind Warning'
+          : isFr
+          ? 'Secteur Allure & Traversée Exposée'
+          : 'Mid-Ride Pacing Sector',
         location: isFr ? 'Route Ouverte' : 'Open Road Sector',
         category: 'ride',
-        isCrucialCheckpoint: false,
+        isCrucialCheckpoint: severeHeadwindWarning,
         description: weather.isHeadwindActive
-          ? showWatts
+          ? severeHeadwindWarning
+            ? isFr
+              ? `Vent de face sévère (+${weatherHeadwindImpactMinutes} min de pénalité sur ${Math.round(route.distanceKm)} km). Envisagez de revoir votre itinéraire ou de prendre le train.`
+              : `Severe headwind (+${weatherHeadwindImpactMinutes} min penalty on a ${Math.round(route.distanceKm)} km route). Consider reconsidering the route or taking the train.`
+            : showWatts
             ? isFr
               ? `Vent de face détecté (${windKmh} km/h). Position basse sur les cocottes pour économiser ~${Math.round(windKmh * 3.5)} W.`
               : `Headwind detected (${windKmh} km/h). Tuck low on the hoods to save ~${Math.round(windKmh * 3.5)} W.`
@@ -1064,7 +1226,7 @@ export function calculateReverseTimeline(
           : isFr
           ? 'Vent calme sur le parcours. Cadence régulière (88–92 tr/min).'
           : 'Calm road conditions. Cruise at a steady cadence (88–92 RPM).',
-        iconName: 'Wind',
+        iconName: severeHeadwindWarning ? 'AlertTriangle' : 'Wind',
       },
       {
         id: 'gate-security',
@@ -1119,19 +1281,41 @@ export function calculateReverseTimeline(
     ];
 
     if (customChips.includes('coffee-stop')) {
-      const cafeSnack = getCafeSnackSuggestion(specs.dietaryFilters || [], lang);
-      steps.push({
-        id: 'commute-coffee-pause',
-        time: addMinutesToTime(hardDepartureTime, Math.max(10, Math.round(totalRideMinutes * 0.35))),
-        title: isFr ? 'Pause Café & Ravitaillement Roaster' : 'Cafe Waypoint & Espresso Pause',
-        location: isFr ? 'Café d’Étape' : 'Roastery Waypoint',
-        category: 'nutrition',
-        isCrucialCheckpoint: true,
-        description: isFr
-          ? `Pause café matinale planifiée (15 min). ${cafeSnack} avant la relance.`
-          : `Scheduled 15-min morning coffee stop. ${cafeSnack} before rolling again.`,
-        iconName: 'Coffee',
-      });
+      const coffeeTime = addMinutesToTime(hardDepartureTime, Math.max(10, Math.round(totalRideMinutes * 0.35)));
+      if (isOffHoursCommercialWindow(coffeeTime)) {
+        steps.push(
+          buildSelfSupportedFuelStep(
+            'commute-coffee-pause',
+            coffeeTime,
+            isFr ? 'En autonomie sur le parcours' : 'On-route self-supported',
+            isFr,
+            isFr ? 'Café / Roaster' : 'Cafe / Roastery'
+          )
+        );
+      } else {
+        const cafeSnack = getCafeSnackSuggestion(specs.dietaryFilters || [], lang);
+        const coffeeCapMin = resolveEffectiveRestStopMinutes(
+          physicsSpeedOverride?.logistics?.coffeeDurationMin ?? 15,
+          recoveryRule
+        );
+        steps.push({
+          id: 'commute-coffee-pause',
+          time: coffeeTime,
+          ...(recoveryRule.isRestricted ? { formattedDuration: `${coffeeCapMin} min` } : {}),
+          title: isFr ? 'Pause Café & Ravitaillement Roaster' : 'Cafe Waypoint & Espresso Pause',
+          location: isFr ? 'Café d’Étape' : 'Roastery Waypoint',
+          category: 'nutrition',
+          isCrucialCheckpoint: true,
+          description: recoveryRule.isRestricted
+            ? isFr
+              ? `Pause express limitée à ${coffeeCapMin} min max (départ hivernal avant l’aube) pour éviter le refroidissement. ${cafeSnack}.`
+              : `Quick stop capped at ${coffeeCapMin} min max (pre-dawn winter rule) to prevent core temp drop. ${cafeSnack}.`
+            : isFr
+            ? `Pause café matinale planifiée (${coffeeCapMin} min). ${cafeSnack} avant la relance.`
+            : `Scheduled ${coffeeCapMin}-min morning coffee stop. ${cafeSnack} before rolling again.`,
+          iconName: 'Coffee',
+        });
+      }
     }
 
     if (customChips.includes('night-ride')) {
@@ -1179,34 +1363,57 @@ export function calculateReverseTimeline(
     }
   }
 
-  // Inject Savory Palate Reset Milestones at 90-minute intervals on rides >= 2.5h (Phase 9)
+  // Separate fueling alerts by trip format:
+  // - Multi-Day Tour: Savory Palate Reset milestones every 90 minutes on rides >= 2.5h
+  // - Single Day Ride: Strip out all Palate Reset alerts and replace with a simple Carb Intake reminder every 45 minutes
+  const isMultiDayTour = Boolean(physicsSpeedOverride?.isMultiDayTour);
   const enableSavory = specs.enableSavoryPalateResets !== false;
-  const savoryCount =
-    physicsSpeedOverride?.savoryResetCount !== undefined
-      ? physicsSpeedOverride.savoryResetCount
-      : enableSavory && totalRideMinutes >= 150
-      ? Math.floor(totalRideMinutes / 90)
-      : 0;
 
-  if (savoryCount > 0 && totalRideMinutes >= 150) {
-    for (let m = 90; m <= totalRideMinutes - 10; m += 90) {
+  if (isMultiDayTour) {
+    const savoryCount =
+      physicsSpeedOverride?.savoryResetCount !== undefined
+        ? physicsSpeedOverride.savoryResetCount
+        : enableSavory && totalRideMinutes >= 150
+        ? Math.floor(totalRideMinutes / 90)
+        : 0;
+
+    if (savoryCount > 0 && totalRideMinutes >= 150) {
+      for (let m = 90; m <= totalRideMinutes - 10; m += 90) {
+        steps.push({
+          id: `savory-palate-reset-${m}`,
+          time: addMinutesToTime(hardDepartureTime, m),
+          title: isFr ? `Pause salée (T + ${m} min)` : `Savory palate reset (T + ${m} min)`,
+          location: isFr ? 'En selle' : 'On-bike',
+          category: 'nutrition',
+          isCrucialCheckpoint: false,
+          description: isFr
+            ? 'Pause salée : Alternez le sucré avec une collation salée + gorgée d’eau pure'
+            : 'Savory palate reset: Swap sweet fuel for salted snack + plain water sip',
+          iconName: 'Utensils',
+        });
+      }
+    }
+  } else {
+    for (let m = 45; m <= totalRideMinutes - 10; m += 45) {
       steps.push({
-        id: `savory-palate-reset-${m}`,
+        id: `carb-intake-${m}`,
         time: addMinutesToTime(hardDepartureTime, m),
-        title: isFr ? `Pause salée (T + ${m} min)` : `Savory palate reset (T + ${m} min)`,
+        title: isFr ? `Apport glucides (T + ${m} min)` : `Carb Intake (T + ${m} min)`,
         location: isFr ? 'En selle' : 'On-bike',
         category: 'nutrition',
         isCrucialCheckpoint: false,
         description: isFr
-          ? 'Pause salée : Alternez le sucré avec une collation salée + gorgée d’eau pure'
-          : 'Savory palate reset: Swap sweet fuel for salted snack + plain water sip',
-        iconName: 'Utensils',
+          ? 'Rappel ravitaillement : prenez une portion de glucides + gorgée d’eau'
+          : 'Carb intake reminder: take a carbohydrate serving + sip of water',
+        iconName: 'Zap',
       });
     }
   }
 
   // Inject planned mid-ride recovery / lunch stop when set via Readiness or trip logistics
-  const longStopMin = Math.max(0, Math.round(Number(physicsSpeedOverride?.logistics?.plannedLongStopMin ?? 0)));
+  // (Respecting pre-dawn winter stationary recovery rule: 30-min+ lunch breaks disabled, all stops <= 5 min)
+  const rawLongStopMin = Math.max(0, Math.round(Number(physicsSpeedOverride?.logistics?.plannedLongStopMin ?? 0)));
+  const longStopMin = resolveEffectiveRestStopMinutes(rawLongStopMin, recoveryRule);
   if (longStopMin > 0) {
     const longStopLabel =
       physicsSpeedOverride?.logistics?.plannedLongStopLabel?.trim() ||
@@ -1220,7 +1427,11 @@ export function calculateReverseTimeline(
       location: midKm > 0 ? (isFr ? `Mi-parcours · km ${midKm}` : `Mid-route · km ${midKm}`) : (isFr ? 'Mi-parcours' : 'Mid-route'),
       category: 'nutrition',
       isCrucialCheckpoint: true,
-      description: isFr
+      description: recoveryRule.isRestricted
+        ? isFr
+          ? `Pause express limitée à ${longStopMin} min max (départ hivernal avant l’aube) pour maintenir la température corporelle.`
+          : `Quick stop capped at ${longStopMin} min max (pre-dawn winter rule) to prevent core temperature drop.`
+        : isFr
         ? `Pause planifiée de ${longStopMin} min pour récupérer, manger du solide et recharger les bidons.`
         : `Scheduled ${longStopMin}-min break to stretch, eat real food, and refill bottles.`,
       iconName: 'Coffee',
@@ -1272,5 +1483,7 @@ export function calculateReverseTimeline(
     bufferMinutes: routeBuffer + arrivalBuffer + extraBufferMinutes,
     steps,
     weatherHeadwindImpactMinutes,
+    severeHeadwindWarning,
+    stationaryRecoveryRule: recoveryRule,
   };
 }

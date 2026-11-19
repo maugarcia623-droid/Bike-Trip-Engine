@@ -326,6 +326,7 @@ export interface FuelSplitParams {
   liquidCarbRatio?: number;
   autoModulateLiquidInHeatOrEffort?: boolean;
   enableSavoryPalateResets?: boolean;
+  isMultiDayTour?: boolean;
 }
 
 export interface EffectiveFuelSplitResult {
@@ -380,7 +381,8 @@ export function resolveEffectiveFuelSplit(params: FuelSplitParams): EffectiveFue
   const liquidShiftPct = Math.round((effectiveLiquidRatio - baselineLiquidRatio) * 100);
 
   let savoryResetCount = 0;
-  if (params.enableSavoryPalateResets !== false && rideHours >= 2.5) {
+  // Palate resets only generate when Multi-Day Tour mode is active.
+  if (params.isMultiDayTour === true && params.enableSavoryPalateResets !== false && rideHours >= 2.5) {
     if (pctFtp < 90) {
       savoryResetCount = Math.floor(rideHours / 1.5);
     } else if (rideHours >= 3.5) {
@@ -1046,6 +1048,7 @@ export function getRealFoodNutritionPlan(
       liquidCarbRatio: storedSpecs.liquidCarbRatio,
       autoModulateLiquidInHeatOrEffort: storedSpecs.autoModulateLiquidInHeatOrEffort,
       enableSavoryPalateResets: storedSpecs.enableSavoryPalateResets,
+      isMultiDayTour: totalDays > 1,
     });
 
   const onBikeItems = allocatePhase2OnBikeItems(

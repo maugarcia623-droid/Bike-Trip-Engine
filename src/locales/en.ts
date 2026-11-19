@@ -239,6 +239,9 @@ export const en = {
   bannerHide: "Hide",
   bannerDetails: "Details",
   bannerHeadwindPill: "Headwind +{min} min ({speed} km/h)",
+  severeHeadwindWarningPill: "Severe wind · +{min} min",
+  severeHeadwindWarningTitle: "Severe headwind warning (+{min} min on {dist} km)",
+  severeHeadwindWarningBody: "Headwind adds over 45 min to this sub-100 km route. Consider reconsidering the route or taking the train instead.",
   bannerColdPill: "Cold ambient {temp}°C",
   bannerRainPill: "Rain risk {risk}%",
 

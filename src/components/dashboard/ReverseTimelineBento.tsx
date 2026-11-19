@@ -29,6 +29,7 @@ import {
   Baguette,
   Wrench,
   Flag,
+  Warning,
 } from '@/components/icons';
 import type { TripProfile, TimelineStep } from '../../types/trip';
 import type { RiderBikeSpecs } from '../../types/specs';
@@ -109,6 +110,8 @@ function getTimelineStepTokenSpec(
         return { icon: NavigationArrow, theme: 'yellow-vest' };
       case 'Wind':
         return { icon: Wind, theme: 'sky' };
+      case 'AlertTriangle':
+        return { icon: Warning, theme: 'rose' };
       case 'ShieldCheck':
         return { icon: ShieldCheck, theme: 'teal' };
       case 'Zap':
@@ -167,7 +170,8 @@ export const ReverseTimelineBento: React.FC<ReverseTimelineBentoProps> = ({
   timeline,
   trip,
 }) => {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
+  const isFr = lang === 'fr';
 
   // Collapsed summary view by default: crucial checkpoints shown, descriptions tucked until clicked
   const [stepFilter, setStepFilter] = useState<TimelineStepFilter>('crucial');
@@ -301,6 +305,19 @@ export const ReverseTimelineBento: React.FC<ReverseTimelineBentoProps> = ({
       subtitle={cardSubtitle}
       badge={
         <div className="flex items-center gap-2 flex-wrap">
+          {timeline.stationaryRecoveryRule?.isRestricted && (
+            <Badge
+              variant="sky"
+              size="xs"
+              title={
+                isFr
+                  ? 'Départ hivernal avant l’aube : pauses ≤ 5 min max et pauses déjeuner (30 min+) désactivées'
+                  : 'Pre-dawn winter start: rest stops capped at 5 min max and 30-min+ lunch breaks disabled'
+              }
+            >
+              {isFr ? 'Pauses ≤ 5 min · Déjeuner désactivé' : 'Stops ≤ 5 min · Lunch disabled'}
+            </Badge>
+          )}
           {/* Crucial Only vs. All Steps Segmented Pill Toggle */}
           <div
             role="group"
@@ -342,6 +359,28 @@ export const ReverseTimelineBento: React.FC<ReverseTimelineBentoProps> = ({
       }
       className="w-full"
     >
+      {timeline.severeHeadwindWarning && (
+        <div
+          role="alert"
+          className="mt-2 mb-3 rounded-[22px] p-3.5 sm:p-4 bg-rose-500/[0.1] dark:bg-rose-500/[0.15] text-rose-900 dark:text-rose-200 ring-1 ring-inset ring-rose-500/25 flex items-start gap-3"
+        >
+          <div className="w-8 h-8 rounded-full bg-rose-500/20 text-rose-700 dark:text-rose-300 flex items-center justify-center shrink-0 mt-0.5">
+            <Warning className="w-4 h-4" />
+          </div>
+          <div className="min-w-0 space-y-0.5">
+            <p className="text-xs sm:text-[13px] font-semibold font-rounded text-rose-900 dark:text-rose-100">
+              {t('severeHeadwindWarningTitle', {
+                min: timeline.weatherHeadwindImpactMinutes,
+                dist: Math.round(trip?.route?.distanceKm ?? 0),
+              })}
+            </p>
+            <p className="text-xs text-rose-800/90 dark:text-rose-200/90 leading-relaxed">
+              {t('severeHeadwindWarningBody')}
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="mt-2">
         <Timeline
           key={trip?.id ?? 'default'}

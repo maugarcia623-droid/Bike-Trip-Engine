@@ -45,6 +45,10 @@ import { loadRiderBikeSpecs } from '../../utils/specsStorage';
 import { resolveCompliantPantry } from '../../data/pantryCatalog';
 import { solveTripTimeline, SolvedTripTimeline } from '../../utils/timeline';
 import {
+  getStationaryRecoveryRuleForTrip,
+  resolveEffectiveRestStopMinutes,
+} from '../../utils/stationaryRecovery';
+import {
   getRealFoodNutritionPlan,
   calculateDynamicCarbTarget,
   calculateIntensityModulatedCarbTarget,
@@ -319,6 +323,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
     liquidCarbRatio: riderSpecs.liquidCarbRatio,
     autoModulateLiquidInHeatOrEffort: riderSpecs.autoModulateLiquidInHeatOrEffort,
     enableSavoryPalateResets: riderSpecs.enableSavoryPalateResets,
+    isMultiDayTour: totalDays > 1,
   });
 
 
@@ -1588,11 +1593,15 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
   // Older trips carry the chip's old "almond pastry" default: treat it as no custom choice
   const customRation = isLegacyRationDefault(rawRation) ? '' : rawRation;
   const cafeSnack = getCafeSnackSuggestion(dietaryFilters, lang);
-  const coffeeMin = localLogistics.coffeeDurationMin ?? 15;
+  const recoveryRule = getStationaryRecoveryRuleForTrip(trip, solvedTimeline.departureTimeHHMM);
+  const coffeeMin = resolveEffectiveRestStopMinutes(
+    localLogistics.coffeeDurationMin ?? 15,
+    recoveryRule
+  );
 
   // 3. ESCAPADE / LEISURE STAY PROTOCOL
   if (isEscapade) {
-    const isPicnic = activeChips.includes('picnic-outing');
+    const isPicnic = activeChips.includes('picnic-outing') && !recoveryRule.disableLunchBreak;
     const isGastro =
       activeChips.includes('local-gastronomy') || activeChips.includes('wine-tasting');
     const isSpa = activeChips.includes('spa-wellness');

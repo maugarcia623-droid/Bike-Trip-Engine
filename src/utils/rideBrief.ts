@@ -20,6 +20,7 @@ import { LoopDirectionComparison, RouteWeatherAnalysis } from '../services/route
 import { ReverseTimelineCalculation } from './timeline';
 import { ChipTheme } from '../tokens/chipTokens';
 import { getArchetypeFromTag, getPlannedRestStopMinutes } from './archetypeChips';
+import { getStationaryRecoveryRuleForTrip } from './stationaryRecovery';
 import { calculateRideVisibility } from './solarVisibility';
 import { degreesToCompassCardinal } from '../services/weatherService';
 import { BikeSpec } from '../types/specs';
@@ -863,6 +864,7 @@ export function buildRideBrief(params: {
       powerZone: physics.powerZone,
       riderLevel: riderSpecs.riderLevel,
       plannedStopMinutes: getPlannedRestStopMinutes(trip),
+      isPreDawnWinter: getStationaryRecoveryRuleForTrip(trip, timeline.hardDepartureTime).isRestricted,
     },
     checklist: {
       total: checklistItems.length,
