@@ -256,6 +256,7 @@ export interface ChecklistItem {
   category: 'mechanics' | 'gear' | 'nutrition' | 'logistics';
   checked: boolean;
   critical: boolean;
+  isShoppingItem?: boolean;
 }
 
 export interface TripStage {

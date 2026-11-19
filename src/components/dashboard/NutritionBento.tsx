@@ -18,6 +18,7 @@ import {
   Baguette,
   Leaf,
   Shower,
+  Plus,
 } from '@/components/icons';
 import { Card } from '../common/Card';
 import { Badge, BadgeVariant } from '../common/Badge';
@@ -35,6 +36,7 @@ import {
   TripProfile,
   PhysicsCalculationResult,
   NutritionItem,
+  ChecklistItem,
   LogisticsSettings,
   PreRideStyle,
 } from '../../types/trip';
@@ -860,6 +862,47 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
     );
   };
 
+  const getShoppingItemId = (name: string) =>
+    `shop-${name
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')}`;
+
+  const shoppingItemIds = useMemo(
+    () =>
+      new Set(
+        (trip.checklist || [])
+          .filter((item) => item.isShoppingItem || item.id.startsWith('shop-'))
+          .map((item) => item.id)
+      ),
+    [trip.checklist]
+  );
+
+  const handleToggleShoppingItem = (itm: NutritionItem, displayLabel: string) => {
+    if (!onUpdateTrip) return;
+    const id = getShoppingItemId(itm.name);
+    const existingChecklist = trip.checklist || [];
+    const exists = existingChecklist.some((c) => c.id === id);
+
+    const nextChecklist: ChecklistItem[] = exists
+      ? existingChecklist.filter((c) => c.id !== id)
+      : [
+          ...existingChecklist,
+          {
+            id,
+            label: isFr ? `Acheter ${displayLabel}` : `Buy ${displayLabel}`,
+            category: 'nutrition',
+            checked: false,
+            critical: false,
+            isShoppingItem: true,
+          },
+        ];
+
+    onUpdateTrip({ ...trip, checklist: nextChecklist });
+  };
+
   // Shared food item group (heading + item cards) used by every phase accordion
   const renderItemGroup = (
     heading: string,
@@ -879,21 +922,70 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           <span>{heading}</span>
         </span>
         <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-          {groupItems.map((itm, iIdx) => (
-            <li
-              key={`${itm.name}-${iIdx}`}
-              className="p-2 rounded-sub-pod bg-card text-xs space-y-0.5"
-            >
-              <span className="block font-medium text-ink break-words tnum">
-                {isFuelFirst
-                  ? itm.portionLabel || itm.name
-                  : itm.quantitativeLabel || `${itm.name} (${itm.quantity})`}
-              </span>
-              {itm.notes && (
-                <span className="block text-[11px] text-ink-muted leading-snug">{itm.notes}</span>
-              )}
-            </li>
-          ))}
+          {groupItems.map((itm, iIdx) => {
+            const displayLabel = isFuelFirst
+              ? itm.portionLabel || itm.name
+              : itm.quantitativeLabel || `${itm.name} (${itm.quantity})`;
+            const shopId = getShoppingItemId(itm.name);
+            const isInShoppingList = shoppingItemIds.has(shopId);
+
+            return (
+              <li
+                key={`${itm.name}-${iIdx}`}
+                className="p-2 rounded-sub-pod bg-card text-xs flex items-start justify-between gap-2"
+              >
+                <div className="min-w-0 space-y-0.5">
+                  <span className="block font-medium text-ink break-words tnum">
+                    {displayLabel}
+                  </span>
+                  {itm.notes && (
+                    <span className="block text-[11px] text-ink-muted leading-snug">{itm.notes}</span>
+                  )}
+                </div>
+                {onUpdateTrip && (
+                  <button
+                    type="button"
+                    onClick={() => handleToggleShoppingItem(itm, displayLabel)}
+                    aria-label={
+                      isInShoppingList
+                        ? isFr
+                          ? `Retirer ${displayLabel} de la liste de courses`
+                          : `Remove ${displayLabel} from shopping list`
+                        : isFr
+                        ? `Ajouter « Acheter ${displayLabel} » à la checklist`
+                        : `Add "Buy ${displayLabel}" to checklist`
+                    }
+                    title={
+                      isInShoppingList
+                        ? isFr
+                          ? 'Dans la liste de courses (cliquer pour retirer)'
+                          : 'In shopping list (click to remove)'
+                        : isFr
+                        ? 'Ajouter à la liste de courses'
+                        : 'Add to shopping list'
+                    }
+                    className={`shrink-0 inline-flex items-center gap-1 px-1.5 py-1 rounded-md text-[10px] font-medium transition-colors cursor-pointer ${
+                      isInShoppingList
+                        ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/25'
+                        : 'bg-pod hover:bg-chip text-ink-muted hover:text-ink'
+                    }`}
+                  >
+                    {isInShoppingList ? (
+                      <>
+                        <Check className="w-3 h-3 shrink-0" aria-hidden="true" />
+                        <span>{isFr ? 'Ajouté' : 'Added'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-3 h-3 shrink-0" aria-hidden="true" />
+                        <span>{isFr ? 'Acheter' : 'Buy'}</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </li>
+            );
+          })}
         </ul>
       </div>
     );

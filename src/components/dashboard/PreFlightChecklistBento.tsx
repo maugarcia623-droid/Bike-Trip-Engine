@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/arc';
-import { Check, ArrowCounterClockwise, EyeSlash, Eye } from '@/components/icons';
+import { Check, ArrowCounterClockwise, EyeSlash, Eye, X } from '@/components/icons';
 import { Card } from '../common/Card';
 import { Badge } from '../common/Badge';
 import { IconBadge } from '../common/IconBadge';
@@ -24,7 +24,11 @@ interface PreFlightChecklistBentoProps {
   riderSpecs?: RiderBikeSpecs;
 }
 
-type ChecklistCategoryFilter = 'all' | 'critical' | 'mechanics' | 'gear' | 'food' | 'security';
+type ChecklistCategoryFilter = 'all' | 'critical' | 'shopping' | 'mechanics' | 'gear' | 'food' | 'security';
+
+function isShoppingChecklistItem(item: ChecklistItem): boolean {
+  return Boolean(item.isShoppingItem || item.id.startsWith('shop-'));
+}
 
 function matchesChecklistFilter(item: ChecklistItem, filter: ChecklistCategoryFilter): boolean {
   switch (filter) {
@@ -32,6 +36,8 @@ function matchesChecklistFilter(item: ChecklistItem, filter: ChecklistCategoryFi
       return true;
     case 'critical':
       return Boolean(item.critical);
+    case 'shopping':
+      return isShoppingChecklistItem(item);
     case 'mechanics':
       return item.category === 'mechanics' || item.id.startsWith('tire-setup-');
     case 'gear':
@@ -92,6 +98,7 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
 
   const completedCount = items.filter((i) => i.checked).length;
   const criticalCount = items.filter((i) => i.critical).length;
+  const shoppingCount = items.filter(isShoppingChecklistItem).length;
   const pendingCount = items.length - completedCount;
   const isAllReady = items.length > 0 && completedCount === items.length;
   const segmentTotal = Math.max(5, Math.min(8, items.length || 6));
@@ -112,6 +119,9 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
   const filterPills: Array<{ id: ChecklistCategoryFilter; label: string }> = [
     { id: 'all', label: t('checklistFilterAll', { count: items.length }) },
     { id: 'critical', label: t('checklistFilterCritical', { count: criticalCount }) },
+    ...(shoppingCount > 0
+      ? [{ id: 'shopping' as const, label: isFr ? `Courses (${shoppingCount})` : `Shopping (${shoppingCount})` }]
+      : []),
     { id: 'mechanics', label: t('checklistFilterMechanics') },
     { id: 'gear', label: t('checklistFilterGear') },
     { id: 'food', label: t('checklistFilterFood') },
@@ -122,6 +132,14 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
     const updatedChecklist = items.map((item) =>
       item.id === id ? { ...item, checked: !item.checked } : item
     );
+    setItems(updatedChecklist);
+    if (onUpdateTrip) {
+      onUpdateTrip({ ...trip, checklist: updatedChecklist });
+    }
+  };
+
+  const handleRemoveShoppingItem = (id: string) => {
+    const updatedChecklist = items.filter((item) => item.id !== id);
     setItems(updatedChecklist);
     if (onUpdateTrip) {
       onUpdateTrip({ ...trip, checklist: updatedChecklist });
@@ -152,7 +170,12 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
       checked: false,
       critical: true,
     };
-    const nextList = [tireSetupItem, ...fresh.filter((i) => i.id !== 'mech-spares' && !i.id.startsWith('tire-setup-'))];
+    const existingShoppingItems = items.filter(isShoppingChecklistItem);
+    const nextList = [
+      tireSetupItem,
+      ...fresh.filter((i) => i.id !== 'mech-spares' && !i.id.startsWith('tire-setup-')),
+      ...existingShoppingItems,
+    ];
     setItems(nextList);
     if (onUpdateTrip) {
       onUpdateTrip({ ...trip, checklist: nextList });
@@ -339,11 +362,32 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
                   >
                     {displayLabel}
                   </span>
-                  {item.critical && !item.checked && (
-                    <Badge variant="orange" size="xs" className="shrink-0">
-                      {t('requiredBadge')}
-                    </Badge>
-                  )}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {isShoppingChecklistItem(item) && (
+                      <Badge variant="emerald" size="xs" className="shrink-0">
+                        {isFr ? 'Course' : 'Shopping'}
+                      </Badge>
+                    )}
+                    {item.critical && !item.checked && (
+                      <Badge variant="orange" size="xs" className="shrink-0">
+                        {t('requiredBadge')}
+                      </Badge>
+                    )}
+                    {isShoppingChecklistItem(item) && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveShoppingItem(item.id);
+                        }}
+                        aria-label={isFr ? `Retirer ${displayLabel}` : `Remove ${displayLabel}`}
+                        title={isFr ? 'Retirer de la liste' : 'Remove from list'}
+                        className="p-1 rounded-md text-ink-muted hover:text-ink hover:bg-chip transition-colors cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" aria-hidden="true" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );

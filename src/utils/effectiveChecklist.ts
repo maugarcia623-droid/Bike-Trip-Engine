@@ -55,8 +55,15 @@ export function buildEffectiveChecklist(
     ...fresh.filter((i) => i.id !== 'mech-spares' && !i.id.startsWith('tire-setup-')),
   ];
 
-  return mergedFresh.map((item) => ({
-    ...item,
-    checked: checkedMap.has(item.id) ? Boolean(checkedMap.get(item.id)) : item.checked,
-  }));
+  const shoppingItems = existing.filter(
+    (item) => item.isShoppingItem || item.id.startsWith('shop-')
+  );
+
+  return [
+    ...mergedFresh.map((item) => ({
+      ...item,
+      checked: checkedMap.has(item.id) ? Boolean(checkedMap.get(item.id)) : item.checked,
+    })),
+    ...shoppingItems,
+  ];
 }
