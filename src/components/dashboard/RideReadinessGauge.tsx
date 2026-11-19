@@ -1,6 +1,6 @@
 import React from 'react';
-import type { ReadinessLevel, RideReadiness } from '../../utils/rideReadiness';
-import { ChevronDown, OctagonX, Eye, CircleDashedCheck } from '@/components/icons';
+import type { ReadinessActionKind, ReadinessLevel, RideReadiness } from '../../utils/rideReadiness';
+import { ArrowRight, ChevronDown, OctagonX, Eye, CircleDashedCheck } from '@/components/icons';
 
 // ── Geometry ──────────────────────────────────────────────────────────────────
 // Angles are "clock" degrees: 0° = 12 o'clock, increasing clockwise.
@@ -164,6 +164,9 @@ export interface RideReadinessPanelProps {
   showBreakdown: boolean;
   onToggleBreakdown: () => void;
   breakdownId: string;
+  activeAction?: ReadinessActionKind | null;
+  onTriggerAction?: (action: ReadinessActionKind) => void;
+  actionCardId?: string;
 }
 
 export const RideReadinessPanel: React.FC<RideReadinessPanelProps> = ({
@@ -172,89 +175,138 @@ export const RideReadinessPanel: React.FC<RideReadinessPanelProps> = ({
   showBreakdown,
   onToggleBreakdown,
   breakdownId,
-}) => (
-  <div
-    data-testid="ride-readiness-panel"
-    className="w-full py-1 flex items-center gap-3.5 min-w-0"
-  >
-    <ReadinessGauge
-      score={readiness.score}
-      level={readiness.level}
-      label={readiness.label}
-      size={104}
-    />
-    <div className="min-w-0 flex-1 flex flex-col items-start gap-1">
-      <span className="text-[12px] font-medium text-ink-muted font-body leading-tight">
-        {isFr ? 'Prêt à partir' : 'Ride readiness'}
-      </span>
-      <span className="text-[19px] font-bold font-rounded tracking-tight text-ink leading-tight">
-        {readiness.label}
-      </span>
-      <p className="text-xs font-medium text-ink-secondary font-body leading-snug">
-        {readiness.topLift ? (
-          <>
-            {readiness.topLift.tip}{' '}
-            <span className="font-rounded font-bold text-ink tnum whitespace-nowrap">
-              +{readiness.topLift.gain}
-            </span>
-          </>
-        ) : (
-          readiness.summary
-        )}
-      </p>
-      <button
-        type="button"
-        onClick={onToggleBreakdown}
-        aria-expanded={showBreakdown}
-        aria-controls={breakdownId}
-        className="-ml-1 mt-0.5 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 min-h-[32px] sm:min-h-0 text-[12px] font-semibold font-rounded text-ink-secondary hover:text-ink hover:bg-chip transition-colors cursor-pointer active:scale-[0.98]"
-      >
-        {isFr ? 'Détail du score' : 'Why this score'}
-        <ChevronDown
-          className={`w-3.5 h-3.5 transition-transform duration-300 ${showBreakdown ? 'rotate-180' : ''}`}
-        />
-      </button>
+  activeAction,
+  onTriggerAction,
+  actionCardId,
+}) => {
+  const topLift = readiness.topLift;
+  const isTopActionOpen = Boolean(topLift && activeAction === topLift.action);
+
+  return (
+    <div
+      data-testid="ride-readiness-panel"
+      className="w-full py-1 flex items-center gap-3.5 min-w-0"
+    >
+      <ReadinessGauge
+        score={readiness.score}
+        level={readiness.level}
+        label={readiness.label}
+        size={104}
+      />
+      <div className="min-w-0 flex-1 flex flex-col items-start gap-1">
+        <span className="text-[12px] font-medium text-ink-muted font-body leading-tight">
+          {isFr ? 'Prêt à partir' : 'Ride readiness'}
+        </span>
+        <span className="text-[19px] font-bold font-rounded tracking-tight text-ink leading-tight">
+          {readiness.label}
+        </span>
+        <p className="text-xs font-medium text-ink-secondary font-body leading-snug">
+          {topLift ? (
+            <>
+              {topLift.tip}{' '}
+              <span className="font-rounded font-bold text-ink tnum whitespace-nowrap">
+                +{topLift.gain}
+              </span>
+            </>
+          ) : (
+            readiness.summary
+          )}
+        </p>
+
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 pt-1">
+          {topLift && onTriggerAction && (
+            <button
+              type="button"
+              data-testid="readiness-top-cta"
+              onClick={() => onTriggerAction(topLift.action)}
+              aria-expanded={isTopActionOpen}
+              aria-controls={actionCardId}
+              className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 sm:py-1 min-h-[34px] sm:min-h-0 text-[12px] font-bold font-rounded transition-all cursor-pointer active:scale-[0.98] ${
+                isTopActionOpen
+                  ? 'bg-ink text-ink-inverse shadow-xs'
+                  : 'bg-volt text-[#111111] ring-1 ring-inset ring-[#a3b300]/70 hover:brightness-105'
+              }`}
+            >
+              <span>{topLift.ctaLabel}</span>
+              <ArrowRight className="w-3.5 h-3.5 shrink-0" />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onToggleBreakdown}
+            aria-expanded={showBreakdown}
+            aria-controls={breakdownId}
+            className="inline-flex items-center gap-1 rounded-full px-2 py-1 min-h-[34px] sm:min-h-0 text-[12px] font-semibold font-rounded text-ink-secondary hover:text-ink hover:bg-chip transition-colors cursor-pointer active:scale-[0.98]"
+          >
+            {isFr ? 'Détail du score' : 'Why this score'}
+            <ChevronDown
+              className={`w-3.5 h-3.5 transition-transform duration-300 ${showBreakdown ? 'rotate-180' : ''}`}
+            />
+          </button>
+        </div>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 // ── Breakdown strip (full width under the top row) ───────────────────────────
 function levelForSubScore(score: number): ReadinessLevel {
   return score >= 75 ? 'good-to-go' : score >= 45 ? 'worth-tweak' : 'needs-change';
 }
 
-export const RideReadinessBreakdown: React.FC<{ readiness: RideReadiness; isFr: boolean }> = ({
-  readiness,
-  isFr,
-}) => (
+export const RideReadinessBreakdown: React.FC<{
+  readiness: RideReadiness;
+  isFr: boolean;
+  activeAction?: ReadinessActionKind | null;
+  onTriggerAction?: (action: ReadinessActionKind) => void;
+}> = ({ readiness, isFr, activeAction, onTriggerAction }) => (
   <div className="flex flex-col gap-2.5">
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
       {readiness.factors.map((f) => {
         const tone = READINESS_TOKENS[levelForSubScore(f.score)];
         const lost = Math.round(f.pointsLost);
+        const canAct = Boolean(f.applicable && f.action && f.ctaLabel && lost >= 1 && onTriggerAction);
+        const isOpen = Boolean(canAct && activeAction === f.action);
         return (
-          <div key={f.id} className="rounded-pod bg-pod p-3 flex flex-col gap-1.5 min-w-0">
-            <div className="flex items-baseline justify-between gap-2">
-              <span className="text-[12px] font-semibold font-rounded text-ink-secondary truncate">{f.label}</span>
-              <span className="text-[14px] font-bold font-rounded text-ink tnum shrink-0">
-                {f.applicable ? f.score : '—'}
-              </span>
-            </div>
-            <div className="h-1.5 w-full rounded-full bg-chip dark:bg-white/10 overflow-hidden" aria-hidden="true">
-              {f.applicable && (
-                <div className={`h-full rounded-full ${tone.bar}`} style={{ width: `${Math.max(4, f.score)}%` }} />
-              )}
-            </div>
-            <div className="flex items-start justify-between gap-2">
-              <span className="text-[11px] font-medium text-ink-muted font-body leading-snug line-clamp-2">
-                {f.note}
-              </span>
-              {f.applicable && lost >= 1 && (
-                <span className="text-[11px] font-bold font-rounded text-ink-muted tnum shrink-0">
-                  −{lost}
+          <div
+            key={f.id}
+            className={`rounded-pod bg-pod p-3 flex flex-col justify-between gap-1.5 min-w-0 transition-shadow ${
+              isOpen ? 'ring-2 ring-inset ring-volt' : ''
+            }`}
+          >
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-[12px] font-semibold font-rounded text-ink-secondary truncate">{f.label}</span>
+                <span className="text-[14px] font-bold font-rounded text-ink tnum shrink-0">
+                  {f.applicable ? f.score : '—'}
                 </span>
-              )}
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-chip dark:bg-white/10 overflow-hidden" aria-hidden="true">
+                {f.applicable && (
+                  <div className={`h-full rounded-full ${tone.bar}`} style={{ width: `${Math.max(4, f.score)}%` }} />
+                )}
+              </div>
+              <div className="flex items-start justify-between gap-2">
+                <span className="text-[11px] font-medium text-ink-muted font-body leading-snug line-clamp-2">
+                  {f.note}
+                </span>
+                {f.applicable && lost >= 1 && (
+                  <span className="text-[11px] font-bold font-rounded text-ink-muted tnum shrink-0">
+                    −{lost}
+                  </span>
+                )}
+              </div>
             </div>
+            {canAct && f.action && f.ctaLabel && onTriggerAction && (
+              <button
+                type="button"
+                onClick={() => onTriggerAction(f.action!)}
+                className="mt-1 -mx-1 px-2 py-1 rounded-full bg-card hover:bg-chip text-[11px] font-bold font-rounded text-ink inline-flex items-center justify-between gap-1 transition-colors cursor-pointer active:scale-[0.98]"
+              >
+                <span className="truncate">{f.ctaLabel}</span>
+                <ArrowRight className="w-3 h-3 shrink-0 text-ink-muted" />
+              </button>
+            )}
           </div>
         );
       })}

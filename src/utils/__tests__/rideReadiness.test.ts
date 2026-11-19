@@ -101,4 +101,36 @@ describe('rideReadiness.ts', () => {
     const r = computeRideReadiness(makeInput({ lang: 'fr' } as any));
     assert.equal(r.label, 'Prêt à rouler');
   });
+
+  it('a planned long stop boosts effort readiness and attaches effort-load CTA', () => {
+    const base = computeRideReadiness(makeInput({ effort: { ftpPercent: 72, movingHours: 5 } }));
+    const withStop = computeRideReadiness(
+      makeInput({ effort: { ftpPercent: 72, movingHours: 5, plannedStopMinutes: 45 } })
+    );
+    const baseEffort = base.factors.find((f) => f.id === 'effort')!;
+    const stopEffort = withStop.factors.find((f) => f.id === 'effort')!;
+
+    assert.equal(base.topLift?.action, 'effort-load');
+    assert.ok(base.topLift?.ctaLabel);
+    assert.ok(stopEffort.score > baseEffort.score, `expected ${stopEffort.score} > ${baseEffort.score}`);
+    assert.ok(withStop.score > base.score, `expected ${withStop.score} > ${base.score}`);
+    assert.match(stopEffort.note, /45 min stop/);
+  });
+
+  it('assigns specific actionable CTAs for each bottleneck factor', () => {
+    const pace = computeRideReadiness(makeInput({ effort: { ftpPercent: 98, movingHours: 1.5 } }));
+    assert.equal(pace.topLift?.action, 'effort-pace');
+
+    const rain = computeRideReadiness(makeInput({ weather: { rainRiskPct: 75 } }));
+    assert.equal(rain.topLift?.action, 'weather-window');
+
+    const bike = computeRideReadiness(makeInput({ terrain: { gravelPct: 60 } }));
+    assert.equal(bike.topLift?.action, 'bike-terrain');
+
+    const light = computeRideReadiness(makeInput({ light: { nightPercent: 80 } }));
+    assert.equal(light.topLift?.action, 'daylight-window');
+
+    const stop = computeRideReadiness(makeInput({ route: { worstSeverity: 'critical', issueCount: 1 } }));
+    assert.equal(stop.topLift?.action, 'route-stops');
+  });
 });

@@ -20,6 +20,11 @@ import {
   RideReadinessBreakdown,
 } from './RideReadinessGauge';
 import {
+  ReadinessActionCard,
+  ReadinessActionAppliedInfo,
+} from './ReadinessActionCard';
+import type { ReadinessActionKind } from '../../utils/rideReadiness';
+import {
   ChevronDown,
   Moon,
   Flashlight,
@@ -31,10 +36,15 @@ import {
   TriangleAlert,
   ThermometerSimple,
   Compass,
-  Send,
+  Link2,
   CheckCircle2,
   Download,
   Calculator,
+  Coffee,
+  ArrowCounterClockwise,
+  ArrowRight,
+  Newspaper,
+  X,
 } from '@/components/icons';
 
 export interface RideBriefCardProps {
@@ -47,6 +57,11 @@ export interface RideBriefCardProps {
   isExpanded: boolean;
   onToggleExpand: () => void;
   onOpenTools?: (tab?: 'wind' | 'leave-by' | 'pressure') => void;
+  onUpdateTrip?: (updated: TripProfile) => void;
+  onSelectBike?: (bikeId: string) => void;
+  onOpenSpecs?: () => void;
+  onOpenConfigurator?: () => void;
+  onJumpToSection?: (sectionId: string) => void;
 }
 
 function getPriorityIcon(key: RideBriefPriorityIconKey) {
@@ -71,11 +86,19 @@ function getPriorityIcon(key: RideBriefPriorityIconKey) {
 
 export const RideBriefCard: React.FC<RideBriefCardProps> = ({
   trip,
+  physics,
+  timeline,
   riderSpecs,
+  amenities,
   brief,
   isExpanded,
   onToggleExpand,
   onOpenTools,
+  onUpdateTrip,
+  onSelectBike,
+  onOpenSpecs,
+  onOpenConfigurator,
+  onJumpToSection,
 }) => {
   const { lang } = useTranslation();
   const isFr = lang === 'fr';
@@ -84,7 +107,21 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
   const [copiedPlanLink, setCopiedPlanLink] = React.useState(false);
   const [exportError, setExportError] = React.useState<string | null>(null);
   const [showReadinessBreakdown, setShowReadinessBreakdown] = React.useState(false);
+  const [activeReadinessAction, setActiveReadinessAction] = React.useState<ReadinessActionKind | null>(null);
+  const [appliedFeedback, setAppliedFeedback] = React.useState<ReadinessActionAppliedInfo | null>(null);
   const readiness = brief.readiness;
+  const effectiveSpecs = riderSpecs ?? loadRiderBikeSpecs();
+  const plannedLongStopMin = Math.max(0, Math.round(Number(trip.ruleSettings?.plannedLongStopMin ?? 0)));
+
+  React.useEffect(() => {
+    setActiveReadinessAction(null);
+    setAppliedFeedback(null);
+  }, [trip.id]);
+
+  const handleTriggerReadinessAction = (actionKind: ReadinessActionKind) => {
+    setAppliedFeedback(null);
+    setActiveReadinessAction((prev) => (prev === actionKind ? null : actionKind));
+  };
 
   const hasMultipleStages = Boolean(trip.stages && trip.stages.length > 1);
   const distLabel =
@@ -178,64 +215,59 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
       id="ride-brief-card"
       data-testid="ride-brief-card"
       aria-label={isFr ? 'Briefing départ' : 'Ride Brief'}
-      className="w-full mb-3 sm:mb-4 lg:mb-5 rounded-card bg-card p-3.5 sm:p-5 lg:px-6 lg:py-5 shadow-xs border border-ink/5 dark:border-white/5 transition-colors"
+      onClick={!isExpanded ? onToggleExpand : undefined}
+      className={`w-full mb-3 sm:mb-4 lg:mb-5 rounded-card bg-card p-3.5 sm:p-5 lg:px-6 lg:py-5 shadow-xs border border-ink/5 dark:border-white/5 transition-colors ${
+        !isExpanded ? 'cursor-pointer' : ''
+      }`}
     >
       {/* ── Header Row ── */}
       <div className="flex items-start sm:items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 min-w-0 flex-1">
-          <div className="flex items-baseline gap-2.5 min-w-0 flex-wrap">
-            <h2 className="text-lg font-bold tracking-tight text-ink font-sans shrink-0">
-              {isFr ? 'Briefing départ' : 'Ride Brief'}
-            </h2>
-            <span className="text-[13px] font-medium text-ink-muted font-body break-words leading-snug sm:truncate sm:max-w-[440px]">
-              {meta.name} · {brief.archetypeLabel}
-            </span>
+          <div className="flex items-center gap-2.5 min-w-0 w-full">
+            <IconBadge
+              theme="purple"
+              icon={Newspaper}
+              size="md"
+              shape="circle"
+              className="shrink-0"
+            />
+            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+              <h2 className="text-lg font-bold tracking-tight text-ink font-sans shrink-0">
+                {isFr ? 'Briefing départ' : 'Ride Brief'}
+              </h2>
+              <span className="text-[13px] font-medium text-ink-muted font-body leading-snug truncate">
+                {meta.name} · {brief.archetypeLabel}
+              </span>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 max-w-full">
-            {!isExpanded && (
-              <Button
-                variant="ghost"
-                size="sm"
-                type="button"
-                onClick={onToggleExpand}
-                aria-label={isFr ? 'Déplier le briefing départ' : 'Expand Ride Brief'}
-                className="inline-flex items-center gap-2 rounded-full bg-pod hover:bg-chip px-3 py-1.5 min-h-[44px] sm:min-h-[32px] sm:px-2.5 sm:py-1 text-xs font-semibold text-ink tnum max-w-full cursor-pointer transition-colors"
-              >
-                <span className="inline-flex items-center rounded-full bg-volt text-[#111111] px-2 py-0.5 text-[11px] font-extrabold leading-none">
-                  {brief.leaveByHHMM}
-                </span>
-                <span className="whitespace-nowrap">{distLabel} km</span>
-                <span className="text-ink-muted font-medium whitespace-nowrap hidden sm:inline">
-                  · {brief.totalDurationFormatted}
-                </span>
-                <span className="text-ink-muted font-medium whitespace-nowrap hidden md:inline">
-                  · {brief.tyrePressure.frontBar}/{brief.tyrePressure.rearBar} bar
-                </span>
-              </Button>
-            )}
-
-            <Badge
-              variant={brief.attentionBadgeVariant}
+          {!isExpanded && (
+            <Button
+              variant="ghost"
               size="sm"
-              dot
-              className="font-semibold sm:hidden"
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleExpand();
+              }}
+              aria-label={isFr ? 'Déplier le briefing départ' : 'Expand Ride Brief'}
+              className="inline-flex items-center gap-2 rounded-full bg-pod hover:bg-chip px-3 py-1.5 min-h-[44px] sm:min-h-[32px] sm:px-2.5 sm:py-1 text-xs font-semibold text-ink tnum max-w-full cursor-pointer transition-colors"
             >
-              {brief.attentionBadgeLabel}
-            </Badge>
-          </div>
+              <span className="inline-flex items-center rounded-full bg-volt text-[#111111] px-2 py-0.5 text-[11px] font-extrabold leading-none">
+                {brief.leaveByHHMM}
+              </span>
+              <span className="whitespace-nowrap">{distLabel} km</span>
+              <span className="text-ink-muted font-medium whitespace-nowrap hidden sm:inline">
+                · {brief.totalDurationFormatted}
+              </span>
+              <span className="text-ink-muted font-medium whitespace-nowrap hidden md:inline">
+                · {brief.tyrePressure.frontBar}/{brief.tyrePressure.rearBar} bar
+              </span>
+            </Button>
+          )}
         </div>
 
         <div className="flex items-center gap-2.5 shrink-0">
-          <Badge
-            variant={brief.attentionBadgeVariant}
-            size="sm"
-            dot
-            className="font-semibold hidden sm:inline-flex"
-          >
-            {brief.attentionBadgeLabel}
-          </Badge>
-
           {!isExpanded && (
             <span
               className="inline-flex items-center shrink-0"
@@ -254,7 +286,10 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
           <Button
             variant="ghost"
             type="button"
-            onClick={onToggleExpand}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleExpand();
+            }}
             aria-expanded={isExpanded}
             aria-controls="ride-brief-body"
             data-testid="ride-brief-toggle"
@@ -318,9 +353,90 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
               showBreakdown={showReadinessBreakdown}
               onToggleBreakdown={() => setShowReadinessBreakdown((v) => !v)}
               breakdownId="ride-readiness-breakdown"
+              activeAction={activeReadinessAction}
+              onTriggerAction={onUpdateTrip ? handleTriggerReadinessAction : undefined}
+              actionCardId="ride-readiness-action"
             />
           </div>
         </div>
+
+        {/* Guided Readiness Action Prompt Card */}
+        <Collapsible
+          open={Boolean(activeReadinessAction && onUpdateTrip)}
+          id="ride-readiness-action"
+          innerClassName="pt-4 md:pt-3.5"
+        >
+          {activeReadinessAction && onUpdateTrip && (
+            <ReadinessActionCard
+              action={activeReadinessAction}
+              trip={trip}
+              physics={physics}
+              timeline={timeline}
+              riderSpecs={effectiveSpecs}
+              amenities={amenities}
+              brief={brief}
+              lang={lang === 'fr' ? 'fr' : 'en'}
+              onUpdateTrip={onUpdateTrip}
+              onSelectBike={onSelectBike}
+              onOpenSpecs={onOpenSpecs}
+              onOpenConfigurator={onOpenConfigurator}
+              onJumpToSection={onJumpToSection}
+              onApplied={(info) => {
+                setActiveReadinessAction(null);
+                setAppliedFeedback(info);
+              }}
+              onClose={() => setActiveReadinessAction(null)}
+            />
+          )}
+        </Collapsible>
+
+        {/* Confirmation + Undo strip after applying a readiness recommendation */}
+        {appliedFeedback && (
+          <div
+            data-testid="readiness-applied-banner"
+            className="mt-3.5 rounded-pod bg-emerald-50 dark:bg-emerald-950/35 ring-1 ring-inset ring-emerald-500/30 px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2.5"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span className="text-xs font-semibold font-body text-ink leading-snug">
+                {appliedFeedback.summary}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {appliedFeedback.jumpSectionId && onJumpToSection && (
+                <button
+                  type="button"
+                  onClick={() => onJumpToSection(appliedFeedback.jumpSectionId!)}
+                  className="inline-flex items-center gap-1 rounded-full bg-card hover:bg-chip px-2.5 py-1 text-[11px] font-bold font-rounded text-ink transition-colors cursor-pointer"
+                >
+                  <span>{appliedFeedback.jumpLabel || (isFr ? 'Voir' : 'View')}</span>
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+              )}
+              {appliedFeedback.previousTrip && onUpdateTrip && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onUpdateTrip(appliedFeedback.previousTrip!);
+                    setAppliedFeedback(null);
+                  }}
+                  className="inline-flex items-center gap-1 rounded-full bg-card hover:bg-chip px-2.5 py-1 text-[11px] font-bold font-rounded text-ink-secondary hover:text-ink transition-colors cursor-pointer"
+                >
+                  <ArrowCounterClockwise className="w-3 h-3" />
+                  <span>{isFr ? 'Annuler' : 'Undo'}</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setAppliedFeedback(null)}
+                aria-label={isFr ? 'Fermer' : 'Dismiss'}
+                className="w-6 h-6 rounded-full hover:bg-card/80 text-ink-muted hover:text-ink flex items-center justify-center cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Readiness breakdown (per-factor scores) */}
         <Collapsible
@@ -328,7 +444,12 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
           id="ride-readiness-breakdown"
           innerClassName="pt-4 md:pt-3.5"
         >
-          <RideReadinessBreakdown readiness={readiness} isFr={isFr} />
+          <RideReadinessBreakdown
+            readiness={readiness}
+            isFr={isFr}
+            activeAction={activeReadinessAction}
+            onTriggerAction={onUpdateTrip ? handleTriggerReadinessAction : undefined}
+          />
         </Collapsible>
 
         {/* Hairline Divider */}
@@ -375,6 +496,19 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
               {brief.kit.tierBadge}
             </Badge>
 
+            {plannedLongStopMin > 0 && (
+              <button
+                type="button"
+                onClick={() => onUpdateTrip && handleTriggerReadinessAction('effort-load')}
+                className="inline-flex cursor-pointer active:scale-[0.98] transition-transform"
+                title={isFr ? 'Modifier ou retirer la pause longue' : 'Adjust or remove planned stop'}
+              >
+                <Badge variant="amber" size="md" icon={Coffee} className="tnum">
+                  {isFr ? `Pause ${plannedLongStopMin} min` : `${plannedLongStopMin} min stop`}
+                </Badge>
+              </button>
+            )}
+
             {showLoopBadge && loopComp && (
               <Badge variant="emerald" size="md" icon={Compass} className="tnum">
                 {loopComp.recommendedDirection === 'reverse'
@@ -409,7 +543,7 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
               {copiedPlanLink ? (
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               ) : (
-                <Send className="w-3.5 h-3.5" />
+                <Link2 className="w-3.5 h-3.5" />
               )}
               <span>
                 {copiedPlanLink
@@ -417,8 +551,8 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
                     ? 'Lien copié !'
                     : 'Link copied!'
                   : isFr
-                  ? 'Lien Groupe'
-                  : 'Group Link'}
+                  ? 'Copier le lien'
+                  : 'Copy Link'}
               </span>
             </Button>
 
@@ -453,7 +587,7 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
                 className="min-h-[44px] sm:h-8 sm:min-h-0 px-3.5 sm:px-3 rounded-full bg-pod hover:bg-chip text-ink-secondary hover:text-ink text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
               >
                 <Calculator className="w-3.5 h-3.5" />
-                <span>{isFr ? 'Outils' : 'Free Tools'}</span>
+                <span>{isFr ? 'Outils' : 'Tools'}</span>
               </Button>
             )}
           </div>

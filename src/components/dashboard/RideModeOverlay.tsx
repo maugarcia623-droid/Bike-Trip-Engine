@@ -487,25 +487,33 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
       data-testid="ride-mode-overlay"
       className="fixed inset-0 z-[1200] h-[100dvh] max-h-[100dvh] w-full overflow-hidden overscroll-none touch-none select-none bg-canvas text-ink flex flex-col"
     >
-      <div className="w-full max-w-3xl mx-auto px-3.5 sm:px-6 py-2.5 sm:py-4 flex flex-col gap-2 sm:gap-3 h-full overflow-hidden">
-        {/* ── TOP HUD HEADER BAR (MATCHING INITIAL LAYOUT, ZERO OVERFLOW) ── */}
-        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 shrink-0">
+      <div
+        className="w-full max-w-3xl mx-auto flex flex-col gap-1.5 sm:gap-3 h-full overflow-hidden"
+        style={{
+          paddingTop: 'max(0.75rem, env(safe-area-inset-top))',
+          paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
+          paddingLeft: 'max(0.875rem, env(safe-area-inset-left))',
+          paddingRight: 'max(0.875rem, env(safe-area-inset-right))',
+        }}
+      >
+        {/* ── TOP HUD HEADER BAR (SAFE-AREA AWARE, ZERO TRUNCATION) ── */}
+        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2 shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             <span
-              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-rounded font-extrabold uppercase tracking-wider shrink-0 ${YELLOW_VEST_SOLID_CTA_CLASSES}`}
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] sm:text-xs font-rounded font-extrabold uppercase tracking-wider shrink-0 ${YELLOW_VEST_SOLID_CTA_CLASSES}`}
             >
               <Navigation className="w-3.5 h-3.5 shrink-0 text-current" />
               <span>{t('rideModeTitle')}</span>
             </span>
             <span
-              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-rounded font-bold min-w-0 truncate ${gpsBadge.cls}`}
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] sm:text-xs font-rounded font-bold min-w-0 ${gpsBadge.cls}`}
             >
               {gpsBadge.icon}
-              <span className="truncate">{gpsBadge.label}</span>
+              <span className="whitespace-nowrap">{gpsBadge.label}</span>
             </span>
           </div>
 
-          <div className="grid grid-cols-3 sm:flex items-center gap-2 w-full sm:w-auto shrink-0">
+          <div className="grid grid-cols-[1.25fr_1fr_0.95fr] sm:flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto shrink-0">
             {/* Wake Lock Toggle */}
             <Button
               type="button"
@@ -514,7 +522,7 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
               data-testid="ride-mode-wakelock-btn"
               onClick={toggleWakeLock}
               disabled={wakeLockStatus === 'unsupported'}
-              className={`min-h-[44px] px-2.5 sm:px-3.5 rounded-full inline-flex items-center justify-center gap-1.5 text-xs font-rounded font-bold transition-all cursor-pointer min-w-0 ${
+              className={`min-h-[44px] px-2 sm:px-3.5 rounded-full inline-flex items-center justify-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-rounded font-bold transition-all cursor-pointer whitespace-nowrap ${
                 wakeLockStatus === 'active'
                   ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.emerald.selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`
                   : `bg-card hover:bg-pod text-ink-secondary ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} border border-ink/10 dark:border-white/10 ${CHIP_DUOTONE_ISOLATION_CLASSES}`
@@ -525,7 +533,7 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
               ) : (
                 <Unlock className="w-3.5 h-3.5 shrink-0 text-current" />
               )}
-              <span className="truncate">
+              <span>
                 {wakeLockStatus === 'unsupported'
                   ? t('rideModeWakeLockUnsupported')
                   : wakeLockStatus === 'active'
@@ -547,7 +555,7 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
                   return next;
                 });
               }}
-              className={`min-h-[44px] px-2.5 sm:px-3.5 rounded-full inline-flex items-center justify-center gap-1.5 text-xs font-rounded font-bold transition-all cursor-pointer min-w-0 ${
+              className={`min-h-[44px] px-2 sm:px-3.5 rounded-full inline-flex items-center justify-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-rounded font-bold transition-all cursor-pointer whitespace-nowrap ${
                 isMuted
                   ? `${CHIP_TOKENS.rose.surface} ${CHIP_TOKENS.rose.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.rose.selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`
                   : `bg-card hover:bg-pod text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} border border-ink/10 dark:border-white/10`
@@ -558,7 +566,7 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
               ) : (
                 <Volume className="w-3.5 h-3.5 shrink-0 text-emerald-500" />
               )}
-              <span className="truncate">
+              <span>
                 {isMuted ? t('rideModeVoiceMuted') : t('rideModeVoiceOn')}
               </span>
             </Button>
@@ -570,10 +578,10 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
               size="sm"
               data-testid="ride-mode-exit-btn"
               onClick={onClose}
-              className="min-h-[44px] px-2.5 sm:px-4 rounded-full inline-flex items-center justify-center gap-1.5 text-xs font-rounded font-extrabold bg-ink text-ink-inverse hover:opacity-90 transition-all cursor-pointer min-w-0"
+              className="min-h-[44px] px-2 sm:px-4 rounded-full inline-flex items-center justify-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-rounded font-extrabold bg-ink text-ink-inverse hover:opacity-90 transition-all cursor-pointer whitespace-nowrap"
             >
               <CircleStop className="w-3.5 h-3.5 shrink-0 text-current" />
-              <span className="truncate">{t('rideModeExit')}</span>
+              <span>{t('rideModeExit')}</span>
             </Button>
           </div>
         </header>
@@ -741,13 +749,13 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
             </div>
             <div
               data-testid="ride-mode-last-alert"
-              className="text-xs sm:text-sm font-rounded font-semibold text-ink truncate"
+              className="text-xs sm:text-sm font-rounded font-semibold text-ink line-clamp-2"
             >
               {lastAlert
                 ? lastAlert.spokenText
                 : isFr
-                ? 'Les alertes vocales s’afficheront ici à l’approche des points clés.'
-                : 'Voice cues will appear here as you approach stops, turns, and fuel timers.'}
+                ? 'En attente du prochain repère vocal'
+                : 'Waiting for next stop, turn, or fuel cue'}
             </div>
           </div>
 

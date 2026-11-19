@@ -286,6 +286,8 @@ export interface LogisticsSettings {
   coffeeDurationMin?: number;           // default: 15
   cafeName?: string;
   rationType?: string;
+  plannedLongStopMin?: number;          // Optional mid-ride recovery / lunch stop (e.g. 30, 45, 60 min)
+  plannedLongStopLabel?: string;        // Custom label for the planned long stop
   [key: string]: any;
 }
 

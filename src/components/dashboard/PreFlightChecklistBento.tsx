@@ -86,6 +86,7 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
     riderSpecs.bidonSizeMl,
     riderSpecs.frameBottleSlots,
     trip.weather?.temperatureC,
+    trip.checklist,
     lang,
   ]);
 

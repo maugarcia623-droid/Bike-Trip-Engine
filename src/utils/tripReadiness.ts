@@ -5,6 +5,7 @@ import { loadRiderBikeSpecs, getActiveBike } from './specsStorage';
 import { calculateRideVisibility } from './solarVisibility';
 import { getKitRecommendation } from './kitAdvisor';
 import { buildEffectiveChecklist } from './effectiveChecklist';
+import { getPlannedRestStopMinutes } from './archetypeChips';
 
 /**
  * Lightweight readiness calculation for home-page trip cards (no Overpass/sector-weather lookup).
@@ -68,6 +69,7 @@ export function computeTripReadiness(
       movingHours: Math.max(0.25, (physics.movingTimeSeconds || 3600) / 3600),
       powerZone: physics.powerZone,
       riderLevel: riderSpecs.riderLevel,
+      plannedStopMinutes: getPlannedRestStopMinutes(trip),
     },
     checklist: {
       total: checklistItems.length,

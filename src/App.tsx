@@ -1,14 +1,4 @@
-const RiderBikeSpecsModal = React.lazy(() =>
-  import('./components/settings/RiderBikeSpecsModal').then((m) => ({
-    default: m.RiderBikeSpecsModal,
-  }))
-);
-const FeedbackModal = React.lazy(() =>
-  import('./components/FeedbackModal').then((m) => ({ default: m.FeedbackModal }))
-);
-const ShareTelemetryModal = React.lazy(() =>
-  import('./components/ShareTelemetryModal').then((m) => ({ default: m.ShareTelemetryModal }))
-);
+import React, { useState, useEffect, Suspense } from 'react';
 import { Button } from "@/components/arc";
 import {
   loadRiderBikeSpecs,
@@ -20,10 +10,21 @@ import {
 } from "./utils/specsStorage";
 import { ConfirmModal } from "./components/common/ConfirmModal";
 import { RiderBikeSpecs } from "./types/specs";
-import React, { useState, useEffect, Suspense } from 'react';
 import { Analytics } from '@vercel/analytics/react';
 import { IconContext } from '@/components/icons';
 import { generateTripChecklist, TripProfile, WeatherCondition } from "./types/trip";
+
+const RiderBikeSpecsModal = React.lazy(() =>
+  import('./components/settings/RiderBikeSpecsModal').then((m) => ({
+    default: m.RiderBikeSpecsModal,
+  }))
+);
+const FeedbackModal = React.lazy(() =>
+  import('./components/FeedbackModal').then((m) => ({ default: m.FeedbackModal }))
+);
+const ShareTelemetryModal = React.lazy(() =>
+  import('./components/ShareTelemetryModal').then((m) => ({ default: m.ShareTelemetryModal }))
+);
 import {
   loadTrips,
   saveTrips,

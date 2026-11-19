@@ -56,6 +56,9 @@ export function calculateDwellMinutes(
   if (activeChips.includes('resupply-points')) {
     dwell += 15;
   }
+  if (logistics?.plannedLongStopMin && logistics.plannedLongStopMin > 0) {
+    dwell += Math.round(logistics.plannedLongStopMin);
+  }
   return dwell;
 }
 
@@ -1200,6 +1203,28 @@ export function calculateReverseTimeline(
         iconName: 'Utensils',
       });
     }
+  }
+
+  // Inject planned mid-ride recovery / lunch stop when set via Readiness or trip logistics
+  const longStopMin = Math.max(0, Math.round(Number(physicsSpeedOverride?.logistics?.plannedLongStopMin ?? 0)));
+  if (longStopMin > 0) {
+    const longStopLabel =
+      physicsSpeedOverride?.logistics?.plannedLongStopLabel?.trim() ||
+      (isFr ? 'Pause longue & récupération' : 'Planned recovery stop');
+    const midKm = Math.round((route.distanceKm || 0) * 0.5);
+    steps.push({
+      id: 'planned-long-stop',
+      time: addMinutesToTime(hardDepartureTime, Math.max(10, Math.round(totalRideMinutes * 0.5))),
+      formattedDuration: `${longStopMin} min`,
+      title: `${longStopLabel} (${longStopMin} min)`,
+      location: midKm > 0 ? (isFr ? `Mi-parcours · km ${midKm}` : `Mid-route · km ${midKm}`) : (isFr ? 'Mi-parcours' : 'Mid-route'),
+      category: 'nutrition',
+      isCrucialCheckpoint: true,
+      description: isFr
+        ? `Pause planifiée de ${longStopMin} min pour récupérer, manger du solide et recharger les bidons.`
+        : `Scheduled ${longStopMin}-min break to stretch, eat real food, and refill bottles.`,
+      iconName: 'Coffee',
+    });
   }
 
   // Inject intermediate stops between Point A and Point B (Configurator waypoints + Resupply Radar pins)

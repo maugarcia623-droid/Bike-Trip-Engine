@@ -19,7 +19,7 @@ import { evaluateOpeningHoursAtArrival } from './openingHours';
 import { LoopDirectionComparison, RouteWeatherAnalysis } from '../services/routeWeatherService';
 import { ReverseTimelineCalculation } from './timeline';
 import { ChipTheme } from '../tokens/chipTokens';
-import { getArchetypeFromTag } from './archetypeChips';
+import { getArchetypeFromTag, getPlannedRestStopMinutes } from './archetypeChips';
 import { calculateRideVisibility } from './solarVisibility';
 import { degreesToCompassCardinal } from '../services/weatherService';
 import { BikeSpec } from '../types/specs';
@@ -83,9 +83,6 @@ export interface RideBriefData {
   archetypeLabel: string;
   leavePodLabel: string;
   targetContextLabel: string;
-  attentionCount: number;
-  attentionBadgeVariant: ChipTheme | 'red';
-  attentionBadgeLabel: string;
   headline: string;
   narrativeSummary: string;
   totalDurationFormatted: string;
@@ -121,7 +118,6 @@ function buildRideBriefCardMeta(input: {
   bottlesBadge: string;
   kit: KitRecommendation;
   firstProblem: RideBriefProblem;
-  secondaryProblems: RideBriefProblem[];
   sectorForecast?: RouteWeatherAnalysis | null;
   finalVerdict: 'GO' | 'CAUTION' | 'NO-GO';
   lang: Language;
@@ -132,9 +128,6 @@ function buildRideBriefCardMeta(input: {
   | 'archetypeLabel'
   | 'leavePodLabel'
   | 'targetContextLabel'
-  | 'attentionCount'
-  | 'attentionBadgeVariant'
-  | 'attentionBadgeLabel'
   | 'headline'
   | 'narrativeSummary'
   | 'totalDurationFormatted'
@@ -157,7 +150,6 @@ function buildRideBriefCardMeta(input: {
     bottlesBadge,
     kit,
     firstProblem,
-    secondaryProblems,
     sectorForecast,
     finalVerdict,
     lang,
@@ -449,55 +441,10 @@ function buildRideBriefCardMeta(input: {
             : `${bottlesBadge} · Pre-ride fuel covers energy`,
         };
 
-  // Attention counter for header status pill ("Heads up · N things to know")
-  let attentionCount = 0;
-  if (
-    vis.nightPercent >= 15 ||
-    vis.twilightPercent >= 25 ||
-    vis.opticalHazardLevel === 'critical' ||
-    vis.opticalHazardLevel === 'elevated'
-  ) {
-    attentionCount += 1;
-  }
-  if (gusts >= 28 || baseWind >= 18 || rainRisk >= 35) attentionCount += 1;
-  if (firstProblem.severity === 'critical' || firstProblem.severity === 'warning') {
-    attentionCount +=
-      1 +
-      secondaryProblems.filter(
-        (p) => p.severity === 'critical' || p.severity === 'warning'
-      ).length;
-  }
-  if (totalDistanceKm >= 35 || totalCarbsG >= 60) attentionCount += 1;
-  if (hasRecommendedLoopFlip) attentionCount += 1;
-  attentionCount = Math.min(5, attentionCount);
-
-  const attentionBadgeVariant: ChipTheme | 'red' =
-    finalVerdict === 'NO-GO'
-      ? 'red'
-      : attentionCount > 0 || finalVerdict === 'CAUTION'
-      ? 'yellow-vest'
-      : 'emerald';
-
-  const attentionBadgeLabel =
-    finalVerdict === 'NO-GO'
-      ? isFr
-        ? `Alerte · ${Math.max(1, attentionCount)} points critiques`
-        : `Hold · ${Math.max(1, attentionCount)} critical alerts`
-      : attentionCount === 0
-      ? isFr
-        ? 'Feu vert · Prêt à rouler'
-        : 'All clear · Ready to ride'
-      : isFr
-      ? `À noter · ${attentionCount} point${attentionCount > 1 ? 's' : ''} clé${attentionCount > 1 ? 's' : ''}`
-      : `Heads up · ${attentionCount} thing${attentionCount > 1 ? 's' : ''} to know`;
-
   return {
     archetypeLabel,
     leavePodLabel,
     targetContextLabel,
-    attentionCount,
-    attentionBadgeVariant,
-    attentionBadgeLabel,
     headline,
     narrativeSummary,
     totalDurationFormatted,
@@ -915,6 +862,7 @@ export function buildRideBrief(params: {
       movingHours,
       powerZone: physics.powerZone,
       riderLevel: riderSpecs.riderLevel,
+      plannedStopMinutes: getPlannedRestStopMinutes(trip),
     },
     checklist: {
       total: checklistItems.length,
@@ -974,7 +922,6 @@ export function buildRideBrief(params: {
       bottlesBadge,
       kit,
       firstProblem,
-      secondaryProblems,
       sectorForecast,
       finalVerdict,
       lang: params.lang || 'en',

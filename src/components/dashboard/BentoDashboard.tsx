@@ -152,6 +152,18 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
     [activeSectionFilters]
   );
 
+  const handleJumpToSection = React.useCallback((sectionId: string) => {
+    setActiveSectionFilters((prev) =>
+      prev.length > 0 && !prev.includes(sectionId) ? [] : prev
+    );
+    window.setTimeout(() => {
+      const el = document.getElementById(sectionId);
+      if (!el) return;
+      const top = el.getBoundingClientRect().top + window.scrollY - 20;
+      window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    }, 60);
+  }, []);
+
   React.useEffect(() => {
     if (!externalRideBriefOpen) return;
     setIsBriefExpanded(true);
@@ -623,6 +635,11 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
         isExpanded={isBriefExpanded}
         onToggleExpand={toggleBriefExpanded}
         onOpenTools={onOpenTools}
+        onUpdateTrip={onUpdateTrip}
+        onSelectBike={onSelectBike}
+        onOpenSpecs={onOpenSpecs}
+        onOpenConfigurator={onOpenConfigurator}
+        onJumpToSection={handleJumpToSection}
       />
 
       {/* ── 5-COLUMN BENTO COMMAND DECK (3 COLS LEFT / 2 COLS RIGHT) ── */}

@@ -1703,11 +1703,12 @@ export function findChipDef(chipId: string): ArchetypeChipDef | undefined {
 
 /**
  * Calculates extra buffer minutes introduced by currently active custom chips
+ * plus any explicitly planned mid-ride recovery stop (`ruleSettings.plannedLongStopMin`).
  */
 export function getChipsExtraBufferMinutes(trip: TripProfile): number {
-  if (!trip.customChips || trip.customChips.length === 0) return 0;
-  let extra = 0;
   const ruleSettings = trip.ruleSettings || {};
+  let extra = Math.max(0, Math.round(Number(ruleSettings['plannedLongStopMin'] ?? 0)));
+  if (!trip.customChips || trip.customChips.length === 0) return extra;
 
   for (const chipId of trip.customChips) {
     if (chipId === 'coffee-stop') {
@@ -1743,6 +1744,23 @@ export function getChipsExtraBufferMinutes(trip: TripProfile): number {
     }
   }
   return extra;
+}
+
+/**
+ * Total minutes of intentional rest / refuel stops (used by Ride Readiness to credit
+ * mid-ride recovery breaks that split up a long endurance effort).
+ */
+export function getPlannedRestStopMinutes(trip: TripProfile): number {
+  const ruleSettings = trip.ruleSettings || {};
+  const chips = trip.customChips || [];
+  let rest = Math.max(0, Math.round(Number(ruleSettings['plannedLongStopMin'] ?? 0)));
+  if (chips.includes('coffee-stop')) {
+    rest += Math.max(0, Math.round(Number(ruleSettings['coffeeDurationMin'] ?? 15)));
+  }
+  if (chips.includes('picnic-outing')) {
+    rest += Math.max(0, Math.round(Number(ruleSettings['picnicDurationMin'] ?? 45)));
+  }
+  return rest;
 }
 
 interface ChipPrevSnapshot {

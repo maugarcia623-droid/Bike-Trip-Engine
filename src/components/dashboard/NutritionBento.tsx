@@ -129,6 +129,8 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
     coffeeDurationMin: trip.ruleSettings?.coffeeDurationMin ?? 15,
     cafeName: trip.ruleSettings?.cafeName,
     rationType: trip.ruleSettings?.rationType,
+    plannedLongStopMin: trip.ruleSettings?.plannedLongStopMin,
+    plannedLongStopLabel: trip.ruleSettings?.plannedLongStopLabel,
   }));
 
   useEffect(() => {
@@ -141,6 +143,8 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       coffeeDurationMin: trip.ruleSettings?.coffeeDurationMin ?? 15,
       cafeName: trip.ruleSettings?.cafeName,
       rationType: trip.ruleSettings?.rationType,
+      plannedLongStopMin: trip.ruleSettings?.plannedLongStopMin,
+      plannedLongStopLabel: trip.ruleSettings?.plannedLongStopLabel,
     });
   }, [trip.id, trip.ruleSettings]);
 

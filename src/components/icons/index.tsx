@@ -363,6 +363,8 @@ export const Baguette = createKeylineIcon(Duotone.Store, 'Store');
 export const Bakery = Baguette;
 export const Star = createKeylineIcon(Duotone.Star, 'Star');
 export const Bookmark = Star;
+export const Newspaper = createKeylineIcon(Duotone.Newspaper, 'Newspaper');
+export const Link2 = createKeylineIcon(Duotone.Link2, 'Link2');
 
 export default {
   Bike,
@@ -560,4 +562,6 @@ export default {
   Bakery,
   Star,
   Bookmark,
+  Newspaper,
+  Link2,
 };

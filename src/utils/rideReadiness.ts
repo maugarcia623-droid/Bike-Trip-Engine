@@ -25,6 +25,14 @@ import type { GravelSuitabilityLevel } from '../types/trip';
 export type ReadinessLevel = 'needs-change' | 'worth-tweak' | 'good-to-go';
 export type ReadinessFactorId = 'weather' | 'terrain' | 'effort' | 'checklist' | 'light' | 'route';
 export type ReadinessProblemSeverity = 'critical' | 'warning' | 'info' | 'clear';
+export type ReadinessActionKind =
+  | 'effort-load'
+  | 'effort-pace'
+  | 'checklist'
+  | 'weather-window'
+  | 'bike-terrain'
+  | 'daylight-window'
+  | 'route-stops';
 
 /** Score bands (inclusive lower bounds). */
 export const READINESS_BANDS: Record<ReadinessLevel, { min: number; max: number }> = {
@@ -69,6 +77,8 @@ export interface RideReadinessInput {
     movingHours: number;
     powerZone?: string;
     riderLevel?: RiderLevel;
+    /** Planned intentional rest/recovery stop duration in minutes (breaks up long endurance fatigue). */
+    plannedStopMinutes?: number;
   };
   checklist: {
     total: number;
@@ -102,6 +112,10 @@ export interface ReadinessFactor {
   note: string;
   /** Suggested action to recover points, when there's something to fix. */
   tip?: string;
+  /** Interactive follow-up action for this factor, when applicable. */
+  action?: ReadinessActionKind;
+  /** Short CTA label for the follow-up button. */
+  ctaLabel?: string;
   applicable: boolean;
 }
 
@@ -112,7 +126,13 @@ export interface RideReadiness {
   summary: string;
   factors: ReadinessFactor[];
   /** The single change that would recover the most points. */
-  topLift?: { factorId: ReadinessFactorId; tip: string; gain: number };
+  topLift?: {
+    factorId: ReadinessFactorId;
+    tip: string;
+    gain: number;
+    action: ReadinessActionKind;
+    ctaLabel: string;
+  };
   /** Set when a weakest-link / NO-GO cap pulled the score down. */
   capReason?: string;
 }
@@ -183,7 +203,9 @@ function scoreWeather(w: RideReadinessInput['weather'], isFr: boolean) {
           : 'Ride earlier, before the heat';
     }
   }
-  return { score, note: parts.join(' · '), tip };
+  const action: ReadinessActionKind | undefined = tip ? 'weather-window' : undefined;
+  const ctaLabel = tip ? (isFr ? 'Ajuster le créneau' : 'Adjust window') : undefined;
+  return { score, note: parts.join(' · '), tip, action, ctaLabel };
 }
 
 /** Max gravel share (%) a tyre width handles comfortably. */
@@ -269,7 +291,9 @@ function scoreTerrain(
       tip = isFr ? 'Roulez prudemment sur les secteurs techniques' : 'Take the technical sectors steady';
     }
   }
-  return { score, note, tip };
+  const action: ReadinessActionKind | undefined = tip ? 'bike-terrain' : undefined;
+  const ctaLabel = tip ? (isFr ? 'Changer de vélo' : 'Switch bike') : undefined;
+  return { score, note, tip, action, ctaLabel };
 }
 
 function scoreEffort(e: RideReadinessInput['effort'], isFr: boolean) {
@@ -277,28 +301,53 @@ function scoreEffort(e: RideReadinessInput['effort'], isFr: boolean) {
   const hours = Math.max(0.1, e.movingHours);
   const tss = Math.round(hours * IF * IF * 100);
   const levelFactor = e.riderLevel === 'pro' ? 1.5 : e.riderLevel === 'occasional' ? 0.7 : 1;
+  const plannedStopMin = Math.max(0, Math.round(e.plannedStopMinutes ?? 0));
 
   // Sustained intensity above endurance (0.70 IF) scales with duration.
   const intensityPen = Math.max(0, IF - 0.70) * 135 * clamp(hours, 0.5, 1.5);
   // Overall load (TSS): comfortable up to ~70 for a regular rider, then scales smoothly.
   const loadStart = 70 * levelFactor;
-  const loadPen = clamp((tss - loadStart) * (0.24 / levelFactor), 0, 55);
+  const rawLoadPen = clamp((tss - loadStart) * (0.24 / levelFactor), 0, 55);
+  // Intentional rest / recovery stops break up continuous fatigue on long rides.
+  const stopRelief =
+    rawLoadPen > 0 && plannedStopMin > 0
+      ? clamp((plannedStopMin / 60) * 28, 0, Math.min(rawLoadPen * 0.65, 28))
+      : 0;
+  const loadPen = Math.max(0, rawLoadPen - stopRelief);
   const score = clamp(100 - (intensityPen + loadPen));
 
   const zone = e.powerZone ? `${e.powerZone} · ` : '';
-  const note = `${zone}${formatHours(hours)} · ${Math.round(e.ftpPercent)}% FTP`;
+  const stopNote =
+    plannedStopMin >= 15
+      ? isFr
+        ? ` · pause ${plannedStopMin} min`
+        : ` · ${plannedStopMin} min stop`
+      : '';
+  const note = `${zone}${formatHours(hours)} · ${Math.round(e.ftpPercent)}% FTP${stopNote}`;
+
   let tip: string | undefined;
+  let action: ReadinessActionKind | undefined;
+  let ctaLabel: string | undefined;
   if (score < 90) {
-    tip =
-      intensityPen >= loadPen
-        ? isFr
-          ? 'Baissez l’allure d’une zone'
-          : 'Ease the pace by one zone'
-        : isFr
+    if (intensityPen >= loadPen) {
+      tip = isFr ? 'Baissez l’allure d’une zone' : 'Ease the pace by one zone';
+      action = 'effort-pace';
+      ctaLabel = isFr ? 'Baisser l’allure' : 'Ease pace';
+    } else if (plannedStopMin >= 30) {
+      tip = isFr
+        ? 'Raccourcissez la trace ou allongez la pause'
+        : 'Shorten the route or extend your stop';
+      action = 'effort-load';
+      ctaLabel = isFr ? 'Ajuster trace / pause' : 'Adjust route / stop';
+    } else {
+      tip = isFr
         ? 'Raccourcissez la trace ou prévoyez une pause longue'
         : 'Shorten the route or plan a long stop';
+      action = 'effort-load';
+      ctaLabel = isFr ? 'Ajouter pause / raccourcir' : 'Add stop / shorten';
+    }
   }
-  return { score, note, tip };
+  return { score, note, tip, action, ctaLabel };
 }
 
 function scoreChecklist(c: RideReadinessInput['checklist'], isFr: boolean) {
@@ -334,7 +383,9 @@ function scoreChecklist(c: RideReadinessInput['checklist'], isFr: boolean) {
       : isFr
       ? `Finissez la check-list (${left} restant${left > 1 ? 's' : ''})`
       : `Finish your checklist (${left} left)`;
-  return { score, applicable: true, note, tip };
+  const action: ReadinessActionKind | undefined = tip ? 'checklist' : undefined;
+  const ctaLabel = tip ? (isFr ? 'Voir la check-list' : 'Review checklist') : undefined;
+  return { score, applicable: true, note, tip, action, ctaLabel };
 }
 
 function scoreLight(l: RideReadinessInput['light'], isFr: boolean) {
@@ -360,7 +411,9 @@ function scoreLight(l: RideReadinessInput['light'], isFr: boolean) {
         ? 'Partez plus tôt ou chargez vos éclairages'
         : 'Leave earlier or charge your lights'
       : undefined;
-  return { score, note, tip };
+  const action: ReadinessActionKind | undefined = tip ? 'daylight-window' : undefined;
+  const ctaLabel = tip ? (isFr ? 'Décaler le départ' : 'Shift departure') : undefined;
+  return { score, note, tip, action, ctaLabel };
 }
 
 function scoreRoute(r: RideReadinessInput['route'], isFr: boolean) {
@@ -386,7 +439,9 @@ function scoreRoute(r: RideReadinessInput['route'], isFr: boolean) {
         ? 'Réglez le point signalé sur la trace'
         : 'Sort the flagged stop or water gap'
       : undefined;
-  return { score, note, tip };
+  const action: ReadinessActionKind | undefined = tip ? 'route-stops' : undefined;
+  const ctaLabel = tip ? (isFr ? 'Voir les arrêts' : 'Review stops') : undefined;
+  return { score, note, tip, action, ctaLabel };
 }
 
 // ── main ───────────────────────────────────────────────────────────────────
@@ -468,10 +523,16 @@ export function computeRideReadiness(input: RideReadinessInput): RideReadiness {
 
   // Biggest single lift, among factors that offer an actionable tip.
   const liftable = factors
-    .filter((f) => f.applicable && f.tip && f.pointsLost >= 1)
+    .filter((f) => f.applicable && f.tip && f.action && f.ctaLabel && f.pointsLost >= 1)
     .sort((a, b) => b.pointsLost - a.pointsLost)[0];
   const topLift = liftable
-    ? { factorId: liftable.id, tip: liftable.tip!, gain: Math.max(1, Math.round(liftable.pointsLost)) }
+    ? {
+        factorId: liftable.id,
+        tip: liftable.tip!,
+        gain: Math.max(1, Math.round(liftable.pointsLost)),
+        action: liftable.action!,
+        ctaLabel: liftable.ctaLabel!,
+      }
     : undefined;
 
   return { score, level, label, summary, factors, topLift, capReason };

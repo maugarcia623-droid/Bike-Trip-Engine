@@ -86,7 +86,7 @@ export const WeatherGlance: React.FC<WeatherGlanceProps> = ({
       type="button"
       onClick={onExpand}
       title={t('weatherGlanceExpandAria')}
-      className="w-full p-3.5 sm:p-4 rounded-pod bg-pod hover:bg-chip/60 transition-colors text-left cursor-pointer flex flex-col gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
+      className="w-full pt-1 rounded-pod transition-opacity hover:opacity-90 text-left cursor-pointer flex flex-col gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
     >
       {/* ── 1. Weather heading ── */}
       <span className="flex items-center justify-between gap-2 w-full">
