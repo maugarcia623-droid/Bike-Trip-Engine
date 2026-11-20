@@ -1000,11 +1000,17 @@ export function calculateReverseTimeline(
       {
         id: 'pre-ride-fuel',
         time: preRideMealTime,
-        title: isFr ? 'Collation Énergétique Pré-Départ' : 'Pre-Ride Energy Breakfast',
+        title: preStyle === 'fasted-rollout'
+          ? isFr ? 'Hydratation pré-départ (à jeun)' : 'Fasted hydration'
+          : isFr ? 'Collation Énergétique Pré-Départ' : 'Pre-Ride Energy Breakfast',
         location: isFr ? 'Cuisine' : 'Kitchen Counter',
         category: 'nutrition',
         isCrucialCheckpoint: true,
-        description: isFr
+        description: preStyle === 'fasted-rollout'
+          ? isFr
+            ? `Hydratation légère (eau + expresso ou thé). Remplissage des ${slots} bidon${slots > 1 ? 's' : ''} pour la route.`
+            : `Light hydration (water + espresso or tea). Fill ${slots}× water bottle${slots > 1 ? 's' : ''} for the road.`
+          : isFr
           ? `${compliantPantry.preRide.nameFr} + expresso. Remplissage des ${slots} bidon${slots > 1 ? 's' : ''} pour la route.`
           : `${compliantPantry.preRide.nameEn} + espresso. Fill ${slots}× water bottle${slots > 1 ? 's' : ''} for the road.`,
         iconName: 'Utensils',
@@ -1179,7 +1185,9 @@ export function calculateReverseTimeline(
       {
         id: 'pre-ride-fuel',
         time: preRideMealTime,
-        title: isFr ? 'Petit-déjeuner' : 'Breakfast',
+        title: isFasted
+          ? isFr ? 'Hydratation pré-départ (à jeun)' : 'Fasted hydration'
+          : isFr ? 'Petit-déjeuner' : 'Breakfast',
         location: isFr ? 'Cuisine' : 'Kitchen Counter',
         category: 'nutrition',
         isCrucialCheckpoint: true,
