@@ -1024,7 +1024,7 @@ export function computeSurfaceBreakdown(
     (options?.bikeWeightKg ?? activeBike?.weightKg ?? 10.9) +
     (options?.luggageWeightKg ?? 2);
 
-  const totalDistKm = Math.max(1, route.distanceKm || 22);
+  const totalDistKm = Math.max(0.1, route.distanceKm || 22);
   const profilePoints: ElevationProfilePoint[] = route.elevationProfile ?? [];
 
   // Prefer real OpenStreetMap surface data when route geometry & Overpass ways exist

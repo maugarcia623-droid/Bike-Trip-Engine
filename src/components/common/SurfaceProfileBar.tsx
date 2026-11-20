@@ -122,14 +122,14 @@ export const SurfaceProfileBar: React.FC<SurfaceProfileBarProps> = ({
         >
           {breakdown.segments.map((seg) => {
             const meta = SURFACE_VISUAL_META[seg.type];
-            const widthPct = Math.max(3, seg.endPct - seg.startPct);
+            const pctSpan = Math.max(0.5, seg.endPct - seg.startPct);
             const isSelected = highlighted?.id === seg.id;
             return (
               <Button
                 key={seg.id}
                 variant="ghost"
                 size="sm"
-                style={{ width: `${widthPct}%` }}
+                style={{ flex: `${pctSpan} 1 0%` }}
                 onMouseEnter={() => handleSegmentInteract(seg)}
                 onClick={() => handleSegmentInteract(effectiveSegmentId === seg.id ? null : seg)}
                 title={`${isFr ? seg.nameFr : seg.nameEn} (km ${seg.startKm}–${seg.endKm})`}
@@ -155,10 +155,15 @@ export const SurfaceProfileBar: React.FC<SurfaceProfileBarProps> = ({
           const meta = SURFACE_VISUAL_META[item.type];
           const empty = item.km <= 0.05;
           return (
-            <div key={item.type} className={`${i === 0 ? 'pr-2.5' : 'px-2.5'} min-w-0 ${empty ? 'opacity-50' : ''}`}>
-              <dt className="flex items-center gap-1.5 text-[10px] font-rounded font-bold text-ink-secondary">
+            <div
+              key={item.type}
+              className={`${i === 0 ? 'pr-1.5 sm:pr-2.5' : 'px-1.5 sm:px-2.5'} min-w-0 ${
+                empty ? 'opacity-50' : ''
+              }`}
+            >
+              <dt className="flex items-center gap-1 sm:gap-1.5 text-[9.5px] sm:text-[10px] font-rounded font-bold text-ink-secondary">
                 <span
-                  className={`w-2.5 h-2.5 rounded-full shrink-0 ${meta.barBgClass} ${
+                  className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full shrink-0 ${meta.barBgClass} ${
                     item.type !== 'paved' ? 'paint-hatch' : ''
                   }`}
                 />

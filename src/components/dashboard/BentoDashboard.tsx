@@ -464,7 +464,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
   }, []);
 
   return (
-    <div className="w-full max-w-[1720px] mx-auto px-3.5 sm:px-5 lg:px-7 pt-2 pb-12 sm:pb-20 no-print">
+    <div className="w-full max-w-[1720px] mx-auto px-3.5 sm:px-5 lg:px-7 pt-2 pb-28 sm:pb-28 no-print">
       {/* ── SHARED GROUP PLAN BANNER (WHEN LOADED FROM ?plan= URL) ── */}
       {sharedPlanBanner && (
         <div
@@ -524,7 +524,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
       {hasMultipleStages && (
         <div className="space-y-3 mb-5 animate-flight-deck-in">
           <div className="rounded-pod bg-card text-ink p-3 sm:px-4 sm:py-3 shadow-sm transition-colors">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
               <div className="flex items-center gap-2.5 shrink-0">
                 <span className="w-2.5 h-2.5 rounded-full bg-volt ring-4 ring-volt/25 animate-pulse" />
                 <div className="flex items-center gap-2 flex-wrap">
@@ -539,77 +539,81 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar max-w-full">
-                {trip.stages!.map((stage, idx) => {
-                const isActive = idx === activeStageIdx;
-                const origin = stage.route?.origin || '...';
-                const dest = stage.route?.destination || '...';
-                const dist = stage.route?.distanceKm || 0;
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 min-w-0 flex-1 lg:justify-end">
+                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar min-w-0 max-w-full">
+                  {trip.stages!.map((stage, idx) => {
+                    const isActive = idx === activeStageIdx;
+                    const origin = stage.route?.origin || '...';
+                    const dest = stage.route?.destination || '...';
+                    const dist = stage.route?.distanceKm || 0;
 
-                return (
+                    return (
+                      <Button variant="ghost"
+                        key={stage.id || `stage-${idx}`}
+                        type="button"
+                        onClick={() => {
+                          if (idx !== activeStageIdx) {
+                            onUpdateTrip(switchActiveStage(trip, idx));
+                          }
+                        }}
+                        className={`group inline-flex items-center gap-2 p-1.5 rounded-full text-xs font-semibold transition-all duration-150 shrink-0 cursor-pointer select-none ${
+                          isActive
+                            ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} shadow-xs`
+                            : 'bg-pod hover:bg-chip text-ink-secondary hover:text-ink'
+                        }`}
+                      >
+                        <span
+                          className={`p-1 rounded-full text-[10px] leading-none font-extrabold uppercase font-rounded shrink-0 shadow-xs ${
+                            isActive
+                              ? 'bg-volt text-[#111111]'
+                              : 'bg-card text-ink-secondary group-hover:text-ink'
+                          }`}
+                        >
+                          {t('stageDayPill', { day: stage.dayNumber })}
+                        </span>
+                        <span className="whitespace-nowrap font-medium min-w-0">
+                          {origin} → {dest}
+                        </span>
+                        <span
+                          className={`text-[11px] font-bold tnum shrink-0 ${
+                            isActive
+                              ? 'text-[#4d5200] dark:text-[#dfff00]'
+                              : 'text-ink-muted group-hover:text-ink-secondary'
+                          }`}
+                        >
+                          {dist} km
+                        </span>
+                      </Button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0 flex-wrap">
                   <Button variant="ghost"
-                    key={stage.id || `stage-${idx}`}
                     type="button"
-                    onClick={() => {
-                      if (idx !== activeStageIdx) {
-                        onUpdateTrip(switchActiveStage(trip, idx));
-                      }
-                    }}
-                    className={`group inline-flex items-center gap-2 p-1.5 rounded-full text-xs font-semibold transition-all duration-150 shrink-0 cursor-pointer select-none ${
-                      isActive
-                        ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} shadow-xs`
-                        : 'bg-pod hover:bg-chip text-ink-secondary hover:text-ink'
+                    onClick={() => setShowTourOverview((prev) => !prev)}
+                    className={`inline-flex items-center gap-1.5 min-h-[40px] sm:min-h-[34px] px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-150 shrink-0 cursor-pointer ${
+                      showTourOverview
+                        ? 'bg-[#111111] text-volt ring-1 ring-inset ring-black/10 dark:bg-elevated dark:text-volt dark:ring-white/15'
+                        : 'bg-pod hover:bg-chip text-ink'
                     }`}
                   >
-                    <span
-                      className={`p-1 rounded-full text-[10px] leading-none font-extrabold uppercase font-rounded shrink-0 shadow-xs ${
-                        isActive
-                          ? 'bg-volt text-[#111111]'
-                          : 'bg-card text-ink-secondary group-hover:text-ink'
-                      }`}
-                    >
-                      {t('stageDayPill', { day: stage.dayNumber })}
-                    </span>
-                    <span className="whitespace-nowrap font-medium min-w-0">
-                      {origin} → {dest}
-                    </span>
-                    <span
-                      className={`text-[11px] font-bold tnum shrink-0 ${
-                        isActive
-                          ? 'text-[#4d5200] dark:text-[#dfff00]'
-                          : 'text-ink-muted group-hover:text-ink-secondary'
-                      }`}
-                    >
-                      {dist} km
+                    <Calendar className="w-3.5 h-3.5 shrink-0" />
+                    <span>
+                      {showTourOverview ? t('tourToggleDetailsHide') : t('tourToggleDetailsShow')}
                     </span>
                   </Button>
-                );
-              })}
 
-                <Button variant="ghost"
-                  type="button"
-                  onClick={() => setShowTourOverview((prev) => !prev)}
-                  className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-150 shrink-0 cursor-pointer ${
-                    showTourOverview
-                      ? 'bg-[#111111] text-volt ring-1 ring-inset ring-black/10 dark:bg-elevated dark:text-volt dark:ring-white/15'
-                      : 'bg-pod hover:bg-chip text-ink'
-                  }`}
-                >
-                  <Calendar className="w-3.5 h-3.5 shrink-0" />
-                  <span>
-                    {showTourOverview ? t('tourToggleDetailsHide') : t('tourToggleDetailsShow')}
-                  </span>
-                </Button>
-
-                <Button variant="primary"
-                  type="button"
-                  onClick={() => downloadEntireTourGpx(trip)}
-                  title={t('exportEntireTourGpxBtn')}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-volt hover:bg-volt-lime text-[#111111] text-xs font-bold transition-all duration-150 shrink-0 cursor-pointer ring-1 ring-inset ring-black/10 dark:ring-white/10 active:scale-95"
-                >
-                  <Download className="w-3.5 h-3.5 shrink-0" />
-                  <span>{t('exportEntireTourGpxBtn')}</span>
-                </Button>
+                  <Button variant="primary"
+                    type="button"
+                    onClick={() => downloadEntireTourGpx(trip)}
+                    title={t('exportEntireTourGpxBtn')}
+                    className="inline-flex items-center gap-1.5 min-h-[40px] sm:min-h-[34px] px-3 py-1.5 rounded-full bg-volt hover:bg-volt-lime text-[#111111] text-xs font-bold transition-all duration-150 shrink-0 cursor-pointer ring-1 ring-inset ring-black/10 dark:ring-white/10 active:scale-95"
+                  >
+                    <Download className="w-3.5 h-3.5 shrink-0" />
+                    <span>{t('exportEntireTourGpxBtn')}</span>
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -650,7 +654,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-3.5 sm:gap-4 lg:gap-5 items-start">
           {/* Left Column (Desktop: 3 of 5 cols) - Hero Card, Reverse Timeline & Power/Resistance */}
           <div className="lg:col-span-3 flex flex-col gap-3.5 sm:gap-4 lg:gap-5 min-w-0">
-            <div id="bento-route" className="scroll-mt-3 animate-flight-deck-in deck-stagger-1 min-w-0">
+            <div id="bento-route" className="cadence-map-host scroll-mt-3 animate-flight-deck-in deck-stagger-1 min-w-0">
               <HeroRouteCard
                 trip={trip}
                 physicsResult={physicsResult}
@@ -772,7 +776,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
             id="bento-route"
             className={
               isSectionVisible('bento-route')
-                ? 'scroll-mt-3 animate-flight-deck-in deck-stagger-1 min-w-0'
+                ? 'cadence-map-host scroll-mt-3 animate-flight-deck-in deck-stagger-1 min-w-0'
                 : 'hidden'
             }
           >

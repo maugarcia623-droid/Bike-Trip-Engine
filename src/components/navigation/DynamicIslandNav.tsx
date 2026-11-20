@@ -119,7 +119,7 @@ export const DynamicIslandNav: React.FC<DynamicIslandNavProps> = ({
 
   return (
     <div
-      className="fixed inset-x-3 bottom-[max(0.875rem,env(safe-area-inset-bottom))] sm:bottom-6 z-50 flex justify-center pointer-events-none select-none print:hidden no-print"
+      className="cadence-dynamic-island fixed inset-x-3 bottom-[max(0.875rem,env(safe-area-inset-bottom))] sm:bottom-6 z-50 flex justify-center pointer-events-none select-none print:hidden no-print"
       aria-label={t('navPrimaryViewsAria')}
     >
       {/* ── THE DYNAMIC ISLAND PILL (OVERFLOW-VISIBLE SO POPOVER FLOATS FREELY ABOVE) ── */}

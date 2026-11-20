@@ -26,6 +26,7 @@ export const en = {
   onboardingThemePrompt: "Theme",
   themeLight: "Light",
   themeDark: "Dark",
+  themeSystem: "System",
   newTripButton: "New trip",
   menuOpen: "Menu",
   menuClose: "Close",

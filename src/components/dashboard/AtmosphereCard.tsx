@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { Button, SegmentedControl } from '@/components/arc';
 import {
   WarningCircle,
@@ -97,7 +97,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
   const stageRef = useRef<HTMLDivElement>(null);
   const [stageWidth, setStageWidth] = useState<number>(400);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!stageRef.current) return;
     const updateWidth = () => {
       if (stageRef.current && stageRef.current.clientWidth > 0) {
@@ -320,11 +320,11 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
   const dayEndMin = 21 * 60;   // 21:00
   const totalDayMin = dayEndMin - dayStartMin; // 960 min
 
-  const gfxH = 170; // Height of the graphics stage
-  const progressBarY = gfxH - 44; // 126px, placing the 44px progress bar flush at the bottom of the graphics stage
-  const horizonY = 108; // 0° Horizon line
+  const gfxH = 168; // Height of the graphics stage
+  const progressBarY = gfxH - 44; // 124px, keeping a 16px buffer below nadirY (108px)
+  const horizonY = 86; // 0° Horizon line
   const apexY = 16;     // Solar curve apex reaches near top inner margin bound
-  const nadirY = 132;   // Night solar elevation baseline
+  const nadirY = 108;   // Night solar elevation baseline (clears bottom badges)
 
   const svgW = Math.max(180, stageWidth || 280);
   const svgH = gfxH;
@@ -380,7 +380,6 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
 
   // Timestamps in minutes
   const rolloutMin = hhmmToMinutes(visibilityAnalysis.rolloutTime);
-  const arrivalMin = (rolloutMin + visibilityAnalysis.movingMinutes) % 1440;
 
   // Percentage mapping across card width (comfortably padded to prevent badge & timestamp clipping on narrow phones)
   const minEdgeMarginPercent = Math.max(10, (24 / svgW) * 100);
@@ -389,13 +388,13 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
   const effectiveSpan = Math.max(20, rightMarginPercent - leftMarginPercent);
 
   const rawStartFrac = (rolloutMin - dayStartMin) / totalDayMin;
-  const rawEndFrac = (arrivalMin - dayStartMin) / totalDayMin;
+  const rawEndFrac = (rolloutMin + visibilityAnalysis.movingMinutes - dayStartMin) / totalDayMin;
 
   let startPercent = leftMarginPercent + Math.max(0, Math.min(1, rawStartFrac)) * effectiveSpan;
   let endPercent = leftMarginPercent + Math.max(0, Math.min(1, rawEndFrac)) * effectiveSpan;
 
-  // Ensure minimum visual badge gap so cyclist and flag never collide (52px minimum center-to-center)
-  const minBadgeGapPercent = Math.max(14, (52 / svgW) * 100);
+  // Ensure minimum visual badge gap so 44px cyclist and flag never collide (66px minimum center-to-center)
+  const minBadgeGapPercent = Math.max(20, (66 / svgW) * 100);
   if (endPercent - startPercent < minBadgeGapPercent) {
     if (startPercent + minBadgeGapPercent <= rightMarginPercent) {
       endPercent = startPercent + minBadgeGapPercent;
@@ -586,7 +585,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
       {activeTab === 'wind' && (
         <div className="animate-apple-step-in flex flex-col justify-between">
           {/* Unified Status & Pacing Capsule Callout */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pl-3 pr-4 sm:pr-5 py-3 sm:py-2.5 rounded-pod bg-pod mb-4">
+          <div className="flex flex-col 2xl:flex-row 2xl:items-center justify-between gap-2.5 pl-3 pr-4 sm:pr-5 py-3 sm:py-2.5 rounded-pod bg-pod mb-4">
             <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
               <IconBadge
                 theme={
@@ -627,7 +626,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
               <Button variant="ghost"
                 type="button"
                 onClick={() => handlePacingModeChange('effort')}
-                className={`shrink-0 self-start sm:self-center min-h-[44px] sm:min-h-[34px] px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-colors ${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary}`}
+                className={`shrink-0 self-start 2xl:self-center min-h-[44px] sm:min-h-[34px] px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-colors ${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary}`}
               >
                 {t('weatherSwitchToEffortCapBtn')}
               </Button>
@@ -804,7 +803,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
                 type="button"
                 onClick={() => setIsSectorsOpen((v) => !v)}
                 aria-expanded={isSectorsOpen}
-                className="w-full min-h-[44px] p-3 sm:p-3.5 flex items-center justify-between gap-2 hover:bg-chip/60 transition-colors cursor-pointer text-left"
+                className="w-full min-h-[44px] rounded-none p-3 sm:p-3.5 flex items-center justify-between gap-2 hover:bg-chip/60 transition-colors cursor-pointer text-left"
               >
                 <div className="flex items-center gap-2 min-w-0 flex-wrap">
                   <IconBadge theme="sky" icon={Wind} size="sm" solidBacker />
@@ -928,10 +927,11 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
           {/* ── THE SOLAR ELEVATION CARD (FLAT DESIGN, 15PX INNER MARGINS, 8PX GRAPHICS-TO-TIMESTAMP GAP) ── */}
           <div className="rounded-pod bg-pod/60 ring-1 ring-inset ring-ink/[0.06] dark:ring-white/10 p-[15px] mb-3.5 relative overflow-hidden transition-colors">
             {/* 1. Main Graphics Stage: Fills width and height up to inner margins bounds */}
-            <div ref={stageRef} className="w-full relative h-[170px] select-none">
+            <div ref={stageRef} className="w-full relative h-[168px] select-none">
               <svg
                 viewBox={`0 0 ${svgW} ${gfxH}`}
-                preserveAspectRatio="none"
+                preserveAspectRatio="xMidYMid meet"
+                shapeRendering="geometricPrecision"
                 className="w-full h-full absolute inset-0 overflow-hidden pointer-events-none"
               >
                 <defs>
@@ -1051,15 +1051,15 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
           </div>
 
           {/* ── 3. ESSENTIAL METRICS IN MEDIUM-LARGE ROUND TYPEFACE ── */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-2.5 mb-3.5">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-2 sm:gap-2.5 mb-3.5">
             {/* 1. Required Lumens (clean, non-truncating text) */}
-            <div className="p-3 rounded-pod bg-pod flex flex-row sm:flex-col items-center sm:items-stretch justify-between gap-3 sm:gap-0">
-              <span className="text-[11px] font-medium text-ink-muted sm:block break-words">
+            <div className="p-3 rounded-pod bg-pod flex flex-row xl:flex-col items-center xl:items-stretch justify-between gap-3 xl:gap-0 min-w-0">
+              <span className="text-[11px] font-medium text-ink-muted xl:block break-words">
                 {t('visibilityMetricLighting')}
               </span>
-              <div className="text-right sm:text-left sm:mt-1 min-w-0">
-                <div className={`text-base sm:text-xl font-bold font-sans tracking-tight tnum break-words ${CHIP_TOKENS['yellow-vest'].primary}`}>
-                  {visibilityAnalysis.lightingGear.recommendedLumens}
+              <div className="text-right xl:text-left xl:mt-1 min-w-0">
+                <div className={`text-sm xl:text-[15px] font-bold font-sans tracking-tight leading-tight whitespace-nowrap tnum ${CHIP_TOKENS['yellow-vest'].primary}`}>
+                  {visibilityAnalysis.lightingGear.recommendedLumens.replace(/\s*–\s*/g, '–')}
                 </div>
                 <div className="text-[11px] text-ink-secondary mt-0.5 break-words font-medium leading-tight">
                   {isFr
@@ -1070,12 +1070,12 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
             </div>
 
             {/* 2. Ambient Phase & Sun Elevation */}
-            <div className="p-3 rounded-pod bg-pod flex flex-row sm:flex-col items-center sm:items-stretch justify-between gap-3 sm:gap-0">
-              <span className="text-[11px] font-medium text-ink-muted sm:block break-words">
+            <div className="p-3 rounded-pod bg-pod flex flex-row xl:flex-col items-center xl:items-stretch justify-between gap-3 xl:gap-0 min-w-0">
+              <span className="text-[11px] font-medium text-ink-muted xl:block break-words">
                 {t('visibilityMetricPhase')}
               </span>
-              <div className="text-right sm:text-left sm:mt-1 min-w-0">
-                <div className="text-base sm:text-lg font-bold font-sans tracking-tight text-ink flex items-center justify-end sm:justify-start gap-1.5 min-w-0 flex-wrap">
+              <div className="text-right xl:text-left xl:mt-1 min-w-0">
+                <div className="text-sm xl:text-[15px] font-bold font-sans tracking-tight leading-tight text-ink flex items-center justify-end xl:justify-start gap-1.5 min-w-0">
                   {visibilityAnalysis.rolloutElevationDeg < -6 ? (
                     <Moon className={`w-4 h-4 shrink-0 ${CHIP_TOKENS.purple.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
                   ) : visibilityAnalysis.rolloutElevationDeg < 0 ? (
@@ -1093,12 +1093,12 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
             </div>
 
             {/* 3. Meteorological Clarity */}
-            <div className="p-3 rounded-pod bg-pod flex flex-row sm:flex-col items-center sm:items-stretch justify-between gap-3 sm:gap-0">
-              <span className="text-[11px] font-medium text-ink-muted sm:block break-words">
+            <div className="p-3 rounded-pod bg-pod flex flex-row xl:flex-col items-center xl:items-stretch justify-between gap-3 xl:gap-0 min-w-0">
+              <span className="text-[11px] font-medium text-ink-muted xl:block break-words">
                 {t('visibilityMetricClarity')}
               </span>
-              <div className="text-right sm:text-left sm:mt-1 min-w-0">
-                <div className="text-lg sm:text-2xl font-bold font-sans tracking-tight text-ink tnum break-words">
+              <div className="text-right xl:text-left xl:mt-1 min-w-0">
+                <div className="text-sm xl:text-[15px] font-bold font-sans tracking-tight leading-tight text-ink tnum whitespace-nowrap">
                   {visibilityAnalysis.visibilityKm} km
                 </div>
                 <div className="text-[11px] text-ink-secondary mt-0.5 break-words font-medium leading-tight">
@@ -1196,19 +1196,19 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
             type="button"
             onClick={toggleKitOpen}
             aria-expanded={isKitOpen}
-            className="w-full min-h-[44px] p-3 sm:p-3.5 flex items-center justify-between gap-2 hover:bg-chip/60 transition-colors cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
+            className="w-full min-h-[44px] rounded-none p-3 sm:p-3.5 flex items-center justify-between gap-2 hover:bg-chip/60 transition-colors cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
           >
-            <div className="flex items-center gap-2 min-w-0">
+            <div className="flex items-center gap-2 shrink-0">
               <IconBadge theme={kitAdvice.tierTheme} icon={Shield} size="sm" solidBacker />
-              <span className="text-xs font-bold font-rounded text-ink tracking-tight whitespace-nowrap truncate">
+              <span className="text-xs font-bold font-rounded text-ink tracking-tight whitespace-nowrap">
                 {t('kitDirectiveTitle')}
               </span>
             </div>
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0 min-w-0">
               <Badge variant={kitAdvice.tierTheme} size="xs" className="tnum">
                 {kitAdvice.tierBadge}
               </Badge>
-              <span className="text-[11px] font-semibold text-ink-muted tnum hidden sm:inline">
+              <span className="text-[11px] font-semibold text-ink-muted tnum hidden 2xl:inline">
                 {t('kitFeelsLike', { temp: kitAdvice.feelsLikeC })}
               </span>
               <DisclosureChevron open={isKitOpen} />

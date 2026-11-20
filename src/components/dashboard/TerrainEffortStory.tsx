@@ -194,6 +194,7 @@ export const TerrainEffortStory: React.FC<TerrainEffortStoryProps> = ({
   const f = useFormatters(isFr);
   const tabsId = useId();
   const [tab, setTab] = useState<TabKey>('effort');
+  const [hoveredZone, setHoveredZone] = useState<PowerZoneCode | null>(null);
 
   const ftp = Math.max(80, sectional.ftpWatts);
   const share = (z: PowerZoneCode) => sectional.zoneShares.find((s) => s.zone === z);
@@ -389,12 +390,51 @@ export const TerrainEffortStory: React.FC<TerrainEffortStoryProps> = ({
               <span className="text-[10px] font-rounded font-bold text-ink-muted tnum">FTP {ftp} W</span>
             )}
           </div>
-          <ul className="mt-2 space-y-2">
+          {/* Proportional 5-zone segmented pill histogram */}
+          <div
+            className="mt-2 mb-2.5 h-3.5 w-full rounded-full bg-chip dark:bg-white/10 p-0.5 flex items-stretch gap-0.5 overflow-hidden"
+            onMouseLeave={() => setHoveredZone(null)}
+            role="img"
+            aria-label={isFr ? 'Répartition proportionnelle des zones de puissance' : 'Proportional power zone distribution'}
+          >
             {ZONE_ORDER.map((z) => {
               const s = share(z);
               const p = s?.pctTime ?? 0;
+              if (p <= 0) return null;
+              const isActive = hoveredZone === z;
               return (
-                <li key={z} className={p === 0 ? 'opacity-50' : ''}>
+                <button
+                  key={z}
+                  type="button"
+                  style={{ flex: `${p} 1 0%` }}
+                  onMouseEnter={() => setHoveredZone(z)}
+                  onFocus={() => setHoveredZone(z)}
+                  onBlur={() => setHoveredZone(null)}
+                  title={`${z} ${zoneName(z)} · ${f.pct(p)} (${f.duration(s?.minutes ?? 0)})`}
+                  aria-label={`${z} ${zoneName(z)} ${f.pct(p)}`}
+                  className={`h-full min-w-[8px] rounded-full cursor-pointer transition-opacity focus:outline-none ${ZONE_FILL[z]} ${
+                    hoveredZone && !isActive ? 'opacity-45' : 'opacity-100'
+                  }`}
+                />
+              );
+            })}
+          </div>
+          <ul className="mt-1 space-y-1">
+            {ZONE_ORDER.map((z) => {
+              const s = share(z);
+              const p = s?.pctTime ?? 0;
+              const isHighlighted = hoveredZone === z;
+              return (
+                <li
+                  key={z}
+                  onMouseEnter={() => setHoveredZone(z)}
+                  onMouseLeave={() => setHoveredZone(null)}
+                  className={`px-2 py-1 -mx-2 rounded-sub-pod ring-2 ring-inset transition-colors ${
+                    isHighlighted
+                      ? 'ring-ink/30 dark:ring-white/35 bg-card/60'
+                      : 'ring-transparent'
+                  } ${p === 0 ? 'opacity-50' : ''}`}
+                >
                   <div className="flex items-baseline justify-between gap-2 text-[11px] leading-tight">
                     <span className="font-rounded font-bold text-ink truncate">
                       {z} <span className="font-semibold text-ink-secondary">{zoneName(z)}</span>

@@ -543,6 +543,60 @@ svg polyline[stroke-opacity="0.4"] {
   outline: none;
 }
 
+/* Theme-aligned Leaflet zoom controls (eliminates glaring #fff buttons in Dark mode) */
+.leaflet-bar {
+  border: none !important;
+  border-radius: 14px !important;
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14) !important;
+}
+
+.leaflet-bar a {
+  background-color: rgb(var(--ds-card) / 0.92) !important;
+  color: rgb(var(--ds-ink)) !important;
+  border-bottom: 1px solid rgba(17, 17, 17, 0.1) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  width: 32px !important;
+  height: 32px !important;
+  line-height: 32px !important;
+  font-weight: 700 !important;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.leaflet-bar a:last-child {
+  border-bottom: none !important;
+}
+
+.leaflet-bar a:hover {
+  background-color: rgb(var(--ds-chip)) !important;
+  color: rgb(var(--ds-ink)) !important;
+}
+
+.dark .leaflet-bar {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.12) !important;
+}
+
+.dark .leaflet-bar a {
+  background-color: rgb(var(--ds-card) / 0.92) !important;
+  color: rgb(var(--ds-ink)) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+.dark .leaflet-bar a:hover {
+  background-color: rgb(var(--ds-chip)) !important;
+}
+
+/* Fullscreen map stacking escape & DynamicIslandNav suppression */
+body.cadence-map-fullscreen .cadence-dynamic-island {
+  display: none !important;
+}
+
+.cadence-map-host:has([data-map-fullscreen="true"]) {
+  z-index: 1150 !important;
+  position: relative;
+}
+
 /* Clip horizontal overflow at root without disabling position: sticky inside views */
 html,
 body {

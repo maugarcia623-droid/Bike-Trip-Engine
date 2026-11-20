@@ -28,6 +28,7 @@ export const fr: TranslationDictionary = {
   onboardingThemePrompt: "Thème",
   themeLight: "Clair",
   themeDark: "Sombre",
+  themeSystem: "Système",
   newTripButton: "Nouveau trajet",
   menuOpen: "Menu",
   menuClose: "Fermer",

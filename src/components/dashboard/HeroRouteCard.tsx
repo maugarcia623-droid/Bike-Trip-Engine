@@ -201,6 +201,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
     if (!isMapFullscreen) return;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    document.body.classList.add('cadence-map-fullscreen');
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setIsMapFullscreen(false);
@@ -209,6 +210,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       document.body.style.overflow = prevOverflow;
+      document.body.classList.remove('cadence-map-fullscreen');
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isMapFullscreen]);
@@ -921,6 +923,14 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
 
     group.clearLayers();
 
+    const isLoopOverlap =
+      !radiusMode &&
+      coords.length > 1 &&
+      Math.hypot(
+        coords[0][0] - coords[coords.length - 1][0],
+        coords[0][1] - coords[coords.length - 1][1]
+      ) < 0.0015;
+
     const startIcon = L.divIcon({
       className: 'custom-hero-start-marker',
       html: `
@@ -930,7 +940,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
         </div>
       `,
       iconSize: [14, 14],
-      iconAnchor: [7, 7],
+      iconAnchor: [isLoopOverlap ? 15 : 7, 7],
     });
 
     const endIcon = L.divIcon({
@@ -939,7 +949,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
         <div style="background-color: #FF3B30; width: 13px; height: 13px; border-radius: 9999px; border: 2.5px solid #ffffff; box-shadow: 0 0 10px rgba(255, 59, 48, 0.8);"></div>
       `,
       iconSize: [13, 13],
-      iconAnchor: [6.5, 6.5],
+      iconAnchor: [isLoopOverlap ? -1 : 6.5, 6.5],
     });
 
     if (radiusMode) {
@@ -1119,7 +1129,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
       : aCoords[0] || [47.2184, -1.5536];
 
     const map = L.map(mapContainerRef.current, {
-      preferCanvas: true,
+      preferCanvas: false,
       center: initialCenter,
       zoom: 11,
       zoomControl: false,
@@ -1463,15 +1473,17 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
   return (
     <div
       ref={heroRootRef}
+      data-map-fullscreen={isMapFullscreen ? 'true' : undefined}
+      style={isMapFullscreen ? { zIndex: 1150 } : undefined}
       className={
         isMapFullscreen
-          ? 'fixed inset-0 z-[100] bg-card text-ink transition-colors'
+          ? 'fixed inset-0 z-[1150] bg-card text-ink transition-colors'
           : 'relative max-w-full min-w-0 rounded-card bg-card text-ink transition-colors shadow-sm min-h-[460px] sm:min-h-[490px] lg:min-h-[520px]'
       }
     >
       <div
         className={`absolute inset-0 z-0 overflow-hidden ${
-          isMapFullscreen ? 'rounded-none' : 'rounded-card isolate [transform:translateZ(0)]'
+          isMapFullscreen ? 'rounded-none isolate' : 'rounded-card isolate [transform:translateZ(0)]'
         }`}
       >
         <div className="absolute inset-0 z-0 overflow-hidden">
@@ -2195,12 +2207,12 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   isInteractive ? 'cursor-pointer select-none group' : ''
                 } bg-[#faffcb] dark:bg-[#1f2203] ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
               >
-                <div className="flex items-center justify-between gap-1.5 text-xs font-semibold shrink-0">
-                  <span className="flex items-center gap-1.5 min-w-0">
+                <div className="flex items-center justify-between gap-1 text-[11px] xl:text-xs font-semibold shrink-0">
+                  <span className="flex items-center gap-1 min-w-0">
                     <span className={`w-2 h-2 rounded-full shrink-0 ${CHIP_TOKENS['yellow-vest'].dot}`} />
-                    <span className="break-words font-bold">{t('hardRollout')}</span>
+                    <span className="whitespace-nowrap truncate font-bold">{t('hardRollout')}</span>
                   </span>
-                  <span className="flex items-center gap-1 shrink-0">
+                  <span className="flex items-center gap-0.5 shrink-0">
                     {isInteractive && (
                       <CaretUp
                         className={`w-3 h-3 text-current transition-transform ${
@@ -2208,7 +2220,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                         }`}
                       />
                     )}
-                    <Clock className="w-4 h-4 text-current shrink-0" />
+                    <Clock className="w-3.5 h-3.5 text-current shrink-0" />
                   </span>
                 </div>
                 <div className="mt-auto pt-2 flex flex-col items-start justify-between gap-1 min-w-0">
@@ -2738,8 +2750,8 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                 <Flame2 className={`w-4 h-4 shrink-0 ${CHIP_TOKENS.amber.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
               </div>
               <div className="mt-auto pt-2 flex flex-col items-start justify-between gap-1 min-w-0">
-                <div className="flex items-baseline gap-1 shrink-0">
-                  <span className="text-xl sm:text-2xl xl:text-[26px] font-bold tracking-tight tnum leading-none text-ink">
+                <div className="flex items-baseline gap-1 flex-wrap min-w-0">
+                  <span className="text-lg sm:text-xl xl:text-[22px] font-bold tracking-tight tnum leading-none text-ink">
                     {effectiveSpecs.telemetryMode === 'quantitative'
                       ? totalKcal
                       : effectiveSpecs.telemetryMode === 'fuel-first'
@@ -2818,7 +2830,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                 };
 
                 return (
-                  <div className="absolute right-0 bottom-full mb-2.5 w-[min(27.5rem,calc(100vw-4rem))] sm:w-[min(27.5rem,calc(100vw-3rem))] z-40 rounded-card p-4 bg-card dark:bg-[#161618] text-ink ring-1 ring-inset ring-ink/10 dark:ring-white/15 shadow-2xl animate-apple-popover">
+                  <div className="absolute right-0 bottom-full mb-2.5 w-[min(27.5rem,calc(100vw-2.5rem))] sm:w-[min(27.5rem,calc(100vw-3rem))] z-40 rounded-card p-3.5 sm:p-4 bg-card dark:bg-[#161618] text-ink ring-1 ring-inset ring-ink/10 dark:ring-white/15 shadow-2xl animate-apple-popover">
                     {/* ── Header: title + data source · refresh action ── */}
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -2882,10 +2894,10 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                           </>
                         ) : (
                           <>
-                            <p className="truncate text-ink">
+                            <p className="text-ink">
                               {Math.round(terrainSummary.minEleM)}–{Math.round(terrainSummary.maxEleM)} m
                             </p>
-                            <p className="truncate text-ink-muted">
+                            <p className="text-[10.5px] sm:text-[11px] leading-tight text-ink-muted">
                               {isFr ? 'Plat' : 'Flat'} {terrainSummary.flatPct} ·{' '}
                               {isFr ? 'Vallonné' : 'Rolling'} {terrainSummary.rollingPct} ·{' '}
                               {isFr ? 'Bosses' : 'Climb'} {terrainSummary.climbPct}%
@@ -2977,15 +2989,17 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                         return (
                           <div
                             key={item.type}
-                            className={`${i === 0 ? 'pr-3' : 'px-3'} min-w-0 ${item.km <= 0.05 ? 'opacity-50' : ''}`}
+                            className={`${
+                              i === 0 ? 'pr-1.5 sm:pr-3' : i === 2 ? 'pl-1.5 sm:px-3' : 'px-1.5 sm:px-3'
+                            } min-w-0 ${item.km <= 0.05 ? 'opacity-50' : ''}`}
                           >
-                            <dt className="flex items-center gap-1.5 text-[11px] font-rounded font-bold text-ink-secondary">
+                            <dt className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-[11px] font-rounded font-bold text-ink-secondary">
                               <span
-                                className={`w-2.5 h-2.5 rounded-full shrink-0 ${meta.barBgClass} ${
+                                className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full shrink-0 ${meta.barBgClass} ${
                                   item.type !== 'paved' ? 'paint-hatch' : ''
                                 }`}
                               />
-                              <span className="truncate">{isFr ? meta.shortLabelFr : meta.shortLabelEn}</span>
+                              <span className="whitespace-nowrap">{isFr ? meta.shortLabelFr : meta.shortLabelEn}</span>
                             </dt>
                             <dd className="mt-1 flex items-start font-rounded tnum whitespace-nowrap text-ink">
                               <span className="text-[22px] font-bold leading-none tracking-tight">{item.pct}</span>

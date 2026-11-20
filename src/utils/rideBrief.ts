@@ -123,6 +123,7 @@ function buildRideBriefCardMeta(input: {
   lang: Language;
   telemetryMode?: RiderBikeSpecs['telemetryMode'];
   vis?: ReturnType<typeof calculateRideVisibility>;
+  readiness?: RideReadiness;
 }): Pick<
   RideBriefData,
   | 'archetypeLabel'
@@ -154,6 +155,7 @@ function buildRideBriefCardMeta(input: {
     finalVerdict,
     lang,
     telemetryMode,
+    readiness,
   } = input;
 
   const isFr = lang === 'fr';
@@ -256,6 +258,14 @@ function buildRideBriefCardMeta(input: {
       ? isFr
         ? 'Allumez vos feux. Roulez fluide.'
         : 'Lights on. Ride steady.'
+      : readiness?.level === 'needs-change'
+      ? isFr
+        ? 'Ajustement conseillé avant départ.'
+        : 'Needs a tweak before rollout.'
+      : readiness?.level === 'worth-tweak'
+      ? isFr
+        ? 'Presque prêt. Vérifiez les alertes.'
+        : 'Almost ready. Check the flags.'
       : isFr
       ? 'Feu vert. Gardez le rythme.'
       : 'All green. Set your pace.';
@@ -928,6 +938,7 @@ export function buildRideBrief(params: {
       lang: params.lang || 'en',
       telemetryMode: riderSpecs.telemetryMode,
       vis,
+      readiness,
     }),
     readiness,
   };

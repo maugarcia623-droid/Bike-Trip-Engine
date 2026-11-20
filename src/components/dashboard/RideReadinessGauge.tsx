@@ -57,12 +57,12 @@ export const READINESS_TOKENS: Record<
     bar: 'bg-amber-400',
   },
   'good-to-go': {
-    segment: 'stroke-volt',
-    knob: 'fill-[#656800] dark:fill-[#1A1C00]',
-    bubble: 'bg-volt',
-    glyph: 'text-[#4D5200]',
-    dot: 'bg-[#A3B300] dark:bg-volt',
-    bar: 'bg-[#A3B300] dark:bg-volt',
+    segment: 'stroke-emerald-500 dark:stroke-emerald-400',
+    knob: 'fill-emerald-900 dark:fill-emerald-950',
+    bubble: 'bg-emerald-500 dark:bg-emerald-400',
+    glyph: 'text-white dark:text-emerald-950',
+    dot: 'bg-emerald-600 dark:bg-emerald-400',
+    bar: 'bg-emerald-500 dark:bg-emerald-400',
   },
 };
 
@@ -117,7 +117,14 @@ export const ReadinessGauge: React.FC<ReadinessGaugeProps> = ({
       className={`relative shrink-0 ${className}`}
       style={{ width: size, height: size }}
     >
-      <svg viewBox={`0 0 ${VB} ${VB}`} width={size} height={size} className="absolute inset-0" aria-hidden="true">
+      <svg
+        viewBox={`0 0 ${VB} ${VB}`}
+        width={size}
+        height={size}
+        shapeRendering="geometricPrecision"
+        className="absolute inset-0"
+        aria-hidden="true"
+      >
         {SEGMENTS.map((seg) => (
           <path
             key={seg.level}
@@ -140,7 +147,7 @@ export const ReadinessGauge: React.FC<ReadinessGaugeProps> = ({
 
       <span
         className="absolute inset-x-0 text-center font-rounded font-bold tracking-tight tnum text-ink leading-none"
-        style={{ top: C * scale - fontSize * 0.62, fontSize }}
+        style={{ top: showIcon ? C * scale - fontSize * 0.58 : C * scale - fontSize * 0.5, fontSize }}
       >
         {score}
       </span>

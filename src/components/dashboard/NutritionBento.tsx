@@ -768,7 +768,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           type="button"
           onClick={toggleManifest}
           aria-expanded={manifestOpen}
-          className="w-full min-h-[44px] p-3 sm:p-3.5 flex items-center justify-between gap-2.5 hover:bg-chip/60 transition-colors cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
+          className="w-full min-h-[44px] rounded-none p-3 sm:p-3.5 flex items-center justify-between gap-2.5 hover:bg-chip/60 transition-colors cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
         >
           <div className="flex items-center gap-2.5 min-w-0">
             <IconBadge theme="amber" icon={Flame} size="sm" solidBacker />
@@ -1010,7 +1010,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
               onClick={() => togglePhase(phase.id)}
               aria-expanded={isOpen}
               aria-controls={panelId}
-              className="w-full min-h-[44px] p-3 sm:p-3.5 flex items-center justify-between gap-2.5 hover:bg-chip/60 transition-colors cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
+              className="w-full min-h-[44px] rounded-none p-3 sm:p-3.5 flex items-center justify-between gap-2.5 hover:bg-chip/60 transition-colors cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
             >
               <div className="flex items-center gap-2.5 min-w-0 flex-1">
                 <IconBadge

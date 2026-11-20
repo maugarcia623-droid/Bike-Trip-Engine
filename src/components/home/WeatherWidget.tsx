@@ -212,17 +212,17 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
       </div>
 
       {/* Full-Radius Telemetry Summary Capsule */}
-      <div className="rounded-pod lg:rounded-full bg-pod px-4 sm:px-5 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-2.5 flex-wrap">
+      <div className="rounded-pod lg:rounded-full bg-pod px-4 sm:px-5 py-3 flex flex-wrap items-center justify-between gap-2.5 text-xs">
+        <div className="flex items-center gap-2 flex-wrap min-w-0">
           <span className="text-ink-secondary font-medium shrink-0">
             {lang === 'fr' ? 'Allure cible & aérodynamique :' : 'Cruising pace & aerodynamics:'}
           </span>
-          <span className="px-3 py-1 rounded-full bg-card font-semibold text-ink tnum shrink-0 whitespace-nowrap">
+          <span className="inline-flex items-center px-3 py-1 rounded-full bg-card font-semibold text-ink tnum shrink-0 whitespace-nowrap leading-none">
             {speedKmH} km/h
           </span>
         </div>
 
-        <div className="flex items-center justify-between sm:justify-start gap-2 flex-wrap">
+        <div className="flex items-center gap-2 shrink-0">
           {weather.isHeadwindActive && effectiveWindSpeed > 0 ? (
             <Badge variant="amber" size="md" className="tnum">
               {isProView

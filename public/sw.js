@@ -1,6 +1,6 @@
 // Cadence Service Worker — App Shell, Map Tiles, Offline Prefetch & Share Target
 const SHARE_CACHE_NAME = 'cadence-share-v1';
-const SHELL_CACHE_NAME = 'cadence-shell-v1';
+const SHELL_CACHE_NAME = 'cadence-shell-v2';
 const TILE_CACHE_NAME = 'cadence-tiles-v1';
 const SHARED_FILE_KEY = '/__cadence_shared_route_file__';
 const MAX_CACHED_TILES = 300;
@@ -24,6 +24,14 @@ function isFontAsset(url) {
 
 function isStaticShellAsset(url) {
   if (url.origin !== self.location.origin) return false;
+  if (
+    url.pathname.startsWith('/src/') ||
+    url.pathname.startsWith('/@vite/') ||
+    url.pathname.startsWith('/@fs/') ||
+    url.pathname.startsWith('/node_modules/')
+  ) {
+    return false;
+  }
   return (
     url.pathname.startsWith('/assets/') ||
     url.pathname === '/manifest.json' ||

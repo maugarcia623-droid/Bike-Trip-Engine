@@ -11,6 +11,7 @@ import { calculatePhysics } from '../../utils/physics';
 import {
   Sun,
   Moon,
+  MonitorCheck,
   Bicycle,
   Printer,
   User,
@@ -76,7 +77,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
   onBackFromDashboard,
   onOpenMobileWeather,
 }) => {
-  const { isDark, toggleTheme } = useTheme();
+  const { isDark, themePreference, setThemePreference } = useTheme();
   const { lang, setLang, t } = useTranslation();
   const { user, openAuthModal, signOut, syncStatus, forceSyncNow } = useAuth();
   const { username } = useUserProfile();
@@ -305,7 +306,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
           <IconBadge theme={theme} icon={icon} size={badgeSize} shape="circle" />
           <div className="min-w-0 flex-1 text-left">
             <div
-              className={`${labelCls} font-semibold leading-tight break-words ${
+              className={`${labelCls} font-semibold leading-tight ${
                 danger ? 'text-rose-600 dark:text-rose-400' : 'text-ink'
               }`}
             >
@@ -503,13 +504,12 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
               <Segmented
                 ariaLabel={t('onboardingThemePrompt')}
                 iconOnlyOnMobile
-                value={isDark ? 'dark' : 'light'}
-                onChange={(v) => {
-                  if ((v === 'dark') !== isDark) toggleTheme();
-                }}
+                value={themePreference}
+                onChange={(v) => setThemePreference(v as 'light' | 'dark' | 'system')}
                 options={[
                   { value: 'light', label: t('themeLight'), icon: Sun },
                   { value: 'dark', label: t('themeDark'), icon: Moon },
+                  { value: 'system', label: t('themeSystem'), icon: MonitorCheck },
                 ]}
               />
             }
@@ -925,7 +925,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
             <div
               role="menu"
               aria-label={isFr ? 'Réglages' : 'Settings'}
-              className="hidden sm:block absolute right-0 top-full mt-3 w-[23rem] max-h-[calc(100dvh-6.5rem)] overflow-y-auto overscroll-contain bg-card dark:bg-[#18181B] border border-ink/[0.06] dark:border-white/[0.08] rounded-[28px] p-3 shadow-[0_24px_60px_rgba(0,0,0,0.16)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.6)] z-50 animate-apple-popover select-none"
+              className="hidden sm:block absolute right-0 top-full mt-3 w-[26rem] max-h-[calc(100dvh-6.5rem)] overflow-y-auto overscroll-contain bg-card dark:bg-[#18181B] border border-ink/[0.06] dark:border-white/[0.08] rounded-[28px] p-3 shadow-[0_24px_60px_rgba(0,0,0,0.16)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.6)] z-50 animate-apple-popover select-none"
             >
               {renderPanel(false)}
             </div>

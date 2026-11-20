@@ -165,6 +165,21 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
   const rollingPercent = Math.round((surfaceAndGradeWatts / totalResistiveWatts) * 100);
   const lossPercent = Math.max(1, 100 - aeroPercent - rollingPercent);
 
+  const positiveGravityWatts = Math.max(0, gravityWatts);
+  const totalBudgetW = Math.max(
+    1,
+    aeroWatts + rollingOnlyWatts + positiveGravityWatts + drivetrainLossWatts
+  );
+  const aeroBudgetPct = Math.round((aeroWatts / totalBudgetW) * 100);
+  const rollingBudgetPct = Math.round((rollingOnlyWatts / totalBudgetW) * 100);
+  const gravityBudgetPct =
+    positiveGravityWatts > 0 ? Math.round((positiveGravityWatts / totalBudgetW) * 100) : 0;
+  const lossBudgetPct = Math.max(
+    0,
+    100 - aeroBudgetPct - rollingBudgetPct - gravityBudgetPct
+  );
+  const showWattsBudget = !isEssential || showWattsInGuided;
+
   const totalWorkKj = Math.round(physicsResult.totalWorkKj);
 
   const wattsPerKg =
@@ -354,7 +369,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
               )}
             </div>
             <span className="text-[11px] text-ink-secondary tnum break-words leading-tight">
-              {showWattsInGuided ? `${powerZone} · ${zoneLabel}` : zoneLabel}
+              {zoneLabel}
             </span>
           </div>
 
@@ -493,6 +508,102 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
         </div>
       )}
 
+      {/* ── UNIFIED STACKED POWER BUDGET BAR ── */}
+      <div className="rounded-pod bg-pod p-3.5 mb-3.5">
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <span className="text-[10px] font-rounded font-bold uppercase tracking-[0.14em] text-ink-muted">
+            {isFr ? 'Répartition puissance' : 'Power budget'}
+          </span>
+          <span className="text-xs font-rounded font-bold text-ink tnum">
+            {showWattsBudget ? `${legWatts} W` : zoneLabel}
+          </span>
+        </div>
+
+        <div
+          className="h-3.5 w-full rounded-full bg-chip dark:bg-white/10 p-0.5 flex items-stretch gap-1 overflow-hidden"
+          role="img"
+          aria-label={
+            isFr
+              ? `Répartition : ${aeroBudgetPct}% aéro, ${rollingBudgetPct}% roulement${gravityBudgetPct > 0 ? `, ${gravityBudgetPct}% gravité` : ''}, ${lossBudgetPct}% transmission`
+              : `Power split: ${aeroBudgetPct}% aero, ${rollingBudgetPct}% rolling${gravityBudgetPct > 0 ? `, ${gravityBudgetPct}% climb` : ''}, ${lossBudgetPct}% drivetrain`
+          }
+        >
+          {aeroWatts > 0 && (
+            <div
+              style={{ flex: `${aeroWatts} 1 0%` }}
+              title={`${isFr ? 'Aéro' : 'Aero drag'}: ${aeroBudgetPct}% (${aeroWatts} W)`}
+              className="h-full min-w-[6px] rounded-full bg-[#A3B300] dark:bg-volt transition-all duration-300"
+            />
+          )}
+          {rollingOnlyWatts > 0 && (
+            <div
+              style={{ flex: `${rollingOnlyWatts} 1 0%` }}
+              title={`${isFr ? 'Roulement' : 'Rolling'}: ${rollingBudgetPct}% (${rollingOnlyWatts} W)`}
+              className="h-full min-w-[6px] rounded-full bg-emerald-500 dark:bg-emerald-400 transition-all duration-300"
+            />
+          )}
+          {positiveGravityWatts > 0 && (
+            <div
+              style={{ flex: `${positiveGravityWatts} 1 0%` }}
+              title={`${isFr ? 'Pente' : 'Climb'}: ${gravityBudgetPct}% (${positiveGravityWatts} W)`}
+              className={`h-full min-w-[6px] rounded-full transition-all duration-300 ${
+                gravityBudgetPct >= 40
+                  ? 'bg-rose-500 dark:bg-rose-400'
+                  : 'bg-amber-500 dark:bg-amber-400'
+              }`}
+            />
+          )}
+          {drivetrainLossWatts > 0 && (
+            <div
+              style={{ flex: `${drivetrainLossWatts} 1 0%` }}
+              title={`${isFr ? 'Transmission' : 'Drivetrain'}: ${lossBudgetPct}% (${drivetrainLossWatts} W)`}
+              className="h-full min-w-[6px] rounded-full bg-ink/35 dark:bg-white/35 transition-all duration-300"
+            />
+          )}
+        </div>
+
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-rounded font-semibold text-ink-secondary tnum">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-[#A3B300] dark:bg-volt shrink-0" />
+            <span>
+              {isFr ? 'Aéro' : 'Aero'} {aeroBudgetPct}%
+              {showWattsBudget ? ` · ${aeroWatts} W` : ''}
+            </span>
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 shrink-0" />
+            <span>
+              {isFr ? 'Roulement' : 'Rolling'} {rollingBudgetPct}%
+              {showWattsBudget ? ` · ${rollingOnlyWatts} W` : ''}
+            </span>
+          </span>
+          {positiveGravityWatts > 0 && (
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                className={`w-2 h-2 rounded-full shrink-0 ${
+                  gravityBudgetPct >= 40
+                    ? 'bg-rose-500 dark:bg-rose-400'
+                    : 'bg-amber-500 dark:bg-amber-400'
+                }`}
+              />
+              <span>
+                {isFr ? 'Pente' : 'Climb'} {gravityBudgetPct}%
+                {showWattsBudget ? ` · ${positiveGravityWatts} W` : ''}
+              </span>
+            </span>
+          )}
+          {drivetrainLossWatts > 0 && (
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-ink/35 dark:bg-white/35 shrink-0" />
+              <span>
+                {isFr ? 'Chaîne' : 'Chain'} {lossBudgetPct}%
+                {showWattsBudget ? ` · ${drivetrainLossWatts} W` : ''}
+              </span>
+            </span>
+          )}
+        </div>
+      </div>
+
       {/* ── DIDACTIC WATTS & POWER ZONES EXPLAINER (COLLAPSIBLE) ── */}
       <Collapsible open={showDidactics} id={didacticPanelId} innerClassName="pb-3.5">
         <div className="rounded-pod bg-pod p-3.5 sm:p-4 space-y-3">
@@ -574,7 +685,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
           onClick={() => setShowSectional((v) => !v)}
           aria-expanded={showSectional}
           aria-controls={sectionalPanelId}
-          className="w-full min-h-[44px] p-3 sm:p-3.5 flex items-center justify-between gap-2.5 hover:bg-chip/60 transition-colors cursor-pointer text-left select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
+          className="w-full min-h-[44px] rounded-none p-3 sm:p-3.5 flex items-center justify-between gap-2.5 hover:bg-chip/60 transition-colors cursor-pointer text-left select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
         >
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <IconBadge theme="amber" icon={Mountains} size="sm" solidBacker />
@@ -638,7 +749,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
           onClick={() => setShowClimbSplits((v) => !v)}
           aria-expanded={showClimbSplits}
           aria-controls={climbSplitsPanelId}
-          className="w-full min-h-[44px] p-3 sm:p-3.5 flex items-center justify-between gap-2.5 hover:bg-chip/60 transition-colors cursor-pointer text-left select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
+          className="w-full min-h-[44px] rounded-none p-3 sm:p-3.5 flex items-center justify-between gap-2.5 hover:bg-chip/60 transition-colors cursor-pointer text-left select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
         >
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <IconBadge theme="rose" icon={Flame} size="sm" solidBacker />
@@ -649,11 +760,23 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
               <p className="text-[11px] text-ink-muted break-words leading-relaxed tnum">
                 {climbSplits.climbs.length > 0
                   ? isFr
-                    ? `${climbSplits.climbs.length} ascensions (+${climbSplits.totalClimbGainM} m) · ${climbSplits.checkpoints.length} points ravitaillement (${climbSplits.recommendedCarbsGPerHr} g/h)`
-                    : `${climbSplits.climbs.length} climbs (+${climbSplits.totalClimbGainM} m) · ${climbSplits.checkpoints.length} fuel stops (${climbSplits.recommendedCarbsGPerHr} g/h)`
+                    ? `${climbSplits.climbs.length} ${
+                        climbSplits.climbs.length === 1 ? 'ascension' : 'ascensions'
+                      } (+${climbSplits.totalClimbGainM}\u00A0m) · ${climbSplits.checkpoints.length} ${
+                        climbSplits.checkpoints.length === 1 ? 'ravito' : 'ravitos'
+                      } (${climbSplits.recommendedCarbsGPerHr}\u00A0g/h)`
+                    : `${climbSplits.climbs.length} ${
+                        climbSplits.climbs.length === 1 ? 'climb' : 'climbs'
+                      } (+${climbSplits.totalClimbGainM}\u00A0m) · ${climbSplits.checkpoints.length} ${
+                        climbSplits.checkpoints.length === 1 ? 'fuel stop' : 'fuel stops'
+                      } (${climbSplits.recommendedCarbsGPerHr}\u00A0g/h)`
                   : isFr
-                  ? `Parcours roulant · ${climbSplits.checkpoints.length} rappels nutrition (${climbSplits.recommendedCarbsGPerHr} g/h · ${climbSplits.targetFluidMlPerHr} mL/h)`
-                  : `Rolling/flat course · ${climbSplits.checkpoints.length} fueling stops (${climbSplits.recommendedCarbsGPerHr} g/h · ${climbSplits.targetFluidMlPerHr} mL/h)`}
+                  ? `Parcours roulant · ${climbSplits.checkpoints.length} ${
+                      climbSplits.checkpoints.length === 1 ? 'rappel nutrition' : 'rappels nutrition'
+                    } (${climbSplits.recommendedCarbsGPerHr}\u00A0g/h · ${climbSplits.targetFluidMlPerHr}\u00A0mL/h)`
+                  : `Rolling/flat course · ${climbSplits.checkpoints.length} ${
+                      climbSplits.checkpoints.length === 1 ? 'fueling stop' : 'fueling stops'
+                    } (${climbSplits.recommendedCarbsGPerHr}\u00A0g/h · ${climbSplits.targetFluidMlPerHr}\u00A0mL/h)`}
               </p>
             </div>
           </div>
@@ -667,31 +790,16 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
           innerClassName="px-3 sm:px-3.5 pb-3.5 space-y-3"
         >
           {climbSplits.climbs.length > 0 ? (
-            <div className="overflow-x-auto rounded-sub-pod bg-card border border-ink/10">
-              <table className="w-full text-left border-collapse text-[11px] tnum">
-                <thead>
-                  <tr className="border-b border-ink/10 text-[10px] uppercase tracking-wider text-ink-muted">
-                    <th className="py-2 px-2.5 font-semibold">
-                      {isFr ? 'Ascension' : 'Climb'}
-                    </th>
-                    <th className="py-2 px-2 font-semibold text-right">
-                      {isFr ? 'Dist / Pente' : 'Dist / Grade'}
-                    </th>
-                    <th className="py-2 px-2 font-semibold text-right">
-                      {isFr ? 'Cible' : 'Target'}
-                    </th>
-                    <th className="py-2 px-2 font-semibold text-right">
-                      {isFr ? 'Durée' : 'Time'}
-                    </th>
-                    <th className="py-2 px-2.5 font-semibold">
-                      {isFr ? 'Ravitaillement' : 'Fueling'}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-ink/10">
-                  {climbSplits.climbs.map((climb) => (
-                    <tr key={`climb-${climb.index}`} className="align-top">
-                      <td className="py-2 px-2.5">
+            <>
+              {/* Mobile (< md): Concentric Climb Cards */}
+              <div className="md:hidden space-y-2 tnum">
+                {climbSplits.climbs.map((climb) => (
+                  <div
+                    key={`climb-card-${climb.index}`}
+                    className="rounded-sub-pod bg-card ring-1 ring-inset ring-ink/[0.06] dark:ring-white/[0.08] p-3 space-y-2.5"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <Badge
                             variant={climb.category === 'HC' || climb.category === '1' ? 'amber' : 'zinc'}
@@ -699,46 +807,146 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
                           >
                             {formatClimbCategoryLabel(climb.category, lang)}
                           </Badge>
-                          <span className="font-semibold text-ink">{climb.name}</span>
+                          <span className="text-xs font-bold font-rounded text-ink leading-snug">
+                            {climb.name}
+                          </span>
                         </div>
-                        <div className="text-[10px] text-ink-muted mt-0.5">
-                          Km {climb.startKm}–{climb.endKm} · {climb.startEleM}–{climb.summitEleM} m
+                        <p className="mt-1 text-[11px] text-ink-muted whitespace-nowrap">
+                          Km {climb.startKm}–{climb.endKm} · {climb.startEleM}–{climb.summitEleM}&nbsp;m
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="text-xs font-bold font-rounded text-ink">
+                          {climb.durationFormatted}
                         </div>
-                      </td>
-                      <td className="py-2 px-2 text-right whitespace-nowrap">
-                        <div className="font-semibold text-ink">
-                          {climb.lengthKm} km · +{climb.elevationGainM} m
+                        {climb.etaStartHHMM && (
+                          <div className="text-[10px] text-ink-muted">{climb.etaStartHHMM}</div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 divide-x divide-ink/10 dark:divide-white/10 pt-2 border-t border-ink/[0.06] dark:border-white/[0.08]">
+                      <div className="pr-2 min-w-0">
+                        <div className="text-[9.5px] font-rounded font-bold uppercase tracking-wider text-ink-muted">
+                          {isFr ? 'Dist / Pente' : 'Dist / Grade'}
                         </div>
-                        <div className="text-[10px] text-ink-muted">
-                          {climb.avgGradePct}% {isFr ? 'moy' : 'avg'} (max {climb.maxGradePct}%)
+                        <div className="mt-0.5 text-[11.5px] font-bold font-rounded text-ink leading-tight">
+                          {climb.lengthKm}&nbsp;km · +{climb.elevationGainM}&nbsp;m
                         </div>
-                      </td>
-                      <td className="py-2 px-2 text-right whitespace-nowrap">
-                        <div className="font-semibold text-ink">
-                          {climb.targetWatts} W · {climb.wattsPerKg} W/kg
+                        <div className="text-[10px] text-ink-muted leading-tight mt-0.5">
+                          {climb.avgGradePct}% ({isFr ? 'max' : 'max'} {climb.maxGradePct}%)
                         </div>
-                        <div className="text-[10px] text-ink-muted">
-                          {climb.powerZone} · {climb.ftpPercent}% FTP · {climb.vamMetersPerHour} VAM
+                      </div>
+
+                      <div className="px-2 min-w-0">
+                        <div className="text-[9.5px] font-rounded font-bold uppercase tracking-wider text-ink-muted">
+                          {isFr ? 'Cible' : 'Target'}
                         </div>
-                      </td>
-                      <td className="py-2 px-2 text-right whitespace-nowrap">
-                        <div className="font-semibold text-ink">{climb.durationFormatted}</div>
-                        <div className="text-[10px] text-ink-muted">
-                          {climb.etaStartHHMM
-                            ? `${climb.etaStartHHMM} · ${climb.climbSpeedKmH} km/h`
-                            : `${climb.climbSpeedKmH} km/h`}
+                        <div className="mt-0.5 text-[11.5px] font-bold font-rounded text-ink leading-tight">
+                          {climb.targetWatts}&nbsp;W
                         </div>
-                      </td>
-                      <td className="py-2 px-2.5 text-ink-secondary leading-snug max-w-[180px]">
-                        {climb.fuelingCue}
-                      </td>
+                        <div className="text-[10px] text-ink-muted leading-tight mt-0.5">
+                          {climb.wattsPerKg}&nbsp;W/kg · {climb.powerZone} ({climb.ftpPercent}%)
+                        </div>
+                      </div>
+
+                      <div className="pl-2 min-w-0">
+                        <div className="text-[9.5px] font-rounded font-bold uppercase tracking-wider text-ink-muted">
+                          {isFr ? 'Allure / VAM' : 'Pace / VAM'}
+                        </div>
+                        <div className="mt-0.5 text-[11.5px] font-bold font-rounded text-ink leading-tight">
+                          {climb.climbSpeedKmH}&nbsp;km/h
+                        </div>
+                        <div className="text-[10px] text-ink-muted leading-tight mt-0.5">
+                          {climb.vamMetersPerHour} VAM
+                        </div>
+                      </div>
+                    </div>
+
+                    {climb.fuelingCue && (
+                      <div className="rounded-sub-pod bg-pod px-2.5 py-1.5 flex items-start gap-1.5 text-[11px] text-ink-secondary leading-snug">
+                        <Droplet className="w-3.5 h-3.5 text-ink-muted shrink-0 mt-0.5" />
+                        <span>{climb.fuelingCue}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop (md+): Full 5-Column Climb Table */}
+              <div className="hidden md:block overflow-x-auto rounded-sub-pod bg-card ring-1 ring-inset ring-ink/[0.06] dark:ring-white/[0.08]">
+                <table className="w-full min-w-[580px] text-left border-collapse text-[11px] tnum">
+                  <thead>
+                    <tr className="border-b border-ink/10 text-[10px] uppercase tracking-wider text-ink-muted">
+                      <th className="py-2 px-2.5 font-semibold">
+                        {isFr ? 'Ascension' : 'Climb'}
+                      </th>
+                      <th className="py-2 px-2 font-semibold text-right">
+                        {isFr ? 'Dist / Pente' : 'Dist / Grade'}
+                      </th>
+                      <th className="py-2 px-2 font-semibold text-right">
+                        {isFr ? 'Cible' : 'Target'}
+                      </th>
+                      <th className="py-2 px-2 font-semibold text-right">
+                        {isFr ? 'Durée' : 'Time'}
+                      </th>
+                      <th className="py-2 px-2.5 font-semibold">
+                        {isFr ? 'Ravitaillement' : 'Fueling'}
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-ink/10">
+                    {climbSplits.climbs.map((climb) => (
+                      <tr key={`climb-${climb.index}`} className="align-top">
+                        <td className="py-2 px-2.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Badge
+                              variant={climb.category === 'HC' || climb.category === '1' ? 'amber' : 'zinc'}
+                              size="xs"
+                            >
+                              {formatClimbCategoryLabel(climb.category, lang)}
+                            </Badge>
+                            <span className="font-semibold text-ink">{climb.name}</span>
+                          </div>
+                          <div className="text-[10px] text-ink-muted mt-0.5 whitespace-nowrap">
+                            Km {climb.startKm}–{climb.endKm} · {climb.startEleM}–{climb.summitEleM}&nbsp;m
+                          </div>
+                        </td>
+                        <td className="py-2 px-2 text-right whitespace-nowrap">
+                          <div className="font-semibold text-ink">
+                            {climb.lengthKm} km · +{climb.elevationGainM} m
+                          </div>
+                          <div className="text-[10px] text-ink-muted">
+                            {climb.avgGradePct}% {isFr ? 'moy' : 'avg'} (max {climb.maxGradePct}%)
+                          </div>
+                        </td>
+                        <td className="py-2 px-2 text-right whitespace-nowrap">
+                          <div className="font-semibold text-ink">
+                            {climb.targetWatts} W · {climb.wattsPerKg} W/kg
+                          </div>
+                          <div className="text-[10px] text-ink-muted">
+                            {climb.powerZone} · {climb.ftpPercent}% FTP · {climb.vamMetersPerHour} VAM
+                          </div>
+                        </td>
+                        <td className="py-2 px-2 text-right whitespace-nowrap">
+                          <div className="font-semibold text-ink">{climb.durationFormatted}</div>
+                          <div className="text-[10px] text-ink-muted">
+                            {climb.etaStartHHMM
+                              ? `${climb.etaStartHHMM} · ${climb.climbSpeedKmH} km/h`
+                              : `${climb.climbSpeedKmH} km/h`}
+                          </div>
+                        </td>
+                        <td className="py-2 px-2.5 text-ink-secondary leading-snug max-w-[180px]">
+                          {climb.fuelingCue}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           ) : (
-            <div className="rounded-sub-pod bg-card border border-ink/10 p-2.5 text-[11px] text-ink-muted">
+            <div className="rounded-sub-pod bg-card ring-1 ring-inset ring-ink/[0.06] dark:ring-white/[0.08] p-3 text-[11px] text-ink-muted">
               {isFr
                 ? 'Aucune ascension significative détectée (seuil ≥ 35 m D+ et ≥ 2,5 %). Maintenez une allure aérobie régulière.'
                 : 'No major climbs detected (threshold ≥ 35 m gain at ≥ 2.5% grade). Maintain steady aerobic cadence.'}
@@ -747,22 +955,24 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
 
           {climbSplits.checkpoints.length > 0 && (
             <div>
-              <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2 mb-2">
                 <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-ink-muted">
-                  <Droplet className="w-3 h-3 text-ink-secondary" />
-                  {isFr
-                    ? 'Checkpoints ravitaillement km par km'
-                    : 'Km-by-Km Fueling & Hydration Checkpoints'}
+                  <Droplet className="w-3.5 h-3.5 text-ink-secondary shrink-0" />
+                  <span>
+                    {isFr
+                      ? 'Checkpoints ravitaillement km par km'
+                      : 'Km-by-Km Fueling & Hydration Checkpoints'}
+                  </span>
                 </span>
-                <span className="text-[10px] text-ink-muted tnum">
-                  {climbSplits.recommendedCarbsGPerHr} g/h · {climbSplits.targetFluidMlPerHr} mL/h
+                <span className="text-[10px] font-semibold text-ink-muted tnum whitespace-nowrap">
+                  {climbSplits.recommendedCarbsGPerHr}&nbsp;g/h · {climbSplits.targetFluidMlPerHr}&nbsp;mL/h
                 </span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                 {climbSplits.checkpoints.map((cp) => (
                   <div
                     key={cp.id}
-                    className="rounded-sub-pod bg-card border border-ink/10 px-2.5 py-2 flex items-start justify-between gap-2"
+                    className="rounded-sub-pod bg-card ring-1 ring-inset ring-ink/[0.06] dark:ring-white/[0.08] px-3 py-2 flex items-start justify-between gap-2"
                   >
                     <div className="min-w-0">
                       <div className="text-[11px] font-semibold text-ink tnum">
@@ -772,8 +982,8 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
                         {cp.detail}
                       </div>
                     </div>
-                    <span className="inline-flex items-center gap-1 shrink-0 text-[10px] text-ink-muted tnum">
-                      <Clock className="w-3 h-3" />
+                    <span className="inline-flex items-center gap-1 shrink-0 text-[10px] text-ink-muted tnum whitespace-nowrap">
+                      <Clock className="w-3 h-3 shrink-0" />
                       {cp.etaHHMM || `${cp.elapsedMinutes}m`}
                     </span>
                   </div>
@@ -801,7 +1011,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
             onClick={() => setShowTelemetryDrawer((v) => !v)}
             aria-expanded={showTelemetryDrawer}
             aria-controls={telemetryDrawerId}
-            className="w-full min-h-[44px] px-3.5 py-2.5 flex items-center justify-between gap-2.5 hover:bg-chip/60 transition-colors cursor-pointer text-left select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
+            className="w-full min-h-[44px] rounded-none px-3.5 py-2.5 flex items-center justify-between gap-2.5 hover:bg-chip/60 transition-colors cursor-pointer text-left select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
           >
             <span className="text-xs font-rounded font-semibold text-ink-secondary">
               {showTelemetryDrawer ? t('hideDeepFormulasBtn') : t('showDeepFormulasBtn')}
@@ -815,7 +1025,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
             onClick={() => setShowTelemetryDrawer((v) => !v)}
             aria-expanded={showTelemetryDrawer}
             aria-controls={telemetryDrawerId}
-            className="w-full min-h-[44px] p-3 sm:p-3.5 flex items-center justify-between gap-2.5 hover:bg-chip/60 transition-colors cursor-pointer text-left select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
+            className="w-full min-h-[44px] rounded-none p-3 sm:p-3.5 flex items-center justify-between gap-2.5 hover:bg-chip/60 transition-colors cursor-pointer text-left select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
           >
             <div className="flex items-center gap-2.5 min-w-0">
               <IconBadge theme="yellow-vest" icon={Wind} size="sm" solidBacker />
@@ -850,61 +1060,84 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
           innerClassName="px-3.5 sm:px-4 pb-3.5 sm:pb-4 pt-1 space-y-3.5"
         >
           <div className="lane-divider mb-2" aria-hidden="true" />
-          {/* Aerodynamic & Rolling Coefficient Pills */}
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-card text-ink tnum">
-                <span>CdA {cda}</span>
-                <InfoTooltip
-                  title={t('cdaTooltipTitle')}
-                  content={t('cdaTooltipContent')}
-                  size="sm"
-                />
+          {/* Aerodynamic, Rolling, Air Density & Gravity Coefficient Strip */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 tnum">
+            <div className="rounded-sub-pod bg-card px-2.5 py-2 flex items-center justify-between gap-1.5 min-w-0">
+              <div className="min-w-0">
+                <span className="block text-[9.5px] font-rounded font-bold uppercase tracking-wider text-ink-muted">
+                  CdA
+                </span>
+                <span className="text-xs font-bold font-rounded text-ink">{cda}</span>
+              </div>
+              <InfoTooltip
+                title={t('cdaTooltipTitle')}
+                content={t('cdaTooltipContent')}
+                size="sm"
+              />
+            </div>
+
+            <div className="rounded-sub-pod bg-card px-2.5 py-2 flex items-center justify-between gap-1.5 min-w-0">
+              <div className="min-w-0">
+                <span className="block text-[9.5px] font-rounded font-bold uppercase tracking-wider text-ink-muted">
+                  Crr
+                </span>
+                <span className="text-xs font-bold font-rounded text-ink">{formattedCrr}</span>
+              </div>
+              <InfoTooltip
+                title={t('crrTooltipTitle')}
+                content={t('crrTooltipContent')}
+                size="sm"
+              />
+            </div>
+
+            <div className="rounded-sub-pod bg-card px-2.5 py-2 min-w-0">
+              <span className="block text-[9.5px] font-rounded font-bold uppercase tracking-wider text-ink-muted">
+                {isFr ? 'Air ρ' : 'Air ρ'}
               </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-card text-ink tnum">
-                <span>Crr {formattedCrr}</span>
-                <InfoTooltip
-                  title={t('crrTooltipTitle')}
-                  content={t('crrTooltipContent')}
-                  size="sm"
-                />
-              </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-card text-ink-secondary tnum">
-                {isFr ? 'Densité air ρ' : 'Air density ρ'} {rho} kg/m&sup3;
+              <span className="text-xs font-bold font-rounded text-ink whitespace-nowrap">
+                {rho}&nbsp;kg/m&sup3;
               </span>
             </div>
 
-            <span className="text-[11px] text-ink-muted tnum">
-              P_gravity: {gravityWatts >= 0 ? `+${gravityWatts}` : gravityWatts} W (
-              {trip.physics.gradientPercent ?? 0}%)
-            </span>
+            <div className="rounded-sub-pod bg-card px-2.5 py-2 min-w-0">
+              <span className="block text-[9.5px] font-rounded font-bold uppercase tracking-wider text-ink-muted">
+                {isFr ? 'Gravité' : 'Gravity'}
+              </span>
+              <span className="text-xs font-bold font-rounded text-ink whitespace-nowrap">
+                {gravityWatts >= 0 ? `+${gravityWatts}` : gravityWatts}&nbsp;W ({trip.physics.gradientPercent ?? 0}%)
+              </span>
+            </div>
           </div>
 
           {/* 1. RESISTIVE POWER PIPELINE SUB-PODS (P_aero, P_rolling + P_gravity, Drivetrain Loss) */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
             {/* Stage 1: Aerodynamic Drag (P_aero) */}
             <div className="rounded-sub-pod bg-card p-3.5 flex flex-col">
-              <div className="flex items-center justify-between gap-2 mb-2.5">
+              <div className="flex items-center justify-between gap-2 mb-3">
                 <span
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary}`}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap shrink-0 ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary}`}
                 >
                   <HandClosed className="w-3.5 h-3.5 shrink-0 text-current" />
-                  <span>{t('aeroDragPill')}</span>
+                  <span>{isFr ? 'Aéro' : 'Aero drag'}</span>
+                </span>
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className="text-xs font-semibold text-ink-muted tnum">{aeroPercent}%</span>
                   <InfoTooltip
                     title={t('aeroDragTooltipTitle')}
                     content={t('aeroDragTooltipContent')}
                     className="text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
                     size="sm"
                   />
-                </span>
-                <span className="text-xs font-medium text-ink-muted tnum">{aeroPercent}%</span>
+                </div>
               </div>
 
-              <div className="h-10 sm:h-16 flex items-end mb-2.5">
-                <div
-                  style={{ height: `${Math.max(30, aeroPercent)}%` }}
-                  className="w-full rounded-sub-pod tarmac-hatch transition-all duration-300"
-                />
+              <div className="mb-3">
+                <div className="w-full h-3 rounded-full bg-pod tarmac-hatch p-0.5 flex items-center overflow-hidden">
+                  <div
+                    style={{ width: `${Math.min(100, Math.max(4, aeroPercent))}%` }}
+                    className="h-full rounded-full bg-[#A3B300] dark:bg-volt transition-all duration-300"
+                  />
+                </div>
               </div>
 
               <div className="mt-auto">
@@ -929,27 +1162,73 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
 
             {/* Stage 2: Rolling Resistance + Gravity (P_rolling + P_gravity) */}
             <div className="rounded-sub-pod bg-card p-3.5 flex flex-col">
-              <div className="flex items-center justify-between gap-2 mb-2.5">
+              <div className="flex items-center justify-between gap-2 mb-3">
                 <span
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary}`}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap shrink-0 ${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary}`}
                 >
                   <CircleArrowUpRight className="w-3.5 h-3.5 shrink-0 text-current" />
-                  <span>{t('tireRollingPill')}</span>
+                  <span>{isFr ? 'Route & pente' : 'Road & grade'}</span>
+                </span>
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className="text-xs font-semibold text-ink-muted tnum">{rollingPercent}%</span>
                   <InfoTooltip
                     title={t('rollingTooltipTitle')}
                     content={t('rollingTooltipContent')}
                     className="text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
                     size="sm"
                   />
-                </span>
-                <span className="text-xs font-medium text-ink-muted tnum">{rollingPercent}%</span>
+                </div>
               </div>
 
-              <div className="h-10 sm:h-16 flex items-end mb-2.5">
-                <div
-                  style={{ height: `${Math.max(24, rollingPercent * 1.45)}%` }}
-                  className="w-full rounded-sub-pod tarmac-hatch transition-all duration-300"
-                />
+              <div className="mb-3">
+                <div className="w-full h-3 rounded-full bg-pod tarmac-hatch p-0.5 flex items-center overflow-hidden">
+                  {gravityWatts >= 0 ? (
+                    <div
+                      style={{ width: `${Math.min(100, Math.max(6, rollingPercent))}%` }}
+                      className="h-full flex items-stretch gap-0.5 overflow-hidden rounded-full transition-all duration-300"
+                    >
+                      <div
+                        style={{ flex: `${Math.max(1, rollingOnlyWatts)} 1 0%` }}
+                        title={`${isFr ? 'Roulement' : 'Rolling'}: ${rollingOnlyWatts} W`}
+                        className="h-full min-w-[4px] rounded-full bg-emerald-500 dark:bg-emerald-400"
+                      />
+                      {gravityWatts > 0 && (
+                        <div
+                          style={{ flex: `${gravityWatts} 1 0%` }}
+                          title={`${isFr ? 'Pente' : 'Climb gravity'}: +${gravityWatts} W`}
+                          className={`h-full min-w-[4px] rounded-full ${
+                            gravityBudgetPct >= 40
+                              ? 'bg-rose-500 dark:bg-rose-400'
+                              : 'bg-amber-500 dark:bg-amber-400'
+                          }`}
+                        />
+                      )}
+                    </div>
+                  ) : (
+                    <div className="h-full w-full flex items-stretch gap-0.5">
+                      <div
+                        style={{
+                          width: `${Math.min(
+                            82,
+                            Math.max(8, Math.round((rollingOnlyWatts / totalResistiveWatts) * 100))
+                          )}%`,
+                        }}
+                        title={`${isFr ? 'Roulement' : 'Rolling'}: ${rollingOnlyWatts} W`}
+                        className="h-full rounded-full bg-emerald-500 dark:bg-emerald-400"
+                      />
+                      <div
+                        style={{
+                          width: `${Math.min(
+                            18,
+                            Math.max(6, Math.round((Math.abs(gravityWatts) / totalResistiveWatts) * 100))
+                          )}%`,
+                        }}
+                        title={`${isFr ? 'Descente' : 'Descent assist'}: ${gravityWatts} W`}
+                        className="h-full rounded-full bg-sky-500 dark:bg-sky-400"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="mt-auto">
@@ -959,7 +1238,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
                   </span>
                   <span className="text-xs font-medium text-ink-muted">{t('wattsUnit')}</span>
                   <span className="text-[11px] text-ink-secondary tnum">
-                    ({rollingOnlyWatts} W + {gravityWatts} W)
+                    ({rollingOnlyWatts} W {gravityWatts < 0 ? `− ${Math.abs(gravityWatts)} W` : `+ ${gravityWatts} W`})
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-1 text-[11px] text-ink-muted mt-1 tnum">
@@ -977,29 +1256,31 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
 
             {/* Stage 3: Drivetrain Loss */}
             <div className="rounded-sub-pod bg-card p-3.5 flex flex-col">
-              <div className="flex items-center justify-between gap-2 mb-2.5">
+              <div className="flex items-center justify-between gap-2 mb-3">
                 <span
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary}`}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap shrink-0 ${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary}`}
                 >
                   <Settings className="w-3.5 h-3.5 shrink-0 text-current" />
-                  <span>{t('drivetrainPill')}</span>
+                  <span>{isFr ? 'Transmission' : 'Drivetrain'}</span>
+                </span>
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className="text-xs font-semibold text-ink-muted tnum">
+                    {t('effShort', { pct: drivetrainEffPercent })}
+                  </span>
                   <InfoTooltip
                     title={t('drivetrainTooltipTitle')}
                     content={t('drivetrainTooltipContent')}
                     className="text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
                     size="sm"
                   />
-                </span>
-                <span className="text-xs font-medium text-ink-muted tnum">
-                  {t('effShort', { pct: drivetrainEffPercent })}
-                </span>
+                </div>
               </div>
 
-              <div className="h-8 sm:h-16 flex items-end mb-2.5">
-                <div className="w-full h-3.5 rounded-full bg-pod flex items-center overflow-hidden">
+              <div className="mb-3">
+                <div className="w-full h-3 rounded-full bg-pod tarmac-hatch p-0.5 flex items-center overflow-hidden">
                   <div
                     style={{ width: `${drivetrainEffPercent}%` }}
-                    className={`h-full rounded-full ${CHIP_TOKENS['yellow-vest'].dot}`}
+                    className="h-full rounded-full bg-amber-500 dark:bg-amber-400 transition-all duration-300"
                   />
                 </div>
               </div>

@@ -1556,7 +1556,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                     type="button"
                     aria-expanded={showAdvancedBike}
                     onClick={() => setShowAdvancedBike((v) => !v)}
-                    className="w-full min-h-[44px] sm:min-h-[34px] flex items-center justify-between gap-2 text-xs font-rounded font-bold text-ink-secondary hover:text-ink cursor-pointer"
+                    className="w-full min-h-[44px] sm:min-h-[34px] rounded-sub-pod px-2 flex items-center justify-between gap-2 text-xs font-rounded font-bold text-ink-secondary hover:text-ink cursor-pointer"
                   >
                     <span>
                       {isFr

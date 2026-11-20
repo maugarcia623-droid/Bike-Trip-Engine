@@ -66,11 +66,12 @@ export const InteractiveRouteMap: React.FC<InteractiveRouteMapProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const highlightLayerRef = useRef<{ outer: L.Polyline; inner: L.Polyline } | null>(null);
 
-  // Fullscreen: Escape key to exit, body scroll lock, and Leaflet resize
+  // Fullscreen: Escape key to exit, body scroll lock, nav suppression, and Leaflet resize
   useEffect(() => {
     if (!isFullscreen) return;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    document.body.classList.add('cadence-map-fullscreen');
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setIsFullscreen(false);
@@ -79,6 +80,7 @@ export const InteractiveRouteMap: React.FC<InteractiveRouteMapProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       document.body.style.overflow = prevOverflow;
+      document.body.classList.remove('cadence-map-fullscreen');
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isFullscreen]);
@@ -147,7 +149,7 @@ export const InteractiveRouteMap: React.FC<InteractiveRouteMapProps> = ({
 
     const defaultCenter: [number, number] = originCoords || [43.35, 6.2]; // Defaults near Provence / Côte d'Azur
     const map = L.map(mapContainerRef.current, {
-      preferCanvas: true,
+      preferCanvas: false,
       zoomControl: true,
       attributionControl: false,
       scrollWheelZoom: true,
@@ -279,7 +281,8 @@ export const InteractiveRouteMap: React.FC<InteractiveRouteMapProps> = ({
     const createMarkerIcon = (
       label: string,
       type: 'origin' | 'waypoint' | 'dest',
-      title: string
+      title: string,
+      anchorOffsetX = 0
     ) => {
       let bg = 'background:#10b981;color:#ffffff;border:2px solid #ffffff;'; // Green Origin
       if (type === 'waypoint') {
@@ -299,17 +302,29 @@ export const InteractiveRouteMap: React.FC<InteractiveRouteMapProps> = ({
         className: 'cadence-map-marker',
         html: el,
         iconSize: [28, 28],
-        iconAnchor: [14, 14],
-        popupAnchor: [0, -14],
+        iconAnchor: [14 + anchorOffsetX, 14],
+        popupAnchor: [-anchorOffsetX, -14],
       });
     };
 
+    const effectiveOriginCoords =
+      originCoords || (coordinates && coordinates.length > 0 ? coordinates[0] : null);
+    const effectiveDestCoords =
+      destCoords || (coordinates && coordinates.length > 1 ? coordinates[coordinates.length - 1] : null);
+    const isLoopOverlap = Boolean(
+      effectiveOriginCoords &&
+        effectiveDestCoords &&
+        Math.hypot(
+          effectiveOriginCoords[0] - effectiveDestCoords[0],
+          effectiveOriginCoords[1] - effectiveDestCoords[1]
+        ) < 0.0015
+    );
+
     // 2. Start Marker (A)
-    const effectiveOriginCoords = originCoords || (coordinates && coordinates.length > 0 ? coordinates[0] : null);
     if (effectiveOriginCoords) {
       const originLabel = originName || (isFr ? 'Départ' : 'Start');
       const startMarker = L.marker(effectiveOriginCoords, {
-        icon: createMarkerIcon('A', 'origin', originLabel),
+        icon: createMarkerIcon('A', 'origin', originLabel, isLoopOverlap ? 12 : 0),
         zIndexOffset: 500,
       }).addTo(markersLayerGroupRef.current);
 
@@ -407,12 +422,11 @@ export const InteractiveRouteMap: React.FC<InteractiveRouteMapProps> = ({
     });
 
     // 4. Finish Marker (B)
-    const effectiveDestCoords = destCoords || (coordinates && coordinates.length > 1 ? coordinates[coordinates.length - 1] : null);
     if (effectiveDestCoords) {
       const destLabel = destinationName || (isFr ? 'Arrivée' : 'Finish');
       const destMarker = L.marker(effectiveDestCoords, {
-        icon: createMarkerIcon('B', 'dest', destLabel),
-        zIndexOffset: 500,
+        icon: createMarkerIcon('B', 'dest', destLabel, isLoopOverlap ? -12 : 0),
+        zIndexOffset: 510,
       }).addTo(markersLayerGroupRef.current);
 
       destMarker.bindTooltip(
@@ -462,7 +476,11 @@ export const InteractiveRouteMap: React.FC<InteractiveRouteMapProps> = ({
     }
 
     if (bounds.isValid()) {
-      map.fitBounds(bounds, { padding: [32, 32], maxZoom: 14 });
+      map.fitBounds(bounds, {
+        paddingTopLeft: [48, 56],
+        paddingBottomRight: [24, 60],
+        maxZoom: 14,
+      });
     }
   }, [geometryKey]);
 
@@ -523,15 +541,21 @@ export const InteractiveRouteMap: React.FC<InteractiveRouteMapProps> = ({
       });
     }
     if (bounds.isValid()) {
-      map.fitBounds(bounds, { padding: [32, 32], maxZoom: 14 });
+      map.fitBounds(bounds, {
+        paddingTopLeft: [48, 56],
+        paddingBottomRight: [24, 60],
+        maxZoom: 14,
+      });
     }
   };
 
   return (
     <div
+      data-map-fullscreen={isFullscreen ? 'true' : undefined}
+      style={isFullscreen ? { zIndex: 1150 } : undefined}
       className={
         isFullscreen
-          ? 'fixed inset-0 z-[100] bg-card overflow-hidden'
+          ? 'fixed inset-0 z-[1150] bg-card overflow-hidden'
           : `relative rounded-pod overflow-hidden ${className}`
       }
     >
@@ -539,27 +563,36 @@ export const InteractiveRouteMap: React.FC<InteractiveRouteMapProps> = ({
       <div className={isFullscreen ? 'w-full h-full' : 'w-full h-56 sm:h-72'}>
         <div
           ref={mapContainerRef}
-          className="w-full h-full cursor-crosshair z-0"
+          className="w-full h-full cursor-crosshair z-0 isolate"
           title={t('clickMapToAddWaypointPrompt')}
         />
       </div>
 
       {/* Top Floating Prompt & Click Banner (offset from top-left Leaflet zoom controls) */}
       <div
-        className={`absolute z-10 pointer-events-none flex items-center justify-between gap-2 ${
+        className={`absolute z-20 pointer-events-none flex items-center justify-between gap-2 ${
           isFullscreen
             ? 'top-[calc(env(safe-area-inset-top,0px)+0.625rem)] left-[calc(env(safe-area-inset-left,0px)+3.5rem)] right-[calc(env(safe-area-inset-right,0px)+0.625rem)]'
             : 'top-2.5 left-14 right-2.5'
         }`}
       >
-        <div className="pointer-events-auto bg-card/90 dark:bg-card/90 backdrop-blur-md px-2.5 py-1.5 rounded-full shadow-md flex items-center gap-2 text-[11px] text-ink font-medium max-w-[calc(100%-80px)] sm:max-w-none">
+        <div className="pointer-events-auto bg-card/90 dark:bg-card/90 backdrop-blur-md px-2.5 py-1.5 rounded-full shadow-md flex items-center gap-2 text-[11px] text-ink font-medium max-w-[calc(100%-96px)] sm:max-w-none">
           <span className="w-2 h-2 rounded-full bg-volt ring-2 ring-volt/40 animate-pulse shrink-0" />
           <span className="leading-tight truncate">
-            {isClickGeocoding
-              ? isFr
-                ? 'Localisation du point de passage…'
-                : 'Resolving via-point…'
-              : t('clickMapToAddWaypointPrompt')}
+            {isClickGeocoding ? (
+              isFr ? (
+                'Localisation du point de passage…'
+              ) : (
+                'Resolving via-point…'
+              )
+            ) : (
+              <>
+                <span className="sm:hidden">
+                  {isFr ? 'Touchez pour un arrêt' : 'Tap map to add stop'}
+                </span>
+                <span className="hidden sm:inline">{t('clickMapToAddWaypointPrompt')}</span>
+              </>
+            )}
           </span>
         </div>
 
@@ -614,7 +647,7 @@ export const InteractiveRouteMap: React.FC<InteractiveRouteMapProps> = ({
       </div>
 
       {/* Bottom-Left Surface Color Legend Pill */}
-      <div className="absolute bottom-2.5 left-2.5 z-10 pointer-events-none flex items-center gap-1.5">
+      <div className="absolute bottom-2.5 left-2.5 z-20 pointer-events-none flex items-center gap-1.5">
         <div className="pointer-events-auto bg-card/92 dark:bg-card/92 backdrop-blur-md px-2.5 py-1 rounded-full shadow-md flex items-center gap-2 text-[10.5px] font-rounded font-semibold text-ink tnum">
           <span className="inline-flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-sky-500 dark:bg-sky-400" />
@@ -655,7 +688,7 @@ export const InteractiveRouteMap: React.FC<InteractiveRouteMapProps> = ({
 
       {/* Bottom Floating Stats / Notification */}
       {(lastAddedLabel || isRouting) && (
-        <div className="absolute bottom-2.5 left-2.5 right-2.5 z-10 pointer-events-none flex items-center justify-center">
+        <div className="absolute bottom-2.5 left-2.5 right-2.5 z-20 pointer-events-none flex items-center justify-center">
           <div className="pointer-events-auto bg-[#111111]/90 text-white dark:bg-white/95 dark:text-[#111111] backdrop-blur-md px-3.5 py-1.5 rounded-full shadow-lg text-xs font-semibold flex items-center gap-2 animate-apple-popover">
             {isRouting ? (
               <>

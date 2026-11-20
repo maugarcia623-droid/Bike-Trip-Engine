@@ -343,7 +343,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   }, [trips, lang]);
 
   return (
-    <div className="w-full max-w-[1720px] mx-auto px-3.5 sm:px-5 lg:px-7 pt-2 pb-24 sm:pb-20 space-y-5">
+    <div className="w-full max-w-[1720px] mx-auto px-3.5 sm:px-5 lg:px-7 pt-2 pb-28 sm:pb-28 space-y-5">
       {/* ═══════════════════════════════════════════════════════════════════════
           MOBILE NATIVE-APP LAYOUT (< md) — Matches Figma Wireframe
           ═══════════════════════════════════════════════════════════════════════ */}

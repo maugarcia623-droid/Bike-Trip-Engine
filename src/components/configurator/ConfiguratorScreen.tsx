@@ -95,6 +95,14 @@ const GripDotsIcon: React.FC<{ className?: string }> = ({ className = 'w-3.5 h-3
   </svg>
 );
 
+/** Derives average effective grade (%) from route distance (km) and positive gain (m D+). */
+function deriveAverageGradePct(distanceKm: number, elevationGainM: number): number {
+  if (!Number.isFinite(distanceKm) || distanceKm <= 0 || !Number.isFinite(elevationGainM) || elevationGainM <= 0) {
+    return 0;
+  }
+  return Number(Math.min(12, Math.max(0.1, (elevationGainM / (distanceKm * 1000)) * 100)).toFixed(1));
+}
+
 /** Parses a `YYYY-MM-DD` string into a local midnight `Date` without UTC offset shifts. */
 function isoToLocalDate(isoStr?: string): Date | undefined {
   if (!isoStr || !/^\d{4}-\d{2}-\d{2}$/.test(isoStr)) return undefined;
@@ -537,6 +545,10 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
           return {
             ...prev,
             name: newName,
+            physics: {
+              ...prev.physics,
+              gradientPercent: deriveAverageGradePct(result.distanceKm, computedGainM),
+            },
             route: {
               ...prev.route,
               routeMode: 'corridor',
@@ -792,10 +804,15 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
       const shouldUpdateLoopTitle =
         !prev.name?.trim() ||
         /^.+ · (\d+(\.\d+)? km Loop|Boucle de \d+(\.\d+)? km)$/i.test(prev.name.trim());
+      const radiusGainM = Math.round(clampedKm * 6.5);
       return {
         ...prev,
         name: shouldUpdateLoopTitle ? newName : prev.name,
         description: updatedDesc,
+        physics: {
+          ...prev.physics,
+          gradientPercent: deriveAverageGradePct(clampedKm, radiusGainM),
+        },
         route: {
           ...prev.route,
           routeMode: 'manual-radius',
@@ -804,7 +821,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
           originCoords: center,
           radiusMeters,
           distanceKm: clampedKm,
-          elevationGainM: Math.round(clampedKm * 6.5),
+          elevationGainM: radiusGainM,
           coordinates: [center],
           gpxFileName: undefined,
           elevationProfile: undefined,
@@ -828,6 +845,10 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
     commitTrip((prev) => ({
       ...prev,
       name: prev.name.trim() ? prev.name : (parsed.trackName || prev.name),
+      physics: {
+        ...prev.physics,
+        gradientPercent: deriveAverageGradePct(parsed.distanceKm, parsed.elevationGainM),
+      },
       route: {
         ...prev.route,
         routeMode: 'gpx',
@@ -1377,7 +1398,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
       : 'Pace & physics';
 
   return (
-    <div className="w-full max-w-[1720px] min-w-0 mx-auto px-3.5 sm:px-5 lg:px-7 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] sm:pt-[calc(env(safe-area-inset-top,0px)+1rem)] pb-28 sm:pb-20 space-y-5">
+    <div className="w-full max-w-[1720px] min-w-0 mx-auto px-3.5 sm:px-5 lg:px-7 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] sm:pt-[calc(env(safe-area-inset-top,0px)+1rem)] pb-28 sm:pb-28 space-y-5">
       {/* ── Top Bar: Back Button (Left) + Auto-saved Tag (Right) ── */}
       <div className="flex items-center justify-between gap-3 animate-apple-in stagger-1">
         <Button variant="ghost"
@@ -1795,6 +1816,10 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                           setRouteError(null);
                           commitTrip((prev) => ({
                             ...prev,
+                            physics: {
+                              ...prev.physics,
+                              gradientPercent: 0,
+                            },
                             route: {
                               ...prev.route,
                               origin: val,
@@ -1928,6 +1953,10 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                           setRouteError(null);
                           commitTrip((prev) => ({
                             ...prev,
+                            physics: {
+                              ...prev.physics,
+                              gradientPercent: 0,
+                            },
                             route: {
                               ...prev.route,
                               destination: val,
@@ -2242,7 +2271,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
               {(isBikepacking ||
                 routeGenMode === 'corridor' ||
                 (trip.route.coordinates?.length || 0) >= 2) && (
-                <div className="rounded-card bg-card text-ink p-4 sm:p-5 shadow-xs space-y-3 transition-colors animate-apple-step-in relative z-10">
+                <div className="cadence-map-host rounded-card bg-card text-ink p-4 sm:p-5 shadow-xs space-y-3 transition-colors animate-apple-step-in relative z-10">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
                       <MapPin className="w-4 h-4 text-volt-dim shrink-0" />
@@ -3305,13 +3334,13 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
               <div className="h-2.5 w-full rounded-full overflow-hidden bg-black/10 dark:bg-white/10 p-0.5 flex items-stretch gap-0.5">
                 {surfaceBreakdown.segments.map((seg) => {
                   const meta = SURFACE_VISUAL_META[seg.type];
-                  const w = Math.max(4, seg.endPct - seg.startPct);
+                  const pctSpan = Math.max(0.5, seg.endPct - seg.startPct);
                   return (
                     <div
                       key={seg.id}
-                      style={{ width: `${w}%` }}
+                      style={{ flex: `${pctSpan} 1 0%` }}
                       title={`${isFr ? seg.nameFr : seg.nameEn} (km ${seg.startKm}–${seg.endKm})`}
-                      className={`h-full first:rounded-l-full last:rounded-r-full ${meta.barBgClass}`}
+                      className={`h-full min-w-[3px] first:rounded-l-full last:rounded-r-full ${meta.barBgClass}`}
                     />
                   );
                 })}

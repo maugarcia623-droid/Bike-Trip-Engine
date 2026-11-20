@@ -268,7 +268,7 @@ export const TimelineContextualBanner: React.FC<TimelineContextualBannerProps> =
         aria-expanded={isExpanded}
         aria-controls={panelId}
         title={config.summaryLine}
-        className="w-full flex items-center gap-2 sm:gap-2.5 p-2 pr-2.5 hover:bg-chip/60 transition-colors cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
+        className="w-full rounded-none flex items-center gap-2 sm:gap-2.5 p-2 pr-2.5 hover:bg-chip/60 transition-colors cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
       >
         <IconBadge
           theme={config.theme}
