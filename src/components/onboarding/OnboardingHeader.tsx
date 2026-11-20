@@ -94,7 +94,7 @@ export const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({
             onThemeChange={() => toggleTheme()}
             iconOnly
             label={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            className="relative before:content-[''] before:absolute before:-inset-1.5 w-9 h-9 p-0 shrink-0 rounded-full bg-pod hover:bg-surface-active flex items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer border border-black/5 dark:border-white/10 text-ink"
+            className="relative before:content-[''] before:absolute before:-inset-1.5 !w-9 !h-9 !min-w-0 !min-h-0 aspect-square !p-0 shrink-0 rounded-full bg-pod hover:bg-surface-active flex items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer border border-black/5 dark:border-white/10 text-ink"
           />
 
           {/* Dismiss Modal Button */}

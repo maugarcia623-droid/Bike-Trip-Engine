@@ -79,48 +79,28 @@ export const Screen1Welcome: React.FC = () => {
           </p>
         </div>
 
-        {/* Right Column: Example Preview Bento */}
+        {/* Right Column: Ride Plan Screenshot Mockup */}
         <div className="lg:col-span-5 flex flex-col">
-          <div className="bento-card bg-card text-ink rounded-card p-5 sm:p-6 border border-black/5 dark:border-white/10 shadow-sm flex flex-col">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-rounded font-semibold text-ink-muted">
-                {isFr ? 'Aperçu exemple' : 'Example preview'}
-              </span>
-              <span className="w-2 h-2 rounded-full bg-volt-lime"></span>
-            </div>
-
-            <h3 className="text-base sm:text-lg font-rounded font-bold text-ink mb-3">
-              {isFr ? 'Place Centrale → Boucle Rivière' : 'Old Town → Riverside Cafe'}
-            </h3>
-
-            {/* Schematic Route Canvas */}
-            <SchematicRouteMap
-              originLabel={isFr ? 'Place Centrale' : 'Old Town'}
-              destinationLabel={isFr ? 'Boucle Rivière' : 'Riverside Cafe'}
-              distanceKm={25.0}
-              estimatedMinutes={75}
-              className="mb-4"
+          <div className="relative rounded-card overflow-hidden border border-black/5 dark:border-white/10 shadow-sm bg-card max-h-[420px] sm:max-h-[460px]">
+            <img
+              src="/images/ride-plan-light.jpg"
+              alt={isFr ? 'Aperçu du plan de sortie Cadence' : 'Cadence ride plan preview'}
+              className="w-full h-auto object-cover object-top block dark:hidden"
             />
-
-            {/* Telemetry Metrics */}
-            <div className="space-y-2 pt-2 border-t border-black/5 dark:border-white/10 text-xs font-medium">
-              <div className="flex items-center justify-between">
-                <span className="text-ink-muted">
-                  {isFr ? 'Distance exemple' : 'Example distance'}
-                </span>
-                <span className="text-sm font-rounded font-bold text-ink tnum">
-                  25.0 km
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-ink-muted">
-                  {isFr ? 'Temps de pédalage estimé' : 'Estimated riding time'}
-                </span>
-                <span className="text-sm font-rounded font-bold text-ink tnum">
-                  1h 15
-                </span>
-              </div>
-            </div>
+            <img
+              src="/images/ride-plan-dark.jpg"
+              alt={isFr ? 'Aperçu du plan de sortie Cadence' : 'Cadence ride plan preview'}
+              className="w-full h-auto object-cover object-top hidden dark:block"
+            />
+            {/* Soft blur & opacity gradient fade at the bottom */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-card via-card/80 to-transparent backdrop-blur-[2px]"
+              style={{
+                maskImage: 'linear-gradient(to top, black 25%, transparent 100%)',
+                WebkitMaskImage: 'linear-gradient(to top, black 25%, transparent 100%)',
+              }}
+            />
           </div>
         </div>
       </div>

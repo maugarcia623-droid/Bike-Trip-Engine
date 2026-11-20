@@ -223,7 +223,7 @@ function AppContent() {
   const isCloudApplyingRef = React.useRef(false);
   const saveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSyncedPayloadHashRef = React.useRef<string>('');
-  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(true);
 
   // If user is already logged in or logs in to Supabase, mark onboarding seen
   useEffect(() => {

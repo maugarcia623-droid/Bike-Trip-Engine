@@ -171,7 +171,7 @@ export const Screen6RideReady: React.FC<Screen6RideReadyProps> = ({
             </div>
 
             {/* Timeline Steps */}
-            <div className="relative pl-6 space-y-4 before:content-[''] before:absolute before:left-2 before:top-2 before:bottom-2 before:w-[2px] before:bg-gradient-to-b before:from-ink before:via-ink/40 before:to-ink/10 dark:before:from-white dark:before:via-white/40 dark:before:to-white/10">
+            <div className="relative pl-6 space-y-4 before:content-[''] before:absolute before:left-[6px] before:-translate-x-1/2 before:top-2 before:bottom-2 before:w-[2px] before:bg-gradient-to-b before:from-ink before:via-ink/40 before:to-ink/10 dark:before:from-white dark:before:via-white/40 dark:before:to-white/10">
               {/* Step 1: Leave */}
               <div className="relative">
                 <span className="absolute -left-6 top-1 w-3 h-3 rounded-full bg-card ring-2 ring-ink dark:ring-white" />

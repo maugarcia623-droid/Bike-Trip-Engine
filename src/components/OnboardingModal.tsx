@@ -559,7 +559,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
           className="flex-1 min-h-0 flex flex-col overflow-y-auto overscroll-contain scroll-smooth focus:outline-none"
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
-          <div key={currentStep} className="flex-1 min-h-0 flex flex-col animate-apple-step-in">
+          <div key={currentStep} className="flex-1 flex flex-col pb-6 sm:pb-8 animate-apple-step-in">
             {currentStep === 0 && <Screen1Welcome />}
 
             {currentStep === 1 && (
