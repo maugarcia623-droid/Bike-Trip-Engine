@@ -12,9 +12,10 @@ import {
 import { Button } from '@/components/arc';
 import { useTranslation } from '../../context/LanguageContext';
 import { TripProfile } from '../../types/trip';
-import { BikeCategory, CasingType, RiderBikeSpecs } from '../../types/specs';
+import { BikeCategory, CasingType, PressureUnit, RiderBikeSpecs } from '../../types/specs';
 import { calculatePhysics } from '../../utils/physics';
-import { calculateTyrePressure } from '../../utils/tyrePressure';
+import { barToPsi, calculateTyrePressure } from '../../utils/tyrePressure';
+import { loadRiderBikeSpecs } from '../../utils/specsStorage';
 import { calculateReverseTimeline } from '../../utils/timeline';
 import { calculateAirDensity } from '../../services/weatherService';
 import { CHIP_DUOTONE_ISOLATION_CLASSES, CHIP_RING_BASE, CHIP_TOKENS } from '../../tokens/chipTokens';
@@ -193,6 +194,10 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
   const [tpHookless, setTpHookless] = useState<boolean>(false);
   const [tpSurfaceMix, setTpSurfaceMix] = useState<'paved' | 'mixed' | 'gravel'>('mixed');
   const [tpWet, setTpWet] = useState<boolean>(false);
+  const [tpUnit, setTpUnit] = useState<PressureUnit>(() => {
+    const src = riderSpecs || loadRiderBikeSpecs();
+    return src.pressureUnit === 'psi' ? 'psi' : 'bar';
+  });
 
   const tpResult = useMemo(() => {
     const surfacePcts =
@@ -216,24 +221,23 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
 
   const displayedFrontBar = Number(Math.max(1.2, tpResult.frontBar - (tpWet ? 0.2 : 0)).toFixed(1));
   const displayedRearBar = Number(Math.max(1.3, tpResult.rearBar - (tpWet ? 0.2 : 0)).toFixed(1));
-  const barToPsi = (bar: number) => Math.round(bar * 14.5038);
 
   const tabs: { id: FreeWebToolTab; label: string; icon: React.ElementType; theme: 'sky' | 'amber' | 'teal' }[] = [
     {
       id: 'wind',
-      label: isFr ? 'Coût du Vent (W & min)' : 'Wind Cost Calculator',
+      label: isFr ? 'Coût du vent (W & min)' : 'Wind cost calculator',
       icon: Wind,
       theme: 'sky',
     },
     {
       id: 'leave-by',
-      label: isFr ? 'Calculateur Départ (Leave-By)' : 'Leave-By Calculator',
+      label: isFr ? 'Calculateur départ (Leave-by)' : 'Leave-by calculator',
       icon: Clock,
       theme: 'amber',
     },
     {
       id: 'pressure',
-      label: isFr ? 'Pression Pneus 15%' : '15% Drop Tyre Pressure',
+      label: isFr ? 'Pression pneus 15 %' : '15% drop tyre pressure',
       icon: Gauge,
       theme: 'teal',
     },
@@ -251,7 +255,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
             </span>
           </div>
           <h1 className="text-xl sm:text-2xl font-extrabold font-rounded text-ink tracking-tight">
-            {isFr ? 'Calculateurs tactiques Cadence' : 'Cadence Free Cycling Tools'}
+            {isFr ? 'Calculateurs tactiques Cadence' : 'Cadence free cycling tools'}
           </h1>
         </div>
 
@@ -841,44 +845,88 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
                 variant="ghost"
                 type="button"
                 onClick={() => setTpWet((v) => !v)}
-                className={`px-3 py-1.5 rounded-full text-xs font-rounded font-bold cursor-pointer ${
+                className={`min-h-[44px] sm:min-h-0 px-3.5 py-1.5 rounded-full text-xs font-rounded font-bold cursor-pointer ${
                   tpWet
                     ? `${CHIP_TOKENS.sky.surface} ${CHIP_TOKENS.sky.primary} ring-2 ring-inset ${CHIP_TOKENS.sky.selectedRing}`
                     : 'bg-pod text-ink-secondary'
                 }`}
               >
-                {isFr ? 'Chaussée mouillée (-0,2 bar)' : 'Wet roads (-0.2 bar)'}
+                {tpUnit === 'psi'
+                  ? isFr
+                    ? 'Chaussée mouillée (−3 PSI)'
+                    : 'Wet roads (−3 PSI)'
+                  : isFr
+                  ? 'Chaussée mouillée (−0,2 bar)'
+                  : 'Wet roads (−0.2 bar)'}
               </Button>
             </div>
           </div>
 
           <div className="lg:col-span-5 rounded-card bg-card p-4 sm:p-5 space-y-4 shadow-xs">
-            <span className="text-xs font-rounded font-bold uppercase tracking-wider text-ink-muted block">
-              {isFr ? 'Pression recommandée' : 'Recommended pressure'}
-            </span>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-rounded font-bold text-ink-muted block">
+                {isFr ? 'Pression recommandée' : 'Recommended pressure'}
+              </span>
+              <div className="inline-flex items-center p-1 rounded-full bg-pod" role="group" aria-label={isFr ? 'Unité pression pneus' : 'Tyre pressure unit'}>
+                {(['bar', 'psi'] as const).map((unitOpt) => {
+                  const activeUnit = tpUnit === unitOpt;
+                  return (
+                    <Button
+                      key={unitOpt}
+                      variant="ghost"
+                      type="button"
+                      onClick={() => setTpUnit(unitOpt)}
+                      className={`min-h-[36px] sm:min-h-[28px] px-3 py-1 rounded-full text-xs font-rounded font-bold transition-colors cursor-pointer ${
+                        activeUnit
+                          ? 'bg-card text-ink shadow-xs'
+                          : 'text-ink-muted hover:text-ink'
+                      }`}
+                    >
+                      {unitOpt === 'psi' ? 'PSI' : 'bar'}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-pod p-4 bg-pod">
-                <div className="text-[11px] font-rounded font-bold text-ink-secondary uppercase">
-                  {isFr ? 'Pneu Avant' : 'Front Tyre'} ({tpResult.frontLoadPct}%)
+                <div className="text-[11px] font-rounded font-bold text-ink-secondary">
+                  {isFr ? 'Pneu avant' : 'Front tyre'} ({tpResult.frontLoadPct}%)
                 </div>
                 <div className="text-3xl font-extrabold font-rounded text-ink tnum mt-1">
-                  {displayedFrontBar.toFixed(1)} <span className="text-sm font-bold text-ink-muted">bar</span>
+                  {tpUnit === 'psi' ? (
+                    <>
+                      {barToPsi(displayedFrontBar)} <span className="text-sm font-bold text-ink-muted">PSI</span>
+                    </>
+                  ) : (
+                    <>
+                      {displayedFrontBar.toFixed(1)} <span className="text-sm font-bold text-ink-muted">bar</span>
+                    </>
+                  )}
                 </div>
                 <div className="text-xs text-ink-muted font-rounded tnum mt-0.5">
-                  {barToPsi(displayedFrontBar)} PSI
+                  {tpUnit === 'psi' ? `${displayedFrontBar.toFixed(1)} bar` : `${barToPsi(displayedFrontBar)} PSI`}
                 </div>
               </div>
 
               <div className="rounded-pod p-4 bg-volt/20 dark:bg-volt/15 ring-1 ring-inset ring-volt-lime/40">
-                <div className="text-[11px] font-rounded font-bold text-ink-secondary uppercase">
-                  {isFr ? 'Pneu Arrière' : 'Rear Tyre'} ({tpResult.rearLoadPct}%)
+                <div className="text-[11px] font-rounded font-bold text-ink-secondary">
+                  {isFr ? 'Pneu arrière' : 'Rear tyre'} ({tpResult.rearLoadPct}%)
                 </div>
                 <div className="text-3xl font-extrabold font-rounded text-ink tnum mt-1">
-                  {displayedRearBar.toFixed(1)} <span className="text-sm font-bold text-ink-muted">bar</span>
+                  {tpUnit === 'psi' ? (
+                    <>
+                      {barToPsi(displayedRearBar)} <span className="text-sm font-bold text-ink-muted">PSI</span>
+                    </>
+                  ) : (
+                    <>
+                      {displayedRearBar.toFixed(1)} <span className="text-sm font-bold text-ink-muted">bar</span>
+                    </>
+                  )}
                 </div>
                 <div className="text-xs text-ink-muted font-rounded tnum mt-0.5">
-                  {barToPsi(displayedRearBar)} PSI
+                  {tpUnit === 'psi' ? `${displayedRearBar.toFixed(1)} bar` : `${barToPsi(displayedRearBar)} PSI`}
                 </div>
               </div>
             </div>

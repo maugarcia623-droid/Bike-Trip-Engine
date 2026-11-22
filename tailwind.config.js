@@ -56,10 +56,10 @@ export default {
         '-1': '-1',
       },
       borderRadius: {
-        '4xl': '2rem',      /* 32px — Preline floating bar concentric radius */
-        card: '2rem',       /* 32px — Primary borderless cards (16px inner pod + 16px padding = 32px) */
-        pod: '1rem',        /* 16px — Nested sub-cards & pods */
-        'sub-pod': '0.5rem',/* 8px — Nested elements inside pods when padding is 8px (8px + 8px = 16px) */
+        '4xl': '1.5rem',    /* 24px — Floating bar concentric outer radius */
+        card: '1.5rem',     /* 24px — Primary borderless cards */
+        pod: '1.125rem',    /* 18px — Nested inner pods & sub-cards */
+        'sub-pod': '0.75rem',/* 12px — Secondary nested elements inside pods */
       },
       fontFamily: {
         /* Rounded voice (data, metrics, labels & headers): SF Pro Rounded on Mac, Nunito cross-platform fallback */

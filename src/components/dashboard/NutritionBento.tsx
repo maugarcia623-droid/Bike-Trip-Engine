@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Button } from '@/components/arc';
+import { Button, Timeline } from '@/components/arc';
+import type { TimelineEvent, TimelineGroupMeta } from '@/components/arc';
 import {
   ForkKnife,
   Compass,
   Coffee,
-  AppleLogo,
+  Apple,
+  Banana,
   Lightning,
   Package,
-  Flame,
+  Flame2,
   Trophy,
   Mountains,
   Wine,
@@ -351,24 +353,26 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
     [currentCoords, stageId, totalDistanceKm]
   );
   // Live scan results: refresh whenever a corridor scan lands anywhere in the UI (Phase 8)
-  const [cachedAmenities, setCachedAmenities] = useState(() =>
-    routeCacheKey ? getCachedScan(routeCacheKey) || [] : []
+  const [cachedScanResult, setCachedScanResult] = useState<ReturnType<typeof getCachedScan>>(() =>
+    routeCacheKey ? getCachedScan(routeCacheKey) : undefined
   );
   useEffect(() => {
     if (!routeCacheKey) {
-      setCachedAmenities([]);
+      setCachedScanResult(undefined);
       return;
     }
-    setCachedAmenities(getCachedScan(routeCacheKey) || []);
+    setCachedScanResult(getCachedScan(routeCacheKey));
     return subscribeScanCache((key) => {
       if (key === routeCacheKey || key === '*') {
-        setCachedAmenities(getCachedScan(routeCacheKey) || []);
+        setCachedScanResult(getCachedScan(routeCacheKey));
       }
     });
   }, [routeCacheKey]);
-  const hasWaterScan = cachedAmenities.length > 0;
+  const hasWaterScan = Array.isArray(cachedScanResult);
+  const cachedAmenities = cachedScanResult ?? [];
 
   const waterGaps = useMemo(() => {
+    if (!hasWaterScan) return null;
     const allWaterItems = [...cachedAmenities];
     if (trip.pinnedAmenities) {
       for (const pinned of trip.pinnedAmenities) {
@@ -384,7 +388,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       bidonSizeMl,
       frameBottleSlots,
     });
-  }, [cachedAmenities, trip.pinnedAmenities, totalDistanceKm, physicsResult?.effectiveSpeedKmH, trip.route?.targetSpeedKmH, hydrationPlan.targetFluidMlPerHr, bidonSizeMl, frameBottleSlots]);
+  }, [hasWaterScan, cachedAmenities, trip.pinnedAmenities, totalDistanceKm, physicsResult?.effectiveSpeedKmH, trip.route?.targetSpeedKmH, hydrationPlan.targetFluidMlPerHr, bidonSizeMl, frameBottleSlots]);
 
   // Fetch structured nutrition plan items with quantitative & portion labels
   const planPhases = getRealFoodNutritionPlan(
@@ -518,7 +522,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
     if (isEmergencySurge) {
       return (
         <>
-          <Badge variant="amber" size="md" icon={Flame} className="py-1.5 px-3 tnum">
+          <Badge variant="amber" size="md" icon={Flame2} className="py-1.5 px-3 tnum">
             {t('nutriEmergencySurge', { carbs: recommendedGPerHr })}
           </Badge>
           <Badge variant="red" size="md" icon={TriangleAlert} className="py-1.5 px-3">
@@ -676,35 +680,6 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
                 </Button>
               )}
             </div>
-
-            {/* Location inputs */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <div className="flex items-center gap-1.5 min-h-[44px] sm:min-h-[34px] bg-card px-3 py-1 rounded-full ring-1 ring-inset ring-ink/10 dark:ring-white/10 focus-within:ring-2 focus-within:ring-inset focus-within:ring-emerald-500">
-                <MapPin className="w-3.5 h-3.5 text-ink-muted shrink-0" />
-                <input
-                  type="text"
-                  value={localLogistics.stage1LocationLabel ?? ''}
-                  placeholder={defaultStage1Loc}
-                  onChange={(e) => updateLogistics({ stage1LocationLabel: e.target.value })}
-                  className="bg-transparent text-ink text-base sm:text-xs font-rounded placeholder:text-ink-muted w-32 sm:w-36 focus:outline-none"
-                  title={t('logisticsStage1Location')}
-                />
-              </div>
-
-              {isCommuteMode && localLogistics.splitPostRideRecovery && (
-                <div className="flex items-center gap-1.5 min-h-[44px] sm:min-h-[34px] bg-card px-3 py-1 rounded-full ring-1 ring-inset ring-ink/10 dark:ring-white/10 focus-within:ring-2 focus-within:ring-inset focus-within:ring-emerald-500">
-                  <MapPin className="w-3.5 h-3.5 text-ink-muted shrink-0" />
-                  <input
-                    type="text"
-                    value={localLogistics.stage2LocationLabel ?? ''}
-                    placeholder={isFr ? 'Salle de Pause / Bureau' : 'Break Room / Workspace'}
-                    onChange={(e) => updateLogistics({ stage2LocationLabel: e.target.value })}
-                    className="bg-transparent text-ink text-base sm:text-xs font-rounded placeholder:text-ink-muted w-32 sm:w-36 focus:outline-none"
-                    title={t('logisticsStage2Location')}
-                  />
-                </div>
-              )}
-            </div>
           </div>
         </Collapsible>
       </div>
@@ -771,7 +746,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           className="w-full min-h-[44px] rounded-none p-3 sm:p-3.5 flex items-center justify-between gap-2.5 hover:bg-chip/60 transition-colors cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
         >
           <div className="flex items-center gap-2.5 min-w-0">
-            <IconBadge theme="amber" icon={Flame} size="sm" solidBacker />
+            <IconBadge theme="amber" icon={Flame2} size="sm" solidBacker />
             <div className="min-w-0">
               <h4 className="text-xs sm:text-[13px] font-bold text-ink font-rounded tracking-tight break-words tnum">
                 {manifestTitle}
@@ -921,7 +896,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           {HeadingIcon && <HeadingIcon className="w-4 h-4 shrink-0 text-current" aria-hidden="true" />}
           <span>{heading}</span>
         </span>
-        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           {groupItems.map((itm, iIdx) => {
             const displayLabel = isFuelFirst
               ? itm.portionLabel || itm.name
@@ -932,10 +907,10 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
             return (
               <li
                 key={`${itm.name}-${iIdx}`}
-                className="p-2 rounded-sub-pod bg-card text-xs flex items-start justify-between gap-2"
+                className="py-1.5 px-1 text-xs flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5"
               >
-                <div className="min-w-0 space-y-0.5">
-                  <span className="block font-medium text-ink break-words tnum">
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <span className="block font-rounded font-bold text-ink break-words tnum">
                     {displayLabel}
                   </span>
                   {itm.notes && (
@@ -964,10 +939,10 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
                         ? 'Ajouter à la liste de courses'
                         : 'Add to shopping list'
                     }
-                    className={`shrink-0 inline-flex items-center gap-1 px-1.5 py-1 rounded-md text-[10px] font-medium transition-colors cursor-pointer ${
+                    className={`shrink-0 inline-flex items-center gap-1 min-h-[36px] px-3 py-1 rounded-full text-[11px] font-rounded font-bold transition-colors cursor-pointer ${
                       isInShoppingList
                         ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/25'
-                        : 'bg-pod hover:bg-chip text-ink-muted hover:text-ink'
+                        : 'bg-chip hover:bg-chip-hover text-ink-secondary hover:text-ink'
                     }`}
                   >
                     {isInShoppingList ? (
@@ -991,129 +966,134 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
     );
   };
 
-  const renderPhaseAccordion = (phases: NutritionPhaseSpec[]) => (
-    <div className="space-y-2.5">
-      {phases.map((phase, idx) => {
-        const isOpen = Boolean(openPhases[phase.id]);
-        const panelId = `nutrition-phase-${trip.id}-${phase.id}`;
-        const bullets = splitIntoBullets(phase.body);
-        const MacroIcon = phase.macroIcon;
+  const renderPhaseAccordion = (phases: NutritionPhaseSpec[]) => {
+    const groupLabels: Record<string, TimelineGroupMeta> = {};
+    const events: TimelineEvent[] = phases.map((phase, idx) => {
+      const bullets = splitIntoBullets(phase.body);
+      const MacroIcon = phase.macroIcon;
+      const groupKey = phase.stageLabel || `phase-${idx + 1}`;
+      const isOnBike = idx === 1;
+      const borderAccentClass =
+        phase.theme === 'yellow-vest' || phase.theme === 'lime'
+          ? 'border-[#a3b300]/60 dark:border-[#dfff00]/45'
+          : phase.theme === 'emerald'
+          ? 'border-emerald-500/50 dark:border-emerald-400/50'
+          : phase.theme === 'rose'
+          ? 'border-rose-500/50 dark:border-rose-400/50'
+          : 'border-amber-500/50 dark:border-amber-400/50';
 
-        return (
-          <div
-            key={phase.id}
-            className="rounded-pod bg-pod overflow-hidden transition-colors"
-          >
-            {/* Collapsible Phase Header */}
-            <Button variant="ghost"
-              type="button"
-              onClick={() => togglePhase(phase.id)}
-              aria-expanded={isOpen}
-              aria-controls={panelId}
-              className="w-full min-h-[44px] rounded-none p-3 sm:p-3.5 flex items-center justify-between gap-2.5 hover:bg-chip/60 transition-colors cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
+      if (!groupLabels[groupKey]) {
+        const tokens = CHIP_TOKENS[phase.theme];
+        groupLabels[groupKey] = {
+          label: phase.stageLabel,
+          showDivider: true,
+          header: (
+            <span
+              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-rounded font-semibold shrink-0 ${tokens.surface} ${tokens.primary}`}
             >
-              <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                <IconBadge
-                  theme={phase.theme}
-                  icon={phase.icon}
-                  size="sm"
-                  solidBacker
-                  className="shrink-0"
-                />
+              <span className={`w-1.5 h-1.5 rounded-full ${tokens.dot}`} />
+              {phase.stageLabel}
+            </span>
+          ),
+        };
+      }
 
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                    <span className="text-[13px] sm:text-sm font-bold font-rounded text-ink leading-snug break-words tnum">
-                      {idx + 1}. {phase.title}
-                    </span>
-                    {phase.liquidShiftPill && (
-                      <Badge variant="sky" size="xs" dot className="font-semibold text-[10px]">
-                        {phase.liquidShiftPill}
-                      </Badge>
+      return {
+        id: phase.id,
+        group: groupKey,
+        title: `${idx + 1}. ${phase.title}`,
+        meta: phase.macroHeadline,
+        timeLabel: phase.timingLabel,
+        timeFull: `${phase.timingLabel} — ${phase.title}`,
+        highlight: isOnBike,
+        emphasis: isOnBike ? 'accent' : 'strong',
+        marker: (
+          <IconBadge
+            theme={phase.theme}
+            icon={phase.icon}
+            size="md"
+            isSelected={isOnBike}
+            solidBacker
+            className="transition-transform duration-200 group-hover:scale-105 motion-reduce:transition-none"
+          />
+        ),
+        badge: phase.liquidShiftPill ? (
+          <Badge variant="sky" size="xs" dot className="hidden min-[400px]:inline-flex">
+            {phase.liquidShiftPill}
+          </Badge>
+        ) : undefined,
+        detail: (
+          <div className={`space-y-2.5 pl-2.5 border-l-2 ${borderAccentClass}`}>
+            <ul className="space-y-1.5 text-xs sm:text-[13px] text-ink-secondary leading-relaxed">
+              {bullets.map((sentence, bIdx) => (
+                <li key={bIdx} className="flex items-start gap-2">
+                  <span
+                    aria-hidden="true"
+                    className={`w-1.5 h-1.5 rounded-full mt-2 shrink-0 ${CHIP_TOKENS[phase.theme].dot}`}
+                  />
+                  <span>{sentence}</span>
+                </li>
+              ))}
+            </ul>
+
+            {phase.items && phase.items.length > 0 && (
+              <div className="pt-1.5 space-y-2.5">
+                <div className="lane-divider mb-2" aria-hidden="true" />
+                {phase.items.some((i) => i.isSavoryReset) ? (
+                  <>
+                    {renderItemGroup(t('nutriGroupBottles'), Droplets, 'sky', phase.items.filter((i) => i.isLiquid))}
+                    {renderItemGroup(
+                      t('sweetFastEnergy'),
+                      Lightning,
+                      'amber',
+                      phase.items.filter((i) => !i.isSavoryReset && !i.isLiquid)
                     )}
-                  </div>
-                  <div className="flex items-center gap-1.5 mt-1 text-[11px] text-ink-muted flex-wrap tnum">
-                    <span className="px-2 py-0.5 rounded-full bg-card font-rounded font-semibold text-ink-muted text-[11px]">
-                      {phase.stageLabel}
-                    </span>
-                    <span className="font-semibold text-ink-secondary break-words tnum">
-                      {phase.macroHeadline}
-                    </span>
-                  </div>
-                </div>
+                    {renderItemGroup(t('savoryPalateResets'), ForkKnife, 'emerald', phase.items.filter((i) => i.isSavoryReset))}
+                  </>
+                ) : (
+                  renderItemGroup(
+                    isFuelFirst ? t('nutriGroupPortions') : t('nutriGroupFoodPlan'),
+                    undefined,
+                    phase.theme,
+                    phase.items
+                  )
+                )}
               </div>
+            )}
 
-              <div className="flex items-center gap-1.5 shrink-0">
-                <Badge variant={phase.timingVariant} size="xs" className="tnum">
-                  {phase.timingLabel}
-                </Badge>
-
-                <DisclosureChevron open={isOpen} />
-              </div>
-            </Button>
-
-            {/* Expandable Bullet Protocol Details */}
-            <Collapsible
-              open={isOpen}
-              id={panelId}
-              innerClassName="px-3.5 pb-3.5 pt-1 space-y-2.5"
-            >
-              <div className="lane-divider mb-1.5" aria-hidden="true" />
-              <ul className="space-y-1.5 text-[13px] text-ink-secondary leading-relaxed">
-                {bullets.map((sentence, bIdx) => (
-                  <li key={bIdx} className="flex items-start gap-2">
-                    <span
-                      aria-hidden="true"
-                      className={`w-1.5 h-1.5 rounded-full mt-2 shrink-0 ${CHIP_TOKENS[phase.theme].dot}`}
-                    />
-                    <span>{sentence}</span>
-                  </li>
-                ))}
-              </ul>
-
-              {/* Portion-Label or Quantitative-Label Food Items List */}
-              {phase.items && phase.items.length > 0 && (
-                <div className="pt-2 space-y-2.5">
-                  <div className="lane-divider mb-2" aria-hidden="true" />
-                  {phase.items.some((i) => i.isSavoryReset) ? (
-                    <>
-                      {renderItemGroup(t('nutriGroupBottles'), Droplets, 'sky', phase.items.filter((i) => i.isLiquid))}
-                      {renderItemGroup(
-                        t('sweetFastEnergy'),
-                        Lightning,
-                        'amber',
-                        phase.items.filter((i) => !i.isSavoryReset && !i.isLiquid)
-                      )}
-                      {renderItemGroup(t('savoryPalateResets'), ForkKnife, 'emerald', phase.items.filter((i) => i.isSavoryReset))}
-                    </>
-                  ) : (
-                    renderItemGroup(
-                      isFuelFirst ? t('nutriGroupPortions') : t('nutriGroupFoodPlan'),
-                      undefined,
-                      phase.theme,
-                      phase.items
-                    )
-                  )}
-                </div>
-              )}
-
-              <div className="px-3 py-2 rounded-sub-pod bg-card flex flex-wrap items-center justify-between gap-1.5 text-xs">
-                <span className="text-[11px] font-rounded font-semibold text-ink-muted">
-                  {phase.stageLabel}
-                </span>
-                <span
-                  className={`font-bold text-xs tnum flex items-center gap-1 ${CHIP_TOKENS[phase.macroTheme].primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
-                >
-                  {MacroIcon && <MacroIcon className="w-4 h-4 text-current shrink-0" />}
-                  <span>{phase.macroHeadline}</span>
-                </span>
-              </div>
-            </Collapsible>
+            <div className="px-3 py-2 rounded-sub-pod bg-pod flex flex-wrap items-center justify-between gap-1.5 text-xs">
+              <span className="text-[11px] font-rounded font-semibold text-ink-muted">
+                {phase.stageLabel}
+              </span>
+              <span
+                className={`font-bold text-xs tnum flex items-center gap-1 ${CHIP_TOKENS[phase.macroTheme].primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+              >
+                {MacroIcon && <MacroIcon className="w-4 h-4 text-current shrink-0" />}
+                <span>{phase.macroHeadline}</span>
+              </span>
+            </div>
           </div>
-        );
-      })}
-    </div>
-  );
+        ),
+      };
+    });
+
+    return (
+      <div className="mt-2">
+        <Timeline
+          key={`nutri-${trip.id}-${phases.map((p) => p.id).join('-')}`}
+          events={events}
+          label={isFr ? 'Chronologie nutrition' : 'Nutrition timeline'}
+          groupBy="custom"
+          sortOrder="preserve"
+          groupLabels={groupLabels}
+          showGroupCount={false}
+          connectorStyle="dashed"
+          markerSize="md"
+          scrollToNew={false}
+        />
+      </div>
+    );
+  };
 
   const renderWaterGapAlertBanner = () => {
     // Without a corridor scan the whole route reads as one dry gap: never alert on that.
@@ -1356,7 +1336,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         timingLabel: solvedTimeline.arrivalTimeHHMM || (isFr ? 'Arrivée' : 'Arrival'),
         timingVariant: 'emerald',
         macroHeadline: arrMacroHeadline,
-        macroIcon: isQuantitative ? Flame : Coffee,
+        macroIcon: isQuantitative ? Flame2 : Coffee,
         macroTheme: 'emerald',
         title: t('nutriShort2Title'),
         body: isFr
@@ -1376,7 +1356,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
               {t('nutriShortBadge')}
             </Badge>
             {isQuantitative ? (
-              <Badge variant="amber" size="md" icon={Flame} className="py-1.5 px-3 tnum">
+              <Badge variant="amber" size="md" icon={Flame2} className="py-1.5 px-3 tnum">
                 ~{estimatedBurnKcal} kcal
               </Badge>
             ) : (
@@ -1494,7 +1474,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         timingLabel: solvedTimeline.postRideConsolidatedWindow || t('nutriSport3Badge'),
         timingVariant: 'emerald',
         macroHeadline: arrMacroHeadline,
-        macroIcon: isQuantitative ? Flame : ForkKnife,
+        macroIcon: isQuantitative ? Flame2 : ForkKnife,
         macroTheme: 'emerald',
         title: t('nutriSport3Title'),
         body: isFr
@@ -1516,7 +1496,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
             </Badge>
             {renderPacingBadge('yellow-vest')}
             {isQuantitative ? (
-              <Badge variant="amber" size="md" icon={Flame} className="py-1.5 px-3 tnum">
+              <Badge variant="amber" size="md" icon={Flame2} className="py-1.5 px-3 tnum">
                 {estimatedBurnKcal} kcal
               </Badge>
             ) : (
@@ -1550,7 +1530,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         timingLabel: isMountain ? (isFr ? 'Matin alpin' : 'Alpine morning') : solvedTimeline.preRideWindow,
         timingVariant: 'zinc',
         macroHeadline: p1MacroHeadline,
-        macroIcon: isQuantitative ? Flame : Coffee,
+        macroIcon: isQuantitative ? Flame2 : Coffee,
         macroTheme: 'amber',
         title:
           localLogistics.preRideStyle !== 'full-breakfast'
@@ -1572,7 +1552,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       },
       {
         id: 'bp-2',
-        icon: AppleLogo,
+        icon: Apple,
         theme: 'lime',
         stageLabel: isFr ? 'En route' : 'On the road',
         timingLabel: isMountain
@@ -1627,7 +1607,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         timingLabel: isMountain ? (isFr ? 'Camp bivouac' : 'Bivouac dusk') : solvedTimeline.postRideConsolidatedWindow || (isFr ? 'Soirée' : 'Evening'),
         timingVariant: 'orange',
         macroHeadline: arrMacroHeadline,
-        macroIcon: isQuantitative ? Flame : Package,
+        macroIcon: isQuantitative ? Flame2 : Package,
         macroTheme: 'orange',
         title: isMountain
           ? isFr
@@ -1666,7 +1646,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
             {compactReturnBtn}
             {renderPacingBadge('orange')}
             {isQuantitative ? (
-              <Badge variant="amber" size="md" icon={Flame} className="py-1.5 px-3 tnum">
+              <Badge variant="amber" size="md" icon={Flame2} className="py-1.5 px-3 tnum">
                 ~{estimatedBurnKcal} kcal
               </Badge>
             ) : (
@@ -1713,7 +1693,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         timingLabel: solvedTimeline.preRideWindow,
         timingVariant: 'zinc',
         macroHeadline: p1MacroHeadline,
-        macroIcon: isQuantitative ? Flame : Coffee,
+        macroIcon: isQuantitative ? Flame2 : Coffee,
         macroTheme: 'amber',
         title: localLogistics.preRideStyle === 'full-breakfast' ? t('nutriEsc1Title') : preRideTitle,
         body: preRideBody,
@@ -1797,7 +1777,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           : solvedTimeline.postRideConsolidatedWindow || 'Check-in',
         timingVariant: isGastro ? 'rose' : 'emerald',
         macroHeadline: arrMacroHeadline,
-        macroIcon: isQuantitative ? Flame : ForkKnife,
+        macroIcon: isQuantitative ? Flame2 : ForkKnife,
         macroTheme: isGastro ? 'rose' : 'amber',
         title: isGastro
           ? isFr
@@ -1840,7 +1820,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
             {compactReturnBtn}
             {renderPacingBadge('emerald')}
             {isQuantitative ? (
-              <Badge variant="amber" size="md" icon={Flame} className="py-1.5 px-3 tnum">
+              <Badge variant="amber" size="md" icon={Flame2} className="py-1.5 px-3 tnum">
                 ~{estimatedBurnKcal} kcal
               </Badge>
             ) : (
@@ -1872,7 +1852,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       timingLabel: solvedTimeline.preRideWindow,
       timingVariant: 'zinc',
       macroHeadline: p1MacroHeadline,
-      macroIcon: isQuantitative ? Flame : Coffee,
+      macroIcon: isQuantitative ? Flame2 : Coffee,
       macroTheme: 'amber',
       title: preRideTitle,
       body: preRideBody,
@@ -1880,7 +1860,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
     },
     {
       id: 'com-2',
-      icon: isCoffee ? Coffee : AppleLogo,
+      icon: isCoffee ? Coffee : Banana,
       theme: isCoffee ? 'amber' : 'lime',
       stageLabel: isFr ? 'En route' : 'On the road',
       timingLabel: isCoffee
@@ -1938,7 +1918,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           : isFr
           ? resolvedPostRidePantry.portionLabelFr
           : resolvedPostRidePantry.portionLabelEn,
-        macroIcon: isQuantitative ? Flame : Package,
+        macroIcon: isQuantitative ? Flame2 : Package,
         macroTheme: 'yellow-vest',
         title: isShower
           ? isFr
@@ -1966,7 +1946,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           : isFr
           ? 'Collation repas au bureau'
           : 'Seated workplace breakfast',
-        macroIcon: isQuantitative ? Flame : ForkKnife,
+        macroIcon: isQuantitative ? Flame2 : ForkKnife,
         macroTheme: 'emerald',
         title: isFr
           ? `Repas & café du matin (${stage2Loc})`
@@ -1988,7 +1968,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       timingLabel: solvedTimeline.postRideConsolidatedWindow || '08:40 – 09:00',
       timingVariant: 'emerald',
       macroHeadline: arrMacroHeadline,
-      macroIcon: isQuantitative ? Flame : ForkKnife,
+      macroIcon: isQuantitative ? Flame2 : ForkKnife,
       macroTheme: 'emerald',
       title: isFr
         ? `Repas d’arrivée (${stage1Loc})`
@@ -2014,7 +1994,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           )}
           {renderPacingBadge('yellow-vest')}
           {isQuantitative && (
-            <Badge variant="amber" size="md" icon={Flame} className="py-1.5 px-3 tnum">
+            <Badge variant="amber" size="md" icon={Flame2} className="py-1.5 px-3 tnum">
               {estimatedBurnKcal} kcal
             </Badge>
           )}

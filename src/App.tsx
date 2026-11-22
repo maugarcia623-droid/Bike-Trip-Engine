@@ -74,10 +74,14 @@ function ViewLoadingFallback() {
     </div>
   );
 }
-import { calculatePhysics } from './utils/physics';
+import { calculatePhysics, buildPhysicsEnvironmentContext } from './utils/physics';
 import { calculateReverseTimeline } from './utils/timeline';
 import { getChipsExtraBufferMinutes } from './utils/archetypeChips';
-import { decodePlanShareToken, SharedPlanMeta } from './utils/planShare';
+import {
+  applyPersonalLensToSharedTrip,
+  decodePlanShareToken,
+  SharedPlanMeta,
+} from './utils/planShare';
 import { parseRouteFile } from './utils/routeFileParser';
 import { consumeStravaOAuthRedirectParams } from './services/stravaIntegration';
 import { consumeHeadUnitOAuthRedirectParams } from './services/headUnitIntegration';
@@ -209,7 +213,9 @@ function AppContent() {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isTopMenuOpen, setIsTopMenuOpen] = useState(false);
   const [isRideBriefOpen, setIsRideBriefOpen] = useState(false);
-  const [sharedPlanBanner, setSharedPlanBanner] = useState<({ name: string } & SharedPlanMeta) | null>(null);
+  const [sharedPlanBanner, setSharedPlanBanner] = useState<
+    ({ name: string; needsPersonalization?: boolean } & SharedPlanMeta) | null
+  >(null);
   const [toolsInitialTab, setToolsInitialTab] = useState<FreeWebToolTab>(() => {
     if (typeof window !== 'undefined') {
       const toolParam = new URLSearchParams(window.location.search).get('tool');
@@ -235,6 +241,7 @@ function AppContent() {
 
   const [homeMobileView, setHomeMobileView] = useState<'home' | 'trips'>('home');
   const [isMobileWeatherOpen, setIsMobileWeatherOpen] = useState(false);
+  const [autoOpenSlicer, setAutoOpenSlicer] = useState(false);
   const tripsScrollYRef = React.useRef<number>(0);
   const [currentView, setCurrentView] = useState<'home' | 'configurator' | 'dashboard' | 'tools'>(() => {
     if (typeof window !== 'undefined') {
@@ -279,13 +286,23 @@ function AppContent() {
 
     const decoded = decodePlanShareToken(planToken, lang);
     if (decoded) {
+      const hadSavedSpecs = hasSavedRiderBikeSpecs();
+      const currentSpecs = loadRiderBikeSpecs();
+      const finalTrip = hadSavedSpecs
+        ? applyPersonalLensToSharedTrip(decoded.trip, currentSpecs, { lang })
+        : decoded.trip;
+
       setTrips((prev) => [
-        decoded.trip,
-        ...prev.filter((existing) => existing.id !== decoded.trip.id),
+        finalTrip,
+        ...prev.filter((existing) => existing.id !== finalTrip.id),
       ]);
-      setActiveTripId(decoded.trip.id);
-      saveActiveTripId(decoded.trip.id);
-      setSharedPlanBanner({ name: decoded.trip.name, ...decoded.sharedMeta });
+      setActiveTripId(finalTrip.id);
+      saveActiveTripId(finalTrip.id);
+      setSharedPlanBanner({
+        name: finalTrip.name,
+        needsPersonalization: !hadSavedSpecs,
+        ...decoded.sharedMeta,
+      });
       setCurrentView('dashboard');
       markOnboardingSeen();
       setIsOnboardingOpen(false);
@@ -422,6 +439,9 @@ function AppContent() {
           setTrips((prev) => [importedTrip, ...prev]);
           setActiveTripId(newId);
           saveActiveTripId(newId);
+          if (parsedResult.distanceKm >= 180 && parsedResult.coordinates.length >= 2) {
+            setAutoOpenSlicer(true);
+          }
           setCurrentView('dashboard');
           markOnboardingSeen();
           setIsOnboardingOpen(false);
@@ -854,7 +874,8 @@ function AppContent() {
 
   const handleQuickCreateTrip = (
     quickTrip: TripProfile,
-    targetView: 'dashboard' | 'configurator'
+    targetView: 'dashboard' | 'configurator',
+    options?: { autoOpenSlicer?: boolean }
   ) => {
     markOnboardingSeen();
     setTrips((prev) => {
@@ -866,6 +887,9 @@ function AppContent() {
     saveActiveTripId(quickTrip.id);
     setConfiguratorTrip(quickTrip);
     setIsNewTrip(false);
+    if (options?.autoOpenSlicer) {
+      setAutoOpenSlicer(true);
+    }
     setCurrentView(targetView);
   };
 
@@ -1004,7 +1028,10 @@ function AppContent() {
           activeTrip.route,
           activeTrip.weather,
           lang,
-          riderSpecs?.ftpWatts
+          riderSpecs?.ftpWatts,
+          buildPhysicsEnvironmentContext(activeTrip, {
+            extraBufferMinutes: getChipsExtraBufferMinutes(activeTrip),
+          })
         )
       : undefined;
 
@@ -1158,7 +1185,21 @@ function AppContent() {
                   onCloseRideBrief={() => setIsRideBriefOpen(false)}
                   onOpenTools={(tab) => handleOpenTools(tab || 'wind')}
                   sharedPlanBanner={sharedPlanBanner}
+                  onApplyPartnerPersonalization={(nextSpecs, luggageWeightKg) => {
+                    saveRiderBikeSpecs(nextSpecs);
+                    setRiderSpecs(nextSpecs);
+                    const updatedTrip = applyPersonalLensToSharedTrip(activeTrip, nextSpecs, {
+                      luggageWeightKg,
+                      lang,
+                    });
+                    handleUpdateActiveTrip(updatedTrip);
+                    setSharedPlanBanner((prev) =>
+                      prev ? { ...prev, needsPersonalization: false } : prev
+                    );
+                  }}
                   onDismissSharedPlanBanner={() => setSharedPlanBanner(null)}
+                  autoOpenSlicer={autoOpenSlicer}
+                  onAutoOpenSlicerConsumed={() => setAutoOpenSlicer(false)}
                 />
               </Suspense>
             </CockpitErrorBoundary>

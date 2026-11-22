@@ -1,11 +1,258 @@
-import { PhysicsParams, RouteParams, WeatherCondition, PhysicsCalculationResult } from '../types/trip';
+import {
+  PhysicsParams,
+  RouteParams,
+  WeatherCondition,
+  PhysicsCalculationResult,
+  PhysicsCautionReason,
+  RoadSurfaceCondition,
+  SurfaceBreakdown,
+  SurfaceSegment,
+  TripProfile,
+} from '../types/trip';
 import { Language, getCurrentLanguage, translate } from '../context/LanguageContext';
-import { loadRiderBikeSpecs, getEffectiveRiderSpecs } from './specsStorage';
+import { loadRiderBikeSpecs, getEffectiveRiderSpecs, getActiveBike } from './specsStorage';
 import { synthesizeRouteElevationProfile } from './gpxParser';
+import { calculateRideVisibility } from './solarVisibility';
 
 const GRAVITY = 9.81; // m/s^2
+const OSM_PAVED_REFERENCE_CRR = 0.0045;
 
 export type PowerZoneCode = 'Z1' | 'Z2' | 'Z3' | 'Z4' | 'Z5';
+
+export interface PhysicsEnvironmentContext {
+  /** True if active bike runs tubeless; false = butyl inner tubes (higher cold hysteresis). */
+  isTubeless?: boolean;
+  /** Route-wide weighted Crr from real OSM Overpass surface data. */
+  osmWeightedCrr?: number;
+  /** Guard ensuring heuristic surface fallbacks never inflate Crr on paved roads. */
+  surfaceDataSource?: 'osm-overpass' | 'heuristic-fallback';
+  /** Optional per-segment surface sectors for sectional breakdown (used only when OSM-backed). */
+  surfaceSegments?: SurfaceSegment[];
+  /** Percentage of ride spent in night darkness (0–100) from solarVisibility. */
+  nightPercent?: number;
+  /** Percentage of ride spent in civil/nautical twilight (0–100) from solarVisibility. */
+  twilightPercent?: number;
+}
+
+/**
+ * Classifies road moisture from rain probability, recent 6h precipitation,
+ * WMO weather code, and cold high-humidity dew condensation (e.g. 9°C + 98% RH).
+ */
+export function classifyRoadSurfaceCondition(weather: WeatherCondition): RoadSurfaceCondition {
+  const rainRisk = weather.precipitationRiskPercent ?? 0;
+  const recentMm = weather.recentPrecipitationMm ?? 0;
+  const code = weather.weatherCode ?? 0;
+  const tempC = typeof weather.temperatureC === 'number' ? weather.temperatureC : 18;
+  const humidity = weather.relativeHumidity;
+  const visKm = weather.visibilityKm ?? 20;
+
+  const isRainCode =
+    (code >= 51 && code <= 67) ||
+    (code >= 71 && code <= 77) ||
+    (code >= 80 && code <= 86) ||
+    code >= 95;
+  if (rainRisk >= 35 || recentMm >= 1.0 || isRainCode) {
+    return 'wet';
+  }
+
+  const isFogCode = code === 45 || code === 48;
+  const isColdDew = typeof humidity === 'number' && humidity >= 88 && tempC <= 13;
+  const isColdMist = visKm > 0 && visKm <= 3 && tempC <= 12;
+  if (rainRisk >= 16 || recentMm >= 0.2 || isColdDew || isFogCode || isColdMist) {
+    return 'damp';
+  }
+
+  return 'dry';
+}
+
+interface EnvironmentalAdjustments {
+  roadCondition: RoadSurfaceCondition;
+  effectiveCrr: number;
+  crrMultiplier: number;
+  coldCrrMult: number;
+  wetCrrMult: number;
+  cautionPaceFactor: number;
+  cautionReasons: PhysicsCautionReason[];
+  surfaceCrrSource: 'bike-baseline' | 'osm-surface';
+}
+
+function resolveEnvironmentalAdjustments(
+  baseCrr: number,
+  weather: WeatherCondition,
+  isTubeless: boolean,
+  context?: PhysicsEnvironmentContext
+): EnvironmentalAdjustments {
+  const safeBaseCrr = Math.max(0.002, Number.isFinite(baseCrr) ? baseCrr : 0.0055);
+  const roadCondition = classifyRoadSurfaceCondition(weather);
+
+  // 1. Surface roughness delta (strictly from real OSM Overpass data — never from heuristic fallback)
+  const useOsmSurface =
+    context?.surfaceDataSource === 'osm-overpass' &&
+    typeof context.osmWeightedCrr === 'number' &&
+    Number.isFinite(context.osmWeightedCrr) &&
+    context.osmWeightedCrr > 0;
+  const surfaceCrrDelta = useOsmSurface
+    ? Math.max(0, (context.osmWeightedCrr as number) - OSM_PAVED_REFERENCE_CRR)
+    : 0;
+  const surfaceAdjustedCrr = safeBaseCrr + surfaceCrrDelta;
+
+  // 2. Cold-rubber hysteresis below 16°C (butyl tubes stiffen ~1.6%/°C; tubeless ~1.0%/°C)
+  const tempC =
+    typeof weather.temperatureC === 'number' && Number.isFinite(weather.temperatureC)
+      ? weather.temperatureC
+      : 18;
+  const tempDrop = Math.max(0, 16 - tempC);
+  const coldRatePerDeg = isTubeless ? 0.010 : 0.016;
+  const coldCrrMult = 1 + Math.min(0.30, tempDrop * coldRatePerDeg);
+
+  // 3. Road surface moisture film drag (water displacement + grit)
+  const wetCrrMult = roadCondition === 'wet' ? 1.12 : roadCondition === 'damp' ? 1.06 : 1.0;
+
+  const effectiveCrr = Number((surfaceAdjustedCrr * coldCrrMult * wetCrrMult).toFixed(5));
+  const crrMultiplier = Number((effectiveCrr / safeBaseCrr).toFixed(3));
+
+  // 4. Low-light / wet caution pacing factor (automatically factored into moving speed & time)
+  let darkShare = 0;
+  if (
+    typeof context?.nightPercent === 'number' ||
+    typeof context?.twilightPercent === 'number'
+  ) {
+    const night = Math.max(0, context.nightPercent ?? 0);
+    const twilight = Math.max(0, context.twilightPercent ?? 0);
+    darkShare = Math.min(1, (night + 0.5 * twilight) / 100);
+  } else if (weather.isDay === false) {
+    darkShare = 0.75;
+  }
+
+  const darkPenalty = darkShare * 0.075; // up to -7.5% at 100% night
+  const wetPenalty = roadCondition === 'wet' ? 0.05 : roadCondition === 'damp' ? 0.025 : 0;
+  const fogPenalty =
+    typeof weather.visibilityKm === 'number' && weather.visibilityKm > 0 && weather.visibilityKm < 3
+      ? 0.03
+      : 0;
+  const cautionSlowdown = Math.min(0.14, darkPenalty + wetPenalty + fogPenalty);
+  const cautionPaceFactor = Number((1 - cautionSlowdown).toFixed(3));
+
+  const cautionReasons: PhysicsCautionReason[] = [];
+  if (darkPenalty >= 0.015) cautionReasons.push('dark');
+  if (roadCondition === 'wet') cautionReasons.push('wet');
+  else if (roadCondition === 'damp') cautionReasons.push('damp');
+  if (coldCrrMult >= 1.06) cautionReasons.push('cold-tires');
+  if (surfaceCrrDelta >= 0.0008) cautionReasons.push('surface');
+
+  return {
+    roadCondition,
+    effectiveCrr,
+    crrMultiplier,
+    coldCrrMult,
+    wetCrrMult,
+    cautionPaceFactor,
+    cautionReasons,
+    surfaceCrrSource: useOsmSurface && surfaceCrrDelta > 0 ? 'osm-surface' : 'bike-baseline',
+  };
+}
+
+/**
+ * Builds a non-circular PhysicsEnvironmentContext from a TripProfile, optional live OSM
+ * surface breakdown, and solar visibility so Dashboard, Configurator, and Exporters stay aligned.
+ */
+export function buildPhysicsEnvironmentContext(
+  trip: TripProfile,
+  options?: {
+    surfaceBreakdown?: SurfaceBreakdown | null;
+    isTubeless?: boolean;
+    departureDate?: string;
+    extraBufferMinutes?: number;
+  }
+): PhysicsEnvironmentContext {
+  const configuredSpecs = loadRiderBikeSpecs();
+  const activeBike = getActiveBike(configuredSpecs);
+  const isTubeless =
+    typeof options?.isTubeless === 'boolean'
+      ? options.isTubeless
+      : activeBike?.isTubeless ?? true;
+
+  const surface =
+    options?.surfaceBreakdown ?? trip.route?.terrainSummary?.surfaceBreakdown;
+  const isOsm = surface?.dataSource === 'osm-overpass';
+
+  // Estimate approximate rollout time without circular dependency on calculatePhysics()
+  const baseSpeed = Math.max(8, trip.route?.targetSpeedKmH || 25);
+  const distKm = Math.max(0.5, trip.route?.distanceKm || 20);
+  const approxMovingMin = Math.round((distKm / baseSpeed) * 60);
+  const extraMin = Math.max(0, options?.extraBufferMinutes ?? 0);
+
+  let approxRolloutHHMM: string | undefined;
+  if (trip.arriveAtMode === false && trip.departureTime) {
+    approxRolloutHHMM = trip.departureTime;
+  } else {
+    const anchorStr =
+      trip.ruleSettings?.anchorTimeHHMM ||
+      trip.office?.targetGateArrivalTime ||
+      trip.departureTime ||
+      '08:30';
+    const [h, m] = anchorStr.split(':').map(Number);
+    const anchorMin = (Number.isFinite(h) ? h : 8) * 60 + (Number.isFinite(m) ? m : 30);
+    let rolloutMin = anchorMin - approxMovingMin - extraMin;
+    while (rolloutMin < 0) rolloutMin += 1440;
+    rolloutMin = rolloutMin % 1440;
+    approxRolloutHHMM = `${String(Math.floor(rolloutMin / 60)).padStart(2, '0')}:${String(
+      rolloutMin % 60
+    ).padStart(2, '0')}`;
+  }
+
+  const activeStage =
+    trip.stages && trip.activeStageIndex !== undefined
+      ? trip.stages[trip.activeStageIndex]
+      : undefined;
+  const departureDate =
+    options?.departureDate ?? activeStage?.departureDate ?? trip.departureDate;
+
+  const vis = calculateRideVisibility(trip, departureDate, approxRolloutHHMM, baseSpeed);
+
+  return {
+    isTubeless,
+    osmWeightedCrr: isOsm ? surface?.weightedCrr : undefined,
+    surfaceDataSource: surface?.dataSource,
+    surfaceSegments: isOsm ? surface?.segments : undefined,
+    nightPercent: vis.nightPercent,
+    twilightPercent: vis.twilightPercent,
+  };
+}
+
+/**
+ * Formats a concise human-readable badge label when caution pace or cold/wet Crr adjustments are active.
+ */
+export function formatCautionPaceSummary(
+  result: PhysicsCalculationResult,
+  lang: Language = getCurrentLanguage()
+): string | null {
+  const isFr = lang === 'fr';
+  const pacePct = Math.round((1 - (result.cautionPaceFactor ?? 1)) * 100);
+  const crrPct = Math.round(((result.crrMultiplier ?? 1) - 1) * 100);
+  const reasons = result.cautionReasons ?? [];
+
+  if (pacePct <= 0 && crrPct < 8) return null;
+
+  const reasonLabels: string[] = [];
+  if (reasons.includes('dark')) reasonLabels.push(isFr ? 'nuit' : 'dark');
+  if (reasons.includes('wet')) reasonLabels.push(isFr ? 'mouillé' : 'wet');
+  else if (reasons.includes('damp')) reasonLabels.push(isFr ? 'humide' : 'damp');
+  if (reasons.includes('surface')) reasonLabels.push(isFr ? 'surface' : 'surface');
+  else if (reasonLabels.length === 0 && reasons.includes('cold-tires')) {
+    reasonLabels.push(isFr ? 'pneus froids' : 'cold tyres');
+  }
+
+  const joined = reasonLabels.join('/');
+  if (pacePct > 0) {
+    return isFr
+      ? `−${pacePct}% allure${joined ? ` (${joined})` : ''}`
+      : `−${pacePct}% pace${joined ? ` (${joined})` : ''}`;
+  }
+  return isFr
+    ? `+${crrPct}% Crr${joined ? ` (${joined})` : ''}`
+    : `+${crrPct}% Crr${joined ? ` (${joined})` : ''}`;
+}
 
 /**
  * Standard Coggan 5-zone aerobic/threshold mapping from % FTP.
@@ -62,7 +309,8 @@ export function calculatePhysics(
   route: RouteParams,
   weather: WeatherCondition,
   lang: Language = getCurrentLanguage(),
-  ftpOverride?: number
+  ftpOverride?: number,
+  envContext?: PhysicsEnvironmentContext
 ): PhysicsCalculationResult {
   const {
     riderWeightKg,
@@ -79,20 +327,42 @@ export function calculatePhysics(
   // Resolve effective rider baselines (body-neutral mode safe)
   const configuredSpecs = loadRiderBikeSpecs();
   const effectiveSpecs = getEffectiveRiderSpecs(configuredSpecs);
+  const activeBike = getActiveBike(configuredSpecs);
   const hasExplicitWeightOverride =
     typeof riderWeightKg === 'number' && riderWeightKg > 25;
   const effectiveRiderKg = hasExplicitWeightOverride
     ? riderWeightKg
     : effectiveSpecs.riderWeightKg;
 
+  // Resolve environmental Crr (cold hysteresis, road moisture, real OSM surface) & dark/wet caution pace
+  const isTubeless =
+    typeof envContext?.isTubeless === 'boolean'
+      ? envContext.isTubeless
+      : activeBike?.isTubeless ?? true;
+  const envAdj = resolveEnvironmentalAdjustments(crr, weather, isTubeless, envContext);
+  const effectiveCrr = envAdj.effectiveCrr;
+  const cautionPaceFactor = envAdj.cautionPaceFactor;
+
   // 1. Total System Mass (Rider + Bike + Gear) & Synced Air Density
+  const safeBikeKg = typeof bikeWeightKg === 'number' && Number.isFinite(bikeWeightKg) && bikeWeightKg > 0 ? bikeWeightKg : 9.5;
+  const safeGearKg = typeof gearWeightKg === 'number' && Number.isFinite(gearWeightKg) && gearWeightKg >= 0 ? gearWeightKg : 0;
   const systemMassKg = Number(
-    Math.max(10, effectiveRiderKg + (bikeWeightKg || 9.5) + (gearWeightKg || 0)).toFixed(1)
+    Math.max(10, effectiveRiderKg + safeBikeKg + safeGearKg).toFixed(1)
   );
-  const eff = Math.min(0.99, Math.max(0.70, drivetrainEfficiency));
-  const gradeFraction = gradientPercent / 100;
+  const safeCda = typeof cda === 'number' && Number.isFinite(cda) && cda > 0 ? cda : 0.38;
+  const eff = Math.min(
+    0.99,
+    Math.max(0.70, typeof drivetrainEfficiency === 'number' && Number.isFinite(drivetrainEfficiency) ? drivetrainEfficiency : 0.95)
+  );
+  const safeGradientPct = typeof gradientPercent === 'number' && Number.isFinite(gradientPercent) ? gradientPercent : 0;
+  const gradeFraction = safeGradientPct / 100;
   const sinTheta = Math.sin(Math.atan(gradeFraction));
-  const effectiveRho = weather.airDensityRho ?? rho ?? 1.225;
+  const rawRho = weather.airDensityRho ?? rho ?? 1.225;
+  const effectiveRho = typeof rawRho === 'number' && Number.isFinite(rawRho) && rawRho > 0 ? rawRho : 1.225;
+  const safeDistanceKm =
+    typeof route.distanceKm === 'number' && Number.isFinite(route.distanceKm) && route.distanceKm > 0
+      ? route.distanceKm
+      : 0;
 
   const resolvedFtp =
     typeof ftpOverride === 'number' && Number.isFinite(ftpOverride) && ftpOverride >= 80
@@ -100,13 +370,19 @@ export function calculatePhysics(
       : effectiveSpecs.ftpWatts;
   const ftpWatts = Math.max(80, Math.round(resolvedFtp || 210));
 
-  // 2. Calm Baseline at Target Cruising Speed
-  const targetSpeedKmH = Math.max(5, route.targetSpeedKmH || 25);
+  // 2. Calm Baseline at Target Cruising Speed (with environmental Crr & caution pace)
+  const targetSpeedKmH = Math.max(
+    5,
+    typeof route.targetSpeedKmH === 'number' && Number.isFinite(route.targetSpeedKmH) && route.targetSpeedKmH > 0
+      ? route.targetSpeedKmH
+      : 25
+  );
   const targetGroundSpeedMs = targetSpeedKmH / 3.6;
+  const cautiousTargetMs = Math.max(1.5, targetGroundSpeedMs * cautionPaceFactor);
 
-  const calmRollW = crr * systemMassKg * GRAVITY * targetGroundSpeedMs;
-  const calmAeroW = 0.5 * effectiveRho * cda * Math.pow(targetGroundSpeedMs, 3);
-  const calmGravW = systemMassKg * GRAVITY * sinTheta * targetGroundSpeedMs;
+  const calmRollW = effectiveCrr * systemMassKg * GRAVITY * cautiousTargetMs;
+  const calmAeroW = 0.5 * effectiveRho * safeCda * Math.pow(cautiousTargetMs, 3);
+  const calmGravW = systemMassKg * GRAVITY * sinTheta * cautiousTargetMs;
   const baselineLegWatts = Math.max(25, (calmRollW + calmAeroW + calmGravW) / eff);
 
   // 3. Axial Wind Vector (positive = opposing headwind, negative = assisting tailwind)
@@ -127,6 +403,7 @@ export function calculatePhysics(
   const pacingMode: 'speed' | 'effort' = route.pacingMode === 'effort' ? 'effort' : 'speed';
 
   let groundSpeedMs: number;
+  let uncautionedSpeedMs: number;
   let calmSpeedKmH: number;
   let effectiveSpeedKmH: number;
   let rollingResistanceWatts: number;
@@ -150,19 +427,19 @@ export function calculatePhysics(
       cappedLegWatts,
       systemMassKg,
       cda,
-      crr,
+      effectiveCrr,
       effectiveRho,
       gradeFraction,
       0,
       eff
     );
-    groundSpeedMs =
+    uncautionedSpeedMs =
       Math.abs(windSpeedMs) > 0.05
         ? solveGroundSpeedMsForLegWatts(
             cappedLegWatts,
             systemMassKg,
             cda,
-            crr,
+            effectiveCrr,
             effectiveRho,
             gradeFraction,
             windSpeedMs,
@@ -170,11 +447,14 @@ export function calculatePhysics(
           )
         : calmSolvedMs;
 
-    calmSpeedKmH = Number((calmSolvedMs * 3.6).toFixed(1));
+    groundSpeedMs = Math.max(1.5, uncautionedSpeedMs * cautionPaceFactor);
+    const calmCautiousMs = Math.max(1.5, calmSolvedMs * cautionPaceFactor);
+
+    calmSpeedKmH = Number((calmCautiousMs * 3.6).toFixed(1));
     effectiveSpeedKmH = Number((groundSpeedMs * 3.6).toFixed(1));
 
     const airSpeed = Math.max(0, groundSpeedMs + windSpeedMs);
-    rollingResistanceWatts = crr * systemMassKg * GRAVITY * groundSpeedMs;
+    rollingResistanceWatts = effectiveCrr * systemMassKg * GRAVITY * groundSpeedMs;
     aerodynamicDragWatts = 0.5 * effectiveRho * cda * Math.pow(airSpeed, 2) * groundSpeedMs;
     gravityWatts = systemMassKg * GRAVITY * sinTheta * groundSpeedMs;
     wheelWatts = Math.max(5, rollingResistanceWatts + aerodynamicDragWatts + gravityWatts);
@@ -185,16 +465,17 @@ export function calculatePhysics(
       ? Number(Math.max(0, calmSpeedKmH - effectiveSpeedKmH).toFixed(1))
       : 0;
 
-    const calmMinutes = Math.round(((route.distanceKm * 1000) / calmSolvedMs) / 60);
-    const actualMinutes = Math.round(((route.distanceKm * 1000) / groundSpeedMs) / 60);
+    const calmMinutes = safeDistanceKm > 0 ? Math.round(((safeDistanceKm * 1000) / Math.max(0.5, calmCautiousMs)) / 60) : 0;
+    const actualMinutes = safeDistanceKm > 0 ? Math.round(((safeDistanceKm * 1000) / Math.max(0.5, groundSpeedMs)) / 60) : 0;
     windDelayMinutes = Math.max(0, actualMinutes - calmMinutes);
   } else {
-    groundSpeedMs = targetGroundSpeedMs;
-    calmSpeedKmH = Number(targetSpeedKmH.toFixed(1));
-    effectiveSpeedKmH = Number(targetSpeedKmH.toFixed(1));
+    uncautionedSpeedMs = targetGroundSpeedMs;
+    groundSpeedMs = cautiousTargetMs;
+    calmSpeedKmH = Number((groundSpeedMs * 3.6).toFixed(1));
+    effectiveSpeedKmH = Number((groundSpeedMs * 3.6).toFixed(1));
 
     const airSpeed = Math.max(0, groundSpeedMs + windSpeedMs);
-    rollingResistanceWatts = crr * systemMassKg * GRAVITY * groundSpeedMs;
+    rollingResistanceWatts = effectiveCrr * systemMassKg * GRAVITY * groundSpeedMs;
     aerodynamicDragWatts = 0.5 * effectiveRho * cda * Math.pow(airSpeed, 2) * groundSpeedMs;
     gravityWatts = systemMassKg * GRAVITY * sinTheta * groundSpeedMs;
     wheelWatts = Math.max(5, rollingResistanceWatts + aerodynamicDragWatts + gravityWatts);
@@ -207,7 +488,7 @@ export function calculatePhysics(
           baselineLegWatts,
           systemMassKg,
           cda,
-          crr,
+          effectiveCrr,
           effectiveRho,
           gradeFraction,
           windSpeedMs,
@@ -215,7 +496,7 @@ export function calculatePhysics(
         )
       : groundSpeedMs;
     speedDeltaKmH = weather.isHeadwindActive
-      ? Number(Math.max(0, targetSpeedKmH - eqEffortMs * 3.6).toFixed(1))
+      ? Number(Math.max(0, effectiveSpeedKmH - eqEffortMs * 3.6).toFixed(1))
       : 0;
     windDelayMinutes = 0;
   }
@@ -228,9 +509,16 @@ export function calculatePhysics(
   const ftpPercent = Math.round((legWatts / ftpWatts) * 100);
   const powerZone = getPowerZone(ftpPercent);
 
-  // 5. Moving Time
-  const distanceMeters = route.distanceKm * 1000;
-  const movingTimeSeconds = distanceMeters / groundSpeedMs;
+  // 5. Moving Time & Dark/Wet Caution Delay (zero-distance & NaN safe)
+  const distanceMeters = safeDistanceKm * 1000;
+  const safeGroundMs = Math.max(0.5, Number.isFinite(groundSpeedMs) ? groundSpeedMs : 1.5);
+  const safeUncautionedMs = Math.max(0.5, Number.isFinite(uncautionedSpeedMs) ? uncautionedSpeedMs : safeGroundMs);
+  const movingTimeSeconds = distanceMeters > 0 ? distanceMeters / safeGroundMs : 0;
+  const uncautionedMovingSeconds = distanceMeters > 0 ? distanceMeters / safeUncautionedMs : 0;
+  const cautionDelayMinutes =
+    distanceMeters > 0
+      ? Math.max(0, Math.round((movingTimeSeconds - uncautionedMovingSeconds) / 60))
+      : 0;
 
   const hours = Math.floor(movingTimeSeconds / 3600);
   const minutes = Math.floor((movingTimeSeconds % 3600) / 60);
@@ -238,16 +526,26 @@ export function calculatePhysics(
   const movingTimeFormatted = `${hours > 0 ? `${hours} h ` : ''}${minutes} min ${seconds.toString().padStart(2, '0')} s`;
 
   // 6. Total Mechanical Work (kJ) & Caloric Burn (kcal)
-  const totalWorkKj = (legWatts * movingTimeSeconds) / 1000;
-  const grossEff = Math.min(0.26, Math.max(0.15, grossMechanicalEfficiency));
-  const totalKcalBurn = totalWorkKj / (grossEff * 4.184);
+  const safeLegWatts = Number.isFinite(legWatts) ? legWatts : 0;
+  const totalWorkKj = movingTimeSeconds > 0 ? (safeLegWatts * movingTimeSeconds) / 1000 : 0;
+  const grossEff = Math.min(
+    0.26,
+    Math.max(
+      0.15,
+      typeof grossMechanicalEfficiency === 'number' && Number.isFinite(grossMechanicalEfficiency)
+        ? grossMechanicalEfficiency
+        : 0.21
+    )
+  );
+  const totalKcalBurn = totalWorkKj > 0 ? totalWorkKj / (grossEff * 4.184) : 0;
 
   // 7. Carbohydrate Oxidation Rate (g/hr) — scaled relative to rider % FTP
-  const hourlyBurnKcal = movingTimeSeconds > 0 ? totalKcalBurn / (movingTimeSeconds / 3600) : 0;
+  const movingHours = movingTimeSeconds / 3600;
+  const hourlyBurnKcal = movingHours > 0 ? totalKcalBurn / movingHours : 0;
   const carbFraction = Math.min(0.88, Math.max(0.42, 0.38 + (ftpPercent / 115) * 0.48));
-  const carbOxidationGramPerHour = movingTimeSeconds > 0 ? Math.round((hourlyBurnKcal * carbFraction) / 4) : 0;
+  const carbOxidationGramPerHour = movingHours > 0 ? Math.round((hourlyBurnKcal * carbFraction) / 4) : 0;
   const totalCarbsBurnedGrams =
-    movingTimeSeconds > 0 ? Math.round(carbOxidationGramPerHour * (movingTimeSeconds / 3600)) : 0;
+    movingHours > 0 ? Math.round(carbOxidationGramPerHour * movingHours) : 0;
 
   // 8. FTP-Aware & Reassuring GO / CAUTION / NO-GO Evaluation
   let goStatus: 'GO' | 'CAUTION' | 'NO-GO' = 'GO';
@@ -329,6 +627,13 @@ export function calculatePhysics(
     powerDeltaWatts,
     goStatus,
     goStatusReason,
+    effectiveCrr: envAdj.effectiveCrr,
+    crrMultiplier: envAdj.crrMultiplier,
+    roadCondition: envAdj.roadCondition,
+    cautionPaceFactor: envAdj.cautionPaceFactor,
+    cautionDelayMinutes,
+    cautionReasons: envAdj.cautionReasons,
+    surfaceCrrSource: envAdj.surfaceCrrSource,
   };
 }
 
@@ -389,7 +694,8 @@ export function calculateSectionalEnergyBreakdown(
   route: RouteParams,
   weather: WeatherCondition,
   result: PhysicsCalculationResult,
-  lang: Language = getCurrentLanguage()
+  lang: Language = getCurrentLanguage(),
+  envContext?: PhysicsEnvironmentContext
 ): SectionalEnergySummary {
   const isFr = lang === 'fr';
   const isFromGpx = Boolean(route.elevationProfile && route.elevationProfile.length >= 3);
@@ -400,6 +706,34 @@ export function calculateSectionalEnergyBreakdown(
   const grossEff = Math.min(0.26, Math.max(0.15, physics.grossMechanicalEfficiency));
   const effectiveRho = weather.airDensityRho ?? physics.rho ?? 1.225;
   const ftp = Math.max(80, result.ftpWatts);
+
+  const configuredSpecs = loadRiderBikeSpecs();
+  const activeBike = getActiveBike(configuredSpecs);
+  const isTubeless =
+    typeof envContext?.isTubeless === 'boolean'
+      ? envContext.isTubeless
+      : activeBike?.isTubeless ?? true;
+  const envAdj = resolveEnvironmentalAdjustments(physics.crr, weather, isTubeless, envContext);
+  const baseEffectiveCrr = result.effectiveCrr ?? envAdj.effectiveCrr;
+  const cautionFactor = result.cautionPaceFactor ?? envAdj.cautionPaceFactor;
+  const osmSegments =
+    envContext?.surfaceDataSource === 'osm-overpass' &&
+    Array.isArray(envContext.surfaceSegments) &&
+    envContext.surfaceSegments.length > 0
+      ? envContext.surfaceSegments
+      : null;
+
+  const resolveSegmentCrr = (distKm: number): number => {
+    if (!osmSegments) return baseEffectiveCrr;
+    const seg =
+      osmSegments.find((s) => distKm >= s.startKm && distKm <= s.endKm) ??
+      osmSegments[osmSegments.length - 1];
+    if (!seg || !Number.isFinite(seg.effectiveCrr)) return baseEffectiveCrr;
+    const segDelta = Math.max(0, seg.effectiveCrr - OSM_PAVED_REFERENCE_CRR);
+    return Number(
+      ((physics.crr + segDelta) * envAdj.coldCrrMult * envAdj.wetCrrMult).toFixed(5)
+    );
+  };
 
   let axialWindKmH = 0;
   if (weather.isHeadwindActive) {
@@ -437,6 +771,7 @@ export function calculateSectionalEnergyBreakdown(
     const gradePct = curr.gradePct;
     const gradeFrac = gradePct / 100;
     const sinTheta = Math.sin(Math.atan(gradeFrac));
+    const segCrr = resolveSegmentCrr((prev.distKm + curr.distKm) * 0.5);
 
     let segSpeedMs: number;
     let segLegWatts: number;
@@ -457,26 +792,27 @@ export function calculateSectionalEnergyBreakdown(
         gradePct > 3
           ? Math.max(
               0,
-              (physics.crr * systemMassKg * GRAVITY * minClimbSpeedMs +
+              (segCrr * systemMassKg * GRAVITY * minClimbSpeedMs +
                 systemMassKg * GRAVITY * sinTheta * minClimbSpeedMs) /
                 eff
             )
           : 35;
       const targetSegW = Math.max(35, minClimbW, result.legWatts * modFactor);
-      segSpeedMs = solveGroundSpeedMsForLegWatts(
+      const solvedSegMs = solveGroundSpeedMsForLegWatts(
         targetSegW,
         systemMassKg,
         physics.cda,
-        physics.crr,
+        segCrr,
         effectiveRho,
         gradeFrac,
         windMs,
         eff
       );
+      segSpeedMs = Math.max(1.5, solvedSegMs * cautionFactor);
       segLegWatts = targetSegW;
     } else {
       // Hold-speed mode, bounded by realistic climbing ceiling (~1.38x FTP) & descent coasting
-      const desiredMs = Math.max(2.0, (route.targetSpeedKmH || 25) / 3.6);
+      const desiredMs = Math.max(2.0, ((route.targetSpeedKmH || 25) / 3.6) * cautionFactor);
       if (gradePct < -2.5) {
         segSpeedMs = Math.min(13.5, desiredMs * 1.18);
       } else {
@@ -484,7 +820,7 @@ export function calculateSectionalEnergyBreakdown(
       }
       const airMs = Math.max(0, segSpeedMs + windMs);
       const rawWheelW =
-        physics.crr * systemMassKg * GRAVITY * segSpeedMs +
+        segCrr * systemMassKg * GRAVITY * segSpeedMs +
         0.5 * effectiveRho * physics.cda * Math.pow(airMs, 2) * segSpeedMs +
         systemMassKg * GRAVITY * sinTheta * segSpeedMs;
       const rawLegW = Math.max(25, rawWheelW / eff);
@@ -495,7 +831,7 @@ export function calculateSectionalEnergyBreakdown(
           ceilingW,
           systemMassKg,
           physics.cda,
-          physics.crr,
+          segCrr,
           effectiveRho,
           gradeFrac,
           windMs,
@@ -565,6 +901,8 @@ export function calculateSectionalEnergyBreakdown(
     largest.pctTime = Math.max(0, largest.pctTime + (100 - sumPct));
   }
 
+  const hasRouteDistance =
+    typeof route.distanceKm === 'number' && Number.isFinite(route.distanceKm) && route.distanceKm > 0;
   const makeBand = (
     id: 'easy' | 'rolling' | 'climbs',
     title: string,
@@ -575,19 +913,20 @@ export function calculateSectionalEnergyBreakdown(
     const avgW =
       b.timeSec > 5 ? Math.round((b.workKj * 1000) / b.timeSec) : Math.round(result.legWatts * fallbackMult);
     const peakW = b.peakW > 0 ? Math.round(b.peakW) : Math.round(avgW * 1.12);
-    const kcal = Math.round((b.workKj / rawTotalKj) * result.totalKcalBurn);
+    const safeTotalKcal = Number.isFinite(result.totalKcalBurn) && result.totalKcalBurn > 0 ? result.totalKcalBurn : 0;
+    const kcal = hasRouteDistance && safeTotalKcal > 0 ? Math.round((b.workKj / rawTotalKj) * safeTotalKcal) : 0;
     const avgSpd =
       b.timeSec > 5 ? Number(((b.distKm / (b.timeSec / 3600))).toFixed(1)) : Number(result.effectiveSpeedKmH.toFixed(1));
     return {
       id,
       title,
       subtitle,
-      pctDistance: Math.round((b.distKm / totalDistKm) * 100),
-      distanceKm: Number(b.distKm.toFixed(1)),
+      pctDistance: hasRouteDistance ? Math.round((b.distKm / totalDistKm) * 100) : 0,
+      distanceKm: hasRouteDistance ? Number(b.distKm.toFixed(1)) : 0,
       avgWatts: avgW,
       peakWatts: peakW,
       zone: getPowerZone(Math.round((avgW / ftp) * 100)),
-      kcalShare: b.distKm > 0.05 ? Math.max(5, kcal) : 0,
+      kcalShare: hasRouteDistance && safeTotalKcal > 0 && b.distKm > 0.05 ? Math.max(5, kcal) : 0,
       avgSpeedKmH: avgSpd,
     };
   };

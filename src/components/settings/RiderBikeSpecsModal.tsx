@@ -29,7 +29,7 @@ import {
   resolveBikeTireWidthMm,
 } from '../../types/specs';
 import { saveRiderBikeSpecs, getActiveBike } from '../../utils/specsStorage';
-import { calculateTyrePressure, inferBikeCategory } from '../../utils/tyrePressure';
+import { calculateTyrePressure, formatTyrePressurePair, inferBikeCategory } from '../../utils/tyrePressure';
 import { saveUserProfile } from '../../utils/userProfileStorage';
 import {
   disconnectStravaAccount,
@@ -412,7 +412,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
           type="button"
           onClick={onClose}
           aria-label={t('closeModalAria')}
-          className={`relative w-9 h-9 shrink-0 rounded-full hover:text-ink hover:bg-chip flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer before:content-[''] before:absolute before:-inset-1.5 sm:before:inset-0 ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+          className={`w-11 h-11 sm:w-9 sm:h-9 shrink-0 rounded-full hover:text-ink hover:bg-chip flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
         >
           <X className="w-4 h-4 text-current" />
         </Button>
@@ -1253,7 +1253,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                           onClick={(e) => handleRemoveBike(bike.id, e)}
                           title={t('removeBikeTitle')}
                           aria-label={t('removeBikeTitle')}
-                          className={`absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center opacity-70 hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10 transition-opacity cursor-pointer before:content-[''] before:absolute before:-inset-2 ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                          className={`absolute top-1.5 right-1.5 w-11 h-11 sm:w-7 sm:h-7 rounded-full flex items-center justify-center opacity-70 hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10 transition-opacity cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
                         >
                           <Trash className="w-3.5 h-3.5 text-current" />
                         </Button>
@@ -1401,17 +1401,39 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
 
                   <div className="lane-divider" aria-hidden="true" />
 
-                  {/* Tubeless vs Inner Tube Toggle + Live Pressure Preview */}
+                  {/* Tubeless vs Inner Tube Toggle + Live Pressure Preview + bar/PSI unit switch */}
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
                       <span className="text-[11px] font-rounded font-semibold text-ink-secondary">
                         {isFr ? 'Chambre à air ou Tubeless ?' : 'Inner tube or Tubeless?'}
                       </span>
-                      <Badge variant="sky" size="xs" className="tnum font-rounded">
-                        {isFr
-                          ? `~${String(previewPressure.frontBar).replace('.', ',')}/${String(previewPressure.rearBar).replace('.', ',')} bar`
-                          : `~${previewPressure.frontBar}/${previewPressure.rearBar} bar`}
-                      </Badge>
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant="sky" size="xs" className="tnum font-rounded">
+                          ~{formatTyrePressurePair(previewPressure.frontBar, previewPressure.rearBar, localSpecs.pressureUnit ?? 'bar', lang)}
+                        </Badge>
+                        <div className="inline-flex items-center p-0.5 rounded-full bg-chip" role="group" aria-label={isFr ? 'Unité pression pneus' : 'Tyre pressure unit'}>
+                          {(['bar', 'psi'] as const).map((unitOpt) => {
+                            const activeUnit = (localSpecs.pressureUnit ?? 'bar') === unitOpt;
+                            return (
+                              <Button
+                                key={unitOpt}
+                                variant="ghost"
+                                type="button"
+                                onClick={() =>
+                                  setLocalSpecs((prev) => ({ ...prev, pressureUnit: unitOpt }))
+                                }
+                                className={`min-h-[32px] px-2.5 py-0.5 rounded-full text-[10px] font-rounded font-bold transition-colors cursor-pointer ${
+                                  activeUnit
+                                    ? 'bg-card text-ink shadow-xs'
+                                    : 'text-ink-muted hover:text-ink'
+                                }`}
+                              >
+                                {unitOpt === 'psi' ? 'PSI' : 'bar'}
+                              </Button>
+                            );
+                          })}
+                        </div>
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       {[
@@ -1422,7 +1444,7 @@ export const RiderBikeSpecsModal: React.FC<RiderBikeSpecsModalProps> = ({
                         },
                         {
                           val: false,
-                          title: isFr ? 'Chambre à air' : 'Inner Tube',
+                          title: isFr ? 'Chambre à air' : 'Inner tube',
                           sub: isFr ? 'Le plus courant · simple' : 'Most common · classic',
                         },
                       ].map((opt) => {

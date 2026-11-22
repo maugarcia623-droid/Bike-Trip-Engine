@@ -268,7 +268,7 @@ export const RideReadinessBreakdown: React.FC<{
   onTriggerAction?: (action: ReadinessActionKind) => void;
 }> = ({ readiness, isFr, activeAction, onTriggerAction }) => (
   <div className="flex flex-col gap-2.5">
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
+    <div className="flex overflow-x-auto gap-2.5 pb-1 no-scrollbar snap-x">
       {readiness.factors.map((f) => {
         const tone = READINESS_TOKENS[levelForSubScore(f.score)];
         const lost = Math.round(f.pointsLost);
@@ -277,7 +277,7 @@ export const RideReadinessBreakdown: React.FC<{
         return (
           <div
             key={f.id}
-            className={`rounded-pod bg-pod p-3 flex flex-col justify-between gap-1.5 min-w-0 transition-shadow ${
+            className={`w-[164px] shrink-0 snap-start rounded-pod bg-pod p-3 flex flex-col justify-between gap-1.5 transition-shadow ${
               isOpen ? 'ring-2 ring-inset ring-volt' : ''
             }`}
           >

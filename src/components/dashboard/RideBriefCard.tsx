@@ -4,10 +4,12 @@ import { TripProfile } from '../../types/trip';
 import { RiderBikeSpecs } from '../../types/specs';
 import { loadRiderBikeSpecs } from '../../utils/specsStorage';
 import { PhysicsCalculationResult } from '../../types/trip';
+import { formatCautionPaceSummary } from '../../utils/physics';
 import { ReverseTimelineCalculation } from '../../utils/timeline';
 import { StageAmenity } from '../../types/amenities';
 import { RideBriefData, RideBriefPriorityIconKey } from '../../utils/rideBrief';
-import { buildPlanShareUrl } from '../../utils/planShare';
+import { formatTyrePressurePair } from '../../utils/tyrePressure';
+import { buildPlanShareUrl, SenderBaseline } from '../../utils/planShare';
 import { downloadTripFit } from '../../utils/fitExporter';
 import { downloadTripGpx, downloadEntireTourGpx } from '../../utils/gpxExporter';
 import { useTranslation, getLocalizedTripMeta } from '../../context/LanguageContext';
@@ -60,6 +62,9 @@ export interface RideBriefCardProps {
   brief: RideBriefData;
   isExpanded: boolean;
   onToggleExpand: () => void;
+  layout?: 'full' | 'sidecar';
+  partnerSyncSlot?: React.ReactNode;
+  senderBaseline?: SenderBaseline;
   onOpenTools?: (tab?: 'wind' | 'leave-by' | 'pressure') => void;
   onUpdateTrip?: (updated: TripProfile) => void;
   onSelectBike?: (bikeId: string) => void;
@@ -97,6 +102,9 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
   brief,
   isExpanded,
   onToggleExpand,
+  layout = 'full',
+  partnerSyncSlot,
+  senderBaseline,
   onOpenTools,
   onUpdateTrip,
   onSelectBike,
@@ -104,6 +112,8 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
   onOpenConfigurator,
   onJumpToSection,
 }) => {
+  const isSidecar = layout === 'sidecar';
+  const effectiveExpanded = isSidecar ? true : isExpanded;
   const { lang } = useTranslation();
   const isFr = lang === 'fr';
   const meta = getLocalizedTripMeta(trip, lang);
@@ -141,6 +151,7 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
       arrivalHHMM: brief.arrivalHHMM,
       goStatus: brief.verdict,
       bikeName: brief.bikeName,
+      senderBaseline,
     });
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -220,10 +231,10 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
     <section
       id="ride-brief-card"
       data-testid="ride-brief-card"
-      aria-label={isFr ? 'Briefing départ' : 'Ride Brief'}
-      onClick={!isExpanded ? onToggleExpand : undefined}
-      className={`w-full mb-3 sm:mb-4 lg:mb-5 rounded-card bg-card p-3.5 sm:p-5 lg:px-6 lg:py-5 shadow-xs border border-ink/5 dark:border-white/5 transition-colors ${
-        !isExpanded ? 'cursor-pointer' : ''
+      aria-label={isFr ? 'Briefing départ' : 'Ride brief'}
+      onClick={!effectiveExpanded ? onToggleExpand : undefined}
+      className={`w-full ${isSidecar ? 'mb-0 h-full flex flex-col' : 'mb-3 sm:mb-4 lg:mb-5'} rounded-card bg-card p-3.5 sm:p-5 ${isSidecar ? 'lg:p-5' : 'lg:px-6 lg:py-5'} shadow-xs transition-colors ${
+        !effectiveExpanded ? 'cursor-pointer' : ''
       }`}
     >
       {/* ── Header Row ── */}
@@ -239,7 +250,7 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
             />
             <div className="flex flex-col gap-0.5 min-w-0 flex-1">
               <h2 className="text-lg font-bold tracking-tight text-ink font-sans shrink-0">
-                {isFr ? 'Briefing départ' : 'Ride Brief'}
+                {isFr ? 'Briefing départ' : 'Ride brief'}
               </h2>
               <span className="text-[13px] font-medium text-ink-muted font-body leading-snug truncate">
                 {meta.name} · {brief.archetypeLabel}
@@ -247,7 +258,7 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
             </div>
           </div>
 
-          {!isExpanded && (
+          {!effectiveExpanded && (
             <Button
               variant="ghost"
               size="sm"
@@ -256,25 +267,24 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
                 e.stopPropagation();
                 onToggleExpand();
               }}
-              aria-label={isFr ? 'Déplier le briefing départ' : 'Expand Ride Brief'}
+              aria-label={isFr ? 'Déplier le briefing départ' : 'Expand ride brief'}
               className="inline-flex items-center gap-2 rounded-full bg-pod hover:bg-chip px-3 py-1.5 min-h-[44px] sm:min-h-[32px] sm:px-2.5 sm:py-1 text-xs font-semibold text-ink tnum max-w-full cursor-pointer transition-colors"
             >
-              <span className="inline-flex items-center rounded-full bg-volt text-[#111111] px-2 py-0.5 text-[11px] font-extrabold leading-none">
-                {brief.leaveByHHMM}
-              </span>
+              <span className="whitespace-nowrap font-bold">{brief.leaveByHHMM}</span>
+              <span className="text-ink-muted font-medium">·</span>
               <span className="whitespace-nowrap">{distLabel} km</span>
               <span className="text-ink-muted font-medium whitespace-nowrap hidden sm:inline">
                 · {brief.totalDurationFormatted}
               </span>
               <span className="text-ink-muted font-medium whitespace-nowrap hidden md:inline">
-                · {brief.tyrePressure.frontBar}/{brief.tyrePressure.rearBar} bar
+                · {formatTyrePressurePair(brief.tyrePressure.frontBar, brief.tyrePressure.rearBar, brief.pressureUnit, lang)}
               </span>
             </Button>
           )}
         </div>
 
         <div className="flex items-center gap-2.5 shrink-0">
-          {!isExpanded && (
+          {!effectiveExpanded && (
             <span
               className="inline-flex items-center shrink-0"
               title={`${isFr ? 'Prêt à partir' : 'Ride readiness'} · ${readiness.label}`}
@@ -289,45 +299,59 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
             </span>
           )}
 
-          <Button
-            variant="ghost"
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleExpand();
-            }}
-            aria-expanded={isExpanded}
-            aria-controls="ride-brief-body"
-            data-testid="ride-brief-toggle"
-            aria-label={
-              isExpanded
-                ? isFr
-                  ? 'Réduire le briefing départ'
-                  : 'Collapse Ride Brief'
-                : isFr
-                ? 'Déplier le briefing départ'
-                : 'Expand Ride Brief'
-            }
-            className="w-11 h-11 md:w-9 md:h-9 p-0 rounded-full bg-pod hover:bg-chip text-ink flex items-center justify-center transition-colors shrink-0"
-          >
-            <ChevronDown
-              className={`w-4 h-4 transition-transform duration-300 ${
-                isExpanded ? 'rotate-180' : ''
-              }`}
-            />
-          </Button>
+          {!isSidecar && (
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleExpand();
+              }}
+              aria-expanded={effectiveExpanded}
+              aria-controls="ride-brief-body"
+              data-testid="ride-brief-toggle"
+              aria-label={
+                effectiveExpanded
+                  ? isFr
+                    ? 'Réduire le briefing départ'
+                    : 'Collapse ride brief'
+                  : isFr
+                  ? 'Déplier le briefing départ'
+                  : 'Expand ride brief'
+              }
+              className="w-11 h-11 md:w-9 md:h-9 p-0 rounded-full bg-pod hover:bg-chip text-ink flex items-center justify-center transition-colors shrink-0"
+            >
+              <ChevronDown
+                className={`w-4 h-4 transition-transform duration-300 ${
+                  effectiveExpanded ? 'rotate-180' : ''
+                }`}
+              />
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* ── Collapsible Body ── */}
-      <Collapsible open={isExpanded} id="ride-brief-body" innerClassName="pt-4 md:pt-3.5">
+      {/* ── Collapsible Body (Always open on desktop sidecar; collapsible on mobile) ── */}
+      <Collapsible
+        open={effectiveExpanded}
+        id="ride-brief-body"
+        className={isSidecar ? 'flex-1' : ''}
+        innerClassName={isSidecar ? 'pt-3.5 h-full flex flex-col justify-between' : 'pt-4 md:pt-3.5'}
+      >
+        <div>
         {/* Top Row: Leave-By Volt Pod + Natural-Language Ride Guidance */}
-        <div className="grid grid-cols-1 md:grid-cols-[200px_minmax(0,1fr)] xl:grid-cols-[208px_minmax(0,1fr)_320px] md:items-center gap-4 md:gap-5">
+        <div
+          className={
+            isSidecar
+              ? 'grid grid-cols-1 sm:grid-cols-[152px_minmax(0,1fr)] gap-3.5 items-stretch'
+              : 'grid grid-cols-1 md:grid-cols-[200px_minmax(0,1fr)] xl:grid-cols-[208px_minmax(0,1fr)_320px] md:items-center gap-4 md:gap-5'
+          }
+        >
           <div className="w-full shrink-0 rounded-pod bg-volt dark:bg-[#242706] dark:ring-1 dark:ring-inset dark:ring-volt/45 text-[#111111] dark:text-[#F2F455] px-4 py-3.5 md:py-3.5 flex flex-col justify-between gap-1.5 shadow-xs">
             <span className="text-[13px] font-medium font-body leading-tight text-[#111111]/85 dark:text-[#F2F455]/90">
               {brief.leavePodLabel}
             </span>
-            <span className="text-[36px] leading-none font-extrabold tracking-tight font-sans tnum">
+            <span className={`${isSidecar ? 'text-[32px]' : 'text-[36px]'} leading-none font-extrabold tracking-tight font-sans tnum`}>
               {brief.leaveByHHMM}
             </span>
             <span className="text-xs font-medium font-body leading-tight text-[#111111]/75 dark:text-[#DDE07A]">
@@ -336,13 +360,13 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
           </div>
 
           <div className="flex-1 min-w-0 flex flex-col justify-center gap-1.5">
-            <h3 className="text-2xl sm:text-[28px] leading-[1.15] font-bold tracking-tight text-ink font-sans">
+            <h3 className={`${isSidecar ? 'text-xl sm:text-[22px]' : 'text-2xl sm:text-[28px]'} leading-[1.15] font-bold tracking-tight text-ink font-sans`}>
               {brief.headline}
             </h3>
-            <p className="text-sm font-medium text-ink-secondary font-body leading-snug max-w-4xl">
+            <p className={`${isSidecar ? 'text-xs sm:text-[13px]' : 'text-sm'} font-medium text-ink-secondary font-body leading-snug max-w-4xl`}>
               {brief.narrativeSummary}
             </p>
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 pt-1 text-[14px] font-rounded">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-1 text-[13px] sm:text-[14px] font-rounded">
               <span className="font-bold text-ink tnum">{distLabel} km</span>
               <span className="font-bold text-ink tnum">{brief.totalDurationFormatted}</span>
               <span className="font-medium text-ink-muted tnum">
@@ -351,8 +375,8 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
             </div>
           </div>
 
-          {/* Readiness score pod — full width under on mobile/tablet, third column on xl */}
-          <div className="md:col-span-2 xl:col-span-1 min-w-0">
+          {/* Readiness score pod — full width under on sidecar/mobile/tablet, third column on xl */}
+          <div className={isSidecar ? 'sm:col-span-2 min-w-0' : 'md:col-span-2 xl:col-span-1 min-w-0'}>
             <RideReadinessPanel
               readiness={readiness}
               isFr={isFr}
@@ -458,11 +482,14 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
           />
         </Collapsible>
 
-        {/* Hairline Divider */}
-        <div className="h-px w-full bg-chip dark:bg-white/10 my-4 md:my-3.5" aria-hidden="true" />
-
-        {/* Bottom 3-Column Intelligent Priority Highlights with Keyline Colored Duotone Icons */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 lg:gap-8">
+        {/* Bottom Intelligent Priority Highlights with Keyline Colored Duotone Icons */}
+        <div
+          className={
+            isSidecar
+              ? 'mt-4 md:mt-3.5 grid grid-cols-1 gap-3'
+              : 'mt-4 md:mt-3.5 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 lg:gap-8'
+          }
+        >
           {brief.priorities.map((item) => {
             const PriorityIcon =
               item.id === 'visibility-twilight'
@@ -490,11 +517,16 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
           })}
         </div>
 
+        {/* Optional Multi-Player Group Sync Check Slot */}
+        {partnerSyncSlot && <div className="mt-4">{partnerSyncSlot}</div>}
+        </div>
+
         {/* Tactical Pills & Pre-Ride Action Strip */}
-        <div className="mt-4 pt-3.5 md:mt-3.5 md:pt-3 border-t border-chip dark:border-white/10 flex flex-wrap items-center justify-between gap-2.5">
+        <div>
+        <div className="mt-4 pt-1 md:mt-3.5 flex flex-wrap items-center justify-between gap-2.5">
           <div className="flex flex-wrap items-center gap-2 min-w-0">
             <Badge variant="sky" size="md" icon={Gauge} className="tnum">
-              {brief.tyrePressure.frontBar}/{brief.tyrePressure.rearBar} bar · {brief.tireWidthMm}mm{' '}
+              {formatTyrePressurePair(brief.tyrePressure.frontBar, brief.tyrePressure.rearBar, brief.pressureUnit, lang)} · {brief.tireWidthMm}mm{' '}
               {brief.isTubeless ? 'TL' : isFr ? 'chambre' : 'tubes'}
             </Badge>
 
@@ -530,6 +562,28 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
                 {isFr ? 'Pauses ≤ 5 min (hiver avant l’aube)' : 'Stops ≤ 5 min (pre-dawn winter)'}
               </Badge>
             )}
+
+            {(() => {
+              const cautionLabel = formatCautionPaceSummary(physics, lang);
+              if (!cautionLabel) return null;
+              const isDark = physics.cautionReasons?.includes('dark');
+              const delayMin = physics.cautionDelayMinutes ?? 0;
+              const crrMultPct = Math.round(((physics.crrMultiplier ?? 1) - 1) * 100);
+              const tip = isFr
+                ? `Facteur d'allure intégré au temps de selle${delayMin > 0 ? ` (+${delayMin} min)` : ''}${crrMultPct >= 4 ? ` · Crr effectif ${physics.effectiveCrr.toFixed(4)} (+${crrMultPct}%)` : ''}`
+                : `Automatically factored into moving time${delayMin > 0 ? ` (+${delayMin} min)` : ''}${crrMultPct >= 4 ? ` · Effective Crr ${physics.effectiveCrr.toFixed(4)} (+${crrMultPct}%)` : ''}`;
+              return (
+                <Badge
+                  variant={isDark ? 'purple' : 'amber'}
+                  size="md"
+                  icon={isDark ? Moon : CloudRain}
+                  className="tnum"
+                  title={tip}
+                >
+                  {cautionLabel}
+                </Badge>
+              );
+            })()}
 
             {showLoopBadge && loopComp && (
               <Badge variant="emerald" size="md" icon={Compass} className="tnum">
@@ -573,8 +627,8 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
                     ? 'Lien copié !'
                     : 'Link copied!'
                   : isFr
-                  ? 'Copier le lien'
-                  : 'Copy Link'}
+                  ? 'Partager (duo)'
+                  : 'Share with partner'}
               </span>
             </Button>
 
@@ -620,6 +674,7 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
             {exportError}
           </p>
         )}
+        </div>
       </Collapsible>
     </section>
   );

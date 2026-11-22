@@ -1,5 +1,6 @@
 import React, { useId, useMemo, useState } from 'react';
 import { Button } from '@/components/arc';
+import { Flame, Mountains, Route } from '@/components/icons';
 import {
   EffortTracePoint,
   PowerZoneCode,
@@ -8,7 +9,13 @@ import {
 } from '../../utils/physics';
 import { useTranslation } from '../../context/LanguageContext';
 import { Badge } from '../common/Badge';
-import { ChipTheme } from '../../tokens/chipTokens';
+import {
+  CHIP_DUOTONE_ISOLATION_CLASSES,
+  CHIP_RING_BASE,
+  CHIP_RING_UNSELECTED,
+  CHIP_TOKENS,
+  ChipTheme,
+} from '../../tokens/chipTokens';
 
 /* ──────────────────────────────────────────────────────────────────────────────
  * Effort & Terrain story — coloured flat design, max 3 surface levels
@@ -99,7 +106,7 @@ const ElevationBars: React.FC<{
     const d0 = trace[0].distKm;
     const dN = trace[trace.length - 1].distKm;
     const span = Math.max(0.1, dN - d0);
-    const N = Math.min(44, Math.max(12, trace.length - 1));
+    const N = Math.min(72, Math.max(24, trace.length - 1));
     const bars: Array<{ ele: number; watts: number; startKm: number; endKm: number }> = [];
     let last = { ele: trace[0].eleM, watts: trace[0].watts };
     for (let k = 0; k < N; k++) {
@@ -161,11 +168,11 @@ const ElevationBars: React.FC<{
           </Badge>
         </span>
       </div>
-      <div className="h-20 flex items-end gap-[2px]">
+      <div className="h-20 flex items-end justify-between gap-[2px]">
         {model.bars.map((b, i) => (
           <span
             key={i}
-            className={`flex-1 min-w-0 rounded-full ${ZONE_FILL[b.zone]} ${
+            className={`w-[2.5px] sm:w-[3px] shrink-0 rounded-full ${ZONE_FILL[b.zone]} ${
               i === model.peakIdx ? 'ring-2 ring-ink' : ''
             }`}
             style={{ height: `${b.h}%` }}
@@ -318,41 +325,49 @@ export const TerrainEffortStory: React.FC<TerrainEffortStoryProps> = ({
       : 'Even cost — fuel on a steady clock (every 20 min).';
   const kcalPerHour = Math.round(totalKcal / Math.max(0.25, sectional.totalMinutes / 60));
 
-  const tabs: Array<{ key: TabKey; label: string }> = [
-    { key: 'effort', label: isFr ? 'Effort' : 'Effort' },
-    { key: 'terrain', label: isFr ? 'Relief & énergie' : 'Terrain & fuel' },
-    ...(surfaceSlot ? [{ key: 'surface' as const, label: isFr ? 'Revêtement' : 'Surface' }] : []),
+  const tabs: Array<{ key: TabKey; label: string; icon: React.ElementType; theme: ChipTheme }> = [
+    { key: 'effort', label: isFr ? 'Effort' : 'Effort', icon: Flame, theme: 'emerald' },
+    { key: 'terrain', label: isFr ? 'Relief & énergie' : 'Terrain & fuel', icon: Mountains, theme: 'yellow-vest' },
+    ...(surfaceSlot
+      ? [{ key: 'surface' as const, label: isFr ? 'Revêtement' : 'Surface', icon: Route, theme: 'sky' as ChipTheme }]
+      : []),
   ];
 
   return (
     <div>
-      {/* ── Tabs: one panel at a time (no extra surface — underline indicator only) ── */}
-      <div role="tablist" aria-label={t('sectionalEnergyHeading')} className="flex gap-6 border-b border-ink/10">
-        {tabs.map((tb) => {
-          const sel = tab === tb.key;
-          return (
-            <Button variant="ghost"
-              key={tb.key}
-              type="button"
-              role="tab"
-              id={`${tabsId}-tab-${tb.key}`}
-              aria-selected={sel}
-              aria-controls={`${tabsId}-panel-${tb.key}`}
-              onClick={() => setTab(tb.key)}
-              className={`relative min-w-0 min-h-[44px] py-3 text-left cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30 rounded-t-md ${
-                sel ? 'text-ink' : 'text-ink-muted hover:text-ink-secondary'
-              }`}
-            >
-              <span className="block text-xs font-rounded font-bold leading-tight truncate">{tb.label}</span>
-              <span
-                aria-hidden="true"
-                className={`absolute inset-x-0 -bottom-px h-0.5 rounded-full transition-colors ${
-                  sel ? 'bg-ink' : 'bg-transparent'
+      {/* ── Tabs: left-aligned concentric pill switcher matching Guided/Pro switcher above ── */}
+      <div className="flex justify-start">
+        <div
+          role="tablist"
+          aria-label={t('sectionalEnergyHeading')}
+          className="inline-flex items-center gap-1 p-1 rounded-full bg-pod w-fit max-w-full overflow-x-auto no-scrollbar"
+        >
+          {tabs.map((tb) => {
+            const sel = tab === tb.key;
+            const TabIcon = tb.icon;
+            const tokens = CHIP_TOKENS[tb.theme];
+            return (
+              <Button
+                variant="ghost"
+                key={tb.key}
+                type="button"
+                role="tab"
+                id={`${tabsId}-tab-${tb.key}`}
+                aria-selected={sel}
+                aria-controls={`${tabsId}-panel-${tb.key}`}
+                onClick={() => setTab(tb.key)}
+                className={`min-h-[44px] sm:min-h-[34px] px-3 sm:px-3.5 py-2 sm:py-1.5 rounded-full text-xs font-rounded font-semibold whitespace-nowrap cursor-pointer transition-all flex items-center justify-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30 ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                  sel
+                    ? `${tokens.surface} ${tokens.primary} ${tokens.selectedRing}`
+                    : `${CHIP_RING_UNSELECTED} text-ink-muted hover:text-ink`
                 }`}
-              />
-            </Button>
-          );
-        })}
+              >
+                <TabIcon className="w-3.5 h-3.5 shrink-0 text-current" />
+                <span>{tb.label}</span>
+              </Button>
+            );
+          })}
+        </div>
       </div>
 
       {/* ─────────── PANEL · EFFORT ─────────── */}

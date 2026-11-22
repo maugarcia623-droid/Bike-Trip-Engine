@@ -238,7 +238,7 @@ export const RideBriefModal: React.FC<RideBriefModalProps> = ({
             size="sm"
             onClick={onClose}
             aria-label={isFr ? 'Fermer le brief' : 'Close ride brief'}
-            className="w-9 h-9 p-0 rounded-full bg-pod dark:bg-white/[0.06] hover:bg-chip text-ink-secondary hover:text-ink flex items-center justify-center shrink-0 cursor-pointer"
+            className="w-11 h-11 sm:w-9 sm:h-9 p-0 rounded-full bg-pod dark:bg-white/[0.06] hover:bg-chip text-ink-secondary hover:text-ink flex items-center justify-center shrink-0 cursor-pointer"
           >
             <X className="w-4 h-4" />
           </Button>
@@ -292,23 +292,36 @@ export const RideBriefModal: React.FC<RideBriefModalProps> = ({
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             {/* Pressure */}
-            <div className="rounded-[20px] p-3.5 bg-pod/80 dark:bg-white/[0.045] flex flex-col justify-between gap-1">
+            <div className="rounded-pod p-3.5 bg-pod/80 dark:bg-white/[0.045] flex flex-col justify-between gap-1">
               <div className="flex items-center gap-1.5 text-xs font-rounded font-semibold text-ink-secondary">
                 <Gauge className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0" />
                 <span>{isFr ? 'Pression pneus' : 'Tyre pressure'}</span>
               </div>
               <div className="text-xl font-extrabold font-rounded text-ink tnum">
-                {brief.tyrePressure.frontBar.toFixed(1)} / {brief.tyrePressure.rearBar.toFixed(1)}{' '}
-                <span className="text-xs font-bold text-ink-muted">bar</span>
+                {brief.pressureUnit === 'psi' ? (
+                  <>
+                    {brief.tyrePressure.frontPsi} / {brief.tyrePressure.rearPsi}{' '}
+                    <span className="text-xs font-bold text-ink-muted">PSI</span>
+                  </>
+                ) : (
+                  <>
+                    {brief.tyrePressure.frontBar.toFixed(1)} / {brief.tyrePressure.rearBar.toFixed(1)}{' '}
+                    <span className="text-xs font-bold text-ink-muted">bar</span>
+                  </>
+                )}
               </div>
               <div className="text-[11px] text-ink-muted font-rounded leading-tight">
                 {isFr ? 'AV / AR' : 'Front / Rear'} · {brief.isTubeless ? 'Tubeless' : isFr ? 'Chambre' : 'Tube'}
-                {brief.tyrePressure.hooklessCapped ? ' · ETRTO 5.0 cap' : ''}
+                {brief.tyrePressure.hooklessCapped
+                  ? brief.pressureUnit === 'psi'
+                    ? ' · ETRTO 73 PSI cap'
+                    : ' · ETRTO 5.0 cap'
+                  : ''}
               </div>
             </div>
 
             {/* Carbs/h */}
-            <div className="rounded-[20px] p-3.5 bg-pod/80 dark:bg-white/[0.045] flex flex-col justify-between gap-1">
+            <div className="rounded-pod p-3.5 bg-pod/80 dark:bg-white/[0.045] flex flex-col justify-between gap-1">
               <div className="flex items-center gap-1.5 text-xs font-rounded font-semibold text-ink-secondary">
                 <Flame className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
                 <span>{isFr ? 'Glucides / h' : 'Carbs / hour'}</span>
@@ -323,7 +336,7 @@ export const RideBriefModal: React.FC<RideBriefModalProps> = ({
             </div>
 
             {/* Bottles */}
-            <div className="rounded-[20px] p-3.5 bg-pod/80 dark:bg-white/[0.045] flex flex-col justify-between gap-1">
+            <div className="rounded-pod p-3.5 bg-pod/80 dark:bg-white/[0.045] flex flex-col justify-between gap-1">
               <div className="flex items-center gap-1.5 text-xs font-rounded font-semibold text-ink-secondary">
                 <Droplets className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
                 <span>{isFr ? 'Bidons & eau' : 'Bottles'}</span>

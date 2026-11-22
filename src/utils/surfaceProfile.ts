@@ -9,7 +9,7 @@ import {
   SurfaceType,
 } from '../types/trip';
 import { loadRiderBikeSpecs } from './specsStorage';
-import { calculateTyrePressure } from './tyrePressure';
+import { calculateTyrePressure, formatTyrePressurePair } from './tyrePressure';
 import {
   EdgeOsmMatch,
   OsmSurfaceRouteData,
@@ -410,8 +410,40 @@ function selectSectorBlueprints(
     ];
   }
 
-  // 4. Default / Mixed Corridor Signature: 72% Paved Road, 22% Unpaved/Gravel, 6% Path/Singletrack
-  // Adjusts dynamically if gravel or bikepacking chips are toggled!
+  // 4. Default heuristic when OSM Overpass surface data is unavailable:
+  // Only assume mixed gravel/singletrack when gravel/bikepacking chips or off-road keywords are active;
+  // otherwise default to an honest 100% paved estimate so road/highway routes aren't falsely marked 72% paved.
+  const hasOffroadKeyword =
+    hay.includes('gravel') ||
+    hay.includes('trail') ||
+    hay.includes('chemin') ||
+    hay.includes('forêt') ||
+    hay.includes('foret') ||
+    hay.includes('forest') ||
+    hay.includes('halage') ||
+    hay.includes('towpath') ||
+    hay.includes('vtt') ||
+    hay.includes('mtb') ||
+    hay.includes('dirt');
+
+  if (!hasGravelChip && !hasBikepackingChip && !hasOffroadKeyword) {
+    return [
+      {
+        type: 'paved',
+        sharePct: 100,
+        nameEn: '(Estimated) Paved Road Corridor',
+        nameFr: '(Estimé) Parcours Routier Bitumé',
+        surfaceDetailEn: 'Estimated paved road — sync OSM surface data for exact sector breakdown',
+        surfaceDetailFr: 'Bitume estimé — chargez la surface OSM pour le détail exact par secteur',
+        technicality: 'smooth',
+        suitability38c: 'ideal',
+        riderNoteEn: 'Paved baseline assumed until live OpenStreetMap surface tags load.',
+        riderNoteFr: 'Hypothèse bitume retenue en attendant les données OpenStreetMap.',
+      },
+    ];
+  }
+
+  // Mixed Corridor Signature for gravel/bikepacking fallback: 72% Paved, 22% Gravel, 6% Singletrack
   const gravelBoost = hasGravelChip ? 12 : hasBikepackingChip ? 6 : 0;
   const singletrackBoost = hasGravelChip ? 4 : hasBikepackingChip ? 2 : 0;
 
@@ -1195,6 +1227,9 @@ export function computeSurfaceBreakdown(
   });
   const recommendedFrontBar = tyrePressure.frontBar;
   const recommendedRearBar = tyrePressure.rearBar;
+  const pressureUnit = storedSpecs.pressureUnit ?? 'bar';
+  const pressureLabelEn = formatTyrePressurePair(recommendedFrontBar, recommendedRearBar, pressureUnit, 'en');
+  const pressureLabelFr = formatTyrePressurePair(recommendedFrontBar, recommendedRearBar, pressureUnit, 'fr');
 
   const unpavedSegments = segments.filter((s) => s.type !== 'paved');
   const technicalSegments = segments.filter(
@@ -1231,12 +1266,12 @@ export function computeSurfaceBreakdown(
   let headlineFr = `Idéal pour montage Gravel ${tireWidthMm}c`;
   let summaryEn =
     gravelPct + singletrackPct === 0
-      ? `100% paved route rolls fast and effortlessly on ${tireWidthMm}c tires (${recommendedFrontBar}/${recommendedRearBar} bar).`
-      : `${pavedPct}% paved and ${gravelPct}% compacted gravel roll smoothly on ${tireWidthMm}c tires (${recommendedFrontBar}/${recommendedRearBar} bar).`;
+      ? `100% paved route rolls fast and effortlessly on ${tireWidthMm}c tires (${pressureLabelEn}).`
+      : `${pavedPct}% paved and ${gravelPct}% compacted gravel roll smoothly on ${tireWidthMm}c tires (${pressureLabelEn}).`;
   let summaryFr =
     gravelPct + singletrackPct === 0
-      ? `Parcours 100 % bitumé très fluide en pneus ${tireWidthMm}c (${String(recommendedFrontBar).replace('.', ',')}/${String(recommendedRearBar).replace('.', ',')} bar).`
-      : `${pavedPct} % de bitume et ${gravelPct} % de chemin compacté passent avec fluidité en pneus ${tireWidthMm}c (${String(recommendedFrontBar).replace('.', ',')}/${String(recommendedRearBar).replace('.', ',')} bar).`;
+      ? `Parcours 100 % bitumé très fluide en pneus ${tireWidthMm}c (${pressureLabelFr}).`
+      : `${pavedPct} % de bitume et ${gravelPct} % de chemin compacté passent avec fluidité en pneus ${tireWidthMm}c (${pressureLabelFr}).`;
 
   if (tireWidthMm <= 30 && unpavedRatio > 0.15) {
     headlineEn = `Caution on ${tireWidthMm}c Road Slicks · 38c+ Gravel Tires Advised`;
@@ -1251,8 +1286,8 @@ export function computeSurfaceBreakdown(
   } else if (overallLevel === 'technical-caution') {
     headlineEn = `Technical Trail Sectors (${singletrackPct}%) · Line Care Needed on ${tireWidthMm}c`;
     headlineFr = `Sentiers techniques (${singletrackPct} %) · Vigilance requise en ${tireWidthMm}c`;
-    summaryEn = `While ${pavedPct + gravelPct}% is smoother tarmac & gravel, ${singletrackKm} km (${techRangeStr}) features uneven trail. Run ${recommendedFrontBar}/${recommendedRearBar} bar and stay light on the bars.`;
-    summaryFr = `Si ${pavedPct + gravelPct} % du tracé est roulant, ${singletrackKm} km (${techRangeStr}) empruntent un sentier irrégulier. Gonflez à ${String(recommendedFrontBar).replace('.', ',')}/${String(recommendedRearBar).replace('.', ',')} bar et relâchez les bras.`;
+    summaryEn = `While ${pavedPct + gravelPct}% is smoother tarmac & gravel, ${singletrackKm} km (${techRangeStr}) features uneven trail. Run ${pressureLabelEn} and stay light on the bars.`;
+    summaryFr = `Si ${pavedPct + gravelPct} % du tracé est roulant, ${singletrackKm} km (${techRangeStr}) empruntent un sentier irrégulier. Gonflez à ${pressureLabelFr} et relâchez les bras.`;
   }
 
   const suitability: GravelSuitabilityAssessment = {

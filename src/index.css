@@ -120,6 +120,15 @@
     letter-spacing: -0.01em;
   }
 
+  /* Prevent iOS Safari auto-zoom on focus across all mobile form controls */
+  @media (max-width: 639px) {
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='hidden']),
+    select,
+    textarea {
+      font-size: max(16px, 1em);
+    }
+  }
+
   /* Headers use the rounded voice at 700/800 */
   h1, h2, h3, h4 {
     letter-spacing: -0.01em;

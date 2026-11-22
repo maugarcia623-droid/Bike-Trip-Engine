@@ -14,6 +14,7 @@ import { calculatePhysics } from '../../utils/physics';
 import { useTranslation } from '../../context/LanguageContext';
 import { loadRiderBikeSpecs, getActiveBike } from '../../utils/specsStorage';
 import { IconBadge } from '../common/IconBadge';
+import { Collapsible } from '../common/Collapsible';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
   CHIP_RING_BASE,
@@ -298,6 +299,9 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                   <span>
                     {isFr ? 'Réglages aéro & pneus avancés' : 'Advanced aero & tire tuning'}
                   </span>
+                  <span className="px-2 py-0.5 rounded-full bg-card text-[10px] font-bold text-ink-muted tnum">
+                    CdA {trip.physics.cda} · Crr {trip.physics.crr}
+                  </span>
                   <ChevronDown
                     className={`w-3.5 h-3.5 text-current transition-transform duration-200 ${
                       showAdvancedPhysics ? 'rotate-180' : ''
@@ -328,8 +332,8 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                 </Button>
               </div>
 
-              {showAdvancedPhysics && (
-                <div className="space-y-4 pt-1 animate-apple-step-in">
+              <Collapsible open={showAdvancedPhysics} innerClassName="pt-1">
+                <div className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="rounded-pod bg-pod p-3.5 space-y-2.5">
                       <div className="flex items-center justify-between gap-2">
@@ -478,7 +482,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                     </div>
                   </div>
                 </div>
-              )}
+              </Collapsible>
             </div>
           </div>
         )}
@@ -531,7 +535,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
               </div>
 
               {currentPacingMode === 'effort' && (
-                <div className="pt-2 border-t border-dashed border-ink/10 dark:border-white/10 space-y-2">
+                <div className="pt-2 space-y-2">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
                     {[
                       { watts: z2PresetWatts, label: t('effortPresetZ2', { watts: z2PresetWatts }) },
@@ -559,21 +563,7 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
               )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-ink-secondary mb-1.5 px-1">
-                  {t('routeDistInputLabel')}
-                </label>
-                <input
-                  type="number"
-                  step="0.5"
-                  min="1"
-                  max="500"
-                  value={trip.route.distanceKm}
-                  onChange={(e) => updateRoute('distanceKm', parseFloat(e.target.value) || 22)}
-                  className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
-                />
-              </div>
+            <div className="grid grid-cols-1 gap-4">
 
               {currentPacingMode === 'effort' ? (
                 <div className="space-y-2">

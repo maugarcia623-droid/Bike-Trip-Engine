@@ -368,7 +368,12 @@ export const ReverseTimelineBento: React.FC<ReverseTimelineBentoProps> = ({
             </Button>
           </div>
 
-          <Badge variant="yellow-vest" size="md" dot className="tnum">
+          <Badge
+            variant="yellow-vest"
+            size="md"
+            dot
+            className="tnum min-h-[32px] px-3.5 py-1.5 text-xs font-rounded font-bold"
+          >
             {t('rolloutBadgeTime', { time: timeline.hardDepartureTime })}
           </Badge>
         </div>

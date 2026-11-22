@@ -5,7 +5,7 @@ import {
   resolveBikeTireWidthMm,
 } from '../../types/specs';
 import { normalizeRiderBikeSpecs } from '../specsStorage';
-import { calculateTyrePressure } from '../tyrePressure';
+import { barToPsi, calculateTyrePressure, formatTyrePressurePair } from '../tyrePressure';
 
 describe('tire specs helpers & pressure model', () => {
   it('estimates sensible Crr values from tire width, tubeless, and casing', () => {
@@ -77,5 +77,11 @@ describe('tire specs helpers & pressure model', () => {
       bikeCategory: 'gravel',
     });
     assert.ok(mostlyGravel.rearBar < pavedGravel.rearBar);
+    assert.equal(barToPsi(3.2), 46);
+    assert.equal(barToPsi(5.0), 73);
+    assert.equal(formatTyrePressurePair(3.2, 3.8, 'bar', 'en'), '3.2/3.8 bar');
+    assert.equal(formatTyrePressurePair(3.2, 3.8, 'bar', 'fr'), '3,2/3,8 bar');
+    assert.equal(formatTyrePressurePair(3.2, 3.8, 'psi', 'en'), '46/55 PSI');
+    assert.equal(hooklessRoad.frontPsi, barToPsi(hooklessRoad.frontBar));
   });
 });

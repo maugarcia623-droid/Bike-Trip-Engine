@@ -8,6 +8,7 @@ import { getSolarEphemeris } from '../utils/solarVisibility';
 export interface TelemetryWeather {
   temperatureC: number;
   relativeHumidity: number;
+  recentPrecipitationMm?: number;
   surfacePressureHpa: number;
   airDensityRho: number;         // kg/m³ derived from ideal gas law
   windSpeedKmH: number;
@@ -190,7 +191,7 @@ async function fetchOpenMeteoForecast(lat: number, lon: number): Promise<any> {
     return existing;
   }
 
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m,visibility,is_day,weather_code&daily=sunrise,sunset&wind_speed_unit=kmh&timezone=auto&past_days=2&forecast_days=14`;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,relative_humidity_2m,precipitation,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m,visibility,is_day,weather_code&daily=sunrise,sunset&wind_speed_unit=kmh&timezone=auto&past_days=2&forecast_days=14`;
 
   const requestPromise = (async () => {
     const controller = new AbortController();
@@ -305,6 +306,17 @@ export async function fetchHourlyWeather(
   const isDay = (hourly.is_day?.[index] ?? 1) === 1;
   const weatherCode = hourly.weather_code?.[index] ?? 0;
 
+  // Sum precipitation over the 6 hours leading into rollout to detect overnight wet roads
+  let recentPrecipSum = 0;
+  if (Array.isArray(hourly.precipitation)) {
+    const startIdx = Math.max(0, index - 6);
+    for (let i = startIdx; i <= index; i++) {
+      const mm = Number(hourly.precipitation[i] ?? 0);
+      if (Number.isFinite(mm) && mm > 0) recentPrecipSum += mm;
+    }
+  }
+  const recentPrecipitationMm = Number(recentPrecipSum.toFixed(1));
+
   const dailyIndex = data.daily?.time?.findIndex((t: string) => t === targetDate) ?? 0;
   const sunriseIso = data.daily?.sunrise?.[dailyIndex >= 0 ? dailyIndex : 0];
   const sunsetIso = data.daily?.sunset?.[dailyIndex >= 0 ? dailyIndex : 0];
@@ -317,6 +329,7 @@ export async function fetchHourlyWeather(
   return {
     temperatureC: tempC,
     relativeHumidity: humidity,
+    recentPrecipitationMm,
     surfacePressureHpa: pressure,
     airDensityRho: rho,
     windSpeedKmH: windSpeed,

@@ -346,28 +346,30 @@ export const ElevationTerrainStrip: React.FC<ElevationTerrainStripProps> = ({
             />
           )}
           {hoveredCoord && (
-            <>
-              <line
-                x1={hoveredCoord.x}
-                y1={0}
-                x2={hoveredCoord.x}
-                y2={chartH}
-                stroke="currentColor"
-                strokeOpacity="0.3"
-                strokeDasharray="3 3"
-                strokeWidth="1.5"
-              />
-              <circle
-                cx={hoveredCoord.x}
-                cy={hoveredCoord.y}
-                r="4.5"
-                fill={hoveredSurfaceMeta ? hoveredSurfaceMeta.colorDark : '#10B981'}
-                stroke="#FFFFFF"
-                strokeWidth="1.8"
-              />
-            </>
+            <line
+              x1={hoveredCoord.x}
+              y1={0}
+              x2={hoveredCoord.x}
+              y2={chartH}
+              stroke="currentColor"
+              strokeOpacity="0.3"
+              strokeDasharray="3 3"
+              strokeWidth="1.5"
+              vectorEffect="non-scaling-stroke"
+            />
           )}
         </svg>
+        {hoveredCoord && (
+          <div
+            aria-hidden="true"
+            style={{
+              left: `${(hoveredCoord.x / chartW) * 100}%`,
+              top: `${(hoveredCoord.y / chartH) * 100}%`,
+              backgroundColor: hoveredSurfaceMeta ? hoveredSurfaceMeta.colorDark : '#10B981',
+            }}
+            className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 border-white shadow-xs"
+          />
+        )}
       </div>
 
       {/* 4 Compact Terrain Breakdown Pills */}

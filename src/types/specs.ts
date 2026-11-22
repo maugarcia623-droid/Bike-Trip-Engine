@@ -9,6 +9,7 @@ export type PantrySlot = 'pre-ride' | 'on-bike-liquid' | 'on-bike-solid' | 'post
 export type FlavorProfile = 'sweet' | 'savory' | 'neutral';
 export type BidonSizeMl = 500 | 550 | 650 | 750 | 950;
 export type FrameBottleSlots = 1 | 2 | 3;
+export type PressureUnit = 'bar' | 'psi';
 
 export interface PantryItem {
   id: string;
@@ -71,7 +72,7 @@ export const BIKE_CATEGORY_DEFAULTS: Record<
   },
   urban: {
     tireWidthMm: 40,
-    crr: 0.0065,
+    crr: 0.0070,
     cda: 0.44,
     isTubeless: false,
     casingType: 'reinforced',
@@ -129,11 +130,12 @@ export function estimateCrrFromTire(
   else if (w <= 47) base = 0.0068;
   else base = 0.0076;
 
-  const tubelessDelta = isTubeless ? -0.0005 : 0;
+  // Butyl inner tubes add measurable hysteresis loss over tubeless on real tarmac
+  const tubelessDelta = isTubeless ? -0.0005 : 0.0005;
   const casingDelta =
-    casingType === 'supple' ? -0.0003 : casingType === 'reinforced' ? 0.0004 : 0;
+    casingType === 'supple' ? -0.0003 : casingType === 'reinforced' ? 0.0006 : 0;
 
-  return Number(Math.max(0.0034, Math.min(0.0095, base + tubelessDelta + casingDelta)).toFixed(4));
+  return Number(Math.max(0.0034, Math.min(0.0105, base + tubelessDelta + casingDelta)).toFixed(4));
 }
 
 /**
@@ -178,6 +180,7 @@ export interface RiderBikeSpecs {
   pacingInputMode?: PacingInputMode;
   bidonSizeMl?: BidonSizeMl;
   frameBottleSlots?: FrameBottleSlots;
+  pressureUnit?: PressureUnit;
   liquidCarbRatio?: number;
   autoModulateLiquidInHeatOrEffort?: boolean;
   enableSavoryPalateResets?: boolean;
@@ -208,6 +211,7 @@ export const DEFAULT_RIDER_BIKE_SPECS: RiderBikeSpecs = {
   pacingInputMode: 'feel',
   bidonSizeMl: 650,
   frameBottleSlots: 2,
+  pressureUnit: 'bar',
   liquidCarbRatio: 0.35,
   autoModulateLiquidInHeatOrEffort: true,
   enableSavoryPalateResets: true,
@@ -286,6 +290,7 @@ export function getEffectiveRiderSpecs(specs: RiderSpecs): RiderSpecs {
       carbTargetGPerHr: specs.carbTargetGPerHr ?? 60,
       bidonSizeMl: specs.bidonSizeMl ?? 650,
       frameBottleSlots: specs.frameBottleSlots ?? 2,
+      pressureUnit: specs.pressureUnit === 'psi' ? 'psi' : 'bar',
       liquidCarbRatio: specs.liquidCarbRatio ?? 0.35,
       autoModulateLiquidInHeatOrEffort: specs.autoModulateLiquidInHeatOrEffort ?? true,
       enableSavoryPalateResets: specs.enableSavoryPalateResets ?? true,
@@ -312,6 +317,7 @@ export function getEffectiveRiderSpecs(specs: RiderSpecs): RiderSpecs {
     carbTargetGPerHr: mode === 'intuitive' ? 60 : (specs.carbTargetGPerHr ?? 60),
     bidonSizeMl: specs.bidonSizeMl ?? 650,
     frameBottleSlots: specs.frameBottleSlots ?? 2,
+    pressureUnit: specs.pressureUnit === 'psi' ? 'psi' : 'bar',
     liquidCarbRatio: specs.liquidCarbRatio ?? 0.35,
     autoModulateLiquidInHeatOrEffort: specs.autoModulateLiquidInHeatOrEffort ?? true,
     enableSavoryPalateResets: specs.enableSavoryPalateResets ?? true,

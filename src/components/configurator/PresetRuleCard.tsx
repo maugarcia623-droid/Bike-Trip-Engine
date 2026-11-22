@@ -156,7 +156,7 @@ const StepperButtons: React.FC<StepperPairProps> = ({
       onClick={onIncrement}
       disabled={disableInc}
       aria-label={incLabel}
-      className={`relative before:content-[''] before:absolute before:-inset-1 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-150 select-none ${
+      className={`w-11 h-11 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all duration-150 select-none ${
         disableInc
           ? `${accent.pill} opacity-35 cursor-not-allowed`
           : `${accent.interactive} cursor-pointer active:scale-90`
@@ -169,7 +169,7 @@ const StepperButtons: React.FC<StepperPairProps> = ({
       onClick={onDecrement}
       disabled={disableDec}
       aria-label={decLabel}
-      className={`relative before:content-[''] before:absolute before:-inset-1 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-150 select-none ${
+      className={`w-11 h-11 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all duration-150 select-none ${
         disableDec
           ? `${accent.pill} opacity-35 cursor-not-allowed`
           : `${accent.interactive} cursor-pointer active:scale-90`
@@ -283,7 +283,7 @@ const NumericRuleField: React.FC<NumericRuleFieldProps> = ({
         />
       </div>
 
-      <span className="text-[11px] sm:text-xs text-ink-muted block mt-1 leading-snug">
+      <span className="text-[11px] sm:text-xs font-rounded font-semibold text-ink-muted block mt-1 leading-snug">
         {label}
       </span>
     </div>
@@ -400,7 +400,7 @@ const SelectRuleField: React.FC<SelectRuleFieldProps> = ({
         />
       </div>
 
-      <span className="text-[11px] sm:text-xs text-ink-muted block mt-1 leading-snug">
+      <span className="text-[11px] sm:text-xs font-rounded font-semibold text-ink-muted block mt-1 leading-snug">
         {label}
       </span>
     </div>
@@ -472,7 +472,7 @@ const BooleanRuleField: React.FC<BooleanRuleFieldProps> = ({
         </Button>
       </div>
 
-      <span className="text-[11px] sm:text-xs text-ink-muted block mt-1 leading-snug">
+      <span className="text-[11px] sm:text-xs font-rounded font-semibold text-ink-muted block mt-1 leading-snug">
         {label}
       </span>
     </div>
@@ -521,7 +521,7 @@ const TextRuleField: React.FC<TextRuleFieldProps> = ({
         </Button>
       </div>
 
-      <span className="text-[11px] sm:text-xs text-ink-muted block mt-1 leading-snug">
+      <span className="text-[11px] sm:text-xs font-rounded font-semibold text-ink-muted block mt-1 leading-snug">
         {label}
       </span>
     </div>
@@ -578,7 +578,7 @@ export const PresetRuleCard: React.FC<PresetRuleCardProps> = ({
           <h5 className="text-current font-rounded font-bold text-[14px] sm:text-[15px] leading-snug tracking-tight break-words">
             {isFr ? def.ruleTitleFr : def.ruleTitleEn}
           </h5>
-          <p className="text-[11.5px] sm:text-xs text-ink-muted mt-1 leading-normal break-words">
+          <p className="text-[11.5px] sm:text-xs font-rounded font-semibold text-ink-muted mt-1 leading-normal break-words">
             {isFr ? def.ruleDescriptionFr : def.ruleDescriptionEn}
           </p>
         </div>
@@ -592,7 +592,7 @@ export const PresetRuleCard: React.FC<PresetRuleCardProps> = ({
           return (
             <div
               key={field.id}
-              className={index > 0 ? `pt-2 sm:pt-2.5 border-t border-dashed ${accent.divider}` : undefined}
+              className={index > 0 ? `pt-2 sm:pt-2.5 border-t ${accent.divider}` : undefined}
             >
               {field.type === 'number' ? (
                 <NumericRuleField

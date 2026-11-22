@@ -12,6 +12,7 @@ import {
   SpinnerGap,
   CheckCircle,
   Backpack,
+  Banana,
   Briefcase,
   Compass,
   ArrowsClockwise,
@@ -43,13 +44,18 @@ import {
   removeStage,
   getExpeditionTotals,
   addDaysToIso,
+  resolveLiveStages,
 } from '../../utils/stageManager';
 import { ParameterTabs } from './ParameterTabs';
 import { PresetRuleCard } from './PresetRuleCard';
 import { LocationAutocompleteInput } from './LocationAutocompleteInput';
 import { InteractiveRouteMap } from './InteractiveRouteMap';
 import { TourOverviewCard } from './TourOverviewCard';
+const GpxStageSlicerModal = React.lazy(() =>
+  import('../tour/GpxStageSlicerModal').then((m) => ({ default: m.GpxStageSlicerModal }))
+);
 import { ElevationTerrainStrip } from '../common/ElevationTerrainStrip';
+import { Collapsible, DisclosureChevron } from '../common/Collapsible';
 import { POPULAR_CYCLING_HUBS } from '../../services/locationService';
 import { GpxParseResult } from '../../utils/gpxParser';
 import { parseRouteFile } from '../../utils/routeFileParser';
@@ -57,7 +63,7 @@ import { importRouteFromUrl } from '../../utils/routeUrlImporter';
 import { computeSurfaceBreakdown, SURFACE_VISUAL_META } from '../../utils/surfaceProfile';
 import { useOsmSurface } from '../../services/osmSurfaceService';
 import { getActiveBike, loadRiderBikeSpecs, getEffectiveRiderSpecs } from '../../utils/specsStorage';
-import { calculatePhysics } from '../../utils/physics';
+import { calculatePhysics, buildPhysicsEnvironmentContext } from '../../utils/physics';
 import { calculateReverseTimeline } from '../../utils/timeline';
 import { subtractMinutesFromTime, addMinutesToTime } from '../../utils/nutrition';
 import { calculateAutoBikeRoute } from '../../utils/routing';
@@ -202,12 +208,14 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
     commitTripInternal(updater, true);
 
   const [originInput, setOriginInput] = useState(trip.route.origin || 'Nantes');
-  const initialDest = trip.route.destination || trip.office.gateName || 'Saint-Nazaire';
-  const isInitialDestRadius = Boolean(initialDest.match(/loop radius|rayon boucle/i));
-  const [destInput, setDestInput] = useState(isInitialDestRadius ? 'Saint-Nazaire' : initialDest);
-  const lastCorridorDestRef = useRef<string>(isInitialDestRadius ? 'Saint-Nazaire' : initialDest);
+  const isRadiusLabel = (val?: string) => Boolean(val && /loop radius|rayon boucle/i.test(val));
+  const rawInitialDest = trip.route.destination || trip.office.gateName || '';
+  const initialCorridorDest = isRadiusLabel(rawInitialDest) ? '' : rawInitialDest;
+  const [destInput, setDestInput] = useState(initialCorridorDest);
+  const lastCorridorDestRef = useRef<string>(initialCorridorDest);
   const lastCorridorRouteRef = useRef<TripProfile['route'] | null>(
     initialTrip.route?.routeMode !== 'manual-radius' &&
+      !initialTrip.route?.radiusMeters &&
       initialTrip.route?.coordinates &&
       initialTrip.route.coordinates.length >= 2
       ? { ...initialTrip.route }
@@ -276,6 +284,10 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
 
   const isFr = lang === 'fr';
 
+  const riderSpecs = useMemo(() => loadRiderBikeSpecs(), []);
+  const effectiveSpecs = useMemo(() => getEffectiveRiderSpecs(riderSpecs), [riderSpecs]);
+  const activeBike = useMemo(() => getActiveBike(effectiveSpecs), [effectiveSpecs]);
+
   const canQueryOsmSurface =
     trip.route.routeMode !== 'manual-radius' &&
     Boolean(trip.route.coordinates && trip.route.coordinates.length >= 2);
@@ -288,7 +300,9 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
   const surfaceBreakdown = useMemo(
     () =>
       computeSurfaceBreakdown(trip.route, {
-        crr: trip.physics.crr,
+        crr: trip.physics.crr ?? activeBike?.crr,
+        tireWidthMm: activeBike?.tireWidthMm,
+        isTubeless: activeBike?.isTubeless ?? true,
         riderWeightKg: trip.physics.riderWeightKg,
         bikeWeightKg: trip.physics.bikeWeightKg,
         luggageWeightKg: trip.physics.luggageWeightKg ?? trip.physics.gearWeightKg,
@@ -304,6 +318,9 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
       trip.physics.bikeWeightKg,
       trip.physics.luggageWeightKg,
       trip.physics.gearWeightKg,
+      activeBike?.crr,
+      activeBike?.tireWidthMm,
+      activeBike?.isTubeless,
       trip.customChips,
       osmData,
       canQueryOsmSurface,
@@ -323,7 +340,17 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
       if (idChanged) {
         setIsArriveAtMode(initialTrip.arriveAtMode !== false);
         setOriginInput(initialTrip.route.origin || 'Nantes');
-        setDestInput(initialTrip.route.destination || initialTrip.office.gateName || 'Saint-Nazaire');
+        const nextRawDest = initialTrip.route.destination || initialTrip.office.gateName || '';
+        const nextCleanDest = isRadiusLabel(nextRawDest) ? '' : nextRawDest;
+        setDestInput(nextCleanDest);
+        lastCorridorDestRef.current = nextCleanDest;
+        lastCorridorRouteRef.current =
+          initialTrip.route?.routeMode !== 'manual-radius' &&
+          !initialTrip.route?.radiusMeters &&
+          initialTrip.route?.coordinates &&
+          initialTrip.route.coordinates.length >= 2
+            ? { ...initialTrip.route }
+            : null;
         const nextArchetype = getArchetypeFromTag(initialTrip.tag, initialTrip.name);
         if (nextArchetype === 'BIKEPACKING') {
           setRouteGenMode('corridor');
@@ -417,9 +444,23 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
   };
 
   const extraBufferMinutes = getChipsExtraBufferMinutes(trip);
-  const riderSpecs = useMemo(() => loadRiderBikeSpecs(), []);
-  const effectiveSpecs = useMemo(() => getEffectiveRiderSpecs(riderSpecs), [riderSpecs]);
-  const physicsResult = calculatePhysics(trip.physics, trip.route, trip.weather, lang, effectiveSpecs.ftpWatts);
+  const physicsEnvContext = useMemo(
+    () =>
+      buildPhysicsEnvironmentContext(trip, {
+        surfaceBreakdown,
+        isTubeless: activeBike?.isTubeless,
+        extraBufferMinutes,
+      }),
+    [trip, surfaceBreakdown, activeBike?.isTubeless, extraBufferMinutes]
+  );
+  const physicsResult = calculatePhysics(
+    trip.physics,
+    trip.route,
+    trip.weather,
+    lang,
+    effectiveSpecs.ftpWatts,
+    physicsEnvContext
+  );
   const timelineResult = calculateReverseTimeline(
     trip.route,
     trip.office,
@@ -1076,8 +1117,12 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
   };
 
   const handleToggleChip = (chipId: string) => {
+    const wasSelected = (tripRef.current.customChips || []).includes(chipId);
     const updated = toggleArchetypeChip(tripRef.current, chipId, lang);
     commitTrip(updated);
+    if (!wasSelected) {
+      setIsRulesSectionOpen(true);
+    }
   };
 
   const updateOffice = (field: keyof TripProfile['office'], value: any) => {
@@ -1228,6 +1273,42 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
   const activeStageIdx = Math.max(0, Math.min(trip.activeStageIndex ?? 0, displayStages.length - 1));
   const expeditionTotals = getExpeditionTotals(trip);
 
+  const [isSlicerOpen, setIsSlicerOpen] = useState(false);
+
+  const handleApplySlicedTrip = (slicedTrip: TripProfile) => {
+    const updated = commitTrip(() => slicedTrip);
+    setIsMultiDayFormat(Boolean(updated.stages && updated.stages.length > 1));
+    setOriginInput(updated.route.origin || '');
+    setDestInput(updated.route.destination || '');
+    setWaypoints([]);
+    setOriginCoords(
+      updated.route.originCoords ??
+        (updated.route.coordinates && updated.route.coordinates.length > 0
+          ? updated.route.coordinates[0]
+          : null)
+    );
+    setDestCoords(
+      updated.route.destCoords ??
+        (updated.route.coordinates && updated.route.coordinates.length > 1
+          ? updated.route.coordinates[updated.route.coordinates.length - 1]
+          : null)
+    );
+    setIsArriveAtMode(updated.arriveAtMode !== false);
+    setRouteSuccess(false);
+    setRouteError(null);
+    onSave(updated);
+    onLaunch(updated);
+  };
+
+  const canSliceCurrentTrace = useMemo(() => {
+    const liveStages = resolveLiveStages(trip);
+    return liveStages.some(
+      (st) =>
+        Boolean(st.route?.coordinates && st.route.coordinates.length >= 2) &&
+        (st.route.distanceKm || 0) >= 5
+    );
+  }, [trip]);
+
   const handleSelectStage = (idx: number) => {
     if (idx === (trip.activeStageIndex ?? 0)) return;
     const updated = commitTrip((prev) => switchActiveStage(prev, idx));
@@ -1311,6 +1392,14 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
     setRouteSuccess(false);
     setRouteError(null);
   };
+
+  const [isDateBuffersOpen, setIsDateBuffersOpen] = useState<boolean>(
+    () => getArchetypeFromTag(initialTrip.tag, initialTrip.name) === 'COMMUTE'
+  );
+  const [isRulesSectionOpen, setIsRulesSectionOpen] = useState<boolean>(
+    () => (initialTrip.customChips?.length ?? 0) > 0
+  );
+  const [isFuelLogisticsOpen, setIsFuelLogisticsOpen] = useState<boolean>(false);
 
   const archetypeColumns: {
     id: ArchetypeMode;
@@ -1433,7 +1522,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
             if (arch === 'SPORT') return t('tripNamePlaceholderSport');
             return t('tripNamePlaceholderCommute');
           })()}
-          className="w-full sm:w-auto sm:min-w-[300px] lg:min-w-[360px] max-w-full min-h-[44px] text-base sm:text-lg font-semibold text-ink-secondary focus:text-ink tracking-tight bg-transparent border-b border-dashed border-ink/15 hover:border-ink/35 focus:border-solid focus:border-ink/60 focus:outline-none transition-colors"
+          className="w-full sm:w-auto sm:min-w-[300px] lg:min-w-[360px] max-w-full min-h-[44px] text-base sm:text-lg font-semibold text-ink-secondary focus:text-ink tracking-tight bg-transparent border-b border-ink/10 focus:border-ink/40 focus:outline-none transition-colors"
           title={isFr ? 'Renommer la sortie' : 'Click to rename ride'}
         />
       </div>
@@ -1550,24 +1639,38 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                                   );
                                 } else if (modeOpt.id === 'corridor') {
                                   const stashed = lastCorridorRouteRef.current;
-                                  let sanitized = destInput;
-                                  if (!sanitized || sanitized.match(/loop radius|rayon boucle/i)) {
-                                    sanitized =
-                                      stashed?.destination && !stashed.destination.match(/loop radius|rayon boucle/i)
-                                        ? stashed.destination
-                                        : lastCorridorDestRef.current && !lastCorridorDestRef.current.match(/loop radius|rayon boucle/i)
-                                        ? lastCorridorDestRef.current
-                                        : 'Saint-Nazaire';
+                                  let sanitized = isRadiusLabel(destInput) ? '' : destInput.trim();
+                                  if (!sanitized) {
+                                    if (stashed?.destination && !isRadiusLabel(stashed.destination)) {
+                                      sanitized = stashed.destination;
+                                    } else if (lastCorridorDestRef.current && !isRadiusLabel(lastCorridorDestRef.current)) {
+                                      sanitized = lastCorridorDestRef.current;
+                                    }
                                     setDestInput(sanitized);
                                   }
                                   commitTrip((prev) => {
-                                    if (stashed && stashed.coordinates && stashed.coordinates.length >= 2) {
+                                    // Only restore stashed corridor coordinates if they belong to the same origin
+                                    // so switching Start+distance -> Corridor never wipes current origin or detours elsewhere.
+                                    const currentOrigin = (originInput || prev.route.origin || '').trim().toLowerCase();
+                                    const stashedOrigin = (stashed?.origin || '').trim().toLowerCase();
+                                    const originCoordsMatch =
+                                      originCoords &&
+                                      stashed?.originCoords &&
+                                      Math.abs(originCoords[0] - stashed.originCoords[0]) < 0.02 &&
+                                      Math.abs(originCoords[1] - stashed.originCoords[1]) < 0.02;
+                                    const canRestoreStashed = Boolean(
+                                      stashed &&
+                                        stashed.coordinates &&
+                                        stashed.coordinates.length >= 2 &&
+                                        (originCoordsMatch || (currentOrigin && currentOrigin === stashedOrigin))
+                                    );
+                                    if (canRestoreStashed && stashed) {
                                       return {
                                         ...prev,
                                         route: {
                                           ...stashed,
                                           routeMode: 'corridor',
-                                          destination: sanitized,
+                                          destination: sanitized || stashed.destination,
                                           radiusMeters: undefined,
                                         },
                                       };
@@ -1584,7 +1687,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                                   });
                                 }
                               }}
-                              className={`min-h-[44px] sm:min-h-[34px] px-2.5 sm:px-3 py-1.5 sm:py-1 rounded-sub-pod sm:rounded-full text-[11px] sm:text-xs font-semibold transition-all cursor-pointer whitespace-nowrap text-center ${
+                              className={`min-h-[44px] sm:min-h-[34px] px-2.5 sm:px-3 py-1.5 sm:py-1 rounded-full text-[11px] sm:text-xs font-semibold transition-all cursor-pointer whitespace-nowrap text-center ${
                                 active
                                   ? 'bg-card text-ink shadow-xs'
                                   : 'text-ink-muted hover:text-ink'
@@ -1606,7 +1709,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-2 sm:p-2.5 rounded-pod bg-pod mb-4 transition-colors">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="text-xs font-semibold text-ink-muted mr-1 font-body">
-                      {t('tripFormatHeading')} :
+                      {isFr ? `${t('tripFormatHeading')} :` : `${t('tripFormatHeading')}:`}
                     </span>
                     <Button variant="ghost"
                       type="button"
@@ -1633,6 +1736,27 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                       <span>{t('tripFormatMultiDay')}</span>
                     </Button>
                   </div>
+
+                  {isMultiDayTrip && canSliceCurrentTrace && (
+                    <Button
+                      variant="ghost"
+                      type="button"
+                      data-testid="configurator-open-slicer-btn"
+                      onClick={() => setIsSlicerOpen(true)}
+                      className={`min-h-[44px] sm:min-h-[36px] px-3.5 py-2 sm:py-1.5 rounded-full text-xs font-rounded font-bold transition-all cursor-pointer inline-flex items-center justify-center gap-1.5 shrink-0 shadow-xs active:scale-[0.98] ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} hover:brightness-95`}
+                    >
+                      <SlidersHorizontal className="w-3.5 h-3.5 shrink-0 text-current" />
+                      <span>
+                        {trip.stages && trip.stages.length > 1
+                          ? isFr
+                            ? 'Ajuster les coupures (Slicer)'
+                            : 'Edit stage cuts (Slicer)'
+                          : isFr
+                          ? 'Découper la trace en jours'
+                          : 'Slice trace into days'}
+                      </span>
+                    </Button>
+                  )}
                 </div>
 
                 {/* Multi-Day Stage Sequencer Bar */}
@@ -1674,8 +1798,9 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                       )}
                     </div>
 
-                    {/* Horizontal scrollable stage pills strip */}
-                    <div className="flex items-center gap-2 overflow-x-auto py-0.5 no-scrollbar">
+                    {/* Horizontal scrollable stage pills strip with left/right opacity masks */}
+                    <div className="relative min-w-0 overflow-hidden">
+                    <div className="flex items-center gap-2 overflow-x-auto pl-2 pr-8 py-0.5 no-scrollbar">
                       {displayStages.map((stage, idx) => {
                         const isActive = idx === activeStageIdx;
                         const dayNum = stage.dayNumber;
@@ -1766,12 +1891,22 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                         <span>{t('addDayBtn')}</span>
                       </Button>
                     </div>
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-y-0 left-0 w-4 bg-gradient-to-r from-pod via-pod/80 to-transparent"
+                    />
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-pod via-pod/85 to-transparent"
+                    />
+                    </div>
 
                     {/* Tours & Stages Cumulative Summary, Daily Timeline & Full Tour GPX Export */}
                     <TourOverviewCard
                       trip={trip}
                       activeStageIdx={activeStageIdx}
                       onSelectStage={handleSelectStage}
+                      onOpenSlicer={canSliceCurrentTrace ? () => setIsSlicerOpen(true) : undefined}
                       ftpWatts={effectiveSpecs.ftpWatts}
                     />
                   </div>
@@ -1796,7 +1931,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                   {(isBikepacking || routeGenMode === 'corridor') && (
                     <div className="space-y-4 animate-apple-step-in">
                       {/* Flexible Multi-Stop & Waypoint Builder */}
-                      <div className="space-y-3 rounded-pod bg-pod p-3 sm:p-4">
+                      <div className="space-y-4 rounded-pod bg-pod p-4 sm:p-5">
                   {/* Stop A: Start / Origin */}
                   <div className="flex items-center gap-2">
                     <span className="w-7 h-7 rounded-full bg-emerald-500 text-white font-rounded font-extrabold text-xs flex items-center justify-center shrink-0 shadow-xs ring-2 ring-white dark:ring-black">
@@ -1994,7 +2129,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                   </div>
 
                   {/* Multi-Stop Action Toolbar: + Add Stop | Reverse | Clear | Calculate */}
-                  <div className="flex items-center justify-between gap-2 pt-2.5 flex-wrap border-t border-dashed border-ink/10 dark:border-white/10">
+                  <div className="flex items-center justify-between gap-2.5 pt-1 flex-wrap">
                     <div className="flex items-center gap-2 flex-wrap">
                       {/* + Add Stop Button */}
                       <Button variant="primary"
@@ -2170,7 +2305,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                     const file = e.dataTransfer.files?.[0];
                     if (file) handleConfigGpxUpload(file);
                   }}
-                  className={`rounded-pod border border-dashed border-ink/20 dark:border-white/20 hover:border-ink/40 dark:hover:border-white/40 bg-pod/70 hover:bg-pod p-4 text-center transition-all cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                  className={`rounded-pod ring-1 ring-inset ring-ink/10 dark:ring-white/10 bg-pod/70 hover:bg-pod p-4 text-center transition-colors cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
                 >
                   <Upload className={`w-6 h-6 mx-auto mb-1.5 ${CHIP_TOKENS.sky.primary}`} />
                   <div className="text-xs font-bold text-ink">
@@ -2202,7 +2337,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                         ? 'Coller un lien Komoot, Bikemap, RideWithGPS ou .GPX/.TCX/.FIT...'
                         : 'Paste Komoot, Bikemap, RideWithGPS or .GPX/.TCX/.FIT link...'
                     }
-                    className="flex-1 min-w-0 min-h-[44px] sm:h-10 px-4 rounded-full bg-pod/60 dark:bg-white/[0.04] border border-ink/10 dark:border-white/10 text-sm sm:text-xs text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+                    className="flex-1 min-w-0 min-h-[44px] sm:h-10 px-4 rounded-full bg-pod/60 dark:bg-white/[0.04] border border-ink/10 dark:border-white/10 text-base sm:text-xs text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-sky-500/40"
                   />
                   <Button
                     type="button"
@@ -2222,8 +2357,8 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
               </div>
             )}
 
-            {/* Status footer with dashed divider */}
-            <div className="pt-3 border-t border-dashed border-ink/10 dark:border-white/10 transition-colors">
+            {/* Status footer */}
+            <div className="pt-1 transition-colors">
               {routeSuccess ? (
                 <div className={`flex items-center gap-2 text-xs font-medium tnum animate-apple-fade-in ${CHIP_TOKENS.emerald.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}>
                   <CheckCircle className="w-4 h-4 shrink-0 text-current" />
@@ -2348,11 +2483,11 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                 </div>
 
                 {/* Segmented Chronometry Control: Arrive by | Depart at */}
-                <div className="grid grid-cols-2 sm:inline-flex items-center p-1 gap-1 rounded-pod sm:rounded-full bg-pod w-full sm:w-auto self-start">
+                <div className="grid grid-cols-2 sm:inline-flex items-center p-1 gap-1 rounded-full bg-pod w-full sm:w-auto self-start">
                   <Button variant="ghost"
                     type="button"
                     onClick={() => handleSetChronometryMode(true)}
-                    className={`min-h-[44px] sm:min-h-[36px] px-4 py-2 sm:py-1.5 rounded-sub-pod sm:rounded-full text-xs font-semibold transition-all duration-150 cursor-pointer flex items-center justify-center gap-1.5 ${
+                    className={`min-h-[44px] sm:min-h-[36px] px-4 py-2 sm:py-1.5 rounded-full text-xs font-semibold transition-all duration-150 cursor-pointer flex items-center justify-center gap-1.5 ${
                       isArriveAtMode
                         ? 'bg-card text-ink shadow-xs'
                         : 'text-ink-muted hover:text-ink'
@@ -2365,7 +2500,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                   <Button variant="ghost"
                     type="button"
                     onClick={() => handleSetChronometryMode(false)}
-                    className={`min-h-[44px] sm:min-h-[36px] px-4 py-2 sm:py-1.5 rounded-sub-pod sm:rounded-full text-xs font-semibold transition-all duration-150 cursor-pointer flex items-center justify-center gap-1.5 ${
+                    className={`min-h-[44px] sm:min-h-[36px] px-4 py-2 sm:py-1.5 rounded-full text-xs font-semibold transition-all duration-150 cursor-pointer flex items-center justify-center gap-1.5 ${
                       !isArriveAtMode
                         ? 'bg-card text-ink shadow-xs'
                         : 'text-ink-muted hover:text-ink'
@@ -2410,83 +2545,94 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                   />
                 </div>
 
-                {/* Parking / Prep & Route Buffer Controls */}
-                <div className="rounded-pod bg-pod p-3.5 sm:p-4 space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold text-ink">
-                      {isFr ? 'Marges de trajet & stationnement' : 'Route & parking/prep buffers'}
-                    </span>
-                    <span className="text-[11px] text-ink-muted tnum">
-                      {isFr ? 'En minutes' : 'In minutes'}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {(
-                      [
-                        {
-                          field: 'urbanTrafficDelayMinutes' as const,
-                          defaultValue: 8,
-                          labelKey:
-                            activeArchetypeMode === 'ESCAPADE'
-                              ? 'trafficBufferLabelEscapade'
-                              : activeArchetypeMode === 'BIKEPACKING'
-                              ? 'trafficBufferLabelBikepacking'
-                              : activeArchetypeMode === 'SPORT'
-                              ? 'trafficBufferLabelSport'
-                              : 'trafficBufferLabel',
-                          hintKey:
-                            activeArchetypeMode === 'ESCAPADE'
-                              ? 'trafficBufferHintEscapade'
-                              : activeArchetypeMode === 'BIKEPACKING'
-                              ? 'trafficBufferHintBikepacking'
-                              : activeArchetypeMode === 'SPORT'
-                              ? 'trafficBufferHintSport'
-                              : 'trafficBufferHint',
-                        },
-                        {
-                          field: 'gateSecurityDelayMinutes' as const,
-                          defaultValue: 5,
-                          labelKey:
-                            activeArchetypeMode === 'ESCAPADE'
-                              ? 'gateBufferLabelEscapade'
-                              : activeArchetypeMode === 'BIKEPACKING'
-                              ? 'gateBufferLabelBikepacking'
-                              : activeArchetypeMode === 'SPORT'
-                              ? 'gateBufferLabelSport'
-                              : 'gateBufferLabel',
-                          hintKey:
-                            activeArchetypeMode === 'ESCAPADE'
-                              ? 'gateBufferHintEscapade'
-                              : activeArchetypeMode === 'BIKEPACKING'
-                              ? 'gateBufferHintBikepacking'
-                              : activeArchetypeMode === 'SPORT'
-                              ? 'gateBufferHintSport'
-                              : 'gateBufferHint',
-                        },
-                      ] as const
-                    ).map((item) => (
-                      <div key={item.field} className="space-y-1.5">
-                        <label
-                          htmlFor={`buffer-${item.field}`}
-                          className="text-xs font-medium text-ink block"
-                        >
-                          {t(item.labelKey)}
-                        </label>
-                        <input
-                          id={`buffer-${item.field}`}
-                          type="number"
-                          min={0}
-                          max={120}
-                          value={trip.route[item.field] ?? item.defaultValue}
-                          onChange={(e) => handleDelayBufferChange(item.field, e.target.value)}
-                          className="w-full min-h-[44px] h-11 px-3 rounded-sub-pod bg-card text-ink font-rounded font-semibold text-base sm:text-sm tnum focus:outline-none focus:ring-2 focus:ring-ink/20"
-                        />
-                        <p className="text-[11px] text-ink-muted leading-snug">
-                          {t(item.hintKey)}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
+                {/* Parking / Prep & Route Buffer Controls (Collapsible for non-Commute) */}
+                <div className="rounded-pod bg-pod p-3.5 sm:p-4">
+                  <button
+                    type="button"
+                    aria-expanded={isDateBuffersOpen}
+                    onClick={() => setIsDateBuffersOpen((v) => !v)}
+                    className="w-full flex items-center justify-between gap-2 text-left cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-xs font-semibold text-ink">
+                        {isFr ? 'Marges de trajet & préparation' : 'Route & prep buffers'}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full bg-card text-[11px] font-bold text-ink-muted tnum">
+                        {(trip.route.urbanTrafficDelayMinutes ?? 0) + (trip.route.gateSecurityDelayMinutes ?? 0)} min
+                      </span>
+                    </div>
+                    <DisclosureChevron open={isDateBuffersOpen} />
+                  </button>
+
+                  <Collapsible open={isDateBuffersOpen} innerClassName="pt-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {(
+                        [
+                          {
+                            field: 'urbanTrafficDelayMinutes' as const,
+                            defaultValue: 8,
+                            labelKey:
+                              activeArchetypeMode === 'ESCAPADE'
+                                ? 'trafficBufferLabelEscapade'
+                                : activeArchetypeMode === 'BIKEPACKING'
+                                ? 'trafficBufferLabelBikepacking'
+                                : activeArchetypeMode === 'SPORT'
+                                ? 'trafficBufferLabelSport'
+                                : 'trafficBufferLabel',
+                            hintKey:
+                              activeArchetypeMode === 'ESCAPADE'
+                                ? 'trafficBufferHintEscapade'
+                                : activeArchetypeMode === 'BIKEPACKING'
+                                ? 'trafficBufferHintBikepacking'
+                                : activeArchetypeMode === 'SPORT'
+                                ? 'trafficBufferHintSport'
+                                : 'trafficBufferHint',
+                          },
+                          {
+                            field: 'gateSecurityDelayMinutes' as const,
+                            defaultValue: 5,
+                            labelKey:
+                              activeArchetypeMode === 'ESCAPADE'
+                                ? 'gateBufferLabelEscapade'
+                                : activeArchetypeMode === 'BIKEPACKING'
+                                ? 'gateBufferLabelBikepacking'
+                                : activeArchetypeMode === 'SPORT'
+                                ? 'gateBufferLabelSport'
+                                : 'gateBufferLabel',
+                            hintKey:
+                              activeArchetypeMode === 'ESCAPADE'
+                                ? 'gateBufferHintEscapade'
+                                : activeArchetypeMode === 'BIKEPACKING'
+                                ? 'gateBufferHintBikepacking'
+                                : activeArchetypeMode === 'SPORT'
+                                ? 'gateBufferHintSport'
+                                : 'gateBufferHint',
+                          },
+                        ] as const
+                      ).map((item) => (
+                        <div key={item.field} className="space-y-1.5">
+                          <label
+                            htmlFor={`buffer-${item.field}`}
+                            className="text-xs font-medium text-ink block"
+                          >
+                            {t(item.labelKey)}
+                          </label>
+                          <input
+                            id={`buffer-${item.field}`}
+                            type="number"
+                            min={0}
+                            max={120}
+                            value={trip.route[item.field] ?? item.defaultValue}
+                            onChange={(e) => handleDelayBufferChange(item.field, e.target.value)}
+                            className="w-full min-h-[44px] h-11 px-3 rounded-sub-pod bg-card text-ink font-rounded font-semibold text-base sm:text-sm tnum focus:outline-none focus:ring-2 focus:ring-ink/20"
+                          />
+                          <p className="text-[11px] text-ink-muted leading-snug">
+                            {t(item.hintKey)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </Collapsible>
                 </div>
               </div>
 
@@ -2566,6 +2712,8 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                               ...prev.weather,
                               source: w.source,
                               temperatureC: w.temperatureC,
+                              relativeHumidity: w.relativeHumidity,
+                              recentPrecipitationMm: w.recentPrecipitationMm,
                               baseWindSpeedKmH: w.windSpeedKmH,
                               effectiveHeadwindKmH: w.effectiveHeadwindKmH,
                               windDirectionDegrees: w.windDirectionDegrees,
@@ -2615,8 +2763,8 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                   </div>
                 </div>
 
-                {/* Status line with dashed separator */}
-                <div className="mt-4 pt-3 border-t border-dashed border-ink/10 dark:border-white/10 transition-colors">
+                {/* Status line */}
+                <div className="mt-4 pt-3 border-t border-ink/8 dark:border-white/8 transition-colors">
                   {weatherFeedback ? (
                     <div
                       className={`flex items-center gap-1.5 text-xs font-medium animate-apple-fade-in ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
@@ -2767,25 +2915,41 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
           </div>
         </div>
 
-        {/* Card 2: Constraints & Rules + Dynamic Preset Rules */}
-        <div className="rounded-card bg-card text-ink p-4 sm:p-5 shadow-xs transition-colors space-y-5 animate-apple-step-in relative z-[15] focus-within:z-30 [&:has([aria-expanded='true'])]:z-30">
-          <div className="space-y-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <SlidersHorizontal className={`w-4 h-4 ${GREYSCALE_TOKENS.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
-                  <h3 className="text-base sm:text-[17px] font-semibold tracking-tight text-ink">
-                    {t('tabConstraintsRules')}
-                  </h3>
-                </div>
-                <p className="text-xs text-ink-muted mt-0.5">
-                  {isFr
-                    ? `Paramètres horaires et contraintes opérationnelles calibrés pour le mode ${trip.tag || activeArchetypeMode}`
-                    : `Schedule timings and operational constraints calibrated for ${trip.tag || activeArchetypeMode} mode`}
-                </p>
+        {/* Card 2: Constraints & Rules + Dynamic Preset Rules (Collapsible) */}
+        <div className="rounded-card bg-card text-ink p-4 sm:p-5 shadow-xs transition-colors animate-apple-step-in relative z-[15] focus-within:z-30 [&:has([aria-expanded='true'])]:z-30">
+          <button
+            type="button"
+            aria-expanded={isRulesSectionOpen}
+            onClick={() => setIsRulesSectionOpen((v) => !v)}
+            className="w-full flex items-center justify-between gap-3 text-left cursor-pointer"
+          >
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <SlidersHorizontal className={`w-4 h-4 ${GREYSCALE_TOKENS.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
+                <h3 className="text-base sm:text-[17px] font-rounded font-bold tracking-tight text-ink">
+                  {t('tabConstraintsRules')}
+                </h3>
+                <span className="px-2.5 py-0.5 rounded-full bg-pod text-[11px] font-semibold text-ink-secondary tnum">
+                  {activeChipDefs.length > 0
+                    ? isFr
+                      ? `${activeChipDefs.length} règle${activeChipDefs.length > 1 ? 's' : ''} active${activeChipDefs.length > 1 ? 's' : ''}`
+                      : `${activeChipDefs.length} active rule${activeChipDefs.length > 1 ? 's' : ''}`
+                    : isFr
+                    ? 'Standard'
+                    : 'Standard'}
+                </span>
               </div>
+              <p className="text-xs font-rounded font-semibold text-ink-muted mt-0.5">
+                {isFr
+                  ? `Paramètres horaires et contraintes opérationnelles calibrés pour le mode ${trip.tag || activeArchetypeMode}`
+                  : `Schedule timings and operational constraints calibrated for ${trip.tag || activeArchetypeMode} mode`}
+              </p>
             </div>
+            <DisclosureChevron open={isRulesSectionOpen} />
+          </button>
 
+          <Collapsible open={isRulesSectionOpen} allowOverflowWhenOpen innerClassName="pt-4 space-y-5">
+            <div className="space-y-4">
             {/* Baseline Ride Protocol for Active Archetype */}
             <div className="space-y-4">
             {/* COMMUTE / VELOTAF Baseline */}
@@ -3008,10 +3172,10 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
         <div className="space-y-4 pt-3">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h4 className="text-sm font-semibold text-ink">
+              <h4 className="text-sm font-rounded font-bold text-ink">
                 {t('presetRulesHeading')}
               </h4>
-              <p className="text-xs text-ink-muted mt-0.5">
+              <p className="text-xs font-rounded font-semibold text-ink-muted mt-0.5">
                 {t('presetRulesSub')}
               </p>
             </div>
@@ -3023,7 +3187,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
           </div>
 
           {activeChipDefs.length === 0 ? (
-            <div key="empty-rules" className="rounded-pod border border-dashed border-ink/15 dark:border-white/15 p-5 text-center animate-apple-fade-in">
+            <div key="empty-rules" className="rounded-pod bg-pod/60 ring-1 ring-inset ring-ink/8 dark:ring-white/8 p-5 text-center animate-apple-fade-in">
               <Info className="w-5 h-5 mx-auto text-zinc-400 dark:text-zinc-500 [--icon-secondary:currentColor] [--icon-secondary-opacity:0.3] mb-2" />
               <p className="text-xs text-ink-muted max-w-md mx-auto">
                 {t('noChipsActiveNotice')}
@@ -3043,7 +3207,98 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
             </div>
           )}
         </div>
+          </Collapsible>
       </div>
+
+        {/* Card 3: Fuel & Packing Logistics (Collapsible) */}
+        <div className="rounded-card bg-card text-ink p-4 sm:p-5 shadow-xs transition-colors animate-apple-step-in">
+          <button
+            type="button"
+            aria-expanded={isFuelLogisticsOpen}
+            onClick={() => setIsFuelLogisticsOpen((v) => !v)}
+            className="w-full flex items-center justify-between gap-3 text-left cursor-pointer"
+          >
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Banana className={`w-4 h-4 ${GREYSCALE_TOKENS.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
+                <h3 className="text-base sm:text-[17px] font-rounded font-bold tracking-tight text-ink">
+                  {isFr ? 'Logistique nutrition & sacoches' : 'Fuel & Packing Logistics'}
+                </h3>
+                <span className="px-2.5 py-0.5 rounded-full bg-pod text-[11px] font-semibold text-ink-secondary">
+                  {trip.ruleSettings?.preRideStyle === 'fasted-rollout'
+                    ? isFr
+                      ? 'Départ à jeun'
+                      : 'Fasted start'
+                    : trip.ruleSettings?.preRideStyle === 'light-liquid'
+                    ? isFr
+                      ? 'Léger / liquide'
+                      : 'Light / liquid'
+                    : isFr
+                    ? 'Petit-déjeuner complet'
+                    : 'Full breakfast'}
+                </span>
+              </div>
+              <p className="text-xs text-ink-muted mt-0.5">
+                {isFr
+                  ? 'Style de repas pré-sortie et préférences d’alimentation'
+                  : 'Pre-ride meal style and fueling logistics'}
+              </p>
+            </div>
+            <DisclosureChevron open={isFuelLogisticsOpen} />
+          </button>
+
+          <Collapsible open={isFuelLogisticsOpen} innerClassName="pt-4 space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              {(
+                [
+                  {
+                    id: 'full-breakfast',
+                    labelEn: 'Full breakfast',
+                    labelFr: 'Petit-déjeuner complet',
+                    descEn: '90 min before rollout',
+                    descFr: '90 min avant le départ',
+                  },
+                  {
+                    id: 'light-liquid',
+                    labelEn: 'Light / liquid',
+                    labelFr: 'Léger / liquide',
+                    descEn: '30–45 min before start',
+                    descFr: '30–45 min avant départ',
+                  },
+                  {
+                    id: 'fasted-rollout',
+                    labelEn: 'Fasted start',
+                    labelFr: 'Départ à jeun',
+                    descEn: 'Fuel on the bike from km 1',
+                    descFr: 'Ravito sur le vélo dès le km 1',
+                  },
+                ] as const
+              ).map((opt) => {
+                const current = trip.ruleSettings?.preRideStyle || 'full-breakfast';
+                const selected = current === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => updateRuleSetting('preRideStyle', opt.id)}
+                    className={`rounded-pod p-3 text-left transition-all cursor-pointer ${CHIP_RING_BASE} ${
+                      selected
+                        ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
+                        : `bg-pod hover:bg-chip text-ink ${CHIP_RING_UNSELECTED}`
+                    }`}
+                  >
+                    <div className="text-xs font-bold leading-tight">
+                      {isFr ? opt.labelFr : opt.labelEn}
+                    </div>
+                    <div className="text-[11px] opacity-80 mt-0.5">
+                      {isFr ? opt.descFr : opt.descEn}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </Collapsible>
+        </div>
     </>
   )}
 
@@ -3059,13 +3314,13 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
         />
       </div>
 
-      {/* Card 2: Physics, Mass & Weather */}
+      {/* Card 2: Physics & Mass */}
       <div className="relative z-10 animate-apple-step-in">
         <ParameterTabs
           trip={trip}
           onChange={(updated) => commitTrip(updated)}
           initialTab="physics"
-          visibleTabs={['physics', 'weather']}
+          visibleTabs={['physics']}
         />
       </div>
     </>
@@ -3439,6 +3694,18 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
           </div>
         </div>
       </div>
+
+      {isSlicerOpen && (
+        <React.Suspense fallback={null}>
+          <GpxStageSlicerModal
+            isOpen={isSlicerOpen}
+            trip={trip}
+            riderSpecs={effectiveSpecs}
+            onClose={() => setIsSlicerOpen(false)}
+            onApply={handleApplySlicedTrip}
+          />
+        </React.Suspense>
+      )}
     </div>
   );
 };

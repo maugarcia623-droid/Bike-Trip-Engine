@@ -18,7 +18,9 @@ import {
 import { TripProfile, PhysicsCalculationResult } from '../../types/trip';
 import { getArchetypeFromTag } from '../../utils/archetypeChips';
 import {
+  buildPhysicsEnvironmentContext,
   calculateSectionalEnergyBreakdown,
+  formatCautionPaceSummary,
   getWattsDidacticExplanation,
   PowerZoneCode,
 } from '../../utils/physics';
@@ -139,8 +141,9 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
   }, [isEssential]);
 
   const cda = trip.physics.cda ?? 0.4;
-  const crr = trip.physics.crr ?? 0.006;
+  const crr = physicsResult.effectiveCrr ?? trip.physics.crr ?? 0.006;
   const formattedCrr = typeof crr === 'number' ? Number(crr.toFixed(4)) : crr;
+  const cautionSummary = formatCautionPaceSummary(physicsResult, lang);
   const rho = trip.physics.rho ?? 1.225;
   const gmePercent = Math.round((trip.physics.grossMechanicalEfficiency ?? 0.21) * 100);
   const drivetrainEffPercent = Math.round((trip.physics.drivetrainEfficiency ?? 0.95) * 100);
@@ -206,18 +209,6 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
     [legWatts, ftpWatts, riderMass, lang]
   );
 
-  const sectional = useMemo(
-    () =>
-      calculateSectionalEnergyBreakdown(
-        trip.physics,
-        trip.route,
-        trip.weather,
-        physicsResult,
-        lang
-      ),
-    [trip.physics, trip.route, trip.weather, physicsResult, lang]
-  );
-
   const activeBike =
     specs.bikes.find((b) => b.id === specs.activeBikeId) ?? specs.bikes[0];
 
@@ -263,6 +254,28 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
     ]
   );
 
+  const physicsEnvContext = useMemo(
+    () =>
+      buildPhysicsEnvironmentContext(trip, {
+        surfaceBreakdown,
+        isTubeless: activeBike?.isTubeless,
+      }),
+    [trip, surfaceBreakdown, activeBike?.isTubeless]
+  );
+
+  const sectional = useMemo(
+    () =>
+      calculateSectionalEnergyBreakdown(
+        trip.physics,
+        trip.route,
+        trip.weather,
+        physicsResult,
+        lang,
+        physicsEnvContext
+      ),
+    [trip.physics, trip.route, trip.weather, physicsResult, lang, physicsEnvContext]
+  );
+
   return (
     <Card
       title={t('physicsCardTitle')}
@@ -272,6 +285,20 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
           <Badge variant={zoneTheme} size="md" dot className="tnum">
             {zoneLabel}
           </Badge>
+          {cautionSummary && (
+            <Badge
+              variant={physicsResult.cautionReasons?.includes('dark') ? 'purple' : 'amber'}
+              size="md"
+              className="tnum"
+              title={
+                isFr
+                  ? `Crr effectif ${formattedCrr} (×${(physicsResult.crrMultiplier ?? 1).toFixed(2)})${(physicsResult.cautionDelayMinutes ?? 0) > 0 ? ` · +${physicsResult.cautionDelayMinutes} min d'allure prudente` : ''}`
+                  : `Effective Crr ${formattedCrr} (×${(physicsResult.crrMultiplier ?? 1).toFixed(2)})${(physicsResult.cautionDelayMinutes ?? 0) > 0 ? ` · +${physicsResult.cautionDelayMinutes} min caution pace` : ''}`
+              }
+            >
+              {cautionSummary}
+            </Badge>
+          )}
           <Button variant="ghost"
             type="button"
             onClick={() => setShowDidactics((v) => !v)}
@@ -293,7 +320,8 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
     >
       {/* ── CONCENTRIC TELEMETRY VIEW SWITCHER: [ GUIDED VIEW ] / [ PRO TELEMETRY ] ── */}
       {onToggleViewMode && (
-        <div className="grid grid-cols-2 sm:inline-flex items-center gap-1 p-1 rounded-full bg-pod mb-3.5 w-full sm:w-auto">
+        <div className="flex justify-start mb-4">
+          <div className="inline-flex items-center gap-1 p-1 rounded-full bg-pod w-fit max-w-full">
           <Button variant="ghost"
             type="button"
             onClick={() => {
@@ -333,6 +361,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
             <Gauge className="w-3.5 h-3.5 shrink-0 text-current" />
             <span>{t('cockpitViewPro')}</span>
           </Button>
+          </div>
         </div>
       )}
 
@@ -351,7 +380,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
               <span className="text-xs font-semibold text-ink-muted">km/h</span>
             </div>
             <span className="text-[11px] text-ink-secondary tnum break-words leading-tight">
-              {isFr ? 'Ajustée au vent et au relief' : 'Wind & terrain adjusted'}
+              {cautionSummary ?? (isFr ? 'Ajustée au vent et au relief' : 'Wind & terrain adjusted')}
             </span>
           </div>
 

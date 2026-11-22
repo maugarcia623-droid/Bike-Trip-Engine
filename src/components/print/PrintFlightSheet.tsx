@@ -15,6 +15,7 @@ import {
   getRouteHashKey,
 } from '../../services/overpassCorridor';
 import { computeSurfaceBreakdown } from '../../utils/surfaceProfile';
+import { formatTyrePressurePair } from '../../utils/tyrePressure';
 import {
   computeClimbSplitsAndFueling,
   formatClimbCategoryLabel,
@@ -143,29 +144,31 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
   });
   const routeCoords = trip.route.coordinates;
   const stageId = activeStage?.id || trip.id;
-  const cachedAmenities =
+  const rawCachedScan =
     routeCoords && routeCoords.length >= 2
-      ? getCachedScan(getRouteHashKey(routeCoords, stageId, trip.route.distanceKm)) || []
-      : [];
+      ? getCachedScan(getRouteHashKey(routeCoords, stageId, trip.route.distanceKm))
+      : undefined;
+  const hasWaterScan = Array.isArray(rawCachedScan);
+  const cachedAmenities = rawCachedScan ?? [];
   const combinedWaterAmenities = [...cachedAmenities];
   for (const pinned of trip.pinnedAmenities || []) {
     if (!combinedWaterAmenities.some((a) => a.id === pinned.id)) {
       combinedWaterAmenities.push(pinned);
     }
   }
-  const waterGapsSummary = calculateWaterGaps(
-    combinedWaterAmenities,
-    trip.route.distanceKm,
-    {
-      sectorSpeedKmH: physicsResult.effectiveSpeedKmH,
-      targetFluidMlPerHr: printHydration.targetFluidMlPerHr,
-      bidonSizeMl: effectiveSpecs.bidonSizeMl,
-      frameBottleSlots: effectiveSpecs.frameBottleSlots,
-    }
-  );
-  const flaggedWaterGaps = waterGapsSummary.gaps.filter(
-    (g) => g.severity === 'critical' || g.severity === 'caution'
-  );
+  const waterGapsSummary = hasWaterScan
+    ? calculateWaterGaps(combinedWaterAmenities, trip.route.distanceKm, {
+        sectorSpeedKmH: physicsResult.effectiveSpeedKmH,
+        targetFluidMlPerHr: printHydration.targetFluidMlPerHr,
+        bidonSizeMl: effectiveSpecs.bidonSizeMl,
+        frameBottleSlots: effectiveSpecs.frameBottleSlots,
+      })
+    : null;
+  const flaggedWaterGaps = waterGapsSummary
+    ? waterGapsSummary.gaps.filter(
+        (g) => g.severity === 'critical' || g.severity === 'caution'
+      )
+    : [];
 
   return (
     <div className="print-only p-8 text-black bg-white max-w-[210mm] mx-auto font-sans leading-tight tnum">
@@ -405,7 +408,7 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
 
         {/* Saved Route Resupply Stops */}
         {trip.pinnedAmenities && trip.pinnedAmenities.length > 0 && (
-          <div className="mt-4 pt-3 border-t border-dashed border-gray-300">
+          <div className="mt-4 pt-3 border-t border-gray-300">
             <div className="flex justify-between items-baseline mb-1.5">
               <span className="text-[11px] font-bold text-gray-800">
                 {t('printResupplySection')}
@@ -452,7 +455,7 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
                       <td className="border border-gray-200 px-2 py-1 font-bold text-[10px]">{amenity.routeKm} km</td>
                       <td className="border border-gray-200 px-2 py-1 text-[10px] font-semibold">{eta}</td>
                       <td className="border border-gray-200 px-2 py-1 text-[10px]">
-                        <strong>{catLabel} :</strong> {amenity.name}
+                        <strong>{isFr ? `${catLabel} :` : `${catLabel}:`}</strong> {amenity.name}
                         {amenity.openingHours && <span className="text-gray-500 text-[9px] ml-1">({amenity.openingHours})</span>}
                       </td>
                       <td className="border border-gray-200 px-2 py-1 text-[10px] text-gray-600">
@@ -471,7 +474,7 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
 
         {/* Surface Mix, Unpaved / Technical Sectors & Water Gap Alerts */}
         {(technicalOrUnpavedSectors.length > 0 || flaggedWaterGaps.length > 0) && (
-          <div className="mt-4 pt-3 border-t border-dashed border-gray-300 space-y-3 tnum">
+          <div className="mt-4 pt-3 border-t border-gray-300 space-y-3 tnum">
             {technicalOrUnpavedSectors.length > 0 && (
               <div>
                 <div className="flex justify-between items-baseline mb-1.5">
@@ -483,8 +486,8 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
                   </span>
                   <span className="text-[9px] text-gray-600">
                     {isFr
-                      ? `${surfaceBreakdown.pavedPct}% bitume · ${surfaceBreakdown.gravelPct}% gravel · ${surfaceBreakdown.singletrackPct}% sentier (${surfaceBreakdown.suitability.tireWidthMm}mm · ${surfaceBreakdown.suitability.recommendedFrontBar}/${surfaceBreakdown.suitability.recommendedRearBar} bar)`
-                      : `${surfaceBreakdown.pavedPct}% paved · ${surfaceBreakdown.gravelPct}% gravel · ${surfaceBreakdown.singletrackPct}% trail (${surfaceBreakdown.suitability.tireWidthMm}mm · ${surfaceBreakdown.suitability.recommendedFrontBar}/${surfaceBreakdown.suitability.recommendedRearBar} bar)`}
+                      ? `${surfaceBreakdown.pavedPct}% bitume · ${surfaceBreakdown.gravelPct}% gravel · ${surfaceBreakdown.singletrackPct}% sentier (${surfaceBreakdown.suitability.tireWidthMm}mm · ${formatTyrePressurePair(surfaceBreakdown.suitability.recommendedFrontBar, surfaceBreakdown.suitability.recommendedRearBar, effectiveSpecs.pressureUnit ?? 'bar', 'fr')})`
+                      : `${surfaceBreakdown.pavedPct}% paved · ${surfaceBreakdown.gravelPct}% gravel · ${surfaceBreakdown.singletrackPct}% trail (${surfaceBreakdown.suitability.tireWidthMm}mm · ${formatTyrePressurePair(surfaceBreakdown.suitability.recommendedFrontBar, surfaceBreakdown.suitability.recommendedRearBar, effectiveSpecs.pressureUnit ?? 'bar', 'en')})`}
                   </span>
                 </div>
                 <table className="w-full text-xs border-collapse border border-gray-300">
@@ -511,7 +514,7 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
                           {seg.type} ({seg.technicality})
                         </td>
                         <td className="border border-gray-200 px-2 py-1 text-[10px]">
-                          <strong>{isFr ? seg.nameFr : seg.nameEn} :</strong>{' '}
+                          <strong>{isFr ? `${seg.nameFr} :` : `${seg.nameEn}:`}</strong>{' '}
                           {isFr ? seg.riderNoteFr : seg.riderNoteEn}
                         </td>
                       </tr>

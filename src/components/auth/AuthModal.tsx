@@ -262,7 +262,7 @@ export const AuthModal: React.FC = () => {
                 size="md"
                 onClick={handleMagicLink}
                 disabled={isMagicLinkLoading || isLoading || isResetLoading}
-                className="w-full min-h-[44px] py-2.5 px-4 rounded-pod font-rounded font-semibold text-xs sm:text-[13px] bg-pod dark:bg-canvas hover:bg-surface-active text-ink border border-black/10 dark:border-white/10 hover:border-volt/60 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs group"
+                className="w-full min-h-[44px] py-2.5 px-4 rounded-full font-rounded font-semibold text-xs sm:text-[13px] bg-pod dark:bg-canvas hover:bg-surface-active text-ink ring-1 ring-inset ring-black/8 dark:ring-white/10 transition-colors cursor-pointer flex items-center justify-center gap-2 shadow-xs group"
               >
                 {isMagicLinkLoading ? (
                   <>

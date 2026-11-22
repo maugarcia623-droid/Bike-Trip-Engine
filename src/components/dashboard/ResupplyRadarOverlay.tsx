@@ -85,6 +85,12 @@ export interface ResupplyRadarOverlayProps {
   onAmenitiesLoaded?: (amenities: StageAmenity[]) => void;
   showMapDots?: boolean;
   onToggleShowMapDots?: () => void;
+  /** When true, renders inline inside the Layer 2 dashboard tab instead of a portal modal. */
+  embedded?: boolean;
+  /** Desktop layout when embedded: 'split' uses a 2+3 grid (Tabbed view), 'stacked' uses a single column (Show All 3-col stack). */
+  embeddedLayout?: 'split' | 'stacked';
+  /** Optional callback used in embedded mode when clicking "View on map". */
+  onJumpToMap?: () => void;
 }
 
 export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
@@ -100,6 +106,9 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
   onAmenitiesLoaded,
   showMapDots = true,
   onToggleShowMapDots,
+  embedded = false,
+  embeddedLayout = 'split',
+  onJumpToMap,
 }) => {
   const { lang, t } = useTranslation();
   const isFr = lang === 'fr';
@@ -128,7 +137,7 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
 
   // Lock background page scroll while overlay is active (iOS Safari bulletproof lock)
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || embedded) return;
 
     // Save scroll position and original body/html inline styles
     const scrollY = window.scrollY || window.pageYOffset || 0;
@@ -180,7 +189,7 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
       document.documentElement.style.overflow = originalHtmlOverflow;
       window.scrollTo(0, scrollY);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, embedded, onClose]);
 
   const activeStage =
     trip.stages && trip.activeStageIndex !== undefined
@@ -268,16 +277,18 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
     }
   };
 
-  // Toggle category filter
+  // Toggle category filter (Water & Cemeteries are merged into a single Water filter pill)
   const toggleCategory = (cat: AmenityCategory) => {
     setActiveCategories((prev) => {
       const next = new Set(prev);
-      if (next.has(cat)) {
-        if (next.size > 1) {
-          next.delete(cat);
+      const targets: AmenityCategory[] = cat === 'water' ? ['water', 'cemetery'] : [cat];
+      const allActive = targets.every((t) => next.has(t));
+      if (allActive) {
+        if (next.size > targets.length) {
+          targets.forEach((t) => next.delete(t));
         }
       } else {
-        next.add(cat);
+        targets.forEach((t) => next.add(t));
       }
       return next;
     });
@@ -445,6 +456,15 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
   const radarActiveChips = trip.customChips;
   const radarTotalDays = trip.stages?.length || 1;
   const waterGaps = useMemo(() => {
+    if (!hasScanned) {
+      return {
+        maxGapKm: 0,
+        criticalGaps: [],
+        cautionGaps: [],
+        gaps: [],
+        status: 'ok' as const,
+      };
+    }
     const allWaterItems = [...amenities];
     for (const pinned of pinnedAmenities) {
       if (!allWaterItems.some((a) => a.id === pinned.id)) {
@@ -469,6 +489,7 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
       frameBottleSlots: radarFrameSlots,
     });
   }, [
+    hasScanned,
     amenities,
     pinnedAmenities,
     totalDistanceKm,
@@ -529,90 +550,95 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
     },
   ];
 
-  if (!isOpen) return null;
-  if (typeof document === 'undefined') return null;
+  if (!embedded && !isOpen) return null;
+  if (!embedded && typeof document === 'undefined') return null;
 
   const yellowVest = CHIP_TOKENS['yellow-vest'];
 
-  return createPortal(
-    <div className="fixed inset-0 z-[1000] flex items-end sm:items-center justify-center p-3.5 sm:p-6 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-6 no-print print:hidden pointer-events-none">
-      {/* ── Solid dark backdrop (NO blur effects, matching settings bottom sheet) ── */}
+  const radarContent = (
+    <div
+      ref={embedded ? undefined : sheetRef}
+      role={embedded ? undefined : 'dialog'}
+      aria-modal={embedded ? undefined : true}
+      aria-labelledby="resupply-radar-title"
+      className={
+        embedded
+          ? 'w-full bg-card dark:bg-[#18181B] rounded-card p-4 sm:p-5 lg:p-6 shadow-xs border border-ink/5 dark:border-white/5'
+          : 'relative z-10 pointer-events-auto w-full max-w-lg sm:max-w-xl max-h-[85vh] max-h-[85dvh] bg-card dark:bg-[#18181B] rounded-[32px] px-4 sm:px-5 pb-4 sm:pb-5 pt-0 shadow-2xl overflow-y-auto overscroll-contain touch-pan-y animate-apple-modal'
+      }
+      style={embedded ? undefined : { WebkitOverflowScrolling: 'touch' }}
+    >
+      {/* ── Header: Grabber (modal only) + Identity & 1:1 action buttons ── */}
       <div
-        className="fixed inset-0 bg-black/85 animate-apple-fade-in touch-none pointer-events-auto"
-        onClick={onClose}
-      />
-
-      {/* ── Modal Card (Floating bottom sheet on mobile, Centered dialog on desktop) ── */}
-      <div
-        ref={sheetRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="resupply-radar-title"
-        className="relative z-10 pointer-events-auto w-full max-w-lg sm:max-w-xl max-h-[85vh] max-h-[85dvh] bg-card dark:bg-[#18181B] rounded-[32px] px-4 sm:px-5 pb-4 sm:pb-5 pt-0 shadow-2xl overflow-y-auto overscroll-contain touch-pan-y animate-apple-modal"
-        style={{ WebkitOverflowScrolling: 'touch' }}
+        className={
+          embedded
+            ? 'pb-2.5'
+            : 'sticky top-0 z-20 bg-card dark:bg-[#18181B] -mx-4 sm:-mx-5 px-4 sm:px-5 pt-3 pb-2.5 rounded-t-[32px]'
+        }
       >
-        {/* ── Sticky Header: Grabber + Identity & 1:1 action buttons ── */}
-        <div className="sticky top-0 z-20 bg-card dark:bg-[#18181B] -mx-4 sm:-mx-5 px-4 sm:px-5 pt-3 pb-2.5 rounded-t-[32px]">
-          {/* Grabber handle pill (touch handle on mobile only) */}
+        {/* Grabber handle pill (touch handle on mobile modal only) */}
+        {!embedded && (
           <div className="w-10 h-1 bg-ink/15 dark:bg-white/20 rounded-full mx-auto mb-2.5 shrink-0 sm:hidden" />
+        )}
 
-          <div className="flex items-center gap-3">
-            <div
-              className={`relative w-12 h-12 rounded-full flex items-center justify-center shrink-0 font-bold text-lg ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${yellowVest.surface} ${yellowVest.primary} ${yellowVest.selectedRing}`}
-            >
-              <Radar className="w-6 h-6 text-current" />
+        <div className="flex items-center gap-3">
+          <div
+            className={`relative w-12 h-12 rounded-full flex items-center justify-center shrink-0 font-bold text-lg ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${yellowVest.surface} ${yellowVest.primary} ${yellowVest.selectedRing}`}
+          >
+            <Radar className="w-6 h-6 text-current" />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div id="resupply-radar-title" className="text-[17px] font-semibold text-ink tracking-tight break-words font-rounded">
+              {t('resupplyRadarTitle')}
             </div>
-
-            <div className="min-w-0 flex-1">
-              <div id="resupply-radar-title" className="text-[17px] font-semibold text-ink tracking-tight break-words font-rounded">
-                {t('resupplyRadarTitle')}
-              </div>
-              <div className="text-[13px] text-ink-muted break-words mt-0.5">
-                {hasScanned
-                  ? `${filteredAmenities.length} POIs · ${pinnedAmenities.length} ${t('pinnedStop').toLowerCase()}`
-                  : t('resupplyRadarSub')}
-              </div>
+            <div className="text-[13px] text-ink-muted break-words mt-0.5">
+              {hasScanned
+                ? `${filteredAmenities.length} POIs · ${pinnedAmenities.length} ${t('pinnedStop').toLowerCase()}`
+                : t('resupplyRadarSub')}
             </div>
+          </div>
 
-            {/* Right actions: 1:1 Map Dots Toggle + Re-scan + 1:1 Close Button */}
-            <div className="flex items-center gap-2 shrink-0">
-              {/* 1:1 Map Dots Visibility Toggle */}
-              {onToggleShowMapDots && (
-                <Button variant="ghost"
-                  type="button"
-                  onClick={onToggleShowMapDots}
-                  aria-pressed={showMapDots}
-                  aria-label={showMapDots ? t('hideMapDots') : t('showMapDots')}
-                  title={showMapDots ? t('hideMapDots') : t('showMapDots')}
-                  className={`relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-colors shrink-0 select-none ${
-                    showMapDots
-                      ? `${CHIP_TOKENS.sky.surface} ${CHIP_TOKENS.sky.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.sky.selectedRing}`
-                      : 'bg-pod dark:bg-white/[0.06] hover:bg-chip text-ink-secondary hover:text-ink'
-                  } ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
-                >
-                  {showMapDots ? <Eye size={18} /> : <EyeOff size={18} />}
-                </Button>
-              )}
+          {/* Right actions: 1:1 Map Dots Toggle + Re-scan + 1:1 Close Button (modal only) */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* 1:1 Map Dots Visibility Toggle */}
+            {onToggleShowMapDots && (
+              <Button variant="ghost"
+                type="button"
+                onClick={onToggleShowMapDots}
+                aria-pressed={showMapDots}
+                aria-label={showMapDots ? t('hideMapDots') : t('showMapDots')}
+                title={showMapDots ? t('hideMapDots') : t('showMapDots')}
+                className={`relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-colors shrink-0 select-none ${
+                  showMapDots
+                    ? `${CHIP_TOKENS.sky.surface} ${CHIP_TOKENS.sky.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.sky.selectedRing}`
+                    : 'bg-pod dark:bg-white/[0.06] hover:bg-chip text-ink-secondary hover:text-ink'
+                } ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+              >
+                {showMapDots ? <Eye size={18} /> : <EyeOff size={18} />}
+              </Button>
+            )}
 
-              {/* Re-scan button: ONLY shown after scanned */}
-              {hasScanned && (
-                <Button variant="ghost"
-                  type="button"
-                  onClick={() => handleScanCorridor(true)}
-                  disabled={isScanning}
-                  className="relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 w-10 h-10 rounded-full bg-pod dark:bg-white/[0.06] hover:bg-chip text-ink-secondary hover:text-ink flex items-center justify-center cursor-pointer transition-colors shrink-0 select-none"
-                  title={t('reScanCorridor')}
-                  aria-label={t('reScanCorridor')}
-                >
-                  {isScanning ? (
-                    <SpinnerGap className="w-4 h-4 animate-spin text-current" />
-                  ) : (
-                    <ArrowsClockwise className="w-4 h-4 text-current" />
-                  )}
-                </Button>
-              )}
+            {/* Re-scan button: ONLY shown after scanned */}
+            {hasScanned && (
+              <Button variant="ghost"
+                type="button"
+                onClick={() => handleScanCorridor(true)}
+                disabled={isScanning}
+                className="relative before:content-[''] before:absolute before:-inset-1 sm:before:inset-0 w-10 h-10 rounded-full bg-pod dark:bg-white/[0.06] hover:bg-chip text-ink-secondary hover:text-ink flex items-center justify-center cursor-pointer transition-colors shrink-0 select-none"
+                title={t('reScanCorridor')}
+                aria-label={t('reScanCorridor')}
+              >
+                {isScanning ? (
+                  <SpinnerGap className="w-4 h-4 animate-spin text-current" />
+                ) : (
+                  <ArrowsClockwise className="w-4 h-4 text-current" />
+                )}
+              </Button>
+            )}
 
-              {/* 1:1 Close button */}
+            {/* 1:1 Close button (modal only) */}
+            {!embedded && (
               <Button variant="ghost"
                 type="button"
                 onClick={onClose}
@@ -621,13 +647,21 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
               >
                 <X size={18} />
               </Button>
-            </div>
+            )}
           </div>
-          <div className="lane-divider mt-2.5" aria-hidden="true" />
         </div>
+        <div className="lane-divider mt-2.5" aria-hidden="true" />
+      </div>
 
-        {/* ── Scrollable Body Content ── */}
-        <div className="flex flex-col gap-2.5 pt-2.5">
+        {/* ── Body Content (2+3 Desktop Split in Tabbed Embedded mode; Stacked in Modal or Masonry column) ── */}
+        <div
+          className={
+            embedded && embeddedLayout === 'split'
+              ? 'grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-5 items-start pt-3'
+              : 'flex flex-col gap-2.5 pt-2.5'
+          }
+        >
+          <div className={embedded && embeddedLayout === 'split' ? 'lg:col-span-2 flex flex-col gap-2.5 min-w-0' : 'contents'}>
           {/* 1. INFORMATION BANNER */}
           <div className="shrink-0">
             {!hasScanned ? null : waterGaps.status === 'critical' ? (
@@ -687,8 +721,16 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
           <div className="px-2 pt-2 pb-1 text-xs font-semibold text-ink-muted font-rounded shrink-0">
             {isFr ? 'Filtres de ravitaillement' : 'Resupply filters'}
           </div>
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 shrink-0">
-            {categoryConfig.map((cat) => {
+          <div
+            className={
+              embedded && embeddedLayout === 'split'
+                ? 'flex flex-wrap items-center gap-1.5 py-0.5 shrink-0'
+                : 'flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 shrink-0'
+            }
+          >
+            {categoryConfig
+              .filter((cat) => cat.id !== 'cemetery')
+              .map((cat) => {
               const isSelected = activeCategories.has(cat.id);
               const tokens = CHIP_TOKENS[cat.theme];
               const IconComponent = cat.icon;
@@ -812,7 +854,9 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
               <span>{totalDistanceKm} km</span>
             </div>
           </div>
+          </div>
 
+          <div className={embedded && embeddedLayout === 'split' ? 'lg:col-span-3 flex flex-col gap-2.5 min-w-0' : 'contents'}>
           {/* 4. CORRIDOR FEED / EMPTY STATE */}
           <div className="px-2 pt-2 pb-1 flex items-center justify-between gap-2 shrink-0 flex-wrap">
             <span className="text-xs font-semibold text-ink-muted font-rounded">
@@ -872,7 +916,9 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
                 type="button"
                 onClick={() => handleScanCorridor(false)}
                 disabled={isScanning || !hasValidCorridorCoords}
-                className="mt-1 w-full h-12 inline-flex items-center justify-center gap-2 rounded-full font-semibold cursor-pointer transition-all hover:brightness-[0.97] active:scale-[0.99] shadow-xs bg-volt text-[#111111]"
+                className={`mt-1 inline-flex items-center justify-center gap-2 rounded-full font-semibold cursor-pointer transition-all active:scale-[0.99] shadow-xs bg-volt hover:bg-[#E2E443] text-[#111111] ring-1 ring-inset ring-black/10 ${
+                  embedded ? 'w-full sm:w-auto sm:min-w-[220px] px-6 h-11' : 'w-full h-12'
+                }`}
               >
                 {isScanning ? (
                   <>
@@ -1038,7 +1084,11 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
                           onClick={(e) => {
                             e.stopPropagation();
                             onSelectAmenity?.(amenity);
-                            onClose();
+                            if (embedded) {
+                              onJumpToMap?.();
+                            } else {
+                              onClose();
+                            }
                           }}
                           className="relative before:content-[''] before:absolute before:-inset-1.5 sm:before:inset-0 w-9 h-9 rounded-full bg-card dark:bg-white/[0.08] hover:bg-chip flex items-center justify-center text-ink-secondary hover:text-ink cursor-pointer transition-colors"
                           title={t('viewOnMap')}
@@ -1132,16 +1182,35 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
               </div>
             </div>
           )}
+          </div>
         </div>
 
-        {/* ── Footer matching Settings Bottom Sheet ── */}
-        <div className="lane-divider mt-3" aria-hidden="true" />
-        <div className="flex items-center justify-center gap-1.5 pt-2.5 pb-0.5 text-[11px] text-ink-muted tnum shrink-0">
-          <span>{t('appName')}</span>
-          <span aria-hidden="true">·</span>
-          <span>v2.6</span>
-        </div>
+        {/* ── Footer matching Settings Bottom Sheet (modal only) ── */}
+        {!embedded && (
+          <>
+            <div className="lane-divider mt-3" aria-hidden="true" />
+            <div className="flex items-center justify-center gap-1.5 pt-2.5 pb-0.5 text-[11px] text-ink-muted tnum shrink-0">
+              <span>{t('appName')}</span>
+              <span aria-hidden="true">·</span>
+              <span>v2.6</span>
+            </div>
+          </>
+        )}
       </div>
+  );
+
+  if (embedded) {
+    return radarContent;
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-[1000] flex items-end sm:items-center justify-center p-3.5 sm:p-6 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-6 no-print print:hidden pointer-events-none">
+      {/* ── Solid dark backdrop (NO blur effects, matching settings bottom sheet) ── */}
+      <div
+        className="fixed inset-0 bg-black/85 animate-apple-fade-in touch-none pointer-events-auto"
+        onClick={onClose}
+      />
+      {radarContent}
     </div>,
     document.body
   );

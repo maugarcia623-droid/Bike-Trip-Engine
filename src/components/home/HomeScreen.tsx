@@ -65,7 +65,11 @@ interface HomeScreenProps {
   onLoadDemoTrip?: () => void;
   onOpenFeedback?: () => void;
   onOpenTools?: (tab?: 'wind' | 'leave-by' | 'pressure') => void;
-  onQuickCreateTrip?: (trip: TripProfile, targetView: 'dashboard' | 'configurator') => void;
+  onQuickCreateTrip?: (
+    trip: TripProfile,
+    targetView: 'dashboard' | 'configurator',
+    options?: { autoOpenSlicer?: boolean }
+  ) => void;
   riderSpecs?: RiderBikeSpecs;
   mobileView?: 'home' | 'trips';
   onMobileViewChange?: (view: 'home' | 'trips') => void;
@@ -449,7 +453,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </div>
 
             {/* Divider */}
-            <div className="border-t border-ink/5 dark:border-white/5" />
+            <div className="border-t border-dashed border-ink/20 dark:border-white/15" />
 
             {/* Quick-Start Composer + Horizontal 1-Tap Recipes + Drop & Go */}
             {onQuickCreateTrip && (
@@ -538,7 +542,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </div>
 
             {/* Mobile Footer */}
-            <footer className="pt-4 mt-2 border-t border-ink/5 dark:border-white/5 flex flex-col gap-3 text-xs text-ink-muted">
+            <footer className="pt-4 mt-2 border-t border-dashed border-ink/20 dark:border-white/15 flex flex-col gap-3 text-xs text-ink-muted">
               <span>
                 {lang === 'fr'
                   ? 'Planificateur local · Physique cycliste & ravitaillement 100 % navigateur'
@@ -572,9 +576,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           DESKTOP & TABLET LAYOUT (>= md) — Preserved Unchanged
           ═══════════════════════════════════════════════════════════════════════ */}
       <div className="hidden md:block space-y-5">
-        {/* ── Top Page Header (3-Column Span matching Mockup: Greeting Phrase, Number of Profiles, Action Bar Below) ── */}
+        {/* ── Top Page Header (Full width so weekly summary stays single-line on desktop) ── */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-3.5 sm:gap-4 lg:gap-5 animate-apple-in stagger-1">
-        <div className="lg:col-span-3 space-y-3.5 min-w-0">
+        <div className="lg:col-span-5 space-y-3.5 min-w-0">
           <div>
             <div className="flex items-center gap-2.5 flex-wrap">
               <h1 className="text-2xl sm:text-[28px] font-semibold text-ink tracking-tight leading-tight">
@@ -584,7 +588,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 {trips.length === 1 ? (lang === 'fr' ? '1 trajet' : '1 trip') : t('homeProfilesCount', { count: trips.length })}
               </Badge>
             </div>
-            <p className="text-ink-muted text-[13px] mt-1 max-w-2xl leading-relaxed">
+            <p className="text-ink-muted text-[13px] mt-1 leading-relaxed lg:whitespace-nowrap lg:truncate">
               {headerSubtitleContent}
             </p>
           </div>
@@ -885,7 +889,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       </div>
 
       {/* Subtle Secondary Utilities Footer (Feedback + Reset Defaults) */}
-      <footer className="pt-4 mt-2 border-t border-ink/5 dark:border-white/5 flex flex-wrap items-center justify-between gap-3 text-xs text-ink-muted">
+      <footer className="pt-4 mt-2 border-t border-dashed border-ink/20 dark:border-white/15 flex flex-wrap items-center justify-between gap-3 text-xs text-ink-muted">
         <span>
           {lang === 'fr'
             ? 'Planificateur local · Physique cycliste & ravitaillement 100 % navigateur'

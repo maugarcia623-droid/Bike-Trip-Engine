@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
-import { Button, SegmentedControl } from '@/components/arc';
+import { Button } from '@/components/arc';
 import {
   WarningCircle,
   CheckCircle,
@@ -255,6 +255,8 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
           ...currentTrip.weather,
           source: live.source,
           temperatureC: live.temperatureC,
+          relativeHumidity: live.relativeHumidity,
+          recentPrecipitationMm: live.recentPrecipitationMm,
           baseWindSpeedKmH: live.windSpeedKmH,
           effectiveHeadwindKmH: live.effectiveHeadwindKmH,
           windDirectionDegrees: live.windDirectionDegrees,
@@ -550,33 +552,54 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
       </Collapsible>
 
       <Collapsible open={isCardExpanded} innerClassName="pt-3">
-      {/* ── 2. ELEGANT CONCENTRIC TAB SWITCHER: [ WIND & AERO ] / [ LIGHT & VISIBILITY ] ── */}
-      <div className="mb-4 w-full sm:w-auto self-stretch sm:self-start">
-        <SegmentedControl<'wind' | 'visibility'>
-          value={activeTab}
-          onChange={setActiveTab}
-          fullWidth
+      {/* ── 2. CONCENTRIC TAB SWITCHER: [ WIND & RESISTANCE ] / [ LIGHT & VISIBILITY ] ── */}
+      <div className="mb-4 flex justify-center">
+        <div
+          role="tablist"
           aria-label={t('weatherTabWind')}
-          items={[
-            {
-              value: 'wind',
-              icon: <Wind className="w-4 h-4 shrink-0 text-current" />,
-              label: t('weatherTabWind'),
-            },
-            {
-              value: 'visibility',
-              icon: <SunHorizon className="w-4 h-4 shrink-0 text-current" />,
-              label: (
-                <span className="inline-flex items-center gap-1.5">
-                  <span>{t('weatherTabVisibility')}</span>
-                  {isCriticalOptical && (
-                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 animate-beacon-pulse ${CHIP_TOKENS.rose.dot}`} />
-                  )}
-                </span>
-              ),
-            },
-          ]}
-        />
+          className="inline-flex items-center gap-1 p-1 rounded-full bg-pod max-w-full"
+        >
+          {(
+            [
+              {
+                id: 'wind' as const,
+                icon: Wind,
+                label: t('weatherTabWind'),
+                hasDot: false,
+              },
+              {
+                id: 'visibility' as const,
+                icon: SunHorizon,
+                label: t('weatherTabVisibility'),
+                hasDot: isCriticalOptical,
+              },
+            ] as const
+          ).map((item) => {
+            const TabIcon = item.icon;
+            const active = activeTab === item.id;
+            return (
+              <Button
+                key={item.id}
+                variant="ghost"
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setActiveTab(item.id)}
+                className={`min-h-[44px] sm:min-h-[34px] px-3.5 py-1.5 rounded-full text-xs font-rounded font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                  active
+                    ? 'bg-card text-ink shadow-xs'
+                    : 'text-ink-muted hover:text-ink'
+                }`}
+              >
+                <TabIcon className="w-4 h-4 shrink-0 text-current" />
+                <span>{item.label}</span>
+                {item.hasDot && (
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 animate-beacon-pulse ${CHIP_TOKENS.rose.dot}`} />
+                )}
+              </Button>
+            );
+          })}
+        </div>
       </div>
 
       {/* ════════════════════════════════════════════════════════════════════════════
@@ -635,7 +658,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
 
           {/* Road Compass Instrument Pod */}
           <div className="rounded-pod bg-pod p-3.5 sm:p-4 flex items-center gap-3 sm:gap-4 mb-4">
-            <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full border-2 border-dashed border-ink/15 dark:border-white/15 bg-card flex items-center justify-center shrink-0">
+            <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full ring-1 ring-inset ring-ink/10 dark:ring-white/12 bg-card flex items-center justify-center shrink-0">
               <span className="absolute top-1.5 text-[10px] font-semibold text-ink-muted">N</span>
               <span className="absolute bottom-1.5 text-[10px] font-semibold text-ink-muted">S</span>
               <span className="absolute left-2 text-[10px] font-semibold text-ink-muted">{t('compassWest')}</span>

@@ -601,7 +601,7 @@ export const InteractiveRouteMap: React.FC<InteractiveRouteMapProps> = ({
           <Button variant="ghost"
             type="button"
             onClick={handleResetFit}
-            className="bg-card/90 dark:bg-card/90 backdrop-blur-md min-h-[40px] px-3 py-1.5 rounded-full shadow-md text-[11px] font-semibold text-ink-secondary hover:text-ink hover:bg-card transition-all cursor-pointer flex items-center gap-1"
+            className="bg-card/90 dark:bg-card/90 backdrop-blur-md min-h-[44px] min-w-[44px] sm:min-h-[36px] sm:min-w-[36px] px-3 py-1.5 rounded-full shadow-md text-[11px] font-semibold text-ink-secondary hover:text-ink hover:bg-card transition-all cursor-pointer flex items-center justify-center gap-1"
             title={isFr ? 'Recentrer sur l’itinéraire' : 'Fit route bounds'}
           >
             <Compass className="w-3.5 h-3.5" />
@@ -611,7 +611,7 @@ export const InteractiveRouteMap: React.FC<InteractiveRouteMapProps> = ({
           <Button variant="ghost"
             type="button"
             onClick={() => setIsFullscreen((prev) => !prev)}
-            className="bg-card/90 dark:bg-card/90 backdrop-blur-md min-h-[40px] px-3 py-1.5 rounded-full shadow-md text-[11px] font-semibold text-ink-secondary hover:text-ink hover:bg-card transition-all cursor-pointer flex items-center gap-1"
+            className="bg-card/90 dark:bg-card/90 backdrop-blur-md min-h-[44px] min-w-[44px] sm:min-h-[36px] sm:min-w-[36px] px-3 py-1.5 rounded-full shadow-md text-[11px] font-semibold text-ink-secondary hover:text-ink hover:bg-card transition-all cursor-pointer flex items-center justify-center gap-1"
             title={
               isFullscreen
                 ? isFr

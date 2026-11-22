@@ -6,12 +6,12 @@ import { Language } from '../context/LanguageContext';
 import { checkForecastHorizon } from '../services/weatherService';
 
 /**
- * Downsamples OSRM polyline coordinates to at most maxPoints (default 250),
- * always preserving the first and last coordinate so multi-day trips never bloat browser localStorage.
+ * Downsamples polyline coordinates to at most maxPoints (default 450),
+ * always preserving the first and last coordinate so multi-day trips stay crisp without bloating localStorage.
  */
 export function downsampleCoordinates(
   coords?: [number, number][],
-  maxPoints: number = 250
+  maxPoints: number = 450
 ): [number, number][] | undefined {
   if (!coords) return undefined;
   if (coords.length <= maxPoints) {

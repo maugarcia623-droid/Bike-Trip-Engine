@@ -1,4 +1,28 @@
-import { BikeCategory, BikeSpec, CasingType } from '../types/specs';
+import { BikeCategory, BikeSpec, CasingType, PressureUnit } from '../types/specs';
+
+export const BAR_TO_PSI = 14.5038;
+
+export function barToPsi(bar: number): number {
+  if (!Number.isFinite(bar) || bar <= 0) return 0;
+  return Math.round(bar * BAR_TO_PSI);
+}
+
+export function formatTyrePressurePair(
+  frontBar: number,
+  rearBar: number,
+  unit: PressureUnit = 'bar',
+  lang?: string
+): string {
+  if (unit === 'psi') {
+    return `${barToPsi(frontBar)}/${barToPsi(rearBar)} PSI`;
+  }
+  const f = frontBar.toFixed(1);
+  const r = rearBar.toFixed(1);
+  if (lang === 'fr') {
+    return `${f.replace('.', ',')}/${r.replace('.', ',')} bar`;
+  }
+  return `${f}/${r} bar`;
+}
 
 export interface TyrePressureInput {
   systemMassKg: number;
@@ -17,6 +41,8 @@ export interface TyrePressureInput {
 export interface TyrePressureResult {
   frontBar: number;
   rearBar: number;
+  frontPsi: number;
+  rearPsi: number;
   frontLoadPct: number;
   rearLoadPct: number;
   bikeCategory: BikeCategory;
@@ -117,6 +143,8 @@ export function calculateTyrePressure(input: TyrePressureInput): TyrePressureRes
   return {
     frontBar,
     rearBar,
+    frontPsi: barToPsi(frontBar),
+    rearPsi: barToPsi(rearBar),
     frontLoadPct: frontPct,
     rearLoadPct: rearPct,
     bikeCategory,

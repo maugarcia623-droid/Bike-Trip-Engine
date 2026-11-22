@@ -15,6 +15,8 @@ export interface WeatherCondition {
   windDirection: 'headwind' | 'cross-headwind' | 'tailwind' | 'calm';
   windDirectionDegrees: number;
   temperatureC: number;
+  relativeHumidity?: number;
+  recentPrecipitationMm?: number;
   precipitationRiskPercent: number;
   estuaryGustKmH: number;
   visibilityKm: number;
@@ -314,6 +316,9 @@ export interface TripProfile {
   pinnedAmenities?: StageAmenity[];
 }
 
+export type RoadSurfaceCondition = 'dry' | 'damp' | 'wet';
+export type PhysicsCautionReason = 'dark' | 'wet' | 'damp' | 'cold-tires' | 'surface';
+
 export interface PhysicsCalculationResult {
   systemMassKg: number;
   groundSpeedMs: number;
@@ -342,6 +347,13 @@ export interface PhysicsCalculationResult {
   powerDeltaWatts: number;
   goStatus: 'GO' | 'CAUTION' | 'NO-GO';
   goStatusReason: string;
+  effectiveCrr: number;
+  crrMultiplier: number;
+  roadCondition: RoadSurfaceCondition;
+  cautionPaceFactor: number;
+  cautionDelayMinutes: number;
+  cautionReasons: PhysicsCautionReason[];
+  surfaceCrrSource: 'bike-baseline' | 'osm-surface';
 }
 
 export type PhysicsParameters = PhysicsParams;

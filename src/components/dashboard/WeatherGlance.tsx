@@ -113,8 +113,6 @@ export const WeatherGlance: React.FC<WeatherGlanceProps> = ({
         </span>
       </span>
 
-      <span className="h-px w-full bg-ink/15 dark:bg-white/15 block" aria-hidden="true" />
-
       {/* ── 3. Wind, gusts and rain ── */}
       <span className="grid grid-cols-3 gap-3 w-full">
         <span className="flex flex-col gap-1.5 min-w-0">
@@ -153,8 +151,6 @@ export const WeatherGlance: React.FC<WeatherGlanceProps> = ({
           </span>
         </span>
       </span>
-
-      <span className="h-px w-full bg-ink/15 dark:bg-white/15 block" aria-hidden="true" />
 
       {/* ── 4. Light on the road ── */}
       <span className="flex flex-col gap-1.5 w-full">

@@ -491,6 +491,8 @@ export const ReadinessActionCard: React.FC<ReadinessActionCardProps> = ({
           ...nextTrip.weather,
           source: live.source,
           temperatureC: live.temperatureC,
+          relativeHumidity: live.relativeHumidity,
+          recentPrecipitationMm: live.recentPrecipitationMm,
           baseWindSpeedKmH: live.windSpeedKmH,
           effectiveHeadwindKmH: live.effectiveHeadwindKmH,
           windDirectionDegrees: live.windDirectionDegrees,

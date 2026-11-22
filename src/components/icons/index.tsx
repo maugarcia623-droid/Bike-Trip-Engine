@@ -138,6 +138,31 @@ const CustomBaguetteSvg: React.FC<any> = ({ size = 24, className = '', ...props 
 // ── CORE APPLICATION ICONS (KEYLINE ICONS ROUNDED DUOTONE ONLY) ──
 
 // Navigation & Actions
+const CustomBananaSvg: React.FC<any> = ({ size = 24, className = '', ...props }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    {...props}
+  >
+    <path
+      d="M4 17c3.5 2 8.5 1.5 12-2 3-3 4-7.5 3-11-1.5 3.5-4.5 6.5-8.5 8-3 1.1-5.5 1.2-6.5 5z"
+      fill="var(--icon-secondary, currentColor)"
+      fillOpacity="var(--icon-secondary-opacity, 0.3)"
+      stroke="none"
+    />
+    <path d="M4 17c3.5 2 8.5 1.5 12-2 3-3 4-7.5 3-11" />
+    <path d="M4 17c1-3.8 3.5-3.9 6.5-5 4-1.5 7-4.5 8.5-8" />
+    <path d="M19 4l1-1.5" />
+  </svg>
+);
+
 export const Bike = createKeylineIcon(Duotone.Bike, 'Bike');
 export const Bicycle = Bike; // Phosphor alias
 export const Sun = createKeylineIcon(Duotone.Sun, 'Sun');
@@ -291,6 +316,7 @@ export const ForkKnife = Utensils;
 export const UtensilsCrossed = Utensils;
 export const AppleLogo = createKeylineIcon(CustomAppleSvg, 'AppleLogo');
 export const Apple = AppleLogo;
+export const Banana = createKeylineIcon(CustomBananaSvg, 'Banana');
 export const Bottle = createKeylineIcon(Duotone.Bottle, 'Bottle');
 export const Wine = Bottle;
 export const Cookie = createKeylineIcon(Duotone.Cookie, 'Cookie');
@@ -298,6 +324,7 @@ export const Hamburger = createKeylineIcon(Duotone.Hamburger, 'Hamburger');
 export const ShowerHead = createKeylineIcon(Duotone.ShowerHead, 'ShowerHead');
 export const Shower = ShowerHead;
 export const Bed = createKeylineIcon(Duotone.Bed, 'Bed');
+export const BedDouble = createKeylineIcon(Duotone.BedDouble, 'BedDouble');
 export const Tent = createKeylineIcon(Duotone.Tent, 'Tent');
 export const Buildings = createKeylineIcon(Duotone.Buildings, 'Buildings');
 export const Building = Buildings;

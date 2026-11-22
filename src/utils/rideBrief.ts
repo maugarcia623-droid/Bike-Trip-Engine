@@ -3,10 +3,10 @@ import {
   TripProfile,
 } from '../types/trip';
 import { StageAmenity } from '../types/amenities';
-import { BikeSpec, RiderBikeSpecs, resolveBikeTireWidthMm } from '../types/specs';
+import { BikeSpec, PressureUnit, RiderBikeSpecs, resolveBikeTireWidthMm } from '../types/specs';
 import { Language } from '../context/LanguageContext';
 import { getActiveBike, loadRiderBikeSpecs } from './specsStorage';
-import { calculateTyrePressure, TyrePressureResult } from './tyrePressure';
+import { calculateTyrePressure, formatTyrePressurePair, TyrePressureResult } from './tyrePressure';
 import { calculateHydrationPlan, calculateIntensityModulatedCarbTarget } from './nutrition';
 import { getKitRecommendation, KitRecommendation } from './kitAdvisor';
 import {
@@ -22,6 +22,7 @@ import { ChipTheme } from '../tokens/chipTokens';
 import { getArchetypeFromTag, getPlannedRestStopMinutes } from './archetypeChips';
 import { getStationaryRecoveryRuleForTrip } from './stationaryRecovery';
 import { calculateRideVisibility } from './solarVisibility';
+import { classifyRoadSurfaceCondition } from './physics';
 import { degreesToCompassCardinal } from '../services/weatherService';
 import { computeRideReadiness, RideReadiness } from './rideReadiness';
 import { buildEffectiveChecklist } from './effectiveChecklist';
@@ -66,6 +67,7 @@ export interface RideBriefData {
   bikeName: string;
   loopComparison?: LoopDirectionComparison;
   tyrePressure: TyrePressureResult;
+  pressureUnit: PressureUnit;
   isTubeless: boolean;
   carbsPerHr: number;
   totalCarbsG: number;
@@ -113,6 +115,7 @@ function buildRideBriefCardMeta(input: {
   departureDate?: string;
   totalDistanceKm: number;
   tyrePressure: TyrePressureResult;
+  pressureUnit?: PressureUnit;
   carbsPerHr: number;
   totalCarbsG: number;
   bottlesBadge: string;
@@ -146,6 +149,7 @@ function buildRideBriefCardMeta(input: {
     departureDate,
     totalDistanceKm,
     tyrePressure,
+    pressureUnit = 'bar',
     carbsPerHr,
     totalCarbsG,
     bottlesBadge,
@@ -269,9 +273,16 @@ function buildRideBriefCardMeta(input: {
       : isFr
       ? 'Feu vert. Gardez le rythme.'
       : 'All green. Set your pace.';
+  const pressureFormatted = formatTyrePressurePair(
+    tyrePressure.frontBar,
+    tyrePressure.rearBar,
+    pressureUnit,
+    lang
+  );
+  const pressureSpacedFormatted = pressureFormatted.replace('/', ' / ');
   let narrativeSummary = isFr
-    ? `Votre ${archWordFr} de ${distRounded} km s'engage à ${Math.round(physics.legWatts)} W (${physics.powerZone}) avec ${tyrePressure.frontBar}/${tyrePressure.rearBar} bar sur ${activeBike.name}.`
-    : `Your ${distRounded} km ${archWordEn} sets up cleanly at ${Math.round(physics.legWatts)} W (${physics.powerZone}) with ${tyrePressure.frontBar}/${tyrePressure.rearBar} bar on ${activeBike.name}.`;
+    ? `Votre ${archWordFr} de ${distRounded} km s'engage à ${Math.round(physics.legWatts)} W (${physics.powerZone}) avec ${pressureFormatted} sur ${activeBike.name}.`
+    : `Your ${distRounded} km ${archWordEn} sets up cleanly at ${Math.round(physics.legWatts)} W (${physics.powerZone}) with ${pressureFormatted} on ${activeBike.name}.`;
 
   if (finalVerdict === 'NO-GO') {
     headline = isFr ? 'Reporter ou adapter.' : 'Hold off or adapt.';
@@ -309,8 +320,8 @@ function buildRideBriefCardMeta(input: {
   } else if (unpavedPct >= 30) {
     headline = isFr ? 'Baissez la pression. Gardez du grip.' : 'Drop pressure. Flow gravel.';
     narrativeSummary = isFr
-      ? `${unpavedPct}% de chemins sur ${distRounded} km — roulez à ${tyrePressure.frontBar}/${tyrePressure.rearBar} bar sur ${activeBike.name} pour absorber le terrain.`
-      : `${unpavedPct}% unpaved gravel across ${distRounded} km — run ${tyrePressure.frontBar}/${tyrePressure.rearBar} bar on ${activeBike.name} for supple traction at ${Math.round(physics.legWatts)} W.`;
+      ? `${unpavedPct}% de chemins sur ${distRounded} km — roulez à ${pressureFormatted} sur ${activeBike.name} pour absorber le terrain.`
+      : `${unpavedPct}% unpaved gravel across ${distRounded} km — run ${pressureFormatted} on ${activeBike.name} for supple traction at ${Math.round(physics.legWatts)} W.`;
   } else if (isTailwind) {
     headline = isFr ? 'Fenêtre idéale. Roulez fluide.' : 'Clean window. Roll smooth.';
     narrativeSummary = isFr
@@ -367,8 +378,8 @@ function buildRideBriefCardMeta(input: {
       theme: 'sky',
       iconKey: 'tyre',
       headline: isFr
-        ? `Pneus : ${tyrePressure.frontBar} / ${tyrePressure.rearBar} bar`
-        : `Tyres: ${tyrePressure.frontBar} / ${tyrePressure.rearBar} bar`,
+        ? `Pneus : ${pressureSpacedFormatted}`
+        : `Tyres: ${pressureSpacedFormatted}`,
       detail: isFr
         ? `${tireWidthMm} mm ${activeBike.isTubeless ? 'tubeless' : 'chambre'}${unpavedPct > 0 ? ` · ${unpavedPct}% chemins` : ' · 15% déflexion'}`
         : `${tireWidthMm} mm ${activeBike.isTubeless ? 'tubeless' : 'tubes'}${unpavedPct > 0 ? ` · ${unpavedPct}% unpaved` : ' · 15% drop'}`,
@@ -400,14 +411,31 @@ function buildRideBriefCardMeta(input: {
         : `Wind from ${windCardinal} · Stay steady in exposed sections`,
     };
   } else {
+    const roadCondition = classifyRoadSurfaceCondition(trip.weather);
+    const roadSurfaceTextFr =
+      rainRisk > 15
+        ? `Pluie ${rainRisk}%`
+        : roadCondition === 'wet'
+        ? 'Routes mouillées'
+        : roadCondition === 'damp'
+        ? 'Chaussée humide'
+        : 'Routes sèches';
+    const roadSurfaceTextEn =
+      rainRisk > 15
+        ? `${rainRisk}% rain`
+        : roadCondition === 'wet'
+        ? 'Wet roads'
+        : roadCondition === 'damp'
+        ? 'Damp roads'
+        : 'Dry roads';
     priority2 = {
       id: 'weather-calm',
       theme: kit.tierTheme,
       iconKey: 'sun',
       headline: isFr ? `Ciel calme · ${kit.tierBadge}` : `Calm skies · ${kit.tierBadge}`,
       detail: isFr
-        ? `Vent ${windCardinal} ${baseWind} km/h · Ressenti ${feelsLikeC}°C · ${rainRisk <= 15 ? 'Routes sèches' : `Pluie ${rainRisk}%`}`
-        : `Wind ${windCardinal} ${baseWind} km/h · Feels like ${feelsLikeC}°C · ${rainRisk <= 15 ? 'Dry roads' : `${rainRisk}% rain`}`,
+        ? `Vent ${windCardinal} ${baseWind} km/h · Ressenti ${feelsLikeC}°C · ${roadSurfaceTextFr}`
+        : `Wind ${windCardinal} ${baseWind} km/h · Feels like ${feelsLikeC}°C · ${roadSurfaceTextEn}`,
     };
   }
 
@@ -472,6 +500,7 @@ function detectRouteProblems(params: {
   leaveByHHMM: string;
   pinnedAmenities: StageAmenity[];
   corridorAmenities: StageAmenity[];
+  hasWaterScan: boolean;
   bidonSizeMl: number;
   frameBottleSlots: number;
   targetFluidMlPerHr: number;
@@ -484,6 +513,7 @@ function detectRouteProblems(params: {
     leaveByHHMM,
     pinnedAmenities,
     corridorAmenities,
+    hasWaterScan,
     bidonSizeMl,
     frameBottleSlots,
     targetFluidMlPerHr,
@@ -558,8 +588,8 @@ function detectRouteProblems(params: {
     break; // Highlight first stop conflict cleanly
   }
 
-  // 2. Check corridor water gaps (using real Overpass water stops when scanned)
-  if (allStops.length > 0 || pinnedAmenities.some((p) => p.category === 'water' || p.category === 'cemetery')) {
+  // 2. Check corridor water gaps (ONLY when an Overpass scan has actually run)
+  if (hasWaterScan) {
     const gaps = calculateWaterGaps(allStops, totalKm, {
       sectorSpeedKmH: speedKmH,
       targetFluidMlPerHr,
@@ -705,12 +735,17 @@ export function buildRideBrief(params: {
   const stageId = activeStage?.id || trip.id;
   const coords = trip.route?.coordinates || [];
   const totalDistanceKm = trip.route?.distanceKm || 30;
+  const rawCachedScan =
+    coords.length >= 2
+      ? getCachedScan(getRouteHashKey(coords, stageId, totalDistanceKm))
+      : undefined;
+  const hasWaterScan = Boolean(
+    (passedAmenities && passedAmenities.length > 0) || Array.isArray(rawCachedScan)
+  );
   const cachedScan =
     passedAmenities && passedAmenities.length > 0
       ? passedAmenities
-      : coords.length >= 2
-      ? getCachedScan(getRouteHashKey(coords, stageId, totalDistanceKm)) || []
-      : [];
+      : rawCachedScan ?? [];
 
   // 1. Tyre Pressure (continuous 15%-drop model)
   const bikeTireWidthMm = resolveBikeTireWidthMm(activeBike);
@@ -788,6 +823,7 @@ export function buildRideBrief(params: {
     leaveByHHMM: timeline.hardDepartureTime,
     pinnedAmenities,
     corridorAmenities: cachedScan,
+    hasWaterScan,
     bidonSizeMl,
     frameBottleSlots,
     targetFluidMlPerHr: hydration.targetFluidMlPerHr,
@@ -893,6 +929,8 @@ export function buildRideBrief(params: {
     goStatus: finalVerdict,
   });
 
+  const pressureUnit: PressureUnit = riderSpecs.pressureUnit === 'psi' ? 'psi' : 'bar';
+
   return {
     verdict: finalVerdict,
     verdictReason: finalReason,
@@ -906,6 +944,7 @@ export function buildRideBrief(params: {
     bikeName: activeBike.name,
     loopComparison: sectorForecast?.loopComparison,
     tyrePressure,
+    pressureUnit,
     isTubeless: activeBike.isTubeless,
     carbsPerHr,
     totalCarbsG,
@@ -928,6 +967,7 @@ export function buildRideBrief(params: {
       departureDate: activeStage?.departureDate || params.trip.departureDate,
       totalDistanceKm,
       tyrePressure,
+      pressureUnit,
       carbsPerHr,
       totalCarbsG,
       bottlesBadge,

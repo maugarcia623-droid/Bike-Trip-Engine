@@ -156,7 +156,7 @@ export const NaturalLanguagePrompt: React.FC<NaturalLanguagePromptProps> = ({
 
       {/* Extracted Feedback Pills */}
       {feedback && Object.keys(feedback).length > 0 && (
-        <div className="mt-4 pt-3.5 border-t border-dashed border-ink/10 dark:border-white/10">
+        <div className="mt-4 pt-3.5 border-t border-ink/8 dark:border-white/8">
           <div className="flex flex-wrap gap-2 text-xs">
             {feedback.tripMode && (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-volt text-[#111111] dark:bg-pod dark:text-volt font-semibold">

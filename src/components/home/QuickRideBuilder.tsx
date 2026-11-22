@@ -14,7 +14,7 @@ import {
   Gauge,
   RefreshCw,
   SlidersHorizontal,
-  Sparkle,
+  Sparkles,
   SpinnerGap,
   Tent,
   TrainSimple,
@@ -60,7 +60,11 @@ export type QuickOpenPopover = 'type' | 'distance' | 'departure' | 'pace' | null
 export interface QuickRideBuilderProps {
   riderSpecs?: RiderBikeSpecs;
   currentWeather?: WeatherCondition;
-  onCreateTrip: (trip: TripProfile, targetView: 'dashboard' | 'configurator') => void;
+  onCreateTrip: (
+    trip: TripProfile,
+    targetView: 'dashboard' | 'configurator',
+    options?: { autoOpenSlicer?: boolean }
+  ) => void;
   onOpenOnboarding?: () => void;
 }
 
@@ -300,7 +304,7 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
 }) => {
   const { lang } = useTranslation();
   const isFr = lang === 'fr';
-  const [isComposerOpen, setIsComposerOpen] = useState(true);
+  const [isComposerOpen, setIsComposerOpen] = useState(false);
   const specs = propSpecs ?? loadRiderBikeSpecs();
   const activeBike = getActiveBike(specs);
   const effectiveRider = getEffectiveRiderSpecs(specs);
@@ -807,22 +811,30 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
 
   const launchFromParsedRoute = (parsed: GpxParseResult, sourceLabel: string) => {
     const cleanName = parsed.trackName?.trim() || cleanFileBaseName(sourceLabel) || (isFr ? 'Trace importée' : 'Imported route');
+    const isLikelyMultiDayTour = parsed.distanceKm >= 160;
+    const shouldAutoOpenSlicer = parsed.distanceKm >= 180 && parsed.coordinates.length >= 2;
+    const resolvedTag = isLikelyMultiDayTour ? 'BIKEPACKING' : activeType.tag;
+    const resolvedLuggageKg = isLikelyMultiDayTour
+      ? Math.max(8, activeType.defaultLuggageKg)
+      : vibeLightPack
+      ? 0.5
+      : activeType.defaultLuggageKg;
     const trip = buildBaseTrip({
       name: cleanName,
-      tag: activeType.tag,
+      tag: resolvedTag,
       description: isFr
         ? `Trace GPS importée (${sourceLabel}) · ${parsed.distanceKm.toFixed(1)} km`
         : `Imported GPS route (${sourceLabel}) · ${parsed.distanceKm.toFixed(1)} km`,
       distKm: parsed.distanceKm,
-      speedKmH: resolvedSpeedKmH,
+      speedKmH: isLikelyMultiDayTour ? Math.min(resolvedSpeedKmH, 21) : resolvedSpeedKmH,
       dateIso: resolvedSchedule.date,
       timeStr: resolvedSchedule.time,
-      arriveAtMode,
+      arriveAtMode: isLikelyMultiDayTour ? false : arriveAtMode,
       originLabel: parsed.originLabel || (isFr ? 'Départ trace' : 'Route start'),
       destLabel: parsed.destLabel || (isFr ? 'Arrivée trace' : 'Route finish'),
       gateName: parsed.destLabel || undefined,
       chips: Array.from(new Set([...activeType.baseChips, ...(vibeBakeryStop ? ['coffee-stop'] : [])])),
-      luggageWeightKg: vibeLightPack ? 0.5 : activeType.defaultLuggageKg,
+      luggageWeightKg: resolvedLuggageKg,
       routeMode: 'gpx',
       coordinates: parsed.coordinates,
       originCoords: parsed.coordinates[0],
@@ -834,7 +846,7 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
       gpxFileName: sourceLabel,
     });
     setImportSuccessName(cleanName);
-    onCreateTrip(trip, 'dashboard');
+    onCreateTrip(trip, 'dashboard', { autoOpenSlicer: shouldAutoOpenSlicer });
   };
 
   const handleFileImport = async (file: File) => {
@@ -970,20 +982,22 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
 
   return (
     <section
-      aria-label={isFr ? 'Compositeur de sortie rapide' : 'Quick Ride Composer'}
-      className="relative z-30 bg-card border border-ink/5 dark:border-white/5 rounded-card p-4.5 sm:p-6 shadow-xs overflow-visible animate-apple-in"
+      aria-label={isFr ? 'Importer une trace ou esquisser une sortie' : 'Import Route or Quick Ride Builder'}
+      className="relative z-30 min-w-0 max-w-full bg-card border border-ink/5 dark:border-white/5 rounded-card p-4 sm:p-6 shadow-xs overflow-visible animate-apple-in"
     >
       {/* Top Badge & Optional Guided Setup Hint */}
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-3.5">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <div className="inline-flex items-center gap-2 flex-wrap">
           <span
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-rounded font-bold uppercase tracking-wider ${CHIP_TOKENS.teal.surface} ${CHIP_TOKENS.teal.primary}`}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-rounded font-bold uppercase tracking-wider ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary}`}
           >
-            <Sparkle className="w-3.5 h-3.5" />
-            <span>{isFr ? 'Démarrage rapide' : 'Quick-Start Composer'}</span>
+            <Upload className="w-3.5 h-3.5" />
+            <span>{isFr ? 'Importer une trace' : 'Drop a route'}</span>
           </span>
           <span className="text-xs text-ink-muted">
-            {isFr ? '3 clics · physique, météo & ravitaillement instantanés' : '3 taps · instant physics, weather & fueling plan'}
+            {isFr
+              ? 'Komoot, Strava, RideWithGPS, Bikemap ou fichier .GPX / .TCX / .FIT'
+              : 'Komoot, Strava, RideWithGPS, Bikemap or .GPX / .TCX / .FIT file'}
           </span>
         </div>
         {onOpenOnboarding && (
@@ -997,21 +1011,200 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
         )}
       </div>
 
-      {/* 1. 3-Tap Interactive Mad-Libs Sentence Composer */}
-      <div ref={composerRef} className="relative z-40 pt-0.5">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-2.5 text-[15px] sm:text-[17px] font-rounded font-medium text-ink leading-relaxed">
-          <span>{isFr ? 'Je pars sur une' : 'I want a'}</span>
+      {/* ── 1. IMPORT-FIRST HERO (URL Paste + Drag-and-Drop Dropzone) ── */}
+      <div className="space-y-3">
+        <div>
+          <h2 className="text-lg sm:text-[22px] font-bold tracking-tight text-ink font-rounded leading-snug">
+            {isFr ? 'Déposez une trace pour bâtir votre plan de sortie' : 'Drop a route to build your ride plan'}
+          </h2>
+          <p className="text-xs sm:text-[13px] text-ink-secondary mt-0.5 leading-relaxed">
+            {isFr
+              ? 'Collez un lien Komoot ou déposez un fichier GPX : météo par secteur, points d’eau, nutrition et découpage multi-jours calculés instantanément.'
+              : 'Paste a Komoot link or drop a GPX file — get instant weather, water gaps, fueling, and multi-day stage cuts.'}
+          </p>
+        </div>
+
+        {/* Prominent Route URL paste form */}
+        <form onSubmit={handleRouteUrlSubmit} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <div className="flex-1 min-w-0">
+            <input
+              type="url"
+              value={routeLinkInput}
+              onChange={(e) => {
+                setRouteLinkInput(e.target.value);
+                if (importError) setImportError(null);
+              }}
+              aria-label={isFr ? 'Coller un lien Komoot, Bikemap, RideWithGPS ou Strava' : 'Paste Komoot, Bikemap, RideWithGPS or Strava link'}
+              placeholder={
+                isFr
+                  ? 'Coller un lien Komoot / Strava / RideWithGPS / Bikemap…'
+                  : 'Paste Komoot, Strava, RideWithGPS or Bikemap link…'
+              }
+              className="w-full min-h-[46px] px-4 rounded-pod bg-pod border border-ink/10 dark:border-white/10 text-base sm:text-sm text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-teal-500/40"
+            />
+          </div>
+          <Button
+            type="submit"
+            variant="primary"
+            size="md"
+            loading={isImportingRoute}
+            disabled={!routeLinkInput.trim() || isImportingRoute}
+            className="min-h-[46px] shrink-0 px-5 rounded-full bg-volt hover:bg-[#E2E443] text-[#111111] ring-1 ring-inset ring-black/10 text-xs sm:text-[13px] font-rounded font-bold cursor-pointer disabled:opacity-50"
+          >
+            {isFr ? 'Importer' : 'Import Link'}
+          </Button>
+        </form>
+
+        {/* Single-line Drag-and-drop file dropzone (never wraps Browse onto a second line) */}
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            setIsDragOver(true);
+          }}
+          onDragLeave={() => setIsDragOver(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setIsDragOver(false);
+            const file = e.dataTransfer.files?.[0];
+            if (file) {
+              void handleFileImport(file);
+            }
+          }}
+          className={`flex flex-row flex-nowrap items-center justify-between gap-2.5 sm:gap-3 px-3 sm:px-4 py-3 rounded-pod border border-dashed min-w-0 max-w-full overflow-hidden transition-colors ${
+            isDragOver
+              ? 'ring-1 ring-inset ring-teal-500/60 border-teal-500/50 bg-teal-500/10'
+              : 'bg-pod hover:bg-chip border-ink/15 dark:border-white/15'
+          }`}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".gpx,.tcx,.fit"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                void handleFileImport(file);
+              }
+              e.target.value = '';
+            }}
+          />
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1 overflow-hidden">
+            <div
+              className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0 ${CHIP_TOKENS.teal.surface} ${CHIP_TOKENS.teal.primary}`}
+            >
+              {isImportingRoute ? (
+                <SpinnerGap className="w-4 h-4 animate-spin" />
+              ) : (
+                <Upload className="w-4 h-4" />
+              )}
+            </div>
+            <div className="min-w-0 flex-1 overflow-hidden">
+              <div className="text-xs sm:text-[13px] font-bold text-ink truncate">
+                <span className="sm:hidden">
+                  {isFr ? 'Fichier .GPX, .TCX, .FIT' : 'Drop .GPX, .TCX, or .FIT'}
+                </span>
+                <span className="hidden sm:inline">
+                  {isFr ? 'Déposez un fichier .GPX, .TCX ou .FIT ici' : 'Drop a .GPX, .TCX, or .FIT file here'}
+                </span>
+              </div>
+              <div className="text-[11px] text-ink-muted truncate">
+                {importSuccessName
+                  ? isFr
+                    ? `Prêt : ${importSuccessName}`
+                    : `Loaded: ${importSuccessName}`
+                  : isFr
+                    ? 'Glissez ou parcourez — ouverture directe'
+                    : 'Drag & drop or browse — launches straight into your ride plan'}
+              </div>
+            </div>
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={isImportingRoute}
+            onClick={() => fileInputRef.current?.click()}
+            className="min-h-[36px] px-3.5 sm:px-4 rounded-full bg-card hover:bg-chip-hover text-ink border border-ink/10 dark:border-white/10 shrink-0 whitespace-nowrap text-xs font-semibold cursor-pointer"
+          >
+            {isFr ? 'Parcourir' : 'Browse'}
+          </Button>
+        </div>
+
+        {/* Inline Route Import / CORS Guidance Feedback */}
+        {importError && (
+          <div
+            role="alert"
+            className="flex flex-wrap items-start justify-between gap-2.5 rounded-pod bg-amber-500/10 border border-amber-500/30 px-3.5 py-2.5 text-xs text-ink"
+          >
+            <div className="flex items-start gap-2 flex-1 min-w-[200px]">
+              <CircleAlert className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+              <span>{importError}</span>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {(/strava/i.test(routeLinkInput) || /strava/i.test(importError)) &&
+                !getCachedStravaStatus().connected && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={startStravaOAuthConnect}
+                    className="min-h-[44px] sm:min-h-[34px] px-3 rounded-full bg-[#B83500] hover:bg-[#9E2D00] text-white text-[11px] font-rounded font-semibold cursor-pointer"
+                  >
+                    {isFr ? 'Connecter Strava' : 'Connect Strava'}
+                  </Button>
+                )}
+              <button
+                type="button"
+                onClick={() => setImportError(null)}
+                aria-label={isFr ? 'Fermer l’avertissement' : 'Dismiss warning'}
+                className="text-ink-muted hover:text-ink p-1 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── 2. SECONDARY DISCLOSURE: SKETCH FROM SCRATCH & 1-TAP RECIPES ── */}
+      <div className="mt-4 pt-3.5 border-t border-dashed border-ink/15 dark:border-white/15 flex flex-wrap items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={() => setIsComposerOpen((prev) => !prev)}
+          aria-expanded={isComposerOpen}
+          data-testid="sketch-from-scratch-toggle"
+          className="w-full sm:w-auto inline-flex items-center justify-between sm:justify-start gap-2 min-h-[40px] px-4 rounded-full bg-pod hover:bg-chip text-ink-secondary hover:text-ink border border-ink/5 dark:border-white/5 text-xs font-semibold transition-colors cursor-pointer active:scale-[0.98]"
+        >
+          <span className="inline-flex items-center gap-2 min-w-0">
+            <Sparkles className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 shrink-0" />
+            <span className="truncate">
+              {isFr
+                ? 'Pas encore de trace ? Esquisser une sortie rapide'
+                : 'No route yet? Sketch a quick ride from scratch'}
+            </span>
+          </span>
+          <ChevronDown
+            className={`w-3.5 h-3.5 shrink-0 transition-transform duration-200 ${isComposerOpen ? 'rotate-180' : ''}`}
+          />
+        </button>
+      </div>
+
+      <Collapsible open={isComposerOpen} allowOverflowWhenOpen innerClassName="pt-4 min-w-0 max-w-full">
+        {/* 3-Tap Interactive Mad-Libs Sentence Composer */}
+        <div ref={composerRef} className="relative z-40 pt-0.5 min-w-0 max-w-full">
+          <div className="flex flex-wrap items-center gap-x-1.5 sm:gap-x-2 gap-y-2 text-[14px] sm:text-[17px] font-rounded font-medium text-ink leading-relaxed max-w-full">
+            <span>{isFr ? 'Je pars sur une' : 'I want a'}</span>
 
             {/* Pill 1: Ride Type */}
-            <div className="relative inline-block">
+            <div className="relative inline-block max-w-full">
               <button
                 type="button"
                 aria-expanded={openPopover === 'type'}
                 aria-haspopup="listbox"
                 onClick={() => setOpenPopover(openPopover === 'type' ? null : 'type')}
-                className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] px-3 py-1 rounded-full border border-teal-500/30 font-semibold text-sm sm:text-base transition-colors cursor-pointer ${CHIP_TOKENS.teal.surface} ${CHIP_TOKENS.teal.primary} hover:brightness-95 dark:hover:brightness-110`}
+                className={`inline-flex items-center gap-1.5 min-h-[40px] sm:min-h-[36px] px-2.5 sm:px-3 py-1 rounded-full border border-teal-500/30 font-semibold text-xs sm:text-base transition-colors cursor-pointer ${CHIP_TOKENS.teal.surface} ${CHIP_TOKENS.teal.primary} hover:brightness-95 dark:hover:brightness-110`}
               >
-                <span aria-hidden="true">{renderRideTypeIcon(activeType.id, 'w-4 h-4 shrink-0')}</span>
+                <span aria-hidden="true">{renderRideTypeIcon(activeType.id, 'w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0')}</span>
                 <span>{isFr ? activeType.labelFr : activeType.labelEn}</span>
                 <ChevronDown className="w-3.5 h-3.5 opacity-80" />
               </button>
@@ -1020,7 +1213,7 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
                 <div
                   role="listbox"
                   aria-label={isFr ? 'Type de sortie' : 'Ride type'}
-                  className="absolute left-0 top-full mt-2 w-64 bg-white dark:bg-[#161618] border border-ink/10 dark:border-white/10 rounded-pod shadow-xl p-1.5 z-50"
+                  className="absolute left-0 top-full mt-2 w-64 max-w-[calc(100vw-3rem)] bg-white dark:bg-[#161618] border border-ink/10 dark:border-white/10 rounded-pod shadow-xl p-1.5 z-50"
                 >
                   {RIDE_TYPE_OPTIONS.map((opt) => {
                     const selected = opt.id === rideTypeId;
@@ -1058,7 +1251,7 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
                 aria-expanded={openPopover === 'distance'}
                 aria-haspopup="listbox"
                 onClick={() => setOpenPopover(openPopover === 'distance' ? null : 'distance')}
-                className="inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] px-3.5 py-1 rounded-full bg-pod hover:bg-chip border border-ink/10 dark:border-white/10 text-ink tnum font-bold text-sm sm:text-base transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 min-h-[40px] sm:min-h-[36px] px-3 sm:px-3.5 py-1 rounded-full bg-pod hover:bg-chip border border-ink/10 dark:border-white/10 text-ink tnum font-bold text-xs sm:text-base transition-colors cursor-pointer"
               >
                 <span>{distanceKm} km</span>
                 <ChevronDown className="w-3.5 h-3.5 text-ink-muted" />
@@ -1068,7 +1261,7 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
                 <div
                   role="listbox"
                   aria-label={isFr ? 'Distance' : 'Distance'}
-                  className="absolute left-0 top-full mt-2 w-64 bg-white dark:bg-[#161618] border border-ink/10 dark:border-white/10 rounded-pod shadow-xl p-2.5 z-50 space-y-2"
+                  className="absolute left-0 top-full mt-2 w-64 max-w-[calc(100vw-3rem)] bg-white dark:bg-[#161618] border border-ink/10 dark:border-white/10 rounded-pod shadow-xl p-2.5 z-50 space-y-2"
                 >
                   <div className="grid grid-cols-2 gap-1.5">
                     {activeDistancePresets.map((km) => {
@@ -1114,7 +1307,7 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
                       }}
                       aria-label={isFr ? 'Distance personnalisée en km' : 'Custom distance in km'}
                       placeholder={isFr ? 'Perso km' : 'Custom km'}
-                      className="w-full min-h-[44px] sm:min-h-[36px] px-2.5 rounded-xl bg-pod border border-ink/10 dark:border-white/10 text-sm tnum text-ink focus:outline-none focus:ring-2 focus:ring-teal-500/40"
+                      className="w-full min-h-[44px] sm:min-h-[36px] px-2.5 rounded-xl bg-pod border border-ink/10 dark:border-white/10 text-base sm:text-sm tnum text-ink focus:outline-none focus:ring-2 focus:ring-teal-500/40"
                     />
                     <Button
                       size="sm"
@@ -1153,7 +1346,7 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
                 aria-expanded={openPopover === 'departure'}
                 aria-haspopup="listbox"
                 onClick={() => setOpenPopover(openPopover === 'departure' ? null : 'departure')}
-                className="inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] px-3.5 py-1 rounded-full bg-pod hover:bg-chip border border-ink/10 dark:border-white/10 text-ink text-sm sm:text-base font-semibold transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 min-h-[40px] sm:min-h-[36px] px-3 sm:px-3.5 py-1 rounded-full bg-pod hover:bg-chip border border-ink/10 dark:border-white/10 text-ink text-xs sm:text-base font-semibold transition-colors cursor-pointer"
               >
                 <Clock className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 shrink-0" />
                 <span className="tnum">{departurePillLabel}</span>
@@ -1172,7 +1365,7 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
                       ? 'Heure de départ'
                       : 'Departure schedule'
                   }
-                  className="absolute left-0 top-full mt-2 w-72 bg-white dark:bg-[#161618] border border-ink/10 dark:border-white/10 rounded-pod shadow-xl p-2 z-50 space-y-1"
+                  className="absolute left-0 top-full mt-2 w-72 max-w-[calc(100vw-3rem)] bg-white dark:bg-[#161618] border border-ink/10 dark:border-white/10 rounded-pod shadow-xl p-2 z-50 space-y-1"
                 >
                   <div
                     role="radiogroup"
@@ -1286,7 +1479,7 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
                           setCustomDate(e.target.value);
                           setDeparturePreset('custom');
                         }}
-                        className="min-h-[44px] sm:min-h-[36px] px-2 rounded-xl bg-pod border border-ink/10 dark:border-white/10 text-xs tnum text-ink"
+                        className="min-h-[44px] sm:min-h-[36px] px-2 rounded-xl bg-pod border border-ink/10 dark:border-white/10 text-base sm:text-xs tnum text-ink"
                       />
                       <input
                         type="time"
@@ -1295,7 +1488,7 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
                           setCustomTime(e.target.value);
                           setDeparturePreset('custom');
                         }}
-                        className="min-h-[44px] sm:min-h-[36px] px-2 rounded-xl bg-pod border border-ink/10 dark:border-white/10 text-xs tnum text-ink"
+                        className="min-h-[44px] sm:min-h-[36px] px-2 rounded-xl bg-pod border border-ink/10 dark:border-white/10 text-base sm:text-xs tnum text-ink"
                       />
                     </div>
                   </div>
@@ -1312,7 +1505,7 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
                 aria-expanded={openPopover === 'pace'}
                 aria-haspopup="listbox"
                 onClick={() => setOpenPopover(openPopover === 'pace' ? null : 'pace')}
-                className="inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] px-3.5 py-1 rounded-full bg-pod hover:bg-chip border border-ink/10 dark:border-white/10 text-ink text-sm sm:text-base font-semibold transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 min-h-[40px] sm:min-h-[36px] px-3 sm:px-3.5 py-1 rounded-full bg-pod hover:bg-chip border border-ink/10 dark:border-white/10 text-ink text-xs sm:text-base font-semibold transition-colors cursor-pointer"
               >
                 <Gauge className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 shrink-0" />
                 <span className="tnum">{pacePillLabel}</span>
@@ -1323,7 +1516,7 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
                 <div
                   role="listbox"
                   aria-label={isFr ? 'Allure cible' : 'Target pace'}
-                  className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-72 bg-white dark:bg-[#161618] border border-ink/10 dark:border-white/10 rounded-pod shadow-xl p-2 z-50 space-y-1"
+                  className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-72 max-w-[calc(100vw-3rem)] bg-white dark:bg-[#161618] border border-ink/10 dark:border-white/10 rounded-pod shadow-xl p-2 z-50 space-y-1"
                 >
                   {PACE_PRESETS.map((opt) => {
                     const selected = pacePreset === opt.id;
@@ -1381,307 +1574,145 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
 
             {!isFr && <span>pace.</span>}
           </div>
-      </div>
+        </div>
 
-      <Collapsible open={isComposerOpen}>
-          {/* Optional Start/Destination Location + Vibe Pills + Build CTAs */}
-          <div className="mt-4 pt-4 border-t border-ink/10 dark:border-white/10 flex flex-col lg:flex-row lg:items-end gap-3 justify-between">
-            <div className="flex-1 flex flex-col gap-3">
-              <div
-                className={`grid grid-cols-1 gap-3 items-end ${
-                  showDestinationInput ? 'sm:grid-cols-2' : 'md:grid-cols-[minmax(220px,1fr)_auto]'
-                }`}
-              >
-                <div className="relative z-30 focus-within:z-50">
+        {/* Optional Start/Destination Location + Vibe Pills + Build CTAs */}
+        <div className="mt-4 pt-4 border-t border-dashed border-ink/15 dark:border-white/15 flex flex-col lg:flex-row lg:items-end gap-3 justify-between min-w-0">
+          <div className="flex-1 min-w-0 flex flex-col gap-3">
+            <div
+              className={`grid grid-cols-1 gap-3 items-end min-w-0 ${
+                showDestinationInput ? 'sm:grid-cols-2' : 'md:grid-cols-[minmax(220px,1fr)_auto]'
+              }`}
+            >
+              <div className="relative z-30 focus-within:z-50 min-w-0">
+                <LocationAutocompleteInput
+                  id="quick-ride-start-location"
+                  label={
+                    showDestinationInput
+                      ? isFr
+                        ? 'Départ (A · optionnel)'
+                        : 'Start (A · optional)'
+                      : isFr
+                      ? 'Départ (optionnel)'
+                      : 'Start Location (optional)'
+                  }
+                  value={startLocationText}
+                  placeholder={isFr ? 'Ville ou adresse (ex: Lyon, Annecy…)' : 'City or trailhead (e.g. Portland, Ghent…)'}
+                  onChange={(val) => {
+                    setStartLocationText(val);
+                    setStartLocationCoords(null);
+                  }}
+                  onSelectLocation={(suggestion: LocationSuggestion) => {
+                    setStartLocationText(suggestion.name);
+                    setStartLocationCoords(suggestion.coordinates);
+                  }}
+                  onKeyDownEnter={() => {
+                    void handleBuildFromComposer('dashboard');
+                  }}
+                />
+              </div>
+
+              {showDestinationInput && (
+                <div className="relative z-20 focus-within:z-50">
                   <LocationAutocompleteInput
-                    id="quick-ride-start-location"
-                    label={
-                      showDestinationInput
-                        ? isFr
-                          ? 'Départ (A · optionnel)'
-                          : 'Start (A · optional)'
-                        : isFr
-                        ? 'Départ (optionnel)'
-                        : 'Start Location (optional)'
-                    }
-                    value={startLocationText}
-                    placeholder={isFr ? 'Ville ou adresse (ex: Lyon, Annecy…)' : 'City or trailhead (e.g. Portland, Ghent…)'}
+                    id="quick-ride-dest-location"
+                    label={isFr ? 'Destination (B · optionnel)' : 'Destination (B · optional)'}
+                    value={destLocationText}
+                    biasCoords={startLocationCoords ?? undefined}
+                    dropdownAlign="right"
+                    placeholder={isFr ? 'Bureau, gare, adresse…' : 'Work, station, address…'}
                     onChange={(val) => {
-                      setStartLocationText(val);
-                      setStartLocationCoords(null);
+                      setDestLocationText(val);
+                      setDestLocationCoords(null);
                     }}
                     onSelectLocation={(suggestion: LocationSuggestion) => {
-                      setStartLocationText(suggestion.name);
-                      setStartLocationCoords(suggestion.coordinates);
+                      setDestLocationText(suggestion.name);
+                      setDestLocationCoords(suggestion.coordinates);
                     }}
                     onKeyDownEnter={() => {
                       void handleBuildFromComposer('dashboard');
                     }}
                   />
                 </div>
-
-                {showDestinationInput && (
-                  <div className="relative z-20 focus-within:z-50">
-                    <LocationAutocompleteInput
-                      id="quick-ride-dest-location"
-                      label={isFr ? 'Destination (B · optionnel)' : 'Destination (B · optional)'}
-                      value={destLocationText}
-                      biasCoords={startLocationCoords ?? undefined}
-                      dropdownAlign="right"
-                      placeholder={isFr ? 'Bureau, gare, adresse…' : 'Work, station, address…'}
-                      onChange={(val) => {
-                        setDestLocationText(val);
-                        setDestLocationCoords(null);
-                      }}
-                      onSelectLocation={(suggestion: LocationSuggestion) => {
-                        setDestLocationText(suggestion.name);
-                        setDestLocationCoords(suggestion.coordinates);
-                      }}
-                      onKeyDownEnter={() => {
-                        void handleBuildFromComposer('dashboard');
-                      }}
-                    />
-                  </div>
-                )}
-
-                {!showDestinationInput && vibeToggleGroup}
-              </div>
-
-              {showDestinationInput && vibeToggleGroup}
-            </div>
-
-            {/* Build Actions */}
-            <div className="flex flex-wrap items-center gap-2 shrink-0">
-              <Button
-                variant="secondary"
-                size="md"
-                loading={isBuilding === 'configurator'}
-                disabled={Boolean(isBuilding)}
-                onClick={() => {
-                  void handleBuildFromComposer('configurator');
-                }}
-                className="min-h-[44px] sm:min-h-[40px] px-4 rounded-full bg-pod hover:bg-chip text-ink border border-ink/10 dark:border-white/10 gap-1.5 font-semibold text-xs sm:text-[13px] cursor-pointer"
-              >
-                <SlidersHorizontal className="w-4 h-4" />
-                <span>{isFr ? 'Affiner' : 'Fine-tune'}</span>
-              </Button>
-              <Button
-                variant="ghost"
-                size="md"
-                loading={isBuilding === 'dashboard'}
-                disabled={Boolean(isBuilding)}
-                onClick={() => {
-                  void handleBuildFromComposer('dashboard');
-                }}
-                className="min-h-[44px] sm:min-h-[40px] px-5 rounded-full gap-1.5 bg-[#111111] hover:bg-[#262626] text-white dark:bg-[#F5F5F7] dark:hover:bg-white dark:text-[#111111] border-0 ring-0 font-semibold text-xs sm:text-[13px] cursor-pointer"
-              >
-                <Bike className="w-4 h-4" />
-                <span>{isFr ? 'Créer mon plan' : 'Build Ride Plan'}</span>
-                <ArrowRight className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-
-      {/* 2. 1-Tap Ride Recipes */}
-      <div className="mt-5 pt-4 border-t border-ink/10 dark:border-white/10">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[11px] font-rounded font-bold uppercase tracking-wider text-ink-muted">
-            {isFr ? 'Recettes en 1 clic' : '1-Tap Ride Recipes'}
-          </span>
-          <span className="text-[11px] text-ink-muted">
-            {isFr ? 'Ouvre le tableau de bord instantanément' : 'Launches straight into dashboard'}
-          </span>
-        </div>
-        <div className="flex overflow-x-auto gap-2 pb-1 -mx-[18px] px-[18px] scroll-pl-[18px] snap-x snap-mandatory no-scrollbar md:grid md:grid-cols-2 xl:grid-cols-4 md:overflow-visible md:pb-0 md:mx-0 md:px-0">
-          {RIDE_RECIPES.map((recipe) => (
-            <button
-              key={recipe.id}
-              type="button"
-              onClick={() => handleLaunchRecipe(recipe)}
-              className="group min-w-[215px] shrink-0 snap-start md:min-w-0 flex items-center justify-between gap-2 text-left min-h-[44px] px-3.5 py-2.5 rounded-pod bg-pod hover:bg-chip border border-ink/5 dark:border-white/5 transition-all cursor-pointer active:scale-[0.99]"
-            >
-              <div className="min-w-0 flex items-center gap-2.5">
-                <div
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${CHIP_TOKENS.teal.surface} ${CHIP_TOKENS.teal.primary}`}
-                >
-                  {renderRideTypeIcon(recipe.typeId, 'w-4 h-4')}
-                </div>
-                <div className="min-w-0">
-                  <div className="text-xs font-bold text-ink truncate">
-                    {isFr ? recipe.titleFr : recipe.titleEn}
-                  </div>
-                  <div className="text-[11px] tnum text-ink-secondary truncate">
-                    {isFr ? recipe.metaFr : recipe.metaEn}
-                  </div>
-                </div>
-              </div>
-              <ArrowRight className="w-3.5 h-3.5 text-ink-muted group-hover:text-ink group-hover:translate-x-0.5 transition-all shrink-0" />
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 3. Drop & Go Route Import (GPX/TCX/FIT + Link Paste) */}
-      <div className="mt-4 pt-4 border-t border-ink/10 dark:border-white/10 grid grid-cols-1 lg:grid-cols-2 gap-3">
-        {/* Drag-and-drop file box */}
-        <div
-          onDragOver={(e) => {
-            e.preventDefault();
-            setIsDragOver(true);
-          }}
-          onDragLeave={() => setIsDragOver(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setIsDragOver(false);
-            const file = e.dataTransfer.files?.[0];
-            if (file) {
-              void handleFileImport(file);
-            }
-          }}
-          className={`flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-pod border border-dashed transition-colors ${
-            isDragOver
-              ? 'border-teal-500 bg-teal-500/10'
-              : 'border-ink/15 dark:border-white/15 bg-pod/70 hover:border-teal-500/50'
-          }`}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".gpx,.tcx,.fit"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                void handleFileImport(file);
-              }
-              e.target.value = '';
-            }}
-          />
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div
-              className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${CHIP_TOKENS.teal.surface} ${CHIP_TOKENS.teal.primary}`}
-            >
-              {isImportingRoute ? (
-                <SpinnerGap className="w-4 h-4 animate-spin" />
-              ) : (
-                <Upload className="w-4 h-4" />
               )}
-            </div>
-            <div className="min-w-0">
-              <div className="text-xs font-bold text-ink truncate">
-                {isFr ? 'Importer & rouler (.gpx, .tcx, .fit)' : 'Drop & Go (.gpx, .tcx, .fit)'}
-              </div>
-              <div className="text-[11px] text-ink-muted truncate">
-                {importSuccessName
-                  ? isFr
-                    ? `Prêt : ${importSuccessName}`
-                    : `Loaded: ${importSuccessName}`
-                  : isFr
-                    ? 'Glissez un fichier ou parcourez — ouverture directe'
-                    : 'Drag a route file here or browse to launch'}
-              </div>
-            </div>
-          </div>
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={isImportingRoute}
-            onClick={() => fileInputRef.current?.click()}
-            className="min-h-[44px] sm:min-h-[36px] px-3.5 rounded-full bg-card hover:bg-chip-hover text-ink border border-ink/10 dark:border-white/10 shrink-0 text-xs font-semibold cursor-pointer"
-          >
-            {isFr ? 'Choisir fichier' : 'Browse'}
-          </Button>
-        </div>
 
-        {/* Route URL paste form */}
-        <form onSubmit={handleRouteUrlSubmit} className="flex items-center gap-2">
-          <div className="flex-1 min-w-0">
-            <input
-              type="url"
-              value={routeLinkInput}
-              onChange={(e) => {
-                setRouteLinkInput(e.target.value);
-                if (importError) setImportError(null);
+              {!showDestinationInput && vibeToggleGroup}
+            </div>
+
+            {showDestinationInput && vibeToggleGroup}
+          </div>
+
+          {/* Build Actions */}
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full lg:w-auto shrink-0">
+            <Button
+              variant="secondary"
+              size="md"
+              loading={isBuilding === 'configurator'}
+              disabled={Boolean(isBuilding)}
+              onClick={() => {
+                void handleBuildFromComposer('configurator');
               }}
-              aria-label={isFr ? 'Coller un lien Komoot, Bikemap, RideWithGPS ou Strava' : 'Paste Komoot, Bikemap, RideWithGPS or Strava link'}
-              placeholder={
-                isFr
-                  ? 'Coller un lien Komoot / Bikemap / RideWithGPS / Strava…'
-                  : 'Paste Komoot / Bikemap / RideWithGPS / Strava URL…'
-              }
-              className="w-full min-h-[44px] px-3.5 rounded-pod bg-pod border border-ink/10 dark:border-white/10 text-xs text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-teal-500/40"
-            />
-          </div>
-          <Button
-            type="submit"
-            variant="secondary"
-            size="sm"
-            loading={isImportingRoute}
-            disabled={!routeLinkInput.trim() || isImportingRoute}
-            className="min-h-[44px] shrink-0 px-4 rounded-full bg-card hover:bg-chip-hover text-ink border border-ink/10 dark:border-white/10 text-xs font-semibold cursor-pointer"
-          >
-            {isFr ? 'Importer' : 'Import Link'}
-          </Button>
-        </form>
-      </div>
-
-      {/* Inline Route Import / CORS Guidance Feedback */}
-      {importError && (
-        <div
-          role="alert"
-          className="mt-3 flex flex-wrap items-start justify-between gap-2.5 rounded-pod bg-amber-500/10 border border-amber-500/30 px-3.5 py-2.5 text-xs text-ink"
-        >
-          <div className="flex items-start gap-2 flex-1 min-w-[200px]">
-            <CircleAlert className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-            <span>{importError}</span>
-          </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            {(/strava/i.test(routeLinkInput) || /strava/i.test(importError)) &&
-              !getCachedStravaStatus().connected && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={startStravaOAuthConnect}
-                  className="min-h-[44px] sm:min-h-[34px] px-3 rounded-full bg-[#B83500] hover:bg-[#9E2D00] text-white text-[11px] font-rounded font-semibold cursor-pointer"
-                >
-                  {isFr ? 'Connecter Strava' : 'Connect Strava'}
-                </Button>
-              )}
-            <button
-              type="button"
-              onClick={() => setImportError(null)}
-              aria-label={isFr ? 'Fermer l’avertissement' : 'Dismiss warning'}
-              className="text-ink-muted hover:text-ink p-1 cursor-pointer"
+              className="w-full sm:w-auto min-h-[42px] sm:min-h-[40px] px-4 rounded-full bg-pod hover:bg-chip text-ink border border-ink/10 dark:border-white/10 gap-1.5 font-semibold text-xs sm:text-[13px] cursor-pointer justify-center"
             >
-              <X className="w-3.5 h-3.5" />
-            </button>
+              <SlidersHorizontal className="w-4 h-4 shrink-0" />
+              <span className="truncate">{isFr ? 'Affiner' : 'Fine-tune'}</span>
+            </Button>
+            <Button
+              variant="primary"
+              size="md"
+              loading={isBuilding === 'dashboard'}
+              disabled={Boolean(isBuilding)}
+              onClick={() => {
+                void handleBuildFromComposer('dashboard');
+              }}
+              className="w-full sm:w-auto min-h-[42px] sm:min-h-[40px] px-4 sm:px-5 rounded-full gap-1.5 bg-volt hover:bg-[#E2E443] text-[#111111] ring-1 ring-inset ring-black/10 font-rounded font-bold text-xs sm:text-[13px] cursor-pointer justify-center"
+            >
+              <Bike className="w-4 h-4 shrink-0" />
+              <span className="truncate">{isFr ? 'Créer mon plan' : 'Build Ride Plan'}</span>
+              <ArrowRight className="w-4 h-4 shrink-0 hidden sm:inline" />
+            </Button>
           </div>
         </div>
-      )}
-      </Collapsible>
 
-      <div className="mt-3.5 flex justify-start">
-        <button
-          type="button"
-          onClick={() => setIsComposerOpen((prev) => !prev)}
-          aria-expanded={isComposerOpen}
-          className="inline-flex items-center gap-1.5 min-h-[40px] px-4 rounded-full bg-pod hover:bg-chip text-ink-secondary hover:text-ink border border-ink/5 dark:border-white/5 text-xs font-semibold transition-colors cursor-pointer active:scale-[0.98]"
-        >
-          <span>
-            {isComposerOpen
-              ? isFr
-                ? 'Afficher moins d’options'
-                : 'Show less options'
-              : isFr
-              ? 'Afficher plus d’options'
-              : 'Show more options'}
-          </span>
-          <ChevronDown
-            className={`w-3.5 h-3.5 transition-transform duration-200 ${isComposerOpen ? 'rotate-180' : ''}`}
-          />
-        </button>
-      </div>
+        {/* 1-Tap Ride Recipes */}
+        <div className="mt-5 pt-4 border-t border-dashed border-ink/15 dark:border-white/15 min-w-0">
+          <div className="flex flex-wrap items-center justify-between gap-1 mb-2">
+            <span className="text-[11px] font-rounded font-bold uppercase tracking-wider text-ink-muted">
+              {isFr ? 'Recettes en 1 clic' : '1-Tap Ride Recipes'}
+            </span>
+            <span className="text-[11px] text-ink-muted">
+              {isFr ? 'Ouvre le plan de sortie instantanément' : 'Launches straight into ride plan'}
+            </span>
+          </div>
+          <div className="flex overflow-x-auto gap-2 pb-1 -mx-4 px-4 scroll-pl-4 snap-x snap-mandatory no-scrollbar md:grid md:grid-cols-2 xl:grid-cols-4 md:overflow-visible md:pb-0 md:mx-0 md:px-0">
+            {RIDE_RECIPES.map((recipe) => (
+              <button
+                key={recipe.id}
+                type="button"
+                onClick={() => handleLaunchRecipe(recipe)}
+                className="group min-w-[215px] shrink-0 snap-start md:min-w-0 flex items-center justify-between gap-2 text-left min-h-[44px] px-3.5 py-2.5 rounded-pod bg-pod hover:bg-chip border border-ink/5 dark:border-white/5 transition-all cursor-pointer active:scale-[0.99]"
+              >
+                <div className="min-w-0 flex items-center gap-2.5">
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${CHIP_TOKENS.teal.surface} ${CHIP_TOKENS.teal.primary}`}
+                  >
+                    {renderRideTypeIcon(recipe.typeId, 'w-4 h-4')}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-ink truncate">
+                      {isFr ? recipe.titleFr : recipe.titleEn}
+                    </div>
+                    <div className="text-[11px] tnum text-ink-secondary truncate">
+                      {isFr ? recipe.metaFr : recipe.metaEn}
+                    </div>
+                  </div>
+                </div>
+                <ArrowRight className="w-3.5 h-3.5 text-ink-muted group-hover:text-ink group-hover:translate-x-0.5 transition-all shrink-0" />
+              </button>
+            ))}
+          </div>
+        </div>
+      </Collapsible>
     </section>
   );
 };

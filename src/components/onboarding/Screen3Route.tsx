@@ -1020,7 +1020,7 @@ export const Screen3Route: React.FC<Screen3RouteProps> = ({
               />
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="p-6 rounded-pod border-2 border-dashed border-black/20 dark:border-white/20 bg-pod/50 hover:bg-pod text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 select-none"
+                className="p-6 rounded-pod ring-1 ring-inset ring-black/10 dark:ring-white/10 bg-pod/60 hover:bg-pod text-center cursor-pointer transition-colors flex flex-col items-center justify-center gap-2 select-none"
               >
                 <div className="w-10 h-10 rounded-full bg-card flex items-center justify-center text-ink shadow-xs">
                   <Upload size={18} />

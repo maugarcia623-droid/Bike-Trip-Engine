@@ -61,6 +61,7 @@ import { RiderBikeSpecs, resolveBikeTireWidthMm } from '../../types/specs';
 import { getActiveBike, loadRiderBikeSpecs } from '../../utils/specsStorage';
 import { synthesizeRouteElevationProfile } from '../../utils/gpxParser';
 import { computeSurfaceBreakdown, SURFACE_VISUAL_META } from '../../utils/surfaceProfile';
+import { barToPsi } from '../../utils/tyrePressure';
 import { useOsmSurface } from '../../services/osmSurfaceService';
 import { ReverseTimelineCalculation } from '../../utils/timeline';
 import { useTranslation } from '../../context/LanguageContext';
@@ -106,6 +107,7 @@ interface HeroRouteCardProps {
   onTogglePinAmenity?: (amenity: StageAmenity) => void;
   onAmenitiesLoaded?: (amenities: StageAmenity[]) => void;
   onStartRideMode?: () => void;
+  onOpenStageSlicer?: () => void;
 }
 
 type ActiveHeroPopover = 'bike' | 'target' | 'route' | 'pace' | 'elevation' | 'export' | null;
@@ -187,6 +189,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
   onTogglePinAmenity,
   onAmenitiesLoaded,
   onStartRideMode,
+  onOpenStageSlicer,
 }) => {
   const { lang, t } = useTranslation();
   const isFr = lang === 'fr';
@@ -1478,7 +1481,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
       className={
         isMapFullscreen
           ? 'fixed inset-0 z-[1150] bg-card text-ink transition-colors'
-          : 'relative max-w-full min-w-0 rounded-card bg-card text-ink transition-colors shadow-sm min-h-[460px] sm:min-h-[490px] lg:min-h-[520px]'
+          : 'relative max-w-full min-w-0 h-full flex flex-col rounded-card bg-card text-ink transition-colors shadow-sm min-h-[460px] sm:min-h-[490px] lg:min-h-[520px]'
       }
     >
       <div
@@ -1509,7 +1512,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
         className={`relative z-20 p-4 flex flex-col justify-between pointer-events-none ${
           isMapFullscreen
             ? 'h-full pt-[calc(env(safe-area-inset-top,0px)+1rem)] pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] pl-[calc(env(safe-area-inset-left,0px)+1rem)] pr-[calc(env(safe-area-inset-right,0px)+1rem)]'
-            : 'min-h-[460px] sm:min-h-[490px] lg:min-h-[520px]'
+            : 'h-full flex-1 min-h-[460px] sm:min-h-[490px] lg:min-h-[520px]'
         }`}
       >
         <div className="relative z-30 flex flex-wrap items-center justify-start gap-2 mb-24 sm:mb-20 pointer-events-none max-w-full">
@@ -1539,7 +1542,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     })
                   : `${trip.route.origin || 'Nord-sur-Erdre'} ⇄ ${trip.route.destination || meta.gateName || 'Redon'} (${t('heroFlipReturnBtn')})`
               }
-              className={`relative w-9 h-9 min-[360px]:w-10 min-[360px]:h-10 sm:w-9 sm:h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${isInteractive ? 'cursor-pointer' : 'opacity-60 cursor-default'} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+              className={`relative w-11 h-11 sm:w-9 sm:h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${isInteractive ? 'cursor-pointer' : 'opacity-60 cursor-default'} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
               {isRadiusMode ? (
                 <Path className="w-4 h-4 text-current" />
@@ -1562,7 +1565,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   ? ` (${trip.pinnedAmenities.length} ${t('pinnedStop')})`
                   : ''
               }`}
-              className={`relative w-9 h-9 min-[360px]:w-10 min-[360px]:h-10 sm:w-9 sm:h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+              className={`relative w-11 h-11 sm:w-9 sm:h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
               <Radar className="w-4 h-4 text-current" />
               {trip.pinnedAmenities && trip.pinnedAmenities.length > 0 && (
@@ -1589,7 +1592,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   ? `${activeBike.name} · ${activeBike.weightKg} kg · ${activeBike.isTubeless ? 'TL' : 'Tube'} (${t('heroBikeSwitchAria')})`
                   : t('heroBikeSwitchAria')
               }
-              className={`relative w-9 h-9 min-[360px]:w-10 min-[360px]:h-10 sm:w-9 sm:h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+              className={`relative w-11 h-11 sm:w-9 sm:h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
               <Bicycle className="w-4 h-4 text-current shrink-0" />
             </Button>
@@ -1603,7 +1606,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                 onClick={onStartRideMode}
                 aria-label={isFr ? 'Mode Vélo' : 'Ride Mode'}
                 title={t('startRideModeBtn')}
-                className={`relative w-9 h-9 min-[360px]:w-10 min-[360px]:h-10 sm:w-9 sm:h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                className={`relative w-11 h-11 sm:w-9 sm:h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
               >
                 <Play className="w-4 h-4 shrink-0 text-current" />
               </Button>
@@ -1636,7 +1639,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   ? 'Enregistrer carte, arrêts, surface et météo pour rouler sans réseau'
                   : 'Save map, stops, surface & weather for zero-signal rides'
               }
-              className={`relative w-9 h-9 min-[360px]:w-10 min-[360px]:h-10 sm:w-9 sm:h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+              className={`relative w-11 h-11 sm:w-9 sm:h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
               {isSavingOffline ? (
                 <LoaderCircle className="w-4 h-4 shrink-0 animate-spin text-current" />
@@ -1660,7 +1663,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
               aria-haspopup="menu"
               aria-label={isFr ? 'Exporter ou envoyer le parcours' : 'Export or send route'}
               title={isFr ? 'Exporter ou envoyer le parcours' : 'Export or send route'}
-              className={`relative w-9 h-9 min-[360px]:w-10 min-[360px]:h-10 sm:w-9 sm:h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+              className={`relative w-11 h-11 sm:w-9 sm:h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
               <ShareNetwork className="w-4 h-4 shrink-0 text-current" />
             </Button>
@@ -1690,7 +1693,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   ? 'Carte en plein écran'
                   : 'Fullscreen map'
               }
-              className={`relative w-9 h-9 min-[360px]:w-10 min-[360px]:h-10 sm:w-9 sm:h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+              className={`relative w-11 h-11 sm:w-9 sm:h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
               {isMapFullscreen ? (
                 <Minimize2 className="w-4 h-4 shrink-0 text-current" />
@@ -1717,7 +1720,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                       type="button"
                       onClick={() => setActivePopover(null)}
                       aria-label={t('closeModalAria')}
-                      className="relative before:content-[''] before:absolute before:-inset-1.5 w-8 h-8 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-pod cursor-pointer"
+                      className="w-11 h-11 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-pod cursor-pointer"
                     >
                       <X className="w-3.5 h-3.5" />
                     </Button>
@@ -1922,7 +1925,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   id: 'print',
                   theme: 'blue',
                   icon: Printer,
-                  title: isFr ? 'Imprimer feuille A4' : 'Print A4 Flight Sheet',
+                  title: isFr ? 'Imprimer feuille de route A4' : 'Print A4 Ride Sheet',
                   sub: isFr
                     ? 'Carnet de route et check-list imprimables'
                     : 'Printable A4 summary & cue sheet',
@@ -1971,7 +1974,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                         type="button"
                         onClick={() => setActivePopover(null)}
                         aria-label={t('closeModalAria')}
-                        className="relative before:content-[''] before:absolute before:-inset-1.5 w-8 h-8 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-pod cursor-pointer"
+                        className="w-11 h-11 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-pod cursor-pointer"
                       >
                         <X className="w-3.5 h-3.5" />
                       </Button>
@@ -2148,7 +2151,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                         type="button"
                         onClick={() => setActivePopover(null)}
                         aria-label={t('closeModalAria')}
-                        className="relative before:content-[''] before:absolute before:-inset-1.5 w-8 h-8 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-pod cursor-pointer"
+                        className="w-11 h-11 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-pod cursor-pointer"
                       >
                         <X className="w-3.5 h-3.5" />
                       </Button>
@@ -2250,7 +2253,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                       type="button"
                       onClick={() => setActivePopover(null)}
                       aria-label={t('closeModalAria')}
-                      className="relative before:content-[''] before:absolute before:-inset-1.5 w-8 h-8 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-pod cursor-pointer"
+                      className="w-11 h-11 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-pod cursor-pointer"
                     >
                       <X className="w-3.5 h-3.5" />
                     </Button>
@@ -2318,7 +2321,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   </div>
 
                   {onUploadGpxFile && (
-                    <div className="mt-2.5 pt-2.5 border-t border-dashed border-ink/10 dark:border-white/10">
+                    <div className="mt-2.5 pt-2.5 border-t border-ink/8 dark:border-white/8">
                       <input
                         ref={gpxInputRef}
                         type="file"
@@ -2380,6 +2383,32 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                           <span>.FIT</span>
                         </Button>
                       </div>
+
+                      {onOpenStageSlicer &&
+                        trip.route.coordinates &&
+                        trip.route.coordinates.length >= 2 &&
+                        (trip.route.distanceKm >= 20 || (trip.stages && trip.stages.length > 1)) && (
+                          <Button
+                            variant="ghost"
+                            type="button"
+                            onClick={() => {
+                              setActivePopover(null);
+                              onOpenStageSlicer();
+                            }}
+                            className={`mt-2 w-full h-8 px-3.5 rounded-full bg-pod hover:bg-chip text-xs font-semibold text-ink flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                          >
+                            <Path className={`w-3.5 h-3.5 shrink-0 ${CHIP_TOKENS.emerald.primary}`} />
+                            <span>
+                              {trip.stages && trip.stages.length > 1
+                                ? isFr
+                                  ? 'Ajuster les étapes multi-jours'
+                                  : 'Edit multi-day stage cuts'
+                                : isFr
+                                ? 'Découper en plusieurs jours'
+                                : 'Split into multi-day stages'}
+                            </span>
+                          </Button>
+                        )}
                     </div>
                   )}
                 </div>
@@ -2451,7 +2480,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                       type="button"
                       onClick={() => setActivePopover(null)}
                       aria-label={t('closeModalAria')}
-                      className="relative before:content-[''] before:absolute before:-inset-1.5 w-8 h-8 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-pod cursor-pointer"
+                      className="w-11 h-11 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-pod cursor-pointer"
                     >
                       <X className="w-3.5 h-3.5" />
                     </Button>
@@ -2537,7 +2566,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                             aria-label={isFr ? 'Puissance cible (Watts)' : 'Target power (Watts)'}
                             className="peloton-slider w-full cursor-pointer"
                           />
-                          <div className="space-y-1.5 pt-1 border-t border-dashed border-ink/10 dark:border-white/10">
+                          <div className="space-y-1.5 pt-1 border-t border-ink/8 dark:border-white/8">
                             <div className="flex items-center justify-between text-[11px] text-ink-secondary tnum">
                               <span className="font-semibold">
                                 {isFr ? 'Allure % FTP' : '% FTP Pacing'}
@@ -2859,7 +2888,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                           disabled={surfaceBreakdown.isLoadingOsm}
                           aria-label={isFr ? 'Actualiser les surfaces' : 'Refresh road surfaces'}
                           title={isFr ? 'Actualiser les surfaces' : 'Refresh road surfaces'}
-                          className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center bg-pod hover:bg-chip text-ink-secondary hover:text-ink active:scale-[0.97] transition-all cursor-pointer disabled:cursor-wait"
+                          className="w-11 h-11 sm:w-9 sm:h-9 shrink-0 rounded-full flex items-center justify-center bg-pod hover:bg-chip text-ink-secondary hover:text-ink active:scale-[0.97] transition-all cursor-pointer disabled:cursor-wait"
                         >
                           <RefreshCw className={`w-4 h-4 ${surfaceBreakdown.isLoadingOsm ? 'animate-spin' : ''}`} />
                         </Button>
@@ -3038,10 +3067,21 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                       </div>
                       <div className="shrink-0 text-right">
                         <div className="flex items-start justify-end font-rounded tnum whitespace-nowrap text-ink">
-                          <span className="text-[22px] font-bold leading-none tracking-tight">
-                            {fmtBar(suitability.recommendedFrontBar)}/{fmtBar(suitability.recommendedRearBar)}
-                          </span>
-                          <span className="self-end ml-0.5 text-[11px] font-semibold text-ink-muted">bar</span>
+                          {effectiveSpecs?.pressureUnit === 'psi' ? (
+                            <>
+                              <span className="text-[22px] font-bold leading-none tracking-tight">
+                                {barToPsi(suitability.recommendedFrontBar)}/{barToPsi(suitability.recommendedRearBar)}
+                              </span>
+                              <span className="self-end ml-0.5 text-[11px] font-semibold text-ink-muted">PSI</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-[22px] font-bold leading-none tracking-tight">
+                                {fmtBar(suitability.recommendedFrontBar)}/{fmtBar(suitability.recommendedRearBar)}
+                              </span>
+                              <span className="self-end ml-0.5 text-[11px] font-semibold text-ink-muted">bar</span>
+                            </>
+                          )}
                         </div>
                         <p className="mt-1 text-[10px] font-rounded font-semibold text-ink-muted">
                           {isFr ? 'Avant / arrière' : 'Front / rear'}
@@ -3135,7 +3175,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                 onClick={() => mapInstanceRef.current?.zoomIn()}
                 aria-label={isFr ? 'Zoomer' : 'Zoom in'}
                 title={isFr ? 'Zoomer' : 'Zoom in'}
-                className={`w-9 h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer active:scale-95 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`}
+                className={`w-11 h-11 sm:w-9 sm:h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer active:scale-95 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`}
               >
                 <Plus className="w-4 h-4 shrink-0 text-current" />
               </Button>
@@ -3145,7 +3185,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                 onClick={() => mapInstanceRef.current?.zoomOut()}
                 aria-label={isFr ? 'Dézoomer' : 'Zoom out'}
                 title={isFr ? 'Dézoomer' : 'Zoom out'}
-                className={`w-9 h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer active:scale-95 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`}
+                className={`w-11 h-11 sm:w-9 sm:h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer active:scale-95 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`}
               >
                 <Minus className="w-4 h-4 shrink-0 text-current" />
               </Button>
@@ -3162,7 +3202,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                 }}
                 aria-label={isFr ? 'Recentrer sur l’itinéraire' : 'Fit route bounds'}
                 title={isFr ? 'Recentrer sur l’itinéraire' : 'Fit route bounds'}
-                className={`w-9 h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer active:scale-95 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                className={`w-11 h-11 sm:w-9 sm:h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer active:scale-95 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
               >
                 <Compass className="w-4 h-4 shrink-0 text-current" />
               </Button>

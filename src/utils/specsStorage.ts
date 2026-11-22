@@ -8,6 +8,7 @@ import {
   PantryItem,
   BidonSizeMl,
   FrameBottleSlots,
+  PressureUnit,
   getEffectiveRiderSpecs,
   formatFuelTarget,
   resolveBikeTireWidthMm,
@@ -147,6 +148,9 @@ export function normalizeRiderBikeSpecs(parsed: Partial<RiderBikeSpecs> | Record
       ? parsed.frameBottleSlots
       : DEFAULT_RIDER_BIKE_SPECS.frameBottleSlots ?? 2;
 
+  const resolvedPressureUnit: PressureUnit =
+    parsed.pressureUnit === 'psi' ? 'psi' : 'bar';
+
   const resolvedLiquidCarbRatio =
     typeof parsed.liquidCarbRatio === 'number' &&
     Number.isFinite(parsed.liquidCarbRatio) &&
@@ -183,6 +187,7 @@ export function normalizeRiderBikeSpecs(parsed: Partial<RiderBikeSpecs> | Record
     pacingInputMode: resolvedPacingMode,
     bidonSizeMl: resolvedBidonSizeMl,
     frameBottleSlots: resolvedFrameBottleSlots,
+    pressureUnit: resolvedPressureUnit,
     liquidCarbRatio: resolvedLiquidCarbRatio,
     autoModulateLiquidInHeatOrEffort: resolvedAutoModulateLiquid,
     enableSavoryPalateResets: resolvedEnableSavoryPalateResets,

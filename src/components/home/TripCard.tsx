@@ -269,7 +269,13 @@ export const TripCard: React.FC<TripCardProps> = ({
           </div>
 
           {/* Segmented Road-Lane Readiness Bar + Telemetry Code */}
-          <div className="mt-4 pt-3 border-t border-dashed border-current/15 dark:border-current/15 flex items-center justify-between gap-3">
+          <div
+            className={`mt-4 pt-3 border-t border-dashed flex items-center justify-between gap-3 ${
+              isActive
+                ? 'border-[#4d5200]/25 dark:border-[#dfff00]/25'
+                : 'border-ink/20 dark:border-white/15'
+            }`}
+          >
             <div
               className="flex items-center gap-1.5"
               title={t('readinessProgressTitle', { checked: checkedCount, total: totalChecklist })}

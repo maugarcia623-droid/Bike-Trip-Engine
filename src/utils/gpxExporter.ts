@@ -863,6 +863,59 @@ export function downloadTripGpx(trip: TripProfile, options?: GpxExportOptions): 
 }
 
 /**
+ * Generate a standalone GPX 1.1 file for a single stage (0-based stageIndex) of a multi-day Tour.
+ */
+export function exportStageToGpx(
+  trip: TripProfile,
+  stageIndex: number,
+  options?: GpxExportOptions
+): string {
+  const stages = resolveLiveStages(trip);
+  const clampedIdx = Math.max(0, Math.min(stageIndex, stages.length - 1));
+  const stage = stages[clampedIdx];
+  if (!stage) return exportTripToGpx(trip, options);
+
+  const stageOrigin = stage.route.origin || 'Start';
+  const stageDest = stage.route.destination || 'Finish';
+  const stageTripProxy: TripProfile = {
+    ...trip,
+    name: `${trip.name || 'Tour'} — Day ${stage.dayNumber} (${stageOrigin} → ${stageDest})`,
+    departureDate: stage.departureDate,
+    departureTime: stage.departureTime,
+    route: stage.route,
+    office: stage.office,
+    weather: stage.weather,
+    customChips: stage.customChips,
+    pinnedAmenities: stage.pinnedAmenities,
+    stages: undefined,
+    activeStageIndex: undefined,
+  };
+  return exportTripToGpx(stageTripProxy, options);
+}
+
+/**
+ * Trigger browser file download for a single stage GPX track file.
+ */
+export function downloadStageGpx(
+  trip: TripProfile,
+  stageIndex: number,
+  options?: GpxExportOptions
+): void {
+  const stages = resolveLiveStages(trip);
+  const clampedIdx = Math.max(0, Math.min(stageIndex, stages.length - 1));
+  const stage = stages[clampedIdx];
+  if (!stage) {
+    downloadTripGpx(trip, options);
+    return;
+  }
+  const xml = exportStageToGpx(trip, clampedIdx, options);
+  const baseName = sanitizeFilename(trip.name || 'cadence-tour');
+  const destSlug = sanitizeFilename(stage.route.destination || `stage-${stage.dayNumber}`).slice(0, 24);
+  const filename = `${baseName}-day-${stage.dayNumber}-${destSlug}-${Math.round(stage.route.distanceKm || 0)}km.gpx`;
+  downloadTextFile(xml, filename, 'application/gpx+xml');
+}
+
+/**
  * Trigger browser file download for a unified multi-stage Tour GPX track file.
  */
 export function downloadEntireTourGpx(trip: TripProfile): void {
