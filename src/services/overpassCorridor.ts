@@ -35,8 +35,8 @@ function setMemoryScanCache(key: string, results: StageAmenity[]): void {
 const OVERPASS_LS_PREFIX = 'cadence_overpass_v1_';
 const OVERPASS_LS_MAX_ENTRIES = 15;
 const OVERPASS_LS_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
-const OVERPASS_CHUNK_THRESHOLD_KM = 60;
-const OVERPASS_CHUNK_DISTANCE_M = 45000; // ~45 km per chunk for long routes
+const OVERPASS_CHUNK_THRESHOLD_KM = 28;
+const OVERPASS_CHUNK_DISTANCE_M = 25000; // ~25 km per chunk keeps Overpass bboxes tight & sub-2s
 
 interface StoredOverpassEntry {
   savedAt: number;
@@ -308,36 +308,18 @@ export function buildOverpassQuery(coordinates: [number, number][]): string {
   const north = (maxLat + padLat).toFixed(4);
   const east = (maxLon + padLon).toFixed(4);
 
-  return `[out:json][timeout:6][bbox:${south},${west},${north},${east}];
+  return `[out:json][timeout:15][bbox:${south},${west},${north},${east}];
 (
-  node["amenity"="drinking_water"];
+  node["amenity"~"^(drinking_water|toilets|fuel|pharmacy|cafe|bicycle_repair_station|shelter)$"];
   node["man_made"="water_tap"];
   node["natural"="spring"];
-  node["landuse"="cemetery"];
-  way["landuse"="cemetery"];
+  nwr["landuse"="cemetery"];
   node["amenity"="grave_yard"];
-  way["amenity"="grave_yard"];
-  node["shop"="bakery"];
-  way["shop"="bakery"];
-  node["shop"="supermarket"];
-  way["shop"="supermarket"];
-  node["shop"="convenience"];
-  way["shop"="convenience"];
-  node["amenity"="cafe"];
-  node["amenity"~"^(restaurant|pub)$"];
-  node["shop"="bicycle"];
-  node["amenity"="bicycle_repair_station"];
-  node["amenity"="shelter"];
-  way["amenity"="shelter"];
+  node["shop"~"^(bakery|supermarket|convenience|bicycle)$"];
   node["tourism"~"^(camp_site|alpine_hut)$"];
-  way["tourism"~"^(camp_site|alpine_hut)$"];
-  node["amenity"="toilets"];
-  node["amenity"="fuel"];
-  way["amenity"="fuel"];
-  node["amenity"="pharmacy"];
   node["railway"~"^(station|halt)$"];
 );
-out center qt 500;`;
+out center qt 400;`;
 }
 
 /**
@@ -567,13 +549,15 @@ function deduplicateAmenities(amenities: StageAmenity[]): StageAmenity[] {
  */
 export async function fetchOverpassWithFailover(
   query: string,
-  timeoutMs = 3000
+  timeoutMs = 10000
 ): Promise<any> {
   let lastError: Error | null = null;
 
-  for (const endpoint of OVERPASS_ENDPOINTS) {
+  for (let i = 0; i < OVERPASS_ENDPOINTS.length; i++) {
+    const endpoint = OVERPASS_ENDPOINTS[i];
+    const perMirrorTimeout = i === 0 ? timeoutMs : Math.min(timeoutMs, 6000);
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    const timeoutId = setTimeout(() => controller.abort(), perMirrorTimeout);
 
     try {
       const response = await fetch(endpoint, {

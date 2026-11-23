@@ -1045,11 +1045,11 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
           </div>
           <Button
             type="submit"
-            variant="primary"
+            variant="ghost"
             size="md"
             loading={isImportingRoute}
             disabled={!routeLinkInput.trim() || isImportingRoute}
-            className="min-h-[46px] shrink-0 px-5 rounded-full bg-volt hover:bg-[#E2E443] text-[#111111] ring-1 ring-inset ring-black/10 text-xs sm:text-[13px] font-rounded font-bold cursor-pointer disabled:opacity-50"
+            className={`min-h-[46px] shrink-0 px-5 rounded-full ring-1 ring-inset text-xs sm:text-[13px] font-rounded font-bold cursor-pointer transition-all hover:brightness-95 dark:hover:brightness-110 disabled:opacity-50 ${CHIP_TOKENS.teal.surface} ${CHIP_TOKENS.teal.primary} ${CHIP_TOKENS.teal.selectedRing}`}
           >
             {isFr ? 'Importer' : 'Import Link'}
           </Button>
