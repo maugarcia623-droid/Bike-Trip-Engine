@@ -82,6 +82,7 @@ import {
   decodePlanShareToken,
   SharedPlanMeta,
 } from './utils/planShare';
+import { fetchDemElevationProfile } from './services/elevationService';
 import { parseRouteFile } from './utils/routeFileParser';
 import { consumeStravaOAuthRedirectParams } from './services/stravaIntegration';
 import { consumeHeadUnitOAuthRedirectParams } from './services/headUnitIntegration';
@@ -313,6 +314,78 @@ function AppContent() {
       const cleanUrl =
         window.location.pathname + (nextSearch ? `?${nextSearch}` : '') + nextHash;
       window.history.replaceState({}, '', cleanUrl);
+
+      // Auto-fetch real DEM elevation in the background so shared links get true elevation curves
+      const hydrateSharedDem = async () => {
+        try {
+          if (finalTrip.stages && finalTrip.stages.length > 0) {
+            const demResults = await Promise.all(
+              finalTrip.stages.map((st) =>
+                st.route.coordinates && st.route.coordinates.length >= 2
+                  ? fetchDemElevationProfile(st.route.coordinates, st.route.distanceKm)
+                  : Promise.resolve(null)
+              )
+            );
+            if (!demResults.some(Boolean)) return;
+            setTrips((prev) =>
+              prev.map((t) => {
+                if (t.id !== finalTrip.id || !t.stages) return t;
+                const nextStages = t.stages.map((st, idx) => {
+                  const dem = demResults[idx];
+                  if (!dem) return st;
+                  return {
+                    ...st,
+                    route: {
+                      ...st.route,
+                      elevationProfile: dem.elevationProfile,
+                      elevationGainM: dem.elevationGainM,
+                      elevationLossM: dem.elevationLossM,
+                    },
+                  };
+                });
+                const activeIdx = Math.min(
+                  nextStages.length - 1,
+                  Math.max(0, t.activeStageIndex ?? 0)
+                );
+                return {
+                  ...t,
+                  stages: nextStages,
+                  route: {
+                    ...t.route,
+                    elevationProfile: nextStages[activeIdx]?.route.elevationProfile ?? t.route.elevationProfile,
+                    elevationGainM: nextStages[activeIdx]?.route.elevationGainM ?? t.route.elevationGainM,
+                    elevationLossM: nextStages[activeIdx]?.route.elevationLossM ?? t.route.elevationLossM,
+                  },
+                };
+              })
+            );
+          } else if (finalTrip.route.coordinates && finalTrip.route.coordinates.length >= 2) {
+            const dem = await fetchDemElevationProfile(
+              finalTrip.route.coordinates,
+              finalTrip.route.distanceKm
+            );
+            if (!dem) return;
+            setTrips((prev) =>
+              prev.map((t) =>
+                t.id === finalTrip.id
+                  ? {
+                      ...t,
+                      route: {
+                        ...t.route,
+                        elevationProfile: dem.elevationProfile,
+                        elevationGainM: dem.elevationGainM,
+                        elevationLossM: dem.elevationLossM,
+                      },
+                    }
+                  : t
+              )
+            );
+          }
+        } catch {
+          // Non-fatal: keep synthetic elevation fallback if DEM API is unreachable
+        }
+      };
+      void hydrateSharedDem();
     }
   }, []);
 

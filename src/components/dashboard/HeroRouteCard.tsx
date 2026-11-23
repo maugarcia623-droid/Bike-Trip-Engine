@@ -39,6 +39,7 @@ import {
   Send,
   Compass,
   Play,
+  Luggage,
 } from '@/components/icons';
 import { downloadTripGpx, downloadTripTcx } from '../../utils/gpxExporter';
 import { downloadTripFit } from '../../utils/fitExporter';
@@ -110,7 +111,7 @@ interface HeroRouteCardProps {
   onOpenStageSlicer?: () => void;
 }
 
-type ActiveHeroPopover = 'bike' | 'target' | 'route' | 'pace' | 'elevation' | 'export' | null;
+type ActiveHeroPopover = 'bike' | 'load' | 'tripType' | 'target' | 'route' | 'pace' | 'elevation' | 'export' | null;
 
 const ELEV_MATRIX_COLS = 60; // 60 × 12 @ 8u pitch → 5:1 aspect, fills the popover width edge to edge
 const ELEV_MATRIX_ROWS = 12;
@@ -2118,9 +2119,198 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                 {heroTarget}
               </Badge>
 
-              <Badge variant="yellow-vest" size="md" className="py-1.5 px-3 sm:px-3.5">
-                {trip.tag || 'BIKEPACKING'}
-              </Badge>
+              {/* Inline Quick Pill: Luggage Load */}
+              <div className="relative">
+                <button
+                  type="button"
+                  disabled={!isInteractive}
+                  onClick={() => setActivePopover((prev) => (prev === 'load' ? null : 'load'))}
+                  aria-expanded={activePopover === 'load'}
+                  data-testid="hero-quick-load-pill"
+                  className={`inline-flex items-center gap-1.5 rounded-full py-1.5 px-3 text-xs font-rounded font-bold transition-all tnum ${
+                    activePopover === 'load'
+                      ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
+                      : 'bg-card/90 dark:bg-[#161618]/90 text-ink hover:bg-card shadow-xs'
+                  } ${isInteractive ? 'cursor-pointer' : 'opacity-70 cursor-default'}`}
+                >
+                  <Luggage className="w-3.5 h-3.5 shrink-0 text-current" />
+                  <span>{Number((trip.physics.luggageWeightKg ?? trip.physics.gearWeightKg ?? 0).toFixed(1))} kg</span>
+                  {isInteractive && (
+                    <CaretDown
+                      className={`w-3 h-3 opacity-60 transition-transform ${
+                        activePopover === 'load' ? 'rotate-180 opacity-100' : ''
+                      }`}
+                    />
+                  )}
+                </button>
+
+                {activePopover === 'load' && isInteractive && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setActivePopover(null)}
+                      aria-hidden="true"
+                    />
+                    <div className="absolute right-0 bottom-full mb-2.5 w-[min(19rem,calc(100vw-3rem))] z-50 rounded-pod p-3.5 bg-card dark:bg-[#161618] ring-1 ring-inset ring-ink/10 dark:ring-white/15 shadow-2xl animate-apple-popover space-y-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-bold text-ink">
+                          {isFr ? 'Charge & sacoches' : 'Luggage load'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setActivePopover(null)}
+                          aria-label={t('closeModalAria')}
+                          className="w-7 h-7 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-pod cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {[
+                          { kg: 1.5, en: 'Light', fr: 'Léger' },
+                          { kg: 4, en: 'Daypack', fr: 'Sac léger' },
+                          { kg: 8, en: 'Bikepacking', fr: 'Bikepacking' },
+                          { kg: 14, en: 'Heavy tour', fr: 'Voyage chargé' },
+                        ].map((preset) => {
+                          const currentKg = trip.physics.luggageWeightKg ?? trip.physics.gearWeightKg ?? 0;
+                          const selected = Math.abs(currentKg - preset.kg) < 0.25;
+                          return (
+                            <button
+                              key={preset.kg}
+                              type="button"
+                              onClick={() => {
+                                onUpdateTrip?.({
+                                  ...trip,
+                                  physics: {
+                                    ...trip.physics,
+                                    gearWeightKg: preset.kg,
+                                    luggageWeightKg: preset.kg,
+                                  },
+                                });
+                                setActivePopover(null);
+                              }}
+                              className={`min-h-[38px] px-2.5 py-1.5 rounded-sub-pod text-left transition-all cursor-pointer ${
+                                selected
+                                  ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} font-bold`
+                                  : 'bg-pod hover:bg-chip text-ink font-medium'
+                              }`}
+                            >
+                              <div className="text-xs leading-tight">{isFr ? preset.fr : preset.en}</div>
+                              <div className="text-[10.5px] opacity-75 tnum">{preset.kg} kg</div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="pt-1.5 border-t border-dashed border-ink/15 dark:border-white/15 flex items-center justify-between gap-2">
+                        <span className="text-[11px] font-medium text-ink-secondary">
+                          {isFr ? 'Personnalisé (kg)' : 'Custom (kg)'}
+                        </span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={35}
+                          step={0.5}
+                          value={trip.physics.luggageWeightKg ?? trip.physics.gearWeightKg ?? 0}
+                          onChange={(e) => {
+                            const val = Math.max(0, Math.min(35, parseFloat(e.target.value) || 0));
+                            onUpdateTrip?.({
+                              ...trip,
+                              physics: {
+                                ...trip.physics,
+                                gearWeightKg: val,
+                                luggageWeightKg: val,
+                              },
+                            });
+                          }}
+                          className="w-20 h-8 rounded-full bg-pod px-2.5 text-xs font-semibold text-ink text-right tnum focus:outline-none focus:ring-2 focus:ring-ink/20"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Inline Quick Pill: Trip Type */}
+              <div className="relative">
+                <button
+                  type="button"
+                  disabled={!isInteractive}
+                  onClick={() => setActivePopover((prev) => (prev === 'tripType' ? null : 'tripType'))}
+                  aria-expanded={activePopover === 'tripType'}
+                  data-testid="hero-quick-type-pill"
+                  className={`inline-flex items-center gap-1 rounded-full py-1.5 px-3 sm:px-3.5 text-xs font-rounded font-bold transition-all ${
+                    activePopover === 'tripType'
+                      ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
+                      : `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary}`
+                  } ${isInteractive ? 'cursor-pointer hover:brightness-95' : 'opacity-80 cursor-default'}`}
+                >
+                  <span>{trip.tag || 'BIKEPACKING'}</span>
+                  {isInteractive && (
+                    <CaretDown
+                      className={`w-3 h-3 opacity-75 transition-transform ${
+                        activePopover === 'tripType' ? 'rotate-180 opacity-100' : ''
+                      }`}
+                    />
+                  )}
+                </button>
+
+                {activePopover === 'tripType' && isInteractive && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setActivePopover(null)}
+                      aria-hidden="true"
+                    />
+                    <div className="absolute right-0 bottom-full mb-2.5 w-[min(17rem,calc(100vw-3rem))] z-50 rounded-pod p-3.5 bg-card dark:bg-[#161618] ring-1 ring-inset ring-ink/10 dark:ring-white/15 shadow-2xl animate-apple-popover space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-bold text-ink">
+                          {isFr ? 'Type de sortie' : 'Ride type'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setActivePopover(null)}
+                          aria-label={t('closeModalAria')}
+                          className="w-7 h-7 rounded-full flex items-center justify-center text-ink-muted hover:text-ink hover:bg-pod cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <div className="space-y-1">
+                        {[
+                          { tag: 'BIKEPACKING', en: 'Bikepacking', fr: 'Bikepacking', arriveAt: false },
+                          { tag: 'SPORTIVE', en: 'Big-Day / Sportive', fr: 'Grande sortie / Sportive', arriveAt: false },
+                          { tag: 'COFFEE', en: 'Coffee Spin', fr: 'Sortie Café', arriveAt: false },
+                          { tag: 'COMMUTE', en: 'Commute / Vélotaf', fr: 'Vélotaf / Trajet', arriveAt: true },
+                        ].map((opt) => {
+                          const selected = (trip.tag || 'BIKEPACKING').toUpperCase().includes(opt.tag);
+                          return (
+                            <button
+                              key={opt.tag}
+                              type="button"
+                              onClick={() => {
+                                onUpdateTrip?.({
+                                  ...trip,
+                                  tag: opt.tag,
+                                  arriveAtMode: opt.arriveAt,
+                                });
+                                setActivePopover(null);
+                              }}
+                              className={`w-full min-h-[38px] px-3 py-1.5 rounded-full text-left flex items-center justify-between gap-2 text-xs transition-all cursor-pointer ${
+                                selected
+                                  ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} font-bold`
+                                  : 'bg-pod hover:bg-chip text-ink font-medium'
+                              }`}
+                            >
+                              <span>{isFr ? opt.fr : opt.en}</span>
+                              {selected && <Check className="w-3.5 h-3.5 shrink-0 text-current" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 

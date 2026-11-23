@@ -589,14 +589,20 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
         frameBottleSlots: effectiveSpecs.frameBottleSlots || 2,
       });
       if (gaps.criticalGaps.length > 0) {
+        const count = gaps.criticalGaps.length;
         return {
-          text: `${gaps.criticalGaps.length}`,
+          text: isFr
+            ? `${count} zone${count > 1 ? 's' : ''} sèche${count > 1 ? 's' : ''}`
+            : `${count} dry gap${count > 1 ? 's' : ''}`,
           tone: 'critical' as const,
         };
       }
       if (gaps.cautionGaps.length > 0) {
+        const count = gaps.cautionGaps.length;
         return {
-          text: `${gaps.cautionGaps.length}`,
+          text: isFr
+            ? `${count} zone${count > 1 ? 's' : ''} sèche${count > 1 ? 's' : ''}`
+            : `${count} dry gap${count > 1 ? 's' : ''}`,
           tone: 'caution' as const,
         };
       }

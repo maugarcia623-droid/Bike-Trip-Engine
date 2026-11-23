@@ -44,6 +44,10 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
   );
   const [autofillFeedback, setAutofillFeedback] = useState(false);
   const [showAdvancedPhysics, setShowAdvancedPhysics] = useState(false);
+  const [showCustomLuggage, setShowCustomLuggage] = useState(() => {
+    const kg = trip.physics.gearWeightKg;
+    return ![1.5, 4, 8, 14].some((p) => Math.abs(p - kg) < 0.05);
+  });
 
   const isFr = lang === 'fr';
 
@@ -275,15 +279,54 @@ export const ParameterTabs: React.FC<ParameterTabsProps> = ({
                 <label className="block text-xs font-medium text-ink-secondary mb-1.5 px-1">
                   {isFr ? 'Bagages & équipement (kg)' : 'Bags & gear (kg)'}
                 </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="25"
-                  value={trip.physics.gearWeightKg}
-                  onChange={(e) => updatePhysics('gearWeightKg', parseFloat(e.target.value) || 0)}
-                  className="w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
-                />
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {[
+                    { kg: 1.5, en: 'Light', fr: 'Léger' },
+                    { kg: 4, en: 'Daypack', fr: 'Sac' },
+                    { kg: 8, en: 'Bikepacking', fr: 'Bikepack' },
+                  ].map((preset) => {
+                    const selected = !showCustomLuggage && Math.abs(trip.physics.gearWeightKg - preset.kg) < 0.05;
+                    return (
+                      <button
+                        key={preset.kg}
+                        type="button"
+                        onClick={() => {
+                          setShowCustomLuggage(false);
+                          updatePhysics('gearWeightKg', preset.kg);
+                        }}
+                        className={`min-h-[44px] sm:min-h-[38px] px-3 rounded-full text-xs font-semibold transition-all cursor-pointer tnum ${CHIP_RING_BASE} ${
+                          selected
+                            ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
+                            : `bg-pod hover:bg-chip text-ink-secondary hover:text-ink ${CHIP_RING_UNSELECTED}`
+                        }`}
+                      >
+                        {isFr ? preset.fr : preset.en} · {preset.kg}kg
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomLuggage((v) => !v)}
+                    className={`min-h-[44px] sm:min-h-[38px] px-3 rounded-full text-xs font-semibold transition-all cursor-pointer ${CHIP_RING_BASE} ${
+                      showCustomLuggage
+                        ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
+                        : `bg-pod hover:bg-chip text-ink-secondary hover:text-ink ${CHIP_RING_UNSELECTED}`
+                    }`}
+                  >
+                    {isFr ? 'Perso' : 'Custom'}
+                  </button>
+                </div>
+                {showCustomLuggage && (
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    max="35"
+                    value={trip.physics.gearWeightKg}
+                    onChange={(e) => updatePhysics('gearWeightKg', parseFloat(e.target.value) || 0)}
+                    className="mt-2 w-full min-h-[44px] h-11 bg-pod rounded-full px-4 text-base sm:text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-ink/20 transition-colors tnum"
+                  />
+                )}
               </div>
             </div>
 

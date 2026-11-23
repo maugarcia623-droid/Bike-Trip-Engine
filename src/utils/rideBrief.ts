@@ -200,7 +200,7 @@ function buildRideBriefCardMeta(input: {
   const leavePodLabel = isDepartAt
     ? isFr
       ? 'Départ prévu'
-      : 'Rollout'
+      : 'Start time'
     : isFr
     ? 'Départ limite'
     : 'Leave by';
@@ -265,7 +265,7 @@ function buildRideBriefCardMeta(input: {
       : readiness?.level === 'needs-change'
       ? isFr
         ? 'Ajustement conseillé avant départ.'
-        : 'Needs a tweak before rollout.'
+        : 'Needs a tweak before you ride.'
       : readiness?.level === 'worth-tweak'
       ? isFr
         ? 'Presque prêt. Vérifiez les alertes.'

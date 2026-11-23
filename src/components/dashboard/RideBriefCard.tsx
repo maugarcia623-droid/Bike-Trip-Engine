@@ -51,6 +51,7 @@ import {
   ArrowRight,
   Newspaper,
   X,
+  SlidersHorizontal,
 } from '@/components/icons';
 
 export interface RideBriefCardProps {
@@ -631,6 +632,19 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
                   : 'Share with partner'}
               </span>
             </Button>
+
+            {onOpenConfigurator && (
+              <Button
+                variant="ghost"
+                size="sm"
+                type="button"
+                onClick={onOpenConfigurator}
+                className="min-h-[44px] sm:h-8 sm:min-h-0 px-3.5 sm:px-3 rounded-full bg-pod hover:bg-chip text-ink-secondary hover:text-ink text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+                <span>{isFr ? 'Affiner réglages' : 'Fine-tune'}</span>
+              </Button>
+            )}
 
             <Button
               variant="ghost"

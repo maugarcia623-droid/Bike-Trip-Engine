@@ -537,19 +537,21 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
       </div>
 
       {/* Collapsed "at a glance" summary — conditions during the planned ride */}
-      <Collapsible open={!isCardExpanded} innerClassName="pt-3">
-        <WeatherGlance
-          weather={trip.weather}
-          visibility={visibilityAnalysis}
-          kitAdvice={kitAdvice}
-          goStatus={goStatus}
-          temperature={temperature}
-          windSpeed={windSpeed}
-          windCardinal={windCardinal}
-          maxGust={maxGust}
-          onExpand={toggleCardExpanded}
-        />
-      </Collapsible>
+      {!isCardExpanded && (
+        <div className="pt-3 animate-apple-fade-in">
+          <WeatherGlance
+            weather={trip.weather}
+            visibility={visibilityAnalysis}
+            kitAdvice={kitAdvice}
+            goStatus={goStatus}
+            temperature={temperature}
+            windSpeed={windSpeed}
+            windCardinal={windCardinal}
+            maxGust={maxGust}
+            onExpand={toggleCardExpanded}
+          />
+        </div>
+      )}
 
       <Collapsible open={isCardExpanded} innerClassName="pt-3">
       {/* ── 2. CONCENTRIC TAB SWITCHER: [ WIND & RESISTANCE ] / [ LIGHT & VISIBILITY ] ── */}

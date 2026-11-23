@@ -29,6 +29,8 @@ interface TourOverviewCardProps {
   hideHeaderActions?: boolean;
   /** When true, renders flush inside a parent card instead of creating a second standalone card. */
   embedded?: boolean;
+  /** When true (e.g. inside a rounded-pod container), steps nested tiles down to rounded-sub-pod (8px). */
+  nestedInsidePod?: boolean;
   ftpWatts?: number;
   className?: string;
 }
@@ -51,11 +53,13 @@ export const TourOverviewCard: React.FC<TourOverviewCardProps> = ({
   onOpenSlicer,
   hideHeaderActions = false,
   embedded = false,
+  nestedInsidePod = false,
   ftpWatts,
   className = '',
 }) => {
   const { lang, t } = useTranslation();
   const isFr = lang === 'fr';
+  const innerTileRadius = nestedInsidePod ? 'rounded-sub-pod' : 'rounded-pod';
 
   const summary = useMemo(
     () => getTourAggregateSummary(trip, lang, ftpWatts),
@@ -75,7 +79,7 @@ export const TourOverviewCard: React.FC<TourOverviewCardProps> = ({
   return (
     <div
       className={`${
-        embedded ? 'p-4 sm:p-5' : 'rounded-pod bg-card p-3.5 sm:p-4'
+        embedded ? (className ? '' : 'p-4 sm:p-5') : 'rounded-card bg-card p-4 sm:p-5'
       } text-ink space-y-3.5 transition-colors ${className}`}
     >
       {/* Header Row: Title + Single-Click Export Entire Tour GPX */}
@@ -123,7 +127,7 @@ export const TourOverviewCard: React.FC<TourOverviewCardProps> = ({
       {/* Cumulative Tour Summary Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
         {/* Distance */}
-        <div className="rounded-pod bg-pod p-3">
+        <div className={`${innerTileRadius} bg-pod p-3`}>
           <div className="flex items-center gap-1.5 text-[11px] text-ink-muted font-medium">
             <Route className="w-3.5 h-3.5 text-ink-secondary shrink-0" />
             <span className="truncate">{t('tourSummaryDistance')}</span>
@@ -134,7 +138,7 @@ export const TourOverviewCard: React.FC<TourOverviewCardProps> = ({
         </div>
 
         {/* Elevation */}
-        <div className="rounded-pod bg-pod p-3">
+        <div className={`${innerTileRadius} bg-pod p-3`}>
           <div className="flex items-center gap-1.5 text-[11px] text-ink-muted font-medium">
             <Mountain className="w-3.5 h-3.5 text-ink-secondary shrink-0" />
             <span className="truncate">{t('tourSummaryElevation')}</span>
@@ -145,7 +149,7 @@ export const TourOverviewCard: React.FC<TourOverviewCardProps> = ({
         </div>
 
         {/* Moving Time & Battery Runtime */}
-        <div className="rounded-pod bg-pod p-3">
+        <div className={`${innerTileRadius} bg-pod p-3`}>
           <div className="flex items-center gap-1.5 text-[11px] text-ink-muted font-medium">
             <Clock className="w-3.5 h-3.5 text-ink-secondary shrink-0" />
             <span className="truncate">{t('tourSummaryMovingTime')}</span>
@@ -159,7 +163,7 @@ export const TourOverviewCard: React.FC<TourOverviewCardProps> = ({
         </div>
 
         {/* Cumulative Fuel / Nutrition */}
-        <div className="rounded-pod bg-pod p-3">
+        <div className={`${innerTileRadius} bg-pod p-3`}>
           <div className="flex items-center gap-1.5 text-[11px] text-ink-muted font-medium">
             <Banana className="w-3.5 h-3.5 text-ink-secondary shrink-0" />
             <span className="truncate">{t('tourSummaryNutrition')}</span>
@@ -197,7 +201,7 @@ export const TourOverviewCard: React.FC<TourOverviewCardProps> = ({
                         content={
                           isFr
                             ? `Calculé entre votre arrivée estimée du Jour ${prevStage.dayNumber} (${prevStage.estimatedArrivalTime}) et le départ du Jour ${st.dayNumber} (${st.startTime}).`
-                            : `Time between your estimated Day ${prevStage.dayNumber} arrival (${prevStage.estimatedArrivalTime}) and Day ${st.dayNumber} rollout (${st.startTime}).`
+                            : `Time between your estimated Day ${prevStage.dayNumber} arrival (${prevStage.estimatedArrivalTime}) and Day ${st.dayNumber} start (${st.startTime}).`
                         }
                       />
                     </div>
@@ -216,7 +220,7 @@ export const TourOverviewCard: React.FC<TourOverviewCardProps> = ({
                     onSelectStage(idx);
                   }
                 }}
-                className={`rounded-pod p-3 transition-all duration-150 flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${
+                className={`${innerTileRadius} p-3 transition-all duration-150 flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${
                   onSelectStage ? 'cursor-pointer' : ''
                 } ${
                   isCurrent

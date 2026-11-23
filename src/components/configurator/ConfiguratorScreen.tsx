@@ -62,7 +62,7 @@ import { parseRouteFile } from '../../utils/routeFileParser';
 import { importRouteFromUrl } from '../../utils/routeUrlImporter';
 import { computeSurfaceBreakdown, SURFACE_VISUAL_META } from '../../utils/surfaceProfile';
 import { useOsmSurface } from '../../services/osmSurfaceService';
-import { getActiveBike, loadRiderBikeSpecs, getEffectiveRiderSpecs } from '../../utils/specsStorage';
+import { getActiveBike, loadRiderBikeSpecs, getEffectiveRiderSpecs, saveRiderBikeSpecs } from '../../utils/specsStorage';
 import { calculatePhysics, buildPhysicsEnvironmentContext } from '../../utils/physics';
 import { calculateReverseTimeline } from '../../utils/timeline';
 import { subtractMinutesFromTime, addMinutesToTime } from '../../utils/nutrition';
@@ -284,7 +284,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
 
   const isFr = lang === 'fr';
 
-  const riderSpecs = useMemo(() => loadRiderBikeSpecs(), []);
+  const [riderSpecs, setRiderSpecs] = useState(() => loadRiderBikeSpecs());
   const effectiveSpecs = useMemo(() => getEffectiveRiderSpecs(riderSpecs), [riderSpecs]);
   const activeBike = useMemo(() => getActiveBike(effectiveSpecs), [effectiveSpecs]);
 
@@ -1904,6 +1904,9 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                     {/* Tours & Stages Cumulative Summary, Daily Timeline & Full Tour GPX Export */}
                     <TourOverviewCard
                       trip={trip}
+                      embedded
+                      nestedInsidePod
+                      className="p-0 pt-1"
                       activeStageIdx={activeStageIdx}
                       onSelectStage={handleSelectStage}
                       onOpenSlicer={canSliceCurrentTrace ? () => setIsSlicerOpen(true) : undefined}
@@ -2764,7 +2767,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                 </div>
 
                 {/* Status line */}
-                <div className="mt-4 pt-3 border-t border-ink/8 dark:border-white/8 transition-colors">
+                <div className="mt-4 pt-3 border-t border-dashed border-ink/20 dark:border-white/15 transition-colors">
                   {weatherFeedback ? (
                     <div
                       className={`flex items-center gap-1.5 text-xs font-medium animate-apple-fade-in ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
@@ -3255,7 +3258,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                     id: 'full-breakfast',
                     labelEn: 'Full breakfast',
                     labelFr: 'Petit-déjeuner complet',
-                    descEn: '90 min before rollout',
+                    descEn: '90 min before start',
                     descFr: '90 min avant le départ',
                   },
                   {
@@ -3296,6 +3299,83 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                   </button>
                 );
               })}
+            </div>
+
+            {/* Destination Fridge & Fueling Style */}
+            <div className="pt-3 border-t border-dashed border-ink/20 dark:border-white/15 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Fridge Availability */}
+              <div className="rounded-pod bg-pod p-3 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-ink">
+                    {isFr ? 'Frigo à l’arrivée' : 'Fridge at destination'}
+                  </div>
+                  <div className="text-[11px] text-ink-muted mt-0.5">
+                    {isFr
+                      ? 'Adapte la collation d’arrivée (frais vs sacoche)'
+                      : 'Tailors recovery snacks (chilled vs packable)'}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={trip.ruleSettings?.hasDestinationFridge ?? true}
+                  onClick={() =>
+                    updateRuleSetting(
+                      'hasDestinationFridge',
+                      !(trip.ruleSettings?.hasDestinationFridge ?? true)
+                    )
+                  }
+                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${CHIP_RING_BASE} ${
+                    trip.ruleSettings?.hasDestinationFridge ?? true
+                      ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
+                      : `bg-card text-ink-muted ${CHIP_RING_UNSELECTED}`
+                  }`}
+                >
+                  {(trip.ruleSettings?.hasDestinationFridge ?? true)
+                    ? isFr
+                      ? 'Oui'
+                      : 'Yes'
+                    : isFr
+                    ? 'Non'
+                    : 'No'}
+                </button>
+              </div>
+
+              {/* Fuel Preference: Real-Food vs Mixed vs Sports Fuel */}
+              <div className="rounded-pod bg-pod p-3 space-y-2">
+                <div className="text-xs font-bold text-ink">
+                  {isFr ? 'Style de ravitaillement' : 'Fuel preference'}
+                </div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {(
+                    [
+                      { id: 'real-food', en: 'Real food', fr: 'Vrai repas' },
+                      { id: 'mixed', en: 'Mixed', fr: 'Mixte' },
+                      { id: 'sports-fuel', en: 'Sports fuel', fr: 'Sport' },
+                    ] as const
+                  ).map((pref) => {
+                    const selected = (effectiveSpecs.nutritionPreference || 'real-food') === pref.id;
+                    return (
+                      <button
+                        key={pref.id}
+                        type="button"
+                        onClick={() => {
+                          const updated = { ...riderSpecs, nutritionPreference: pref.id };
+                          setRiderSpecs(updated);
+                          saveRiderBikeSpecs(updated);
+                        }}
+                        className={`min-h-[34px] px-2 rounded-full text-[11px] font-semibold transition-all cursor-pointer ${CHIP_RING_BASE} ${
+                          selected
+                            ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
+                            : `bg-card hover:bg-chip text-ink-secondary ${CHIP_RING_UNSELECTED}`
+                        }`}
+                      >
+                        {isFr ? pref.fr : pref.en}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </Collapsible>
         </div>

@@ -6,6 +6,7 @@ import { calculatePhysics, getPowerZone, PowerZoneCode } from './physics';
 import { addMinutesToTime } from './nutrition';
 import { synthesizeRouteElevationProfile } from './gpxParser';
 import { buildDefaultNewTripTemplate } from './storage';
+import { getApproxTimezoneOffset, getSolarEphemeris } from './solarVisibility';
 
 const VALID_AMENITY_CATS = new Set<AmenityCategory>([
   'water',
@@ -807,6 +808,29 @@ export function computeGroupSyncCheck(
 
   const isBalanced = !needsAdjustment;
 
+  const formatSunsetMargin = (arrivalHHMM: string): string => {
+    const coords = trip.route?.coordinates?.[0] || [47.2184, -1.5536];
+    const dateStr = trip.departureDate || new Date().toISOString().split('T')[0];
+    const tz = getApproxTimezoneOffset(dateStr, coords[1]);
+    const solar = getSolarEphemeris(coords[0], coords[1], dateStr, tz);
+    const toMin = (hhmm: string) => {
+      const [h, m] = hhmm.split(':').map(Number);
+      return (h || 0) * 60 + (m || 0);
+    };
+    const diffMin = toMin(solar.sunset) - toMin(arrivalHHMM);
+    if (Math.abs(diffMin) >= 60) {
+      const hrs = Math.round((Math.abs(diffMin) / 60) * 10) / 10;
+      if (diffMin > 0) {
+        return isFr ? `, ${hrs}h avant le coucher` : `, ${hrs}h before sunset`;
+      }
+      return isFr ? `, ${hrs}h après la nuit` : `, ${hrs}h after sunset`;
+    }
+    if (diffMin > 0) {
+      return isFr ? `, ${diffMin} min avant la nuit` : `, ${diffMin} min before sunset`;
+    }
+    return isFr ? `, ${Math.abs(diffMin)} min après la nuit` : `, ${Math.abs(diffMin)} min after sunset`;
+  };
+
   let takeaway: string;
   if (isBalanced) {
     takeaway = isFr
@@ -816,9 +840,10 @@ export function computeGroupSyncCheck(
     const harderName = harderRider === 'receiver' ? receiverLabel : senderLabel;
     const harderPct = harderRider === 'receiver' ? rFtpPct : sFtpPct;
     const harderZone = harderRider === 'receiver' ? rZone : sZone;
+    const sunsetNote = formatSunsetMargin(recommendedArrivalHHMM);
     takeaway = isFr
-      ? `À ${groupSpeedKmH} km/h, ${harderName} monte à ${harderPct}% FTP (${harderZone}). Passez à ${recommendedGroupSpeedKmH} km/h pour finir frais tous les deux (arrivée ${recommendedArrivalHHMM}, +${recommendedDurationDeltaMin} min).`
-      : `At ${groupSpeedKmH} km/h, ${harderName} hits ${harderPct}% FTP (${harderZone}). Ease to ${recommendedGroupSpeedKmH} km/h so you both finish fresh (arrival ${recommendedArrivalHHMM}, +${recommendedDurationDeltaMin} min).`;
+      ? `À ${groupSpeedKmH} km/h, ${harderName} monte à ${harderPct}% FTP (${harderZone}). Passez à ${recommendedGroupSpeedKmH} km/h pour finir frais tous les deux (arrivée ${recommendedArrivalHHMM}${sunsetNote}).`
+      : `At ${groupSpeedKmH} km/h, ${harderName} hits ${harderPct}% FTP (${harderZone}). Ease to ${recommendedGroupSpeedKmH} km/h so you both finish fresh (arrival ${recommendedArrivalHHMM}${sunsetNote}).`;
   } else {
     takeaway = isFr
       ? `Écart d’effort de ${effortGapPct}% FTP entre vous deux à ${groupSpeedKmH} km/h — prévoyez des relais doux en bosse.`

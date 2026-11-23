@@ -265,16 +265,16 @@ export const Screen5RiderBike: React.FC<Screen5RiderBikeProps> = ({
                 </div>
                 <div className="min-w-0">
                   <div className="text-sm font-rounded font-bold text-ink leading-snug">
-                    {isFr ? 'Suivi quantitatif · Puissance & Watts (FTP)' : 'Quantitative Telemetry · Power & Watts (FTP)'}
+                    {isFr ? 'Suivi quantitatif · Puissance & Watts (FTP)' : 'Quantitative Data · Power & Watts (FTP)'}
                   </div>
                   <p className="text-xs text-ink-secondary font-body mt-0.5 leading-relaxed">
                     {purposeId === 'sport'
                       ? isFr
                         ? 'En sortie Sportive, l’affichage quantitatif (g/h, Watts, Zones) est activé par défaut. Activez cet interrupteur pour piloter l’allure en Watts via votre FTP.'
-                        : 'Sport rides default to quantitative telemetry (g/h, Watts, Zones). Keep this on if you ride with a power meter or target wattage pacing.'
+                        : 'Sport rides default to quantitative data (g/h, Watts, Zones). Keep this on if you ride with a power meter or target wattage pacing.'
                       : isFr
-                        ? 'Activez cette option pour passer en télémétrie quantitative complète (Watts, FTP et objectifs g/h précis).'
-                        : 'Turn this on to enable full quantitative telemetry (Watts, FTP zones, and exact g/hr targets) instead of Fuel-First.'}
+                        ? 'Activez cette option pour passer aux données quantitatives complètes (Watts, FTP et objectifs g/h précis).'
+                        : 'Turn this on to enable full quantitative data (Watts, FTP zones, and exact g/hr targets) instead of Fuel-First.'}
                   </p>
                 </div>
               </div>
