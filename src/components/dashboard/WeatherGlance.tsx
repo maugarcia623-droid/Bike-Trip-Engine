@@ -38,6 +38,7 @@ export interface WeatherGlanceProps {
   windSpeed: number;
   windCardinal: string;
   maxGust: number;
+  hideHeader?: boolean;
   onExpand: () => void;
 }
 
@@ -53,6 +54,7 @@ export const WeatherGlance: React.FC<WeatherGlanceProps> = ({
   windSpeed,
   windCardinal,
   maxGust,
+  hideHeader = false,
   onExpand,
 }) => {
   const { t } = useTranslation();
@@ -89,14 +91,16 @@ export const WeatherGlance: React.FC<WeatherGlanceProps> = ({
       className="w-full pt-1 rounded-pod transition-opacity hover:opacity-90 text-left cursor-pointer flex flex-col gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
     >
       {/* ── 1. Weather heading ── */}
-      <span className="flex items-center justify-between gap-2 w-full">
-        <span className="font-rounded font-bold text-base leading-6 tracking-[-0.4px] text-ink whitespace-nowrap">
-          {t('weatherGlanceTitle')}
+      {!hideHeader && (
+        <span className="flex items-center justify-between gap-2 w-full">
+          <span className="font-rounded font-bold text-base leading-6 tracking-[-0.4px] text-ink whitespace-nowrap">
+            {t('weatherGlanceTitle')}
+          </span>
+          <span className="bg-volt text-[#111111] px-2.5 py-1 rounded-full font-rounded font-medium text-xs leading-4 whitespace-nowrap tnum shrink-0">
+            {t('weatherGlanceNowBadge', { time: visibility.rolloutTime })}
+          </span>
         </span>
-        <span className="bg-volt text-[#111111] px-2.5 py-1 rounded-full font-rounded font-medium text-xs leading-4 whitespace-nowrap tnum shrink-0">
-          {t('weatherGlanceNowBadge', { time: visibility.rolloutTime })}
-        </span>
-      </span>
+      )}
 
       {/* ── 2. Temperature and conditions ── */}
       <span className="flex items-center gap-3.5 w-full">

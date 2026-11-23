@@ -1614,7 +1614,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                         </span>
                       </Button>
                     ) : (
-                      <div className="grid grid-cols-3 sm:inline-flex items-center p-1 gap-1 rounded-pod sm:rounded-full bg-pod w-full sm:w-auto">
+                      <div className="grid grid-cols-3 sm:inline-flex items-center p-1 gap-1 rounded-full bg-pod w-full sm:w-auto">
                         {(
                           [
                             { id: 'corridor', label: t('routeModeCorridor') },

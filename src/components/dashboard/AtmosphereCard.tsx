@@ -548,6 +548,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
             windSpeed={windSpeed}
             windCardinal={windCardinal}
             maxGust={maxGust}
+            hideHeader
             onExpand={toggleCardExpanded}
           />
         </div>

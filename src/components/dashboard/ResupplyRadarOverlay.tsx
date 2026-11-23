@@ -64,6 +64,7 @@ import {
   AmenityRouteSubAction,
 } from './AmenityReroutePrompt';
 import { InfoTooltip } from '../common/InfoTooltip';
+import { Collapsible, DisclosureChevron } from '../common/Collapsible';
 import {
   CHIP_TOKENS,
   CHIP_RING_BASE,
@@ -83,6 +84,8 @@ export interface ResupplyRadarOverlayProps {
   selectedAmenity?: StageAmenity | null;
   onSelectAmenity?: (amenity: StageAmenity) => void;
   onAmenitiesLoaded?: (amenities: StageAmenity[]) => void;
+  activeCategories?: Set<AmenityCategory>;
+  onActiveCategoriesChange?: (next: Set<AmenityCategory>) => void;
   showMapDots?: boolean;
   onToggleShowMapDots?: () => void;
   /** When true, renders inline inside the Layer 2 dashboard tab instead of a portal modal. */
@@ -104,6 +107,8 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
   selectedAmenity,
   onSelectAmenity,
   onAmenitiesLoaded,
+  activeCategories: controlledActiveCategories,
+  onActiveCategoriesChange,
   showMapDots = true,
   onToggleShowMapDots,
   embedded = false,
@@ -113,12 +118,25 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
   const { lang, t } = useTranslation();
   const isFr = lang === 'fr';
 
-  // Category filters
-  const [activeCategories, setActiveCategories] = useState<Set<AmenityCategory>>(
+  // Category filters (controlled when shared with BentoDashboard/HeroRouteCard so map dots stay in sync)
+  const [localActiveCategories, setLocalActiveCategories] = useState<Set<AmenityCategory>>(
     () => new Set<AmenityCategory>(['water', 'cemetery', 'food', 'mechanix', 'essentials', 'bailout'])
   );
+  const activeCategories = controlledActiveCategories ?? localActiveCategories;
+  const setActiveCategories = (
+    updater: Set<AmenityCategory> | ((prev: Set<AmenityCategory>) => Set<AmenityCategory>)
+  ) => {
+    const next = typeof updater === 'function' ? updater(activeCategories) : updater;
+    if (onActiveCategoriesChange) {
+      onActiveCategoriesChange(next);
+    } else {
+      setLocalActiveCategories(next);
+    }
+  };
+  const [expandedCategoryGroups, setExpandedCategoryGroups] = useState<Set<string>>(() => new Set());
   const [detourOnly250m, setDetourOnly250m] = useState<boolean>(false);
   const [autoMarkMsg, setAutoMarkMsg] = useState<string | null>(null);
+  const [autoMarkedIds, setAutoMarkedIds] = useState<string[]>([]);
 
   // Amenity scanning states
   const [amenities, setAmenities] = useState<StageAmenity[]>([]);
@@ -327,8 +345,38 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
     onUpdateTrip(updatedTrip);
   };
 
-  // Auto-Mark water gaps & 25 km stops with open-at-arrival preference
+  const isAutoMarkActive = useMemo(
+    () => autoMarkedIds.length > 0 && autoMarkedIds.some((id) => pinnedIds.has(id)),
+    [autoMarkedIds, pinnedIds]
+  );
+
+  // Auto-Mark water gaps & 25 km stops (toggles ON/OFF like a light switch)
   const handleAutoMarkStops = (intervalKm = 25) => {
+    if (isAutoMarkActive) {
+      const autoSet = new Set(autoMarkedIds);
+      const remainingPinned = pinnedAmenities.filter((p) => !autoSet.has(p.id));
+      let updatedStages = trip.stages;
+      if (trip.stages && trip.stages.length > 0) {
+        const activeIdx = Math.max(
+          0,
+          Math.min(trip.activeStageIndex ?? 0, trip.stages.length - 1)
+        );
+        updatedStages = trip.stages.map((st, idx) =>
+          idx === activeIdx ? { ...st, pinnedAmenities: remainingPinned } : st
+        );
+      }
+      onUpdateTrip({
+        ...trip,
+        pinnedAmenities: remainingPinned,
+        stages: updatedStages,
+        updatedAt: new Date().toISOString(),
+      });
+      setAutoMarkedIds([]);
+      setAutoMarkMsg(isFr ? 'Arrêts auto retirés' : 'Auto-marked stops cleared');
+      setTimeout(() => setAutoMarkMsg(null), 2400);
+      return;
+    }
+
     if (amenities.length === 0) return;
     const { selectedStops, addedStops } = autoMarkResupplyStops({
       amenities,
@@ -365,6 +413,7 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
       stages: updatedStages,
       updatedAt: new Date().toISOString(),
     });
+    setAutoMarkedIds(addedStops.map((s) => s.id));
 
     setAutoMarkMsg(
       isFr
@@ -873,10 +922,19 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
                   variant="ghost"
                   size="sm"
                   type="button"
+                  aria-pressed={isAutoMarkActive}
                   onClick={() => handleAutoMarkStops(25)}
-                  className={`inline-flex items-center gap-1.5 min-h-[30px] px-3 py-1 rounded-full text-[11px] font-rounded font-bold transition-all cursor-pointer ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} hover:brightness-95 active:scale-[0.98]`}
+                  className={`inline-flex items-center gap-1.5 min-h-[30px] px-3 py-1 rounded-full text-[11px] font-rounded font-bold transition-all cursor-pointer hover:brightness-95 active:scale-[0.98] ${
+                    isAutoMarkActive
+                      ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
+                      : `bg-pod text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED}`
+                  }`}
                   title={
-                    isFr
+                    isAutoMarkActive
+                      ? isFr
+                        ? 'Cliquer pour retirer les arrêts auto-marqués'
+                        : 'Click to clear auto-marked stops'
+                      : isFr
                       ? 'Épingle automatiquement les points d’eau ouverts tous les ~25 km et une halte café'
                       : 'Automatically pin open water taps every ~25 km and a mid-route café stop'
                   }
@@ -943,11 +1001,95 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
             </div>
           ) : (
             <div className="space-y-2 shrink-0">
-              {/* Grouped card container with smooth native touch pan */}
-              <div className="rounded-[22px] bg-pod/70 dark:bg-white/[0.045] divide-y divide-ink/[0.06] dark:divide-white/[0.06] touch-pan-y">
-                {filteredAmenities.map((amenity, idx) => {
-                const isFirst = idx === 0;
-                const isLast = idx === filteredAmenities.length - 1;
+              {(() => {
+                const accordionGroups = [
+                  {
+                    id: 'water',
+                    label: t('catWater'),
+                    theme: 'sky' as const,
+                    icon: Droplets,
+                    items: filteredAmenities.filter((a) => a.category === 'water' || a.category === 'cemetery'),
+                  },
+                  {
+                    id: 'food',
+                    label: t('catFood'),
+                    theme: 'amber' as const,
+                    icon: Baguette,
+                    items: filteredAmenities.filter((a) => a.category === 'food'),
+                  },
+                  {
+                    id: 'mechanix',
+                    label: t('catMechanix'),
+                    theme: 'teal' as const,
+                    icon: Wrench,
+                    items: filteredAmenities.filter((a) => a.category === 'mechanix'),
+                  },
+                  {
+                    id: 'essentials',
+                    label: isFr ? 'WC / Pharm. / Carb.' : 'WC / Med / Fuel',
+                    theme: 'blue' as const,
+                    icon: Shield,
+                    items: filteredAmenities.filter((a) => a.category === 'essentials'),
+                  },
+                  {
+                    id: 'bailout',
+                    label: isFr ? 'Gares (Repli)' : 'Train Bailout',
+                    theme: 'orange' as const,
+                    icon: TrainSimple,
+                    items: filteredAmenities.filter((a) => a.category === 'bailout'),
+                  },
+                ].filter((g) => g.items.length > 0);
+
+                return accordionGroups.map((group) => {
+                  const GroupIcon = group.icon;
+                  const groupTokens = CHIP_TOKENS[group.theme];
+                  const isGroupOpen =
+                    accordionGroups.length === 1 || expandedCategoryGroups.has(group.id);
+                  const pinnedInGroup = group.items.filter((a) => pinnedIds.has(a.id)).length;
+
+                  return (
+                    <div
+                      key={group.id}
+                      className="rounded-[22px] bg-pod/70 dark:bg-white/[0.045] overflow-hidden"
+                    >
+                      <button
+                        type="button"
+                        aria-expanded={isGroupOpen}
+                        onClick={() =>
+                          setExpandedCategoryGroups((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(group.id)) next.delete(group.id);
+                            else next.add(group.id);
+                            return next;
+                          })
+                        }
+                        className="w-full px-3.5 py-2.5 flex items-center justify-between gap-2 text-left hover:bg-pod dark:hover:bg-white/[0.05] transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span
+                            className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${groupTokens.surface} ${groupTokens.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                          >
+                            <GroupIcon className="w-3.5 h-3.5 text-current" />
+                          </span>
+                          <span className="font-rounded font-bold text-xs text-ink truncate">
+                            {group.label}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full bg-card dark:bg-black/30 text-[10px] font-bold text-ink-secondary tnum shrink-0">
+                            {group.items.length}
+                          </span>
+                          {pinnedInGroup > 0 && (
+                            <span className="px-2 py-0.5 rounded-full bg-volt text-[#111111] text-[10px] font-bold tnum shrink-0">
+                              {pinnedInGroup} ★
+                            </span>
+                          )}
+                        </div>
+                        <DisclosureChevron open={isGroupOpen} />
+                      </button>
+
+                      <Collapsible open={isGroupOpen}>
+                        <div className="divide-y divide-ink/[0.06] dark:divide-white/[0.06] border-t border-dashed border-ink/15 dark:border-white/10 touch-pan-y">
+                          {group.items.map((amenity, idx) => {
+                const isLast = idx === group.items.length - 1;
                 const isPinned = pinnedIds.has(amenity.id);
                 const isSelected = selectedAmenity?.id === amenity.id;
                 const isJustPinned = justPinnedId === amenity.id;
@@ -983,8 +1125,8 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
                     key={amenity.id}
                     onClick={() => onSelectAmenity?.(amenity)}
                     className={`p-3 transition-colors cursor-pointer touch-pan-y ${
-                      isFirst ? 'rounded-t-[22px]' : ''
-                    } ${isLast ? 'rounded-b-[22px]' : ''} ${
+                      isLast ? 'rounded-b-[22px]' : ''
+                    } ${
                       isSelected
                         ? 'bg-pod dark:bg-white/[0.08]'
                         : 'hover:bg-pod/80 dark:hover:bg-white/[0.03]'
@@ -1138,8 +1280,13 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
                     />
                   </div>
                 );
-              })}
-              </div>
+                          })}
+                        </div>
+                      </Collapsible>
+                    </div>
+                  );
+                });
+              })()}
 
               <p className="px-2 pt-0.5 text-[10px] text-ink-muted leading-relaxed">
                 {isFr

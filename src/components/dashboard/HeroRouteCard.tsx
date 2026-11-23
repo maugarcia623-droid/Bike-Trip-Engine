@@ -56,7 +56,7 @@ import {
   saveExpeditionPack,
 } from '../../services/offlinePackService';
 import { TripProfile, PhysicsCalculationResult, SurfaceSegment, SurfaceType } from '../../types/trip';
-import { StageAmenity } from '../../types/amenities';
+import { AmenityCategory, StageAmenity } from '../../types/amenities';
 import { ResupplyRadarOverlay } from './ResupplyRadarOverlay';
 import { RiderBikeSpecs, resolveBikeTireWidthMm } from '../../types/specs';
 import { getActiveBike, loadRiderBikeSpecs } from '../../utils/specsStorage';
@@ -103,6 +103,8 @@ interface HeroRouteCardProps {
   onShareReceipt?: () => void;
   onOpenFeedback?: () => void;
   amenities?: StageAmenity[];
+  visibleAmenityCategories?: Set<AmenityCategory>;
+  onVisibleAmenityCategoriesChange?: (next: Set<AmenityCategory>) => void;
   selectedAmenity?: StageAmenity | null;
   onSelectAmenity?: (amenity: StageAmenity) => void;
   onTogglePinAmenity?: (amenity: StageAmenity) => void;
@@ -185,6 +187,8 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
   onShareReceipt,
   onOpenFeedback,
   amenities,
+  visibleAmenityCategories,
+  onVisibleAmenityCategoriesChange,
   selectedAmenity,
   onSelectAmenity,
   onTogglePinAmenity,
@@ -1312,7 +1316,11 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
       return;
     }
 
-    const allAmenities = [...(amenities || [])];
+    const pinnedIds = new Set((trip.pinnedAmenities || []).map((p) => p.id));
+
+    const allAmenities = (amenities || []).filter((a) =>
+      visibleAmenityCategories ? visibleAmenityCategories.has(a.category) || pinnedIds.has(a.id) : true
+    );
     if (trip.pinnedAmenities) {
       for (const pinned of trip.pinnedAmenities) {
         if (!allAmenities.some((a) => a.id === pinned.id)) {
@@ -1322,8 +1330,6 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
     }
 
     if (allAmenities.length === 0) return;
-
-    const pinnedIds = new Set((trip.pinnedAmenities || []).map((p) => p.id));
 
     allAmenities.forEach((amenity) => {
       const isPinned = pinnedIds.has(amenity.id) || Boolean(amenity.isPinned);
@@ -1444,7 +1450,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
       group.addLayer(marker);
       amenityMarkersMapRef.current.set(amenity.id, marker);
     });
-  }, [amenities, trip.pinnedAmenities, isFr, isDarkMode, showMapDots]);
+  }, [amenities, visibleAmenityCategories, trip.pinnedAmenities, isFr, isDarkMode, showMapDots]);
 
   // 5. Center map and open popup when selectedAmenity changes
   useEffect(() => {
@@ -1513,10 +1519,10 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
         className={`relative z-20 p-4 flex flex-col justify-between pointer-events-none ${
           isMapFullscreen
             ? 'h-full pt-[calc(env(safe-area-inset-top,0px)+1rem)] pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] pl-[calc(env(safe-area-inset-left,0px)+1rem)] pr-[calc(env(safe-area-inset-right,0px)+1rem)]'
-            : 'h-full flex-1 min-h-[460px] sm:min-h-[490px] lg:min-h-[520px]'
+            : 'h-full flex-1 min-h-[600px] sm:min-h-[500px] lg:min-h-[520px]'
         }`}
       >
-        <div className="relative z-30 flex flex-wrap items-center justify-start gap-2 mb-24 sm:mb-20 pointer-events-none max-w-full">
+        <div className="relative z-30 flex flex-wrap items-center justify-start gap-2 mb-48 sm:mb-20 pointer-events-none max-w-full">
           {/* ── UNIFIED MULTI-TOOL RIBBON (6 UNIFORM 1:1 ICON BUTTONS) ── */}
           <div className="relative inline-flex items-center gap-1 sm:gap-1.5 p-1 sm:p-1.5 rounded-full bg-card/95 dark:bg-[#161618]/95 backdrop-blur-md text-ink dark:text-white shadow-sm sm:shadow-md pointer-events-auto select-none transition-colors">
             {/* 1. Route Direction / Flip Button */}
@@ -3413,6 +3419,8 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
         selectedAmenity={selectedAmenity}
         onSelectAmenity={onSelectAmenity}
         onAmenitiesLoaded={onAmenitiesLoaded}
+        activeCategories={visibleAmenityCategories}
+        onActiveCategoriesChange={onVisibleAmenityCategoriesChange}
         showMapDots={showMapDots}
         onToggleShowMapDots={handleToggleShowMapDots}
       />

@@ -79,7 +79,7 @@ export const TripCard: React.FC<TripCardProps> = ({
       {/* Top Section: Category, Actions, Title, Description, Preset Tags */}
       <div>
         {/* Top Row: Category Pill & Circular Action Buttons */}
-        <div className="flex items-center justify-between gap-2 mb-3.5">
+        <div className="flex items-start justify-between gap-2 mb-3.5">
           <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="zinc" size="md">
               {trip.tag === 'VÉLOTAF' ? (lang === 'fr' ? 'Vélotaf' : 'Commute') : trip.tag}

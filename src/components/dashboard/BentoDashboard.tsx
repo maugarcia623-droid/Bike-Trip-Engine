@@ -25,7 +25,7 @@ import { ReverseTimelineBento } from './ReverseTimelineBento';
 import { getTripArchetype } from './TimelineContextualBanner';
 import { PreFlightChecklistBento } from './PreFlightChecklistBento';
 import { NutritionBento } from './NutritionBento';
-import { StageAmenity } from '../../types/amenities';
+import { AmenityCategory, StageAmenity } from '../../types/amenities';
 import { ShareTelemetryModal } from '../ShareTelemetryModal';
 import { FeedbackModal } from '../FeedbackModal';
 import { ConfirmModal } from '../common/ConfirmModal';
@@ -148,6 +148,9 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
   const [dismissedSlicerBannerTripId, setDismissedSlicerBannerTripId] = React.useState<string | null>(null);
   const [gpxErrorMsg, setGpxErrorMsg] = React.useState<string | null>(null);
   const [loadedAmenities, setLoadedAmenities] = React.useState<StageAmenity[]>([]);
+  const [activeRadarCategories, setActiveRadarCategories] = React.useState<Set<AmenityCategory>>(
+    () => new Set<AmenityCategory>(['water', 'cemetery', 'food', 'mechanix', 'essentials', 'bailout'])
+  );
 
   const openStageSlicer = React.useCallback((days?: number) => {
     setSlicerInitialDays(days);
@@ -991,6 +994,8 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
             onPrint={onPrint}
             onShareReceipt={handleShareReceipt}
             amenities={loadedAmenities}
+            visibleAmenityCategories={activeRadarCategories}
+            onVisibleAmenityCategoriesChange={setActiveRadarCategories}
             selectedAmenity={selectedAmenity}
             onSelectAmenity={setSelectedAmenity}
             onAmenitiesLoaded={setLoadedAmenities}
@@ -1147,6 +1152,8 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
                 selectedAmenity={selectedAmenity}
                 onSelectAmenity={setSelectedAmenity}
                 onAmenitiesLoaded={setLoadedAmenities}
+                activeCategories={activeRadarCategories}
+                onActiveCategoriesChange={setActiveRadarCategories}
                 onJumpToMap={() => handleJumpToSection('bento-route')}
               />
             </div>
@@ -1222,6 +1229,8 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
                 selectedAmenity={selectedAmenity}
                 onSelectAmenity={setSelectedAmenity}
                 onAmenitiesLoaded={setLoadedAmenities}
+                activeCategories={activeRadarCategories}
+                onActiveCategoriesChange={setActiveRadarCategories}
                 onJumpToMap={() => handleJumpToSection('bento-route')}
               />
             </div>
