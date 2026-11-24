@@ -3,6 +3,7 @@ import { Wind, ThermometerSimple, CloudRain, Warning, CheckCircle, NavigationArr
 import { TripProfile, WeatherCondition } from '../../types/trip';
 import { useTranslation } from '../../context/LanguageContext';
 import { calculatePhysics } from '../../utils/physics';
+import { calculateTripWindInsight } from '../../utils/windInsights';
 import { degreesToCompassCardinal } from '../../services/weatherService';
 import { Badge } from '../common/Badge';
 import { loadRiderBikeSpecs } from '../../utils/specsStorage';
@@ -62,6 +63,47 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
 
   const isHighWind = physicsResult.goStatus === 'NO-GO';
   const isCaution = physicsResult.goStatus === 'CAUTION';
+  const isFr = lang === 'fr';
+
+  const windInsight = calculateTripWindInsight({
+    distanceKm: effectiveRoute.distanceKm || 30,
+    targetSpeedKmH: speedKmH || 24,
+    riderWeightKg: effectivePhysics.riderWeightKg,
+    bikeWeightKg: effectivePhysics.bikeWeightKg,
+    cda: effectivePhysics.cda,
+    crr: effectivePhysics.crr,
+    windSpeedKmH: effectiveWindSpeed,
+    effectiveHeadwindKmH: weather.effectiveHeadwindKmH,
+    isHeadwindActive: weather.isHeadwindActive,
+    windDirection: weather.windDirection,
+    windFromDegrees: weather.windDirectionDegrees,
+    temperatureC: weather.temperatureC,
+    lang: isFr ? 'fr' : 'en',
+  });
+
+  const companionReadout = isHighWind
+    ? isFr
+      ? `Grosses rafales (${peakGust} km/h) — délicat sur les routes exposées. Ça vaut le coup d’attendre une accalmie.`
+      : `Strong gusts (${peakGust} km/h) — tricky handling on open roads. Worth waiting for a calmer window.`
+    : effectiveWindSpeed >= 12 && windInsight.ghostElevationM >= 150
+    ? isFr
+      ? `Ce vent de face (${effectiveWindSpeed} km/h) donne la sensation d’une côte à +${windInsight.equivalentGradePct.toFixed(1)} % (+${windInsight.ghostElevationM} m invisibles${windInsight.iconicClimbComparison ? ` · ${windInsight.iconicClimbComparison}` : ''}).`
+      : `That ${effectiveWindSpeed} km/h headwind feels like a +${windInsight.equivalentGradePct.toFixed(1)}% climb (+${windInsight.ghostElevationM} m ghost climbing${windInsight.iconicClimbComparison ? ` · ${windInsight.iconicClimbComparison}` : ''}).`
+    : weather.precipitationRiskPercent >= 50
+    ? isFr
+      ? `Routes probablement humides (${weather.precipitationRiskPercent} %) — prends un coupe-pluie et garde de la marge dans les virages.`
+      : `Wet roads likely (${weather.precipitationRiskPercent}%) — grab a shell and take corners smoothly.`
+    : weather.temperatureC <= 5
+    ? isFr
+      ? `Air vif (${weather.temperatureC} °C) — des gants chauds et un coupe-vent te sauveront les 20 premières minutes.`
+      : `Crisp ${weather.temperatureC}°C air — warm gloves and a windproof layer will save the first 20 minutes.`
+    : weather.windDirection === 'tailwind' && (weather.baseWindSpeedKmH ?? 0) >= 12
+    ? isFr
+      ? `Joli vent de dos (${weather.baseWindSpeedKmH} km/h) — profite de la vitesse gratuite.`
+      : `Friendly ${weather.baseWindSpeedKmH} km/h tailwind — enjoy the free speed.`
+    : isFr
+    ? 'Air calme et routes sèches — une bonne excuse pour rallonger un peu la sortie.'
+    : 'Calm air and dry roads — easy excuse to take the long way.';
 
   return (
     <div
@@ -140,7 +182,9 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
 
         <div className="bg-pod rounded-pod p-3.5 sm:p-4 min-w-0">
           <div className="flex items-start justify-between gap-1.5 text-xs font-medium text-ink-muted">
-            <span className="break-words leading-snug">{t('airTempDensityLabel')}</span>
+            <span className="break-words leading-snug">
+              {isProView ? t('airTempDensityLabel') : isFr ? 'Température' : 'Temperature'}
+            </span>
             <ThermometerSimple className={`w-4 h-4 shrink-0 ${GREYSCALE_TOKENS.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
           </div>
           <div className="mt-2.5 flex items-baseline gap-x-1.5 gap-y-0.5 flex-wrap">
@@ -211,31 +255,35 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
         </div>
       </div>
 
-      {/* Full-Radius Telemetry Summary Capsule */}
-      <div className="rounded-pod lg:rounded-full bg-pod px-4 sm:px-5 py-3 flex flex-wrap items-center justify-between gap-2.5 text-xs">
-        <div className="flex items-center gap-2 flex-wrap min-w-0">
-          <span className="text-ink-secondary font-medium shrink-0">
-            {lang === 'fr' ? 'Allure cible & aérodynamique :' : 'Cruising pace & aerodynamics:'}
-          </span>
-          <span className="inline-flex items-center px-3 py-1 rounded-full bg-card font-semibold text-ink tnum shrink-0 whitespace-nowrap leading-none">
-            {speedKmH} km/h
-          </span>
-        </div>
+      {/* Companion Weather Readout (or Pro Aero Summary) */}
+      {isProView ? (
+        <div className="rounded-pod lg:rounded-full bg-pod px-4 sm:px-5 py-3 flex flex-wrap items-center justify-between gap-2.5 text-xs">
+          <div className="flex items-center gap-2 flex-wrap min-w-0">
+            <span className="text-ink-secondary font-medium shrink-0">
+              {isFr ? 'Allure cible & aéro :' : 'Target pace & aero:'}
+            </span>
+            <span className="inline-flex items-center px-3 py-1 rounded-full bg-card font-semibold text-ink tnum shrink-0 whitespace-nowrap leading-none">
+              {speedKmH} km/h
+            </span>
+          </div>
 
-        <div className="flex items-center gap-2 shrink-0">
-          {weather.isHeadwindActive && effectiveWindSpeed > 0 ? (
-            <Badge variant="amber" size="md" className="tnum">
-              {isProView
-                ? t('aeroDragFactoredPill', { watts: aeroDeltaWatts })
-                : (lang === 'fr' ? `Vent de face ${effectiveWindSpeed} km/h` : `${effectiveWindSpeed} km/h headwind`)}
-            </Badge>
-          ) : (
-            <Badge variant="emerald" size="md">
-              {t('baselineDragPill')}
-            </Badge>
-          )}
+          <div className="flex items-center gap-2 shrink-0">
+            {weather.isHeadwindActive && effectiveWindSpeed > 0 ? (
+              <Badge variant="amber" size="md" className="tnum">
+                {t('aeroDragFactoredPill', { watts: aeroDeltaWatts })}
+              </Badge>
+            ) : (
+              <Badge variant="emerald" size="md">
+                {t('baselineDragPill')}
+              </Badge>
+            )}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="rounded-pod bg-pod px-4 py-3 text-xs text-ink-secondary leading-relaxed">
+          {companionReadout}
+        </div>
+      )}
     </div>
   );
 };

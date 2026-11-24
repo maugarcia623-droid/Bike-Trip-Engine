@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useId, useEffect } from 'react';
-import { Button } from '@/components/arc';
+import { Button } from "@/components/arc/button/button";
 import {
   Lightning,
   Info,
@@ -278,8 +278,20 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
 
   return (
     <Card
-      title={t('physicsCardTitle')}
-      subtitle={isEssential ? t('cockpitViewEssentialHint') : t('physicsCardSub')}
+      title={
+        isEssential
+          ? isFr
+            ? 'Comment la sortie va se ressentir'
+            : 'How this ride will feel'
+          : t('physicsCardTitle')
+      }
+      subtitle={
+        isEssential
+          ? isFr
+            ? 'Où part ton effort entre le vent, les côtes et la route'
+            : 'Where your effort goes across air, hills, and road surface'
+          : t('physicsCardSub')
+      }
       badge={
         <div className="inline-flex items-center gap-1.5 flex-wrap">
           <Badge variant={zoneTheme} size="md" dot className="tnum">
@@ -537,11 +549,17 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
         </div>
       )}
 
-      {/* ── UNIFIED STACKED POWER BUDGET BAR ── */}
+      {/* ── UNIFIED STACKED EFFORT / POWER BUDGET BAR ── */}
       <div className="rounded-pod bg-pod p-3.5 mb-3.5">
         <div className="flex items-center justify-between gap-2 mb-2">
           <span className="text-[10px] font-rounded font-bold uppercase tracking-[0.14em] text-ink-muted">
-            {isFr ? 'Répartition puissance' : 'Power budget'}
+            {showWattsBudget
+              ? isFr
+                ? 'Répartition puissance'
+                : 'Power budget'
+              : isFr
+              ? 'Où va ton effort'
+              : 'Where your effort goes'}
           </span>
           <span className="text-xs font-rounded font-bold text-ink tnum">
             {showWattsBudget ? `${legWatts} W` : zoneLabel}
@@ -595,14 +613,28 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
           <span className="inline-flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-[#A3B300] dark:bg-volt shrink-0" />
             <span>
-              {isFr ? 'Aéro' : 'Aero'} {aeroBudgetPct}%
+              {showWattsBudget
+                ? isFr
+                  ? 'Aéro'
+                  : 'Aero'
+                : isFr
+                ? 'Air'
+                : 'Pushing air'}{' '}
+              {aeroBudgetPct}%
               {showWattsBudget ? ` · ${aeroWatts} W` : ''}
             </span>
           </span>
           <span className="inline-flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 shrink-0" />
             <span>
-              {isFr ? 'Roulement' : 'Rolling'} {rollingBudgetPct}%
+              {showWattsBudget
+                ? isFr
+                  ? 'Roulement'
+                  : 'Rolling'
+                : isFr
+                ? 'Pneus'
+                : 'Tyres'}{' '}
+              {rollingBudgetPct}%
               {showWattsBudget ? ` · ${rollingOnlyWatts} W` : ''}
             </span>
           </span>
@@ -616,7 +648,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
                 }`}
               />
               <span>
-                {isFr ? 'Pente' : 'Climb'} {gravityBudgetPct}%
+                {isFr ? 'Côtes' : 'Climbs'} {gravityBudgetPct}%
                 {showWattsBudget ? ` · ${positiveGravityWatts} W` : ''}
               </span>
             </span>
@@ -631,6 +663,27 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
             </span>
           )}
         </div>
+
+        {!showWattsBudget && (
+          <p className="mt-2.5 pt-2.5 border-t border-ink/[0.06] dark:border-white/[0.06] text-xs text-ink-secondary leading-snug">
+            {aeroBudgetPct >= 65
+              ? isFr
+                ? `${aeroBudgetPct} % de ton effort sert surtout à fendre l’air — reste souple et relâché sur les portions exposées.`
+                : `${aeroBudgetPct}% of your effort is just pushing through air — stay relaxed on the open stretches.`
+              : gravityBudgetPct >= 30
+              ? isFr
+                ? `${gravityBudgetPct} % de l’effort part dans les bosses — mouline tôt pour garder des jambes fraîches jusqu’au bout.`
+                : `${gravityBudgetPct}% of the work goes into the climbs — spin an easy gear early so your legs stay fresh.`
+              : isFr
+              ? `Bel équilibre entre l’air (${aeroBudgetPct} %), les pneus (${rollingBudgetPct} %) et le relief — effort régulier tout du long.`
+              : `Even balance across air (${aeroBudgetPct}%), tyres (${rollingBudgetPct}%), and hills — steady, predictable effort.`}
+            {sectional.peakAtKm > 0 && sectional.peakGradePct >= 3
+              ? isFr
+                ? ` Le moment qui pique le plus arrive vers le km ${Math.round(sectional.peakAtKm)} (${sectional.peakGradePct.toFixed(1)} %).`
+                : ` The sharpest sting comes around km ${Math.round(sectional.peakAtKm)} (${sectional.peakGradePct.toFixed(1)}%).`
+              : ''}
+          </p>
+        )}
       </div>
 
       {/* ── DIDACTIC WATTS & POWER ZONES EXPLAINER (COLLAPSIBLE) ── */}

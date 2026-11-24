@@ -18,7 +18,7 @@ import {
   Lightning,
 } from '@/components/icons';
 import { useTranslation } from '../../context/LanguageContext';
-import { Button } from '@/components/arc';
+import { Button } from "@/components/arc/button/button";
 import { ONBOARDING_SPEED_BOUNDS, PACE_TIERS } from './constants';
 import { Chip } from '../common/Chip';
 import {

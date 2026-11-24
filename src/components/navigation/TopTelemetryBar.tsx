@@ -29,10 +29,12 @@ import {
   Calculator,
   ArrowLeft,
   SlidersHorizontal,
+  Scissors,
 } from '@/components/icons';
 
 import { IconBadge } from '../common/IconBadge';
-import { Button, ActionButton } from '@/components/arc';
+import { Button } from '@/components/arc/button/button';
+import type { FreeWebToolId } from '../../utils/toolCatalog';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
   CHIP_RING_BASE,
@@ -51,7 +53,7 @@ interface TopTelemetryBarProps {
   onShareReceipt?: () => void;
   onOpenFeedback?: () => void;
   onOpenRideBrief?: () => void;
-  onOpenTools?: (tab?: 'wind' | 'leave-by' | 'pressure') => void;
+  onOpenTools?: (tab?: FreeWebToolId) => void;
   riderSpecs?: RiderBikeSpecs;
   isMenuOpen?: boolean;
   onMenuOpenChange?: (open: boolean) => void;
@@ -92,6 +94,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
   const menuContainerRef = useRef<HTMLDivElement>(null);
   const mobileSheetRef = useRef<HTMLDivElement>(null);
   const [exportedFormat, setExportedFormat] = useState<'FIT' | 'GPX' | 'TCX' | null>(null);
+  const [syncDone, setSyncDone] = useState(false);
   const exportFeedbackTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -441,23 +444,32 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
                 label={syncStatusLabel}
                 sub={t('autoSaveActive')}
                 trailing={
-                  <ActionButton
-                    label={t('syncNowBtn')}
-                    pendingLabel={t('syncStatusSaving')}
-                    successLabel={t('cloudSynced')}
-                    onAction={async () => {
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={syncStatus === 'saving'}
+                    onClick={async () => {
+                      setSyncDone(false);
                       await forceSyncNow();
+                      setSyncDone(true);
+                      window.setTimeout(() => setSyncDone(false), 1600);
                     }}
-                    icon={
-                      <RefreshCw
-                        className={`w-3.5 h-3.5 ${syncStatus === 'saving' ? 'animate-spin' : ''}`}
-                        aria-hidden="true"
-                      />
-                    }
                     className={`inline-flex items-center gap-1.5 rounded-full font-semibold cursor-pointer transition-colors shrink-0 bg-card dark:bg-white/[0.08] hover:bg-chip text-ink ${
                       m ? 'min-h-[44px] px-4 text-[13px]' : 'h-8 px-3 text-xs'
                     }`}
-                  />
+                  >
+                    <RefreshCw
+                      className={`w-3.5 h-3.5 ${syncStatus === 'saving' ? 'animate-spin' : ''}`}
+                      aria-hidden="true"
+                    />
+                    <span>
+                      {syncStatus === 'saving'
+                        ? t('syncStatusSaving')
+                        : syncDone
+                        ? t('cloudSynced')
+                        : t('syncNowBtn')}
+                    </span>
+                  </Button>
                 }
               />
             </Group>
@@ -563,11 +575,15 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
                 <Row
                   theme="purple"
                   icon={Calculator}
-                  label={isFr ? 'Outils' : 'Tools'}
-                  sub={isFr ? 'Vent · Heure de départ · Pression' : 'Wind · Leave-by · Tire pressure'}
+                  label="Multi-Tool"
+                  sub={
+                    isFr
+                      ? 'Pneus · Vent · Nutrition · Boulangeries · Tenue · Sticker cadre'
+                      : 'Tyres · Wind · Fuel · Bakeries · Outfit · Top-tube sticker'
+                  }
                   onClick={() => {
                     setIsMenuOpen(false);
-                    onOpenTools('wind');
+                    onOpenTools('hub');
                   }}
                 />
               )}
@@ -708,6 +724,23 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
                         <span>{isFr ? 'Imprimer A4' : 'Print A4'}</span>
                       </Button>
                     )}
+                    {onOpenTools && activeTrip && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        role="menuitem"
+                        onClick={() => {
+                          setIsMenuOpen(false);
+                          onOpenTools('stem-sticker');
+                        }}
+                        className="col-span-2 min-h-[44px] px-3 rounded-[14px] bg-card dark:bg-white/[0.07] hover:bg-chip text-ink text-xs font-rounded font-semibold inline-flex items-center justify-center gap-1.5 cursor-pointer ring-1 ring-inset ring-ink/[0.04] dark:ring-white/[0.06] active:scale-[0.98]"
+                      >
+                        <Scissors className="w-3.5 h-3.5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden="true" />
+                        <span>
+                          {isFr ? 'Sticker cadre imprimable (Top-Tube)' : 'Print Top-Tube Stem Sticker'}
+                        </span>
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>
@@ -762,7 +795,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
 
   return (
     <header className="w-full transition-colors duration-200 select-none no-print relative z-40">
-      <div className="w-full max-w-[1720px] mx-auto px-3.5 sm:px-5 lg:px-7 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-3 sm:pt-[calc(env(safe-area-inset-top,0px)+1rem)] sm:pb-4 flex items-center justify-between lg:grid lg:grid-cols-5 gap-3.5 sm:gap-4 lg:gap-5">
+      <div className="w-full max-w-[1720px] mx-auto px-3.5 sm:px-5 lg:px-7 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-3 sm:pt-[calc(env(safe-area-inset-top,0px)+1rem)] sm:pb-4 flex items-center justify-between lg:grid lg:grid-cols-[1fr_auto_1fr] gap-2.5 sm:gap-4 lg:gap-5">
         {/* Left: Back Button on Ride Plan (dashboard), or Chain-Link Brand Identifier */}
         {currentView === 'dashboard' ? (
           <Button
@@ -833,15 +866,15 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
           </>
         )}
 
-        {/* Center: Live Operational Breadcrumb (Desktop) */}
-        <div className="hidden lg:flex lg:col-span-3 lg:justify-self-center min-w-0 max-w-full">
+        {/* Center: Live Operational Breadcrumb (True viewport center via symmetric 1fr_auto_1fr grid) */}
+        <div className="hidden lg:flex lg:justify-self-center min-w-0 max-w-[380px] xl:max-w-[540px] 2xl:max-w-[640px]">
           {activeTrip && activeMeta && (
             <Button
               variant="secondary"
               size="md"
               onClick={() => onNavigate(breadcrumbTargetView)}
               title={`${isFr ? 'Conditions de sortie' : 'Ride outlook'}: ${physics?.goStatus === 'GO' ? t('feasibilityOptimal') : physics?.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')} — ${physics?.goStatusReason || ''} (${currentView === 'dashboard' ? t('editParamsTitle') : t('openFlightDeckBtn')})`}
-              className="flex items-center gap-2.5 px-4 py-2 bg-card dark:bg-pod hover:bg-pod dark:hover:bg-chip rounded-full font-rounded text-[13px] sm:text-sm shadow-xs min-w-0 max-w-xl transition-colors cursor-pointer focus:outline-none"
+              className="flex items-center gap-2.5 px-4 py-2 bg-card dark:bg-pod hover:bg-pod dark:hover:bg-chip rounded-full font-rounded text-[13px] sm:text-sm shadow-xs min-w-0 max-w-full transition-colors cursor-pointer focus:outline-none"
             >
               <span
                 className={`w-2.5 h-2.5 rounded-full shrink-0 ${statusDotClass}`}
@@ -851,7 +884,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
                 {activeTrip.tag === 'VÉLOTAF' ? (lang === 'fr' ? 'Vélotaf' : 'Commute') : activeTrip.tag}
               </span>
               <span className="text-ink-muted shrink-0">/</span>
-              <span className="text-ink font-semibold break-words leading-tight">{activeMeta.name}</span>
+              <span className="text-ink font-semibold truncate leading-tight">{activeMeta.name}</span>
               <span className="text-ink-muted shrink-0">·</span>
               <span className="text-ink-secondary tnum font-bold shrink-0">
                 {activeTrip.route.distanceKm} km
@@ -871,27 +904,39 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
           )}
         </div>
 
-        {/* Right: Trip Setup on Ride Plan (dashboard), or Sync Clock & Profile Overlay Trigger */}
+        {/* Right: Trip Setup on Ride Plan (dashboard), or Multi-Tool, Sync Clock & Profile Trigger */}
         {currentView === 'dashboard' ? (
-          <div className="lg:col-span-1 lg:justify-self-end flex items-center shrink-0">
+          <div className="lg:justify-self-end flex items-center shrink-0">
             <Button
               variant="secondary"
               size="md"
               onClick={() => onNavigate('configurator')}
-              className="inline-flex items-center gap-1.5 min-h-[44px] h-10 px-4 rounded-full bg-card hover:bg-pod text-ink border border-ink/5 dark:border-white/5 text-xs font-semibold shadow-xs cursor-pointer active:scale-[0.98]"
+              className="inline-flex items-center gap-1.5 min-h-[44px] h-10 px-4 rounded-full bg-card hover:bg-pod text-ink border border-ink/5 dark:border-white/5 text-xs font-semibold shadow-xs cursor-pointer active:scale-[0.98] whitespace-nowrap shrink-0"
             >
               <SlidersHorizontal className="w-4 h-4 text-current shrink-0" />
               <span>{isFr ? 'Configuration' : 'Trip Setup'}</span>
             </Button>
           </div>
         ) : (
-          <div className="lg:col-span-1 lg:justify-self-end flex items-center gap-2 sm:gap-3 shrink-0 relative" ref={menuContainerRef}>
-          {/* Real-time Clock */}
-          <div className="hidden sm:flex items-center px-3.5 py-2 bg-card dark:bg-pod rounded-full text-xs sm:text-[13px] font-rounded text-ink shadow-xs">
-            <span className="font-bold text-ink tnum">{currentTime}</span>
+          <div className="lg:justify-self-end flex items-center gap-2 sm:gap-2.5 shrink-0 relative" ref={menuContainerRef}>
+          {/* Direct Multi-Tool Link (visible on BOTH mobile and desktop on non-tools screens) */}
+          {onOpenTools && currentView !== 'tools' && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => onOpenTools('hub')}
+              className="inline-flex items-center gap-1.5 min-h-[40px] sm:min-h-[38px] px-3 sm:px-3.5 rounded-full bg-card dark:bg-pod hover:bg-chip dark:hover:bg-elevated text-ink text-xs font-rounded font-semibold shadow-xs cursor-pointer active:scale-[0.98] whitespace-nowrap shrink-0"
+            >
+              <Calculator className="w-3.5 h-3.5 text-ink-secondary shrink-0" aria-hidden="true" />
+              <span>Multi-Tool</span>
+            </Button>
+          )}
+          {/* Real-time Clock — strict single-line, never wraps */}
+          <div className="hidden sm:inline-flex items-center px-3.5 py-2 bg-card dark:bg-pod rounded-full text-xs sm:text-[13px] font-rounded text-ink shadow-xs whitespace-nowrap shrink-0">
+            <span className="font-bold text-ink tnum whitespace-nowrap">{currentTime}</span>
           </div>
 
-          {/* Unified Profile & Utility Trigger Button */}
+          {/* Unified Profile & Utility Trigger Button — strict 1:1 circle, never squircle */}
           <Button
             variant="secondary"
             size="sm"
@@ -899,7 +944,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
             aria-expanded={isMenuOpen}
             aria-label={t('menuOpenAria')}
             title={user ? `${user.email} (${t('cloudSynced')})` : t('savedOnDeviceClickToSync')}
-            className={`relative w-11 h-11 sm:w-10 sm:h-10 p-0 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-xs select-none focus:outline-none ring-2 ${
+            className={`relative aspect-square w-10 h-10 min-w-[40px] min-h-[40px] max-w-[40px] max-h-[40px] p-0 shrink-0 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-xs select-none focus:outline-none ring-2 ${
               isMenuOpen
                 ? 'ring-volt bg-pod dark:bg-chip text-ink'
                 : 'ring-ink/10 dark:ring-white/15 bg-card dark:bg-pod text-ink hover:ring-volt/60'

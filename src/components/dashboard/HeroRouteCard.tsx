@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Maximize2, Minimize2 } from 'lucide-react';
-import { Button } from '@/components/arc';
+import { Button } from "@/components/arc/button/button";
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {

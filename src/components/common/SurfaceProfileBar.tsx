@@ -3,7 +3,7 @@ import { SurfaceBreakdown, SurfaceSegment } from '../../types/trip';
 import { SURFACE_VISUAL_META } from '../../utils/surfaceProfile';
 import { useTranslation } from '../../context/LanguageContext';
 import { Badge } from './Badge';
-import { Button } from '@/components/arc';
+import { Button } from "@/components/arc/button/button";
 import { CheckCircle2, TriangleAlert, Info, ShieldCheck, RefreshCw, LoaderCircle } from '../icons';
 
 /* ──────────────────────────────────────────────────────────────────────────────

@@ -26,6 +26,7 @@ import { classifyRoadSurfaceCondition } from './physics';
 import { degreesToCompassCardinal } from '../services/weatherService';
 import { computeRideReadiness, RideReadiness } from './rideReadiness';
 import { buildEffectiveChecklist } from './effectiveChecklist';
+import { calculateTripWindInsight, HumanWindImpactResult } from './windInsights';
 
 export type BriefProblemSeverity = 'critical' | 'warning' | 'info' | 'clear';
 
@@ -94,6 +95,12 @@ export interface RideBriefData {
   priorities: RideBriefPriorityItem[];
   blockerAlreadyFeatured: boolean;
   readiness: RideReadiness;
+  /** Single quiet, context-triggered companion observation (never stacked) */
+  companionNote?: {
+    icon: 'wind' | 'flame' | 'thermometer' | 'compass';
+    text: string;
+  };
+  windInsight?: HumanWindImpactResult;
 }
 
 function formatTotalBriefDuration(totalMinutes: number, stopsMin: number, isFr: boolean): string {
@@ -125,6 +132,9 @@ function buildRideBriefCardMeta(input: {
   finalVerdict: 'GO' | 'CAUTION' | 'NO-GO';
   lang: Language;
   telemetryMode?: RiderBikeSpecs['telemetryMode'];
+  showWatts?: boolean;
+  windInsight: HumanWindImpactResult;
+  totalSweatLiters: number;
   vis?: ReturnType<typeof calculateRideVisibility>;
   readiness?: RideReadiness;
 }): Pick<
@@ -140,6 +150,7 @@ function buildRideBriefCardMeta(input: {
   | 'tireWidthMm'
   | 'priorities'
   | 'blockerAlreadyFeatured'
+  | 'companionNote'
 > {
   const {
     trip,
@@ -159,6 +170,9 @@ function buildRideBriefCardMeta(input: {
     finalVerdict,
     lang,
     telemetryMode,
+    showWatts = false,
+    windInsight,
+    totalSweatLiters,
     readiness,
   } = input;
 
@@ -211,10 +225,10 @@ function buildRideBriefCardMeta(input: {
       : `Est. ${timeline.gateArrivalTime} finish`
     : archMode === 'COMMUTE'
     ? isFr
-      ? `Pour poste à ${timeline.shiftStartTime}`
-      : `For your ${timeline.shiftStartTime} shift`
+      ? `Pour ton arrivée à ${timeline.shiftStartTime}`
+      : `For your ${timeline.shiftStartTime} start`
     : isFr
-    ? `Pour arrivée à ${timeline.gateArrivalTime}`
+    ? `Pour arriver vers ${timeline.gateArrivalTime}`
     : `For ${timeline.gateArrivalTime} finish`;
 
   const distRounded =
@@ -256,23 +270,23 @@ function buildRideBriefCardMeta(input: {
   const isLongRide = totalDistanceKm >= 55 || (timeline.pureMovingMinutes || 0) >= 150;
   const isTailwind = trip.weather.windDirection === 'tailwind' && baseWind >= 12;
 
-  // Natural-language coaching headline & 1-sentence guidance
+  // Warm, grounded companion headline & 1-sentence guidance (EN & natural French `tu`)
   let headline =
     vis.daylightPercent === 0
       ? isFr
-        ? 'Allumez vos feux. Roulez fluide.'
-        : 'Lights on. Ride steady.'
+        ? 'Allume tes feux et roule tranquille.'
+        : 'Lights on. Easy, steady ride.'
       : readiness?.level === 'needs-change'
       ? isFr
-        ? 'Ajustement conseillé avant départ.'
-        : 'Needs a tweak before you ride.'
+        ? 'Un petit ajustement avant de partir.'
+        : 'Worth a quick tweak before you roll.'
       : readiness?.level === 'worth-tweak'
       ? isFr
-        ? 'Presque prêt. Vérifiez les alertes.'
-        : 'Almost ready. Check the flags.'
+        ? 'Presque prêt — jette un œil aux points clés.'
+        : 'Almost set — check the flags below.'
       : isFr
-      ? 'Feu vert. Gardez le rythme.'
-      : 'All green. Set your pace.';
+      ? 'Feu vert, bonne route.'
+      : 'Good to roll.';
   const pressureFormatted = formatTyrePressurePair(
     tyrePressure.frontBar,
     tyrePressure.rearBar,
@@ -280,53 +294,101 @@ function buildRideBriefCardMeta(input: {
     lang
   );
   const pressureSpacedFormatted = pressureFormatted.replace('/', ' / ');
+  const wattsTail = showWatts
+    ? ` · ~${Math.round(physics.legWatts)} W (${physics.powerZone})`
+    : '';
   let narrativeSummary = isFr
-    ? `Votre ${archWordFr} de ${distRounded} km s'engage à ${Math.round(physics.legWatts)} W (${physics.powerZone}) avec ${pressureFormatted} sur ${activeBike.name}.`
-    : `Your ${distRounded} km ${archWordEn} sets up cleanly at ${Math.round(physics.legWatts)} W (${physics.powerZone}) with ${pressureFormatted} on ${activeBike.name}.`;
+    ? `Tes ${distRounded} km sur ${activeBike.name} s’annoncent simples — gonfle à ${pressureFormatted} et profite${wattsTail}.`
+    : `${distRounded} km on ${activeBike.name} looks straightforward — set ${pressureFormatted} and enjoy the ride${wattsTail}.`;
 
   if (finalVerdict === 'NO-GO') {
-    headline = isFr ? 'Reporter ou adapter.' : 'Hold off or adapt.';
+    headline = isFr ? 'Mieux vaut reporter ou adapter.' : 'Best to wait or adjust.';
     narrativeSummary = isFr
-      ? `Votre ${archWordFr} de ${distRounded} km rencontre des conditions sévères — vérifiez rafales et adhérence avant de partir.`
-      : `Your ${distRounded} km ${archWordEn} hits severe conditions — check wind gusts and wet traction before rolling out.`;
+      ? `Conditions rudes sur ce parcours de ${distRounded} km — vérifie les rafales et l’adhérence avant de partir.`
+      : `Rough conditions on this ${distRounded} km ${archWordEn} — check the gusts and road grip before rolling out.`;
   } else if (hasRecommendedLoopFlip && loopComp) {
     const reverseOrientation =
       loopComp.forwardOrientation === 'anticlockwise' ? 'clockwise' : 'anticlockwise';
     const orientationLabelFr =
-      reverseOrientation === 'clockwise' ? 'Le sens horaire' : 'Le sens antihoraire';
+      reverseOrientation === 'clockwise' ? 'sens horaire' : 'sens antihoraire';
     const orientationLabelEn =
-      reverseOrientation === 'clockwise' ? 'clockwise' : 'anticlockwise';
+      reverseOrientation === 'clockwise' ? 'clockwise' : 'counter-clockwise';
     headline = isFr
-      ? `Inversez la boucle. Gagnez ${loopComp.minutesSaved} min.`
+      ? `Inverse la boucle, gagne ${loopComp.minutesSaved} min.`
       : `Flip the loop. Save ${loopComp.minutesSaved} min.`;
     narrativeSummary = isFr
-      ? `${orientationLabelFr} évite les secteurs les plus exposés (${windCardinal}) et maintient ${Math.round(physics.legWatts)} W (${physics.powerZone}).`
-      : `Riding ${orientationLabelEn} avoids the worst ${windCardinal} headwind sectors and keeps effort steady at ${Math.round(physics.legWatts)} W (${physics.powerZone}).`;
+      ? `Partir dans le ${orientationLabelFr} met le vent ${windCardinal} dans ton dos pour rentrer plus léger${wattsTail}.`
+      : `Riding ${orientationLabelEn} puts the ${windCardinal} wind behind you on the way back for a smoother finish${wattsTail}.`;
   } else if (archMode === 'COMMUTE' && (vis.nightPercent >= 40 || isLongRide)) {
-    headline = isFr ? 'Partez tôt. Roulez régulier.' : 'Leave early. Ride steady.';
+    headline = isFr ? 'Pars tranquille.' : 'Give yourself an easy start.';
     narrativeSummary = isFr
-      ? `Votre ${archWordFr} de ${distRounded} km est long. Gérez à l’effort (${physics.powerZone}), pas à la vitesse.`
-      : `Your ${distRounded} km ${archWordEn} is a long one. Pace by effort (${physics.powerZone}), not speed.`;
+      ? `Un vélotaf de ${distRounded} km, c’est déjà une vraie sortie — cale un rythme confortable pour arriver frais${wattsTail}.`
+      : `A ${distRounded} km commute is a proper ride — settle into a comfortable rhythm and save your legs for the day${wattsTail}.`;
   } else if (isLongRide) {
-    headline = isFr ? 'Gérez l’effort. Roulez régulier.' : 'Pace smart. Ride steady.';
+    headline = isFr ? 'Gère la première moitié.' : 'Pace easy early, finish strong.';
     narrativeSummary = isFr
-      ? `Votre ${archWordFr} de ${distRounded} km demande du fond. Maintenez ${Math.round(physics.legWatts)} W (${physics.powerZone}) et respectez vos ravitos.`
-      : `Your ${distRounded} km ${archWordEn} is a solid endurance block. Hold ${Math.round(physics.legWatts)} W (${physics.powerZone}) and pace by effort.`;
+      ? `${distRounded} km sur ${activeBike.name}, c’est une belle virée — mange tôt et garde de la réserve sur les premiers kilomètres${wattsTail}.`
+      : `${distRounded} km on ${activeBike.name} is a proper day out — eat early and keep the first half relaxed${wattsTail}.`;
   } else if (isHeadwindHard) {
-    headline = isFr ? 'Tenez vos watts face au vent.' : 'Hold watts. Tame the wind.';
+    const gradeLabel =
+      windInsight.equivalentGradePct >= 0.5
+        ? isFr
+          ? `transforme le plat en côte à +${windInsight.equivalentGradePct.toFixed(1)} %`
+          : `makes the flats feel like a +${windInsight.equivalentGradePct.toFixed(1)}% climb`
+        : isFr
+        ? `ajoute ~${Math.round(physics.windDelayMinutes)} min si tu forces`
+        : `adds ~${Math.round(physics.windDelayMinutes)} min if you fight it`;
+    headline = isFr ? 'Roule souple face au vent.' : 'Steady effort into the breeze.';
     narrativeSummary = isFr
-      ? `Un vent ${windCardinal} de ${baseWind} km/h coûte ~${Math.round(physics.windDelayMinutes)} min à vitesse fixe — calez ${Math.round(physics.legWatts)} W (${physics.powerZone}) en position aéro.`
-      : `A ${baseWind} km/h ${windCardinal} breeze adds ~${Math.round(physics.windDelayMinutes)} min if forced — pace at ${Math.round(physics.legWatts)} W (${physics.powerZone}) in the exposed sections.`;
+      ? `Un vent ${windCardinal} de ${baseWind} km/h ${gradeLabel} — garde un coup de pédale fluide au lieu de courir après la moyenne${wattsTail}.`
+      : `A ${baseWind} km/h ${windCardinal} breeze ${gradeLabel} — spin smooth instead of chasing your usual speed${wattsTail}.`;
   } else if (unpavedPct >= 30) {
-    headline = isFr ? 'Baissez la pression. Gardez du grip.' : 'Drop pressure. Flow gravel.';
+    headline = isFr ? 'Pression souple pour le gravel.' : 'Softer tyres, smoother gravel.';
     narrativeSummary = isFr
-      ? `${unpavedPct}% de chemins sur ${distRounded} km — roulez à ${pressureFormatted} sur ${activeBike.name} pour absorber le terrain.`
-      : `${unpavedPct}% unpaved gravel across ${distRounded} km — run ${pressureFormatted} on ${activeBike.name} for supple traction at ${Math.round(physics.legWatts)} W.`;
+      ? `Avec ${unpavedPct} % de chemins sur ${distRounded} km, ${pressureFormatted} sur ${activeBike.name} te garde du grip et du confort.`
+      : `With ${unpavedPct}% unpaved roads across ${distRounded} km, ${pressureFormatted} on ${activeBike.name} keeps steering planted and takes the buzz out of your hands.`;
   } else if (isTailwind) {
-    headline = isFr ? 'Fenêtre idéale. Roulez fluide.' : 'Clean window. Roll smooth.';
+    headline = isFr ? 'Joli vent dans le dos.' : 'Nice breeze at your back.';
     narrativeSummary = isFr
-      ? `Le vent ${windCardinal} pousse votre ${archWordFr} de ${distRounded} km à ${Math.round(physics.legWatts)} W (${physics.powerZone}).`
-      : `A supportive ${windCardinal} breeze carries your ${distRounded} km ${archWordEn} smoothly at ${Math.round(physics.legWatts)} W (${physics.powerZone}).`;
+      ? `Le vent ${windCardinal} pousse tes ${distRounded} km sur ${activeBike.name} — profite de l’élan gratuit.`
+      : `A supportive ${windCardinal} tailwind helps carry your ${distRounded} km ${archWordEn} on ${activeBike.name} — enjoy the free speed.`;
+  }
+
+  // Single, quiet "Reality check" companion note — picks at most ONE genuinely meaningful observation
+  const realElevM = Math.round(trip.route?.elevationGainM || 0);
+  const totalKcal = Math.round(physics.totalKcalBurn || 0);
+  const croissantsEarned = Number((totalKcal / 260).toFixed(1));
+  const chillDropC = Math.max(0, tempC - feelsLikeC);
+
+  let companionNote: RideBriefData['companionNote'] = undefined;
+  if (windInsight.ghostElevationM >= 150 && !hasRecommendedLoopFlip) {
+    companionNote = {
+      icon: 'wind',
+      text: isFr
+        ? `Vrai dénivelé : ${realElevM} m · Le vent ajoute +${windInsight.ghostElevationM} m de montée invisible${windInsight.iconicClimbComparison ? ` (${windInsight.iconicClimbComparison})` : ''}.`
+        : `Real climbing: ${realElevM} m · Wind adds +${windInsight.ghostElevationM} m of invisible climbing${windInsight.iconicClimbComparison ? ` (${windInsight.iconicClimbComparison})` : ''}.`,
+    };
+  } else if (totalKcal >= 850 || totalSweatLiters >= 1.3) {
+    companionNote = {
+      icon: 'flame',
+      text: isFr
+        ? `Environ ${totalKcal.toLocaleString('fr-FR')} kcal brûlées (≈ ${croissantsEarned} croissants mérités) et ~${totalSweatLiters} L de sueur — pense à boire régulièrement.`
+        : `Around ${totalKcal.toLocaleString('en-US')} kcal burned (≈ ${croissantsEarned} croissants earned) and ~${totalSweatLiters} L of sweat — keep sipping steadily.`,
+    };
+  } else if (chillDropC >= 3 && feelsLikeC <= 12) {
+    companionNote = {
+      icon: 'thermometer',
+      text: isFr
+        ? `${tempC} °C devant la porte, ${feelsLikeC} °C une fois lancé — une couche de plus aide bien sur les 20 premières minutes.`
+        : `${tempC}°C at the front door, ${feelsLikeC}°C once you’re rolling — an extra layer helps for the first 20 minutes.`,
+    };
+  } else if (windInsight.ghostElevationM <= -150) {
+    companionNote = {
+      icon: 'compass',
+      text: isFr
+        ? `Le vent de dos aujourd’hui t’offre l’équivalent de ${Math.abs(windInsight.ghostElevationM)} m de descente gratuite sur le parcours.`
+        : `Today’s tailwind gives you the equivalent of ${Math.abs(windInsight.ghostElevationM)} m of free downhill across the ride.`,
+    };
   }
 
   // Priority #1: Darkness / Critical route problem / Low-light / Tyre Pressure
@@ -407,7 +469,7 @@ function buildRideBriefCardMeta(input: {
       iconKey: 'wind',
       headline: isFr ? `Rafales jusqu'à ${gusts} km/h` : `Gusts reach ${gusts} km/h`,
       detail: isFr
-        ? `Vent ${windCardinal} · Restez compact en zone exposée`
+        ? `Vent ${windCardinal} · Reste souple en zone exposée`
         : `Wind from ${windCardinal} · Stay steady in exposed sections`,
     };
   } else {
@@ -472,10 +534,10 @@ function buildRideBriefCardMeta(input: {
           theme: 'orange',
           iconKey: 'fuel',
           headline: isFr
-            ? 'Hydratez-vous · Sans glucides requis'
+            ? 'Hydrate-toi · Pas besoin de glucides en plus'
             : 'Stay hydrated · No extra carbs needed',
           detail: isFr
-            ? `${bottlesBadge} · Le repas pré-sortie suffit`
+            ? `${bottlesBadge} · Ton repas d’avant départ suffit`
             : `${bottlesBadge} · Pre-ride fuel covers energy`,
         };
 
@@ -491,6 +553,7 @@ function buildRideBriefCardMeta(input: {
     tireWidthMm,
     priorities: [priority1, priority2, priority3],
     blockerAlreadyFeatured,
+    companionNote,
   };
 }
 
@@ -569,7 +632,7 @@ function detectRouteProblems(params: {
         ? `${stop.name} ${isClosed ? 'fermé' : 'ferme bientôt'} à ${eta} (km ${stop.routeKm}) → ouvert le plus proche : ${openAlt.name} au km ${openAlt.routeKm}`
         : `${stop.name} ${isClosed ? 'closed' : 'closing soon'} at ${eta} (km ${stop.routeKm}) → nearest open: ${openAlt.name} at km ${openAlt.routeKm}`
       : isFr
-      ? `${stop.name} ${isClosed ? 'fermé' : 'ferme bientôt'} à votre passage (${eta}, km ${stop.routeKm})`
+      ? `${stop.name} ${isClosed ? 'fermé' : 'ferme bientôt'} à ton passage (${eta}, km ${stop.routeKm})`
       : `${stop.name} ${isClosed ? 'closed' : 'closing soon'} at arrival (${eta}, km ${stop.routeKm})`;
 
     const detail = openAlt && altEta
@@ -606,7 +669,7 @@ function detectRouteProblems(params: {
           ? `Trou d’eau critique km ${g.startKm}–${g.endKm} (${g.distanceKm} km · ${g.depletionPct ?? 100}% d’autonomie)`
           : `Critical water gap km ${g.startKm}–${g.endKm} (${g.distanceKm} km · ${g.depletionPct ?? 100}% depletion)`,
         detail: isFr
-          ? `Besoin estimé ${g.gapFluidNeedMl ?? 0} ml vs ${g.onboardCapacityMl ?? frameBottleSlots * bidonSizeMl} ml sur le cadre — prévoyez un bidon supplémentaire ou recharge.`
+          ? `Besoin estimé ${g.gapFluidNeedMl ?? 0} ml pour ${g.onboardCapacityMl ?? frameBottleSlots * bidonSizeMl} ml sur le cadre — prévois un bidon de plus ou une pause eau.`
           : `Estimated need ${g.gapFluidNeedMl ?? 0} ml vs ${g.onboardCapacityMl ?? frameBottleSlots * bidonSizeMl} ml on frame — pack an extra bottle or detour for water.`,
       });
     } else if (gaps.status === 'caution' && gaps.cautionGaps[0]) {
@@ -618,7 +681,7 @@ function detectRouteProblems(params: {
           ? `Long secteur sans eau km ${g.startKm}–${g.endKm} (${g.distanceKm} km)`
           : `Long dry stretch km ${g.startKm}–${g.endKm} (${g.distanceKm} km)`,
         detail: isFr
-          ? `Consomme ~${g.depletionPct ?? 70}% de vos bidons — remplissez avant le km ${g.startKm}.`
+          ? `Consomme ~${g.depletionPct ?? 70} % de tes bidons — remplis avant le km ${g.startKm}.`
           : `Uses ~${g.depletionPct ?? 70}% of bottle capacity — top up before km ${g.startKm}.`,
       });
     }
@@ -637,22 +700,22 @@ function detectRouteProblems(params: {
       id: 'sector-headwind',
       severity: worstWindSector.effectiveHeadwindKmH >= 28 ? 'critical' : 'warning',
       headline: isFr
-        ? `Vent de face fort km ${worstWindSector.startKm}–${worstWindSector.endKm} (${Math.round(worstWindSector.effectiveHeadwindKmH)} km/h → ${worstWindSector.legWatts} W)`
-        : `Heavy headwind km ${worstWindSector.startKm}–${worstWindSector.endKm} (${Math.round(worstWindSector.effectiveHeadwindKmH)} km/h → ${worstWindSector.legWatts} W)`,
+        ? `Gros vent de face km ${worstWindSector.startKm}–${worstWindSector.endKm} (${Math.round(worstWindSector.effectiveHeadwindKmH)} km/h)`
+        : `Heavy headwind km ${worstWindSector.startKm}–${worstWindSector.endKm} (${Math.round(worstWindSector.effectiveHeadwindKmH)} km/h)`,
       detail: isFr
-        ? `Coût aéro global +${Math.round(physics.powerDeltaWatts)} W (+${Math.round(physics.windDelayMinutes)} min) à ${worstWindSector.etaHHMM}.`
-        : `Ride-wide aero penalty +${Math.round(physics.powerDeltaWatts)} W (+${Math.round(physics.windDelayMinutes)} min) at ${worstWindSector.etaHHMM}.`,
+        ? `Le vent ajoute environ +${Math.round(physics.windDelayMinutes)} min vers ${worstWindSector.etaHHMM} — garde un peu d’énergie avant ce tronçon.`
+        : `Wind adds around +${Math.round(physics.windDelayMinutes)} min around ${worstWindSector.etaHHMM} — save a bit of energy before this stretch.`,
     });
-  } else if (physics.powerDeltaWatts >= 20) {
+  } else if (physics.powerDeltaWatts >= 20 && physics.windDelayMinutes >= 5) {
     problems.push({
       id: 'wind-tax',
       severity: physics.windDelayMinutes >= 12 ? 'warning' : 'info',
       headline: isFr
-        ? `Coût du vent : +${Math.round(physics.powerDeltaWatts)} W (+${Math.round(physics.windDelayMinutes)} min sur la trace)`
-        : `Wind cost: +${Math.round(physics.powerDeltaWatts)} W (+${Math.round(physics.windDelayMinutes)} min on this course)`,
+        ? `Le vent ralentit la sortie d’environ +${Math.round(physics.windDelayMinutes)} min`
+        : `Wind slows this ride by about +${Math.round(physics.windDelayMinutes)} min`,
       detail: isFr
-        ? `Puissance totale estimée ${Math.round(physics.legWatts)} W (${physics.powerZone}) pour tenir l’horaire.`
-        : `Estimated ${Math.round(physics.legWatts)} W (${physics.powerZone}) needed to hold schedule.`,
+        ? `Mieux vaut rouler aux sensations qu’en chassant ta vitesse moyenne habituelle.`
+        : `Better to ride by feel than chase your usual average speed.`,
     });
   }
 
@@ -666,11 +729,11 @@ function detectRouteProblems(params: {
       id: 'rain-risk',
       severity: maxRain >= 75 ? 'warning' : 'info',
       headline: isFr
-        ? `Risque d’averse élevé (${Math.round(maxRain)}%) — routes possiblement humides`
-        : `High rain probability (${Math.round(maxRain)}%) — plan wet-road pacing`,
+        ? `Pluie probable (${Math.round(maxRain)} %) — routes humides`
+        : `Rain likely (${Math.round(maxRain)}%) — expect wet roads`,
       detail: isFr
-        ? 'Privilégiez la veste imperméable, les verres clairs et -0,2 bar sur chaussée glissante.'
-        : 'Pack a taped shell, clear optics, and allow extra braking margin.',
+        ? 'Prends un coupe-pluie, des verres clairs et retire 0,2 bar pour garder du grip.'
+        : 'Pack a rain shell, clear lenses, and drop 0.2 bar for extra cornering grip.',
     });
   }
 
@@ -681,14 +744,14 @@ function detectRouteProblems(params: {
         id: 'all-clear',
         severity: 'clear',
         headline: isFr
-          ? 'Aucun point bloquant détecté sur la trace et la météo'
-          : 'No blockers flagged across weather, pacing, or stops',
+          ? 'Rien à signaler sur la trace ni côté météo'
+          : 'All clear across weather, pace, and stops',
         detail: noCorridorScan
           ? isFr
-            ? 'Astuce : ouvrez le Radar Ravitaillement pour vérifier les points d’eau et horaires d’ouverture en direct.'
-            : 'Tip: run a Resupply Radar scan if you want live OSM water gap and Sunday opening-hours checks.'
+            ? 'Astuce : ouvre l’onglet Ravitaillement pour vérifier les fontaines et les boulangeries ouvertes.'
+            : 'Tip: open the Resupply tab to check live water stops and bakery opening hours.'
           : isFr
-          ? `${pinnedAmenities.length} arrêt(s) épinglé(s) vérifié(s) pour votre créneau horaire.`
+          ? `${pinnedAmenities.length} arrêt(s) épinglé(s) vérifié(s) pour ton passage.`
           : `${pinnedAmenities.length} pinned stop(s) verified against your arrival window.`,
       },
       secondaryProblems: [],
@@ -930,6 +993,25 @@ export function buildRideBrief(params: {
   });
 
   const pressureUnit: PressureUnit = riderSpecs.pressureUnit === 'psi' ? 'psi' : 'bar';
+  const showWatts =
+    riderSpecs.cockpitViewMode === 'pro' || riderSpecs.pacingInputMode === 'power';
+  const windInsight = calculateTripWindInsight({
+    distanceKm: totalDistanceKm,
+    targetSpeedKmH: trip.route?.targetSpeedKmH || physics.effectiveSpeedKmH || 24,
+    riderWeightKg: riderSpecs.riderWeightKg || trip.physics?.riderWeightKg || 74,
+    bikeWeightKg: activeBike.weightKg || trip.physics?.bikeWeightKg || 10,
+    cda: trip.physics?.cda ?? 0.36,
+    crr: trip.physics?.crr ?? 0.0055,
+    windSpeedKmH: trip.weather?.baseWindSpeedKmH ?? 0,
+    effectiveHeadwindKmH: trip.weather?.effectiveHeadwindKmH,
+    isHeadwindActive: trip.weather?.isHeadwindActive,
+    windDirection: trip.weather?.windDirection,
+    windFromDegrees: trip.weather?.windDirectionDegrees,
+    temperatureC: trip.weather?.temperatureC ?? 15,
+    ftpWatts: riderSpecs.ftpWatts ?? 220,
+    lang: isFr ? 'fr' : 'en',
+  });
+  const totalSweatLiters = Number(((hydration.sweatRateMlPerHr * movingHours) / 1000).toFixed(1));
 
   return {
     verdict: finalVerdict,
@@ -959,6 +1041,7 @@ export function buildRideBrief(params: {
     kit,
     pinnedCount: pinnedAmenities.length,
     scannedCount: cachedScan.length,
+    windInsight,
     ...buildRideBriefCardMeta({
       trip: params.trip,
       physics,
@@ -977,6 +1060,9 @@ export function buildRideBrief(params: {
       finalVerdict,
       lang: params.lang || 'en',
       telemetryMode: riderSpecs.telemetryMode,
+      showWatts,
+      windInsight,
+      totalSweatLiters,
       vis,
       readiness,
     }),

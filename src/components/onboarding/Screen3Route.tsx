@@ -13,7 +13,7 @@ import {
   ArrowsLeftRight,
 } from '@/components/icons';
 import { useTranslation } from '../../context/LanguageContext';
-import { Button } from '@/components/arc';
+import { Button } from "@/components/arc/button/button";
 import { ElevationProfilePoint, RouteWaypoint } from '../../types/trip';
 import { SchematicRouteMap } from './SchematicRouteMap';
 import { parseRouteFile } from '../../utils/routeFileParser';

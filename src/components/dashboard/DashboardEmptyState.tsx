@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button } from '@/components/arc';
+import { Button } from "@/components/arc/button/button";
 import { Bicycle, Plus, Sparkle, Lightning, Clock, ForkKnife } from '@/components/icons';
 import { useTranslation } from '../../context/LanguageContext';
 import { CHIP_TOKENS, CHIP_RING_BASE, CHIP_DUOTONE_ISOLATION_CLASSES } from '../../tokens/chipTokens';

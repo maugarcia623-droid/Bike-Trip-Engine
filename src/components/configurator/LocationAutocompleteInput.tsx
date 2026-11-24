@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Button } from '@/components/arc';
+import { Button } from "@/components/arc/button/button";
 import {
   MapPin,
   X,
@@ -22,11 +22,14 @@ import { LayeredTokenTheme } from '../../tokens/chipTokens';
 
 interface LocationAutocompleteInputProps {
   id?: string;
-  label: string;
+  label?: string;
   value: string;
   placeholder?: string;
   biasCoords?: [number, number];
   dropdownAlign?: 'left' | 'right';
+  hidePresetHubs?: boolean;
+  compact?: boolean;
+  inputBgClassName?: string;
   onChange: (value: string) => void;
   onSelectLocation: (suggestion: LocationSuggestion) => void;
   onKeyDownEnter?: () => void;
@@ -39,6 +42,9 @@ export const LocationAutocompleteInput: React.FC<LocationAutocompleteInputProps>
   placeholder,
   biasCoords,
   dropdownAlign = 'left',
+  hidePresetHubs = false,
+  compact = false,
+  inputBgClassName = 'bg-pod',
   onChange,
   onSelectLocation,
   onKeyDownEnter,
@@ -138,7 +144,7 @@ export const LocationAutocompleteInput: React.FC<LocationAutocompleteInputProps>
   );
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    const visibleList = value.trim().length >= 2 ? suggestions : POPULAR_CYCLING_HUBS;
+    const visibleList = value.trim().length >= 2 ? suggestions : hidePresetHubs ? [] : POPULAR_CYCLING_HUBS;
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -202,7 +208,7 @@ export const LocationAutocompleteInput: React.FC<LocationAutocompleteInputProps>
     return { icon: MapPin, theme: 'greyscale' };
   };
 
-  const displayList = value.trim().length >= 2 ? suggestions : POPULAR_CYCLING_HUBS;
+  const displayList = value.trim().length >= 2 ? suggestions : hidePresetHubs ? [] : POPULAR_CYCLING_HUBS;
   const showDropdown =
     isOpen &&
     (displayList.length > 0 ||
@@ -212,9 +218,11 @@ export const LocationAutocompleteInput: React.FC<LocationAutocompleteInputProps>
   return (
     <div ref={containerRef} className={`relative w-full ${showDropdown ? 'z-40' : 'z-10'}`}>
       {/* Stable, clean label row */}
-      <label htmlFor={id} className="block text-xs font-semibold text-ink-secondary mb-1.5 px-1 break-words">
-        {label}
-      </label>
+      {label && (
+        <label htmlFor={id} className="block text-xs font-semibold text-ink-secondary mb-1.5 px-1 break-words">
+          {label}
+        </label>
+      )}
 
       {/* Input Capsule */}
       <div className="relative flex items-center">
@@ -235,7 +243,7 @@ export const LocationAutocompleteInput: React.FC<LocationAutocompleteInputProps>
           onKeyDown={handleKeyDown}
           placeholder={placeholder || t('locationSearchPlaceholder')}
           autoComplete="off"
-          className="w-full h-11 sm:h-12 bg-pod rounded-full pl-10 pr-9 text-base sm:text-sm font-medium text-ink placeholder:text-ink-muted/70 focus:outline-none focus:ring-2 focus:ring-ink/20 transition-all"
+          className={`w-full ${compact ? 'h-11' : 'h-11 sm:h-12'} ${inputBgClassName} rounded-full pl-10 pr-9 text-base sm:text-sm font-medium text-ink placeholder:text-ink-muted/70 focus:outline-none focus:ring-2 focus:ring-ink/20 transition-all`}
         />
 
         <div className="absolute right-2 flex items-center gap-1.5">

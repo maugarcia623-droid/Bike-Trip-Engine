@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Check, Eye, EyeOff, SpinnerGap, Mail } from '@/components/icons';
-import { Button } from '@/components/arc';
+import { Button } from "@/components/arc/button/button";
 import { useTranslation } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 

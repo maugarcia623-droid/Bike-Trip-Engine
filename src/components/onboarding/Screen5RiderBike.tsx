@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Check, ChevronRight, SlidersHorizontal, Lightning } from '@/components/icons';
-import { Button } from '@/components/arc';
+import { Button } from "@/components/arc/button/button";
 import { useTranslation } from '../../context/LanguageContext';
 import { BIKE_OPTIONS } from './constants';
 import { TIRE_WIDTH_PRESETS, estimateCrrFromTire } from '../../types/specs';

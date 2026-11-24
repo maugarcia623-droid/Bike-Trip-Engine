@@ -9,7 +9,7 @@ import {
   Check,
 } from '@/components/icons';
 import { TripProfile } from '../../types/trip';
-import { Button } from '@/components/arc';
+import { Button } from "@/components/arc/button/button";
 import { useTranslation, getLocalizedTripMeta } from '../../context/LanguageContext';
 import { loadRiderBikeSpecs } from '../../utils/specsStorage';
 import { calculatePhysics } from '../../utils/physics';

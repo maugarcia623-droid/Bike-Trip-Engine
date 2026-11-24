@@ -16,7 +16,7 @@ import {
   Droplets,
   Wind,
 } from '@/components/icons';
-import { Button } from '@/components/arc';
+import { Button } from "@/components/arc/button/button";
 import { ModalPortal } from '../common/ModalPortal';
 import { PhysicsCalculationResult, TripProfile } from '../../types/trip';
 import { StageAmenity } from '../../types/amenities';

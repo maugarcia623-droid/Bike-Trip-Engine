@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Button } from '@/components/arc';
+import { Button } from "@/components/arc/button/button";
 import { TripProfile, PhysicsCalculationResult } from '../../types/trip';
 import { RiderBikeSpecs, resolveBikeTireWidthMm } from '../../types/specs';
 import { StageAmenity } from '../../types/amenities';

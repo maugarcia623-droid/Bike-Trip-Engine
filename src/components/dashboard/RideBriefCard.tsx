@@ -1,5 +1,6 @@
 import React from 'react';
-import { Button } from '@/components/arc';
+import { Button } from "@/components/arc/button/button";
+import type { FreeWebToolId } from '../../utils/toolCatalog';
 import { TripProfile } from '../../types/trip';
 import { RiderBikeSpecs } from '../../types/specs';
 import { loadRiderBikeSpecs } from '../../utils/specsStorage';
@@ -43,6 +44,7 @@ import {
   TriangleAlert,
   ThermometerSimple,
   Compass,
+  Flame,
   Link2,
   CheckCircle2,
   Download,
@@ -67,7 +69,7 @@ export interface RideBriefCardProps {
   layout?: 'full' | 'sidecar';
   partnerSyncSlot?: React.ReactNode;
   senderBaseline?: SenderBaseline;
-  onOpenTools?: (tab?: 'wind' | 'leave-by' | 'pressure') => void;
+  onOpenTools?: (tab?: FreeWebToolId) => void;
   onUpdateTrip?: (updated: TripProfile) => void;
   onSelectBike?: (bikeId: string) => void;
   onOpenSpecs?: () => void;
@@ -348,16 +350,18 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
               : 'grid grid-cols-1 md:grid-cols-[200px_minmax(0,1fr)] xl:grid-cols-[208px_minmax(0,1fr)_320px] md:items-center gap-4 md:gap-5'
           }
         >
-          <div className="w-full shrink-0 rounded-pod bg-volt dark:bg-[#242706] dark:ring-1 dark:ring-inset dark:ring-volt/45 text-[#111111] dark:text-[#F2F455] px-4 py-3.5 md:py-3.5 flex flex-col justify-between gap-1.5 shadow-xs">
+          <div className="w-full shrink-0 rounded-pod bg-volt dark:bg-[#242706] dark:ring-1 dark:ring-inset dark:ring-volt/45 text-[#111111] dark:text-[#F2F455] px-4 py-3.5 md:py-3.5 flex flex-col justify-between gap-3 shadow-xs">
             <span className="text-[13px] font-medium font-body leading-tight text-[#111111]/85 dark:text-[#F2F455]/90">
               {brief.leavePodLabel}
             </span>
-            <span className={`${isSidecar ? 'text-[32px]' : 'text-[36px]'} leading-none font-extrabold tracking-tight font-sans tnum`}>
-              {brief.leaveByHHMM}
-            </span>
-            <span className="text-xs font-medium font-body leading-tight text-[#111111]/75 dark:text-[#DDE07A]">
-              {brief.targetContextLabel}
-            </span>
+            <div className="flex flex-col gap-1">
+              <span className={`${isSidecar ? 'text-[32px]' : 'text-[36px]'} leading-none font-extrabold tracking-tight font-sans tnum`}>
+                {brief.leaveByHHMM}
+              </span>
+              <span className="text-xs font-medium font-body leading-tight text-[#111111]/75 dark:text-[#DDE07A]">
+                {brief.targetContextLabel}
+              </span>
+            </div>
           </div>
 
           <div className="flex-1 min-w-0 flex flex-col justify-center gap-1.5">
@@ -374,6 +378,20 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
                 {brief.tempC}°C · {isFr ? 'ressenti' : 'feels like'} {brief.feelsLikeC}°C
               </span>
             </div>
+            {brief.companionNote && (
+              <div className="mt-1.5 inline-flex items-start gap-2 rounded-sub-pod bg-pod px-3 py-2 text-xs text-ink-secondary leading-snug max-w-3xl">
+                {brief.companionNote.icon === 'wind' ? (
+                  <Wind className="w-3.5 h-3.5 text-sky-500 shrink-0 mt-0.5" aria-hidden="true" />
+                ) : brief.companionNote.icon === 'flame' ? (
+                  <Flame className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" aria-hidden="true" />
+                ) : brief.companionNote.icon === 'thermometer' ? (
+                  <ThermometerSimple className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" aria-hidden="true" />
+                ) : (
+                  <Compass className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" aria-hidden="true" />
+                )}
+                <span className="tnum">{brief.companionNote.text}</span>
+              </div>
+            )}
           </div>
 
           {/* Readiness score pod — full width under on sidecar/mobile/tablet, third column on xl */}

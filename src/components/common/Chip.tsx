@@ -1,7 +1,7 @@
 import React from 'react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { Button } from '@/components/arc';
+import { Button } from "@/components/arc/button/button";
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
   CHIP_ICON_ROOT_CLASSES,

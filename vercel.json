@@ -6,6 +6,14 @@
       "destination": "/api/p?code=:code"
     },
     {
+      "source": "/tools",
+      "destination": "/api/tools"
+    },
+    {
+      "source": "/tools/:slug",
+      "destination": "/api/tools?slug=:slug"
+    },
+    {
       "source": "/((?!api/|assets/|images/|onboarding/|.*\\..*).*)",
       "destination": "/index.html"
     }

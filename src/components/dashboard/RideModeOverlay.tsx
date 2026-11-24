@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button } from '@/components/arc';
+import { Button } from "@/components/arc/button/button";
 import { TripProfile, PhysicsCalculationResult, RouteCueDirection } from '../../types/trip';
 import { RiderBikeSpecs } from '../../types/specs';
 import { StageAmenity } from '../../types/amenities';

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Button, Timeline } from '@/components/arc';
-import type { TimelineEvent, TimelineGroupMeta } from '@/components/arc';
+import { Button } from '@/components/arc/button/button';
+import { Timeline, type TimelineEvent, type TimelineGroupMeta } from '@/components/arc/timeline/timeline';
 import {
   ForkKnife,
   Compass,
@@ -197,11 +197,12 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
 
   const activeChips = trip.customChips || [];
   const distance = trip.route?.distanceKm || 35;
-  const estimatedBurnKcal = Math.round(
+  const estimatedBurnKcalNum = Math.round(
     physicsResult?.totalKcalBurn && physicsResult.totalKcalBurn > 0
       ? physicsResult.totalKcalBurn
       : Math.round(distance * 28)
-  ).toLocaleString(isFr ? 'fr-FR' : 'en-US');
+  );
+  const estimatedBurnKcal = estimatedBurnKcalNum.toLocaleString(isFr ? 'fr-FR' : 'en-US');
 
   const totalDays = trip.stages?.length || 1;
   const currentDay = (trip.activeStageIndex || 0) + 1;
@@ -562,8 +563,43 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         ? t('logisticsLightLiquid')
         : t('logisticsFasted');
 
+    const totalSweatLiters = Number(
+      ((hydrationPlan.sweatRateMlPerHr * (movingMinutes / 60)) / 1000).toFixed(1)
+    );
+    const croissantsEarned = Number((estimatedBurnKcalNum / 260).toFixed(1));
+
     return (
       <div className="rounded-pod bg-pod mb-3 p-3 sm:p-3.5 transition-colors">
+        {estimatedBurnKcalNum >= 260 && (
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 mb-2.5 border-b border-ink/[0.06] dark:border-white/[0.06] text-xs tnum">
+            <span className="inline-flex items-center gap-1.5 text-ink-secondary font-medium">
+              <Flame2 className="w-3.5 h-3.5 text-amber-500 shrink-0" aria-hidden="true" />
+              <span>
+                <strong className="font-bold text-ink">
+                  ~{estimatedBurnKcal} kcal
+                </strong>{' '}
+                {isFr ? 'brûlées' : 'burned'}{' '}
+                <span className="text-amber-700 dark:text-amber-400 font-semibold">
+                  (≈ {croissantsEarned} croissant{croissantsEarned >= 1.5 ? 's' : ''}{' '}
+                  {isFr
+                    ? croissantsEarned >= 1.5
+                      ? 'mérités'
+                      : 'mérité'
+                    : 'earned'}
+                  )
+                </span>
+              </span>
+            </span>
+            {totalSweatLiters >= 0.3 && (
+              <span className="inline-flex items-center gap-1 text-ink-muted font-semibold">
+                <Droplets className="w-3.5 h-3.5 text-sky-500 shrink-0" aria-hidden="true" />
+                <span>
+                  ~{totalSweatLiters} L {isFr ? 'de sueur' : 'sweat lost'}
+                </span>
+              </span>
+            )}
+          </div>
+        )}
         {/* Compact Read-First Summary Row */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 flex-wrap text-xs text-ink-secondary tnum">
@@ -1928,7 +1964,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           ? `Collation de récupération (${stage1Loc})`
           : `Immediate recovery snack (${stage1Loc})`,
         body: isFr
-          ? `${resolvedPostRidePantry.nameFr} dès l’arrivée (${stage1Loc}) pour refaire vos réserves tranquillement.`
+          ? `${resolvedPostRidePantry.nameFr} dès l’arrivée (${stage1Loc}) pour refaire tes réserves tranquillement.`
           : `${resolvedPostRidePantry.nameEn} upon arrival (${stage1Loc}) to start refueling comfortably.`,
         items: lockerItems,
       },

@@ -16,16 +16,20 @@ import {
   extractTelemetryShareData,
 } from '../utils/renderTelemetryCard';
 import { copyShortPlanShareUrl } from '../services/planShareService';
+import { calculatePhysics, buildPhysicsEnvironmentContext } from '../utils/physics';
+import { calculateReverseTimeline } from '../utils/timeline';
+import { getChipsExtraBufferMinutes } from '../utils/archetypeChips';
 import {
   TelemetryShareData,
   TelemetryCardMode,
   TripProfile,
   PhysicsCalculationResult,
 } from '../types/trip';
+import { RiderBikeSpecs } from '../types/specs';
 import { useTranslation } from '../context/LanguageContext';
 import { Badge } from './common/Badge';
 import { ModalPortal } from './common/ModalPortal';
-import { Button } from '@/components/arc';
+import { Button } from "@/components/arc/button/button";
 import {
   CHIP_TOKENS,
   GREYSCALE_TOKENS,
@@ -39,6 +43,7 @@ export interface ShareTelemetryModalProps {
   onClose: () => void;
   data?: TelemetryShareData;
   trip?: TripProfile;
+  riderSpecs?: RiderBikeSpecs;
   physicsResult?: PhysicsCalculationResult;
   defaultMode?: TelemetryCardMode;
   leaveByHHMM?: string;
@@ -50,13 +55,58 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
   onClose,
   data: directData,
   trip,
-  physicsResult,
+  riderSpecs,
+  physicsResult: physicsResultProp,
   defaultMode = 'solid',
-  leaveByHHMM,
-  arrivalHHMM,
+  leaveByHHMM: leaveByProp,
+  arrivalHHMM: arrivalProp,
 }) => {
   const { t, lang } = useTranslation();
   const isFr = lang === 'fr';
+
+  const physicsResult = useMemo(() => {
+    if (physicsResultProp) return physicsResultProp;
+    if (!trip) return undefined;
+    return calculatePhysics(
+      trip.physics,
+      trip.route,
+      trip.weather,
+      lang,
+      riderSpecs?.ftpWatts,
+      buildPhysicsEnvironmentContext(trip, {
+        extraBufferMinutes: getChipsExtraBufferMinutes(trip),
+      })
+    );
+  }, [physicsResultProp, trip, lang, riderSpecs?.ftpWatts]);
+
+  const timelineFallback = useMemo(() => {
+    if ((leaveByProp && arrivalProp) || !trip || !physicsResult) return undefined;
+    return calculateReverseTimeline(
+      trip.route,
+      trip.office,
+      trip.weather,
+      trip.tag,
+      trip.route?.destination,
+      lang,
+      getChipsExtraBufferMinutes(trip),
+      trip.customChips || [],
+      {
+        effectiveSpeedKmH: physicsResult.effectiveSpeedKmH,
+        calmSpeedKmH: physicsResult.calmSpeedKmH,
+        arriveAtMode: trip.arriveAtMode,
+        departureTime: trip.departureTime,
+        movingTimeSeconds: physicsResult.movingTimeSeconds,
+        logistics: trip.ruleSettings,
+        pinnedAmenities: trip.pinnedAmenities,
+        departureDate:
+          trip.stages?.[trip.activeStageIndex ?? 0]?.departureDate || trip.departureDate,
+        isMultiDayTour: Boolean(trip.stages && trip.stages.length > 1),
+      }
+    );
+  }, [leaveByProp, arrivalProp, trip, physicsResult, lang]);
+
+  const leaveByHHMM = leaveByProp || timelineFallback?.hardDepartureTime;
+  const arrivalHHMM = arrivalProp || timelineFallback?.gateArrivalTime;
 
   const [mode, setMode] = useState<TelemetryCardMode>(defaultMode);
   const [blob, setBlob] = useState<Blob | null>(null);

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useId } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../context/LanguageContext';
 import { ModalPortal } from '../common/ModalPortal';
-import { Button } from '@/components/arc';
+import { Button } from "@/components/arc/button/button";
 import {
   Eye,
   EyeOff,

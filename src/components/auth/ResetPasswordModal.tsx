@@ -2,7 +2,7 @@ import React, { useState, useEffect, useId } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../context/LanguageContext';
 import { ModalPortal } from '../common/ModalPortal';
-import { Button } from '@/components/arc';
+import { Button } from "@/components/arc/button/button";
 import { KeyRound, Eye, EyeOff, Loader2, X, CheckCircle2, AlertCircle } from '@/components/icons';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,

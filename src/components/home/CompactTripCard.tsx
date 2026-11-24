@@ -9,7 +9,7 @@ import { computeTripReadiness } from '../../utils/tripReadiness';
 import { ReadinessGauge } from '../dashboard/RideReadinessGauge';
 import { loadRiderBikeSpecs } from '../../utils/specsStorage';
 import { Badge, BadgeVariant } from '../common/Badge';
-import { Button } from '@/components/arc';
+import { Button } from "@/components/arc/button/button";
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
   GREYSCALE_TOKENS,

@@ -232,11 +232,23 @@
 
 /* ── PRINT MEDIA ENFORCEMENT ── */
 @media print {
+  @page {
+    margin: 10mm;
+  }
   .no-print, [class*="no-print"] {
     display: none !important;
   }
   .print-only {
     display: block !important;
+  }
+  /* When printing the portaled Top-Tube Sticker, hide #root completely so Page 1 is never blank */
+  body.cadence-print-sticker #root {
+    display: none !important;
+  }
+  body.cadence-print-sticker {
+    background: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 }
 

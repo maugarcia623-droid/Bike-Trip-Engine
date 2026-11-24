@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { Button, TimePicker } from '@/components/arc';
+import { Button } from '@/components/arc/button/button';
+import { TimePicker } from '@/components/arc/time-picker/time-picker';
 import { ArrowDown, ArrowUp, CaretDown, Check, Lightning, Pen } from '@/components/icons';
 import { CHIP_DUOTONE_ISOLATION_CLASSES, CHIP_RING_BASE, CHIP_TOKENS } from '../../tokens/chipTokens';
 import {

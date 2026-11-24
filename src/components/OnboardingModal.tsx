@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, ArrowRight } from '@/components/icons';
-import { Button } from '@/components/arc';
+import { Button } from "@/components/arc/button/button";
 import {
   TripProfile,
   RouteWaypoint,

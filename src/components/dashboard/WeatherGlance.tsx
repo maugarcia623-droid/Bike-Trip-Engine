@@ -39,6 +39,8 @@ export interface WeatherGlanceProps {
   windCardinal: string;
   maxGust: number;
   hideHeader?: boolean;
+  /** Optional 1-line companion wind note (e.g., Invisible Hill ghost climbing) */
+  companionWindNote?: string;
   onExpand: () => void;
 }
 
@@ -55,6 +57,7 @@ export const WeatherGlance: React.FC<WeatherGlanceProps> = ({
   windCardinal,
   maxGust,
   hideHeader = false,
+  companionWindNote,
   onExpand,
 }) => {
   const { t } = useTranslation();
@@ -187,6 +190,12 @@ export const WeatherGlance: React.FC<WeatherGlanceProps> = ({
           </span>
         </span>
       </span>
+
+      {companionWindNote && (
+        <span className="w-full rounded-sub-pod bg-pod px-3 py-2 text-xs text-ink-secondary leading-snug tnum">
+          {companionWindNote}
+        </span>
+      )}
     </button>
   );
 };

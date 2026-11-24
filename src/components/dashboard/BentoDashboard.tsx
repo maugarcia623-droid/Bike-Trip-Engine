@@ -1,5 +1,6 @@
 import React from 'react';
-import { Button } from '@/components/arc';
+import { Button } from "@/components/arc/button/button";
+import type { FreeWebToolId } from '../../utils/toolCatalog';
 import { TripProfile } from '../../types/trip';
 import { RiderBikeSpecs, CockpitViewMode } from '../../types/specs';
 import { loadRiderBikeSpecs, getActiveBike, getEffectiveRiderSpecs } from '../../utils/specsStorage';
@@ -89,7 +90,7 @@ interface BentoDashboardProps {
   isRideBriefOpen?: boolean;
   onOpenRideBrief?: () => void;
   onCloseRideBrief?: () => void;
-  onOpenTools?: (tab?: 'wind' | 'leave-by' | 'pressure') => void;
+  onOpenTools?: (tab?: FreeWebToolId) => void;
   sharedPlanBanner?: ({ name: string; needsPersonalization?: boolean } & SharedPlanMeta) | null;
   onApplyPartnerPersonalization?: (nextSpecs: RiderBikeSpecs, luggageWeightKg: number) => void;
   onDismissSharedPlanBanner?: () => void;

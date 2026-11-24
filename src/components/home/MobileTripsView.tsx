@@ -8,7 +8,7 @@ import {
 import { TripProfile } from '../../types/trip';
 import { useTranslation } from '../../context/LanguageContext';
 import { Badge } from '../common/Badge';
-import { Button } from '@/components/arc';
+import { Button } from "@/components/arc/button/button";
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
   CHIP_RING_BASE,

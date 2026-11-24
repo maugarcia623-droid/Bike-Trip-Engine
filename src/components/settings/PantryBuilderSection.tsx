@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Button } from '@/components/arc';
+import { Button } from "@/components/arc/button/button";
 import {
   Check,
   Plus,

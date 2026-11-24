@@ -1,5 +1,5 @@
 import React, { useId, useMemo, useState } from 'react';
-import { Button } from '@/components/arc';
+import { Button } from "@/components/arc/button/button";
 import { Flame, Mountains, Route } from '@/components/icons';
 import {
   EffortTracePoint,
@@ -244,9 +244,15 @@ export const TerrainEffortStory: React.FC<TerrainEffortStoryProps> = ({
 
   const lead = character.intense ? (
     isFr ? (
-      <>{strong(f.pct(intensePct))} de la sortie au-dessus du seuil ({f.duration(intenseMin)}). </>
+      <>{strong(f.pct(intensePct))} de la sortie dans le dur ({f.duration(intenseMin)}). </>
     ) : (
-      <>{strong(`${intensePct}%`)} of your ride sits above threshold ({f.duration(intenseMin)}). </>
+      <>{strong(`${intensePct}%`)} of your ride sits at a hard effort ({f.duration(intenseMin)}). </>
+    )
+  ) : !showWatts ? (
+    isFr ? (
+      <>{strong(f.pct(aerobicPct))} de la sortie à une allure confortable ({f.duration(aerobicMin)}). </>
+    ) : (
+      <>{strong(`${aerobicPct}%`)} of your ride stays at a comfortable pace ({f.duration(aerobicMin)}). </>
     )
   ) : isFr ? (
     <>{strong(f.pct(aerobicPct))} de la sortie en Z1–Z2 ({f.duration(aerobicMin)}). </>
@@ -257,20 +263,20 @@ export const TerrainEffortStory: React.FC<TerrainEffortStoryProps> = ({
   const peakCue =
     peakGrade >= 2
       ? isFr
-        ? `pente de ${f.num(peakGrade)}\u00A0% — moulinez tôt.`
+        ? `pente à ${f.num(peakGrade)}\u00A0% — mouline tôt.`
         : `a ${f.num(peakGrade)}% pitch — shift down early.`
       : isFr
-      ? 'portion exposée — restez abrité.'
+      ? 'portion exposée — reste souple.'
       : 'an exposed stretch — stay tucked.';
 
   const peakSentence = isFr ? (
     <>
-      Pic {showWatts ? <>{strong(`${sectional.peakClimbWatts}\u00A0W`)} ({f.pct(peakPctFtp)} FTP)</> : strong(sectional.peakZone)} au km{' '}
+      Passage le plus exigeant {showWatts ? <>({strong(`${sectional.peakClimbWatts}\u00A0W`)} · {f.pct(peakPctFtp)} FTP)</> : null} au km{' '}
       {f.num(peakKm)}, sur une {peakCue}
     </>
   ) : (
     <>
-      Peak {showWatts ? <>{strong(`${sectional.peakClimbWatts}\u00A0W`)} ({peakPctFtp}% FTP)</> : strong(sectional.peakZone)} at km{' '}
+      Toughest stretch {showWatts ? <>({strong(`${sectional.peakClimbWatts}\u00A0W`)} · {peakPctFtp}% FTP)</> : null} at km{' '}
       {f.num(peakKm)}, on {peakCue}
     </>
   );
@@ -279,15 +285,15 @@ export const TerrainEffortStory: React.FC<TerrainEffortStoryProps> = ({
   const zoneInsight =
     zoneDominant.zone === 'Z1' || zoneDominant.zone === 'Z2'
       ? isFr
-        ? 'Allure surtout aérobie : vous brûlez des graisses et préservez le glycogène.'
-        : 'Mostly aerobic: you burn fat and spare glycogen.'
+        ? 'Allure douce et régulière : tu peux tenir ce rythme longtemps sans puiser dans tes réserves.'
+        : 'Easy, steady pace: sustainable all day without draining your legs.'
       : zoneDominant.zone === 'Z3'
       ? isFr
-        ? 'Dominante tempo : gourmande en glycogène — mangez tôt et souvent.'
-        : 'Tempo-heavy: glycogen-hungry — fuel early and often.'
+        ? 'Allure soutenue : ça consomme vite — pense à grignoter tôt et régulièrement.'
+        : 'Brisk tempo: burns through energy faster — eat early and steadily.'
       : isFr
-      ? 'Dominante seuil : fatigue profonde après ~60 min. Baissez la vitesse cible.'
-      : 'Threshold-heavy: deep fatigue after ~60 min. Ease the target speed.';
+      ? 'Effort intense : la fatigue grimpe vite après 1 h. N’hésite pas à baisser un peu la vitesse cible.'
+      : 'Hard effort: fatigue builds quickly past an hour — easing the pace a touch pays off.';
 
   /* ── Terrain bands ── */
   const bands = sectional.bands;
@@ -303,11 +309,11 @@ export const TerrainEffortStory: React.FC<TerrainEffortStoryProps> = ({
   const terrainCopy =
     domBand && hardBand && easyBand && powerRatio >= 1.2
       ? isFr
-        ? `${bandName(domBand.id, true)} : ${f.pct(domBand.pctDistance)} de la distance. ${bandName(hardBand.id, true)} demandent ${f.num(powerRatio)}× plus de puissance.`
-        : `${bandName(domBand.id, false)} cover ${domBand.pctDistance}% of the distance. ${bandName(hardBand.id, false)} ask for ${f.num(powerRatio)}× the power.`
+        ? `${bandName(domBand.id, true)} : ${f.pct(domBand.pctDistance)} de la distance. ${bandName(hardBand.id, true)} demandent ${f.num(powerRatio)}× plus d’effort.`
+        : `${bandName(domBand.id, false)} cover ${domBand.pctDistance}% of the distance. ${bandName(hardBand.id, false)} ask for ${f.num(powerRatio)}× the effort.`
       : isFr
-      ? 'Effort homogène sur tout le parcours — gardez une cadence régulière.'
-      : 'Even effort across the whole route — hold a steady cadence.';
+      ? 'Effort homogène sur tout le parcours — garde une cadence tranquille.'
+      : 'Even effort across the whole route — hold a steady rhythm.';
 
   /* ── Energy ── */
   const kcalPerKm = (b: SectionalEffortBand) => b.kcalShare / Math.max(0.1, b.distanceKm);
@@ -318,11 +324,11 @@ export const TerrainEffortStory: React.FC<TerrainEffortStoryProps> = ({
   const fuelInsight =
     fuelEasy && fuelHard && costRatio >= 1.3
       ? isFr
-        ? `${bandName(fuelHard.id, true)} coûtent ${f.num(costRatio)}× plus au km que le plat — mangez avant.`
-        : `${bandName(fuelHard.id, false)} cost ${f.num(costRatio)}× more per km than flats — eat before them.`
+        ? `${bandName(fuelHard.id, true)} coûtent ${f.num(costRatio)}× plus au km que le plat — mange quelques minutes avant.`
+        : `${bandName(fuelHard.id, false)} cost ${f.num(costRatio)}× more per km than flats — eat a few minutes before.`
       : isFr
-      ? 'Coût homogène — mangez à horloge fixe (toutes les 20 min).'
-      : 'Even cost — fuel on a steady clock (every 20 min).';
+      ? 'Coût régulier — mange un petit bout toutes les 20–25 min.'
+      : 'Even burn — nibble steadily every 20–25 min.';
   const kcalPerHour = Math.round(totalKcal / Math.max(0.25, sectional.totalMinutes / 60));
 
   const tabs: Array<{ key: TabKey; label: string; icon: React.ElementType; theme: ChipTheme }> = [
@@ -378,7 +384,7 @@ export const TerrainEffortStory: React.FC<TerrainEffortStoryProps> = ({
           aria-labelledby={`${tabsId}-tab-effort`}
           className="pt-3.5 animate-fade-in"
         >
-          <p className={EYEBROW}>{isFr ? 'Votre sortie sera' : 'Your ride will be'}</p>
+          <p className={EYEBROW}>{isFr ? 'Ta sortie sera' : 'Your ride will be'}</p>
           <h5 className="mt-1 text-[28px] leading-none font-rounded font-extrabold tracking-tight text-ink">
             {isFr ? character.fr : character.en}
           </h5>

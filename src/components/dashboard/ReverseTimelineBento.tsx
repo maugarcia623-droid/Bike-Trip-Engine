@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { Button, Timeline } from '@/components/arc';
-import type { TimelineEvent, TimelineGroupMeta } from '@/components/arc';
+import { Button } from '@/components/arc/button/button';
+import { Timeline, type TimelineEvent, type TimelineGroupMeta } from '@/components/arc/timeline/timeline';
 import {
   Clock,
   CheckCircle,

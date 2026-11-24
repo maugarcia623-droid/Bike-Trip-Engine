@@ -1,6 +1,6 @@
 import React, { useState, useId } from 'react';
 import { ModalPortal } from './common/ModalPortal';
-import { Button } from '@/components/arc';
+import { Button } from "@/components/arc/button/button";
 import {
   X,
   Bug,

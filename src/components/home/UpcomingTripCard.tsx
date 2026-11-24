@@ -26,7 +26,7 @@ import { calculateRideVisibility } from '../../utils/solarVisibility';
 import { calculateDynamicCarbTarget } from '../../utils/nutrition';
 import { Collapsible } from '../common/Collapsible';
 import { Badge } from '../common/Badge';
-import { Button } from '@/components/arc';
+import { Button } from "@/components/arc/button/button";
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
   CHIP_RING_BASE,

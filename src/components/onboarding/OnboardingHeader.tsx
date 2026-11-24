@@ -1,6 +1,7 @@
 import React from 'react';
 import { Check, X, Sun, Moon } from '@/components/icons';
-import { Button, ThemeSwitch } from '@/components/arc';
+import { Button } from '@/components/arc/button/button';
+import { ThemeSwitch } from '@/components/arc/theme-switch/theme-switch';
 import { useTranslation } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { CHIP_TOKENS, CHIP_RING_BASE } from '../../tokens/chipTokens';

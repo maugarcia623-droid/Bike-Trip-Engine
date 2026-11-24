@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Button } from '@/components/arc';
+import { Button } from "@/components/arc/button/button";
 import { Check, ArrowCounterClockwise, EyeSlash, Eye, X } from '@/components/icons';
 import { Card } from '../common/Card';
 import { Badge } from '../common/Badge';

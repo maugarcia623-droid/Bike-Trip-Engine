@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Suspense } from 'react';
-import { Button } from "@/components/arc";
+import { Button } from "@/components/arc/button/button";
 import {
   loadRiderBikeSpecs,
   saveRiderBikeSpecs,
@@ -44,7 +44,13 @@ import {
 import { TopTelemetryBar } from './components/navigation/TopTelemetryBar';
 import { DynamicIslandNav } from './components/navigation/DynamicIslandNav';
 import { DashboardEmptyState } from './components/dashboard/DashboardEmptyState';
-import type { FreeWebToolTab } from './components/tools/FreeWebToolsView';
+import {
+  applyToolDocumentMeta,
+  FreeWebToolId,
+  getToolPath,
+  parseToolFromLocation,
+} from './utils/toolCatalog';
+import { trackCadenceEvent } from './utils/analytics';
 
 const HomeScreen = React.lazy(() =>
   import('./components/home/HomeScreen').then((m) => ({ default: m.HomeScreen }))
@@ -74,23 +80,20 @@ function ViewLoadingFallback() {
     </div>
   );
 }
-import { calculatePhysics, buildPhysicsEnvironmentContext } from './utils/physics';
-import { calculateReverseTimeline } from './utils/timeline';
-import { getChipsExtraBufferMinutes } from './utils/archetypeChips';
-import {
-  applyPersonalLensToSharedTrip,
-  decodePlanShareToken,
-  extractSharedPlanFromLocation,
-  SharedPlanMeta,
-} from './utils/planShare';
-import { resolveShortPlanToken } from './services/planShareService';
-import { fetchDemElevationProfile } from './services/elevationService';
-import { parseRouteFile } from './utils/routeFileParser';
-import { consumeStravaOAuthRedirectParams } from './services/stravaIntegration';
-import { consumeHeadUnitOAuthRedirectParams } from './services/headUnitIntegration';
+import type { SharedPlanMeta } from './utils/planShare';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AppDataPayload } from './types/auth';
 import { loadUserProfile, saveUserProfile } from './utils/userProfileStorage';
+
+function hasSharedPlanInLocation(loc: Pick<Location, 'pathname' | 'search' | 'hash'>): boolean {
+  const path = loc.pathname || '';
+  const search = loc.search || '';
+  const hash = loc.hash || '';
+  if (/^\/p\/[a-z0-9]{6,16}\/?$/i.test(path)) return true;
+  if (/(?:^|[?&])(plan|p)=/i.test(search)) return true;
+  if (/(?:^|[#&])(plan|p)=/i.test(hash)) return true;
+  return false;
+}
 
 const AuthModal = React.lazy(() =>
   import('./components/auth/AuthModal').then((m) => ({ default: m.AuthModal }))
@@ -219,20 +222,31 @@ function AppContent() {
   const [sharedPlanBanner, setSharedPlanBanner] = useState<
     ({ name: string; needsPersonalization?: boolean } & SharedPlanMeta) | null
   >(null);
-  const [toolsInitialTab, setToolsInitialTab] = useState<FreeWebToolTab>(() => {
+  const [toolsInitialTab, setToolsInitialTab] = useState<FreeWebToolId>(() => {
     if (typeof window !== 'undefined') {
-      const toolParam = new URLSearchParams(window.location.search).get('tool');
-      if (toolParam === 'wind' || toolParam === 'leave-by' || toolParam === 'pressure') {
-        return toolParam;
+      const parsed = parseToolFromLocation(window.location);
+      if (parsed.isToolsRoute) {
+        return parsed.toolId;
       }
     }
-    return 'wind';
+    return 'hub';
   });
 
   const isCloudApplyingRef = React.useRef(false);
   const saveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSyncedPayloadHashRef = React.useRef<string>('');
-  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(true);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    // Never ambush visitors opening /tools/* or shared plan links with onboarding
+    if (parseToolFromLocation(window.location).isToolsRoute) return false;
+    if (hasSharedPlanInLocation(window.location)) return false;
+    if (hasPotentialSupabaseSession()) return false;
+    try {
+      return localStorage.getItem(STORAGE_KEY_ONBOARDED) !== 'true';
+    } catch {
+      return false;
+    }
+  });
 
   // If user is already logged in or logs in to Supabase, mark onboarding seen
   useEffect(() => {
@@ -248,6 +262,10 @@ function AppContent() {
   const tripsScrollYRef = React.useRef<number>(0);
   const [currentView, setCurrentView] = useState<'home' | 'configurator' | 'dashboard' | 'tools'>(() => {
     if (typeof window !== 'undefined') {
+      const toolRoute = parseToolFromLocation(window.location);
+      if (toolRoute.isToolsRoute) {
+        return 'tools';
+      }
       const hash = window.location.hash;
       const search = window.location.search;
       if (hash === '#configurator' || search.includes('view=configurator')) {
@@ -256,10 +274,7 @@ function AppContent() {
       if (hash === '#home' || search.includes('view=home')) {
         return 'home';
       }
-      if (hash === '#tools' || search.includes('view=tools') || search.includes('tool=')) {
-        return 'tools';
-      }
-      const hasSharedPlan = Boolean(extractSharedPlanFromLocation(window.location));
+      const hasSharedPlan = hasSharedPlanInLocation(window.location);
       if (!hasSharedPlan && !hasPotentialSupabaseSession()) {
         try {
           if (localStorage.getItem(STORAGE_KEY_ONBOARDED) !== 'true') {
@@ -273,23 +288,96 @@ function AppContent() {
     return 'home';
   });
 
-  const handleOpenTools = (tab: FreeWebToolTab = 'wind') => {
+  const syncUrlForView = (
+    nextView: 'home' | 'configurator' | 'dashboard' | 'tools',
+    toolId?: FreeWebToolId
+  ) => {
+    if (typeof window === 'undefined') return;
+    if (nextView === 'tools') {
+      const targetPath = getToolPath(toolId ?? toolsInitialTab);
+      if (window.location.pathname !== targetPath || window.location.search.includes('tool=')) {
+        window.history.pushState({ view: 'tools', toolId: toolId ?? toolsInitialTab }, '', targetPath);
+      }
+    } else if (
+      window.location.pathname === '/tools' ||
+      window.location.pathname.startsWith('/tools/') ||
+      window.location.search.includes('tool=')
+    ) {
+      window.history.pushState({ view: nextView }, '', '/');
+    }
+  };
+
+  const handleOpenTools = (tab: FreeWebToolId = 'hub', source = 'in-app') => {
     setToolsInitialTab(tab);
     setCurrentView('tools');
+    setIsOnboardingOpen(false);
+    syncUrlForView('tools', tab);
+    trackCadenceEvent('tool_opened', { tool: tab, source });
   };
+
+  const handleSelectToolInView = (tab: FreeWebToolId) => {
+    setToolsInitialTab(tab);
+    syncUrlForView('tools', tab);
+    trackCadenceEvent('tool_opened', { tool: tab, source: 'tools-nav' });
+  };
+
+  const navigateAppView = (nextView: 'home' | 'configurator' | 'dashboard' | 'tools') => {
+    if (nextView === 'tools') {
+      handleOpenTools(toolsInitialTab, 'nav');
+      return;
+    }
+    setCurrentView(nextView);
+    syncUrlForView(nextView);
+  };
+
+  // Sync browser Back/Forward navigation with /tools/* routes
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handlePopState = () => {
+      const parsed = parseToolFromLocation(window.location);
+      if (parsed.isToolsRoute) {
+        setToolsInitialTab(parsed.toolId);
+        setCurrentView('tools');
+        setIsOnboardingOpen(false);
+      } else if (currentView === 'tools') {
+        setCurrentView('home');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [currentView]);
+
+  // Keep page <title> & meta description in sync for SEO + browser tabs, and log direct /tools landings
+  const didTrackDirectToolRef = React.useRef(false);
+  useEffect(() => {
+    applyToolDocumentMeta(currentView === 'tools' ? toolsInitialTab : null, lang);
+    if (currentView === 'tools' && !didTrackDirectToolRef.current) {
+      didTrackDirectToolRef.current = true;
+      trackCadenceEvent('tool_opened', { tool: toolsInitialTab, source: 'direct-url' });
+    }
+  }, [currentView, toolsInitialTab, lang]);
 
   // Shareable Group Plan Link decoder (/p/<code>, ?p=<code>, ?plan=<token>, or #plan=<token>)
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const sharedRef = extractSharedPlanFromLocation(window.location);
-    if (!sharedRef) return;
+    if (!hasSharedPlanInLocation(window.location)) return;
 
     let cancelled = false;
 
     const loadSharedPlan = async () => {
+      const {
+        extractSharedPlanFromLocation,
+        decodePlanShareToken,
+        applyPersonalLensToSharedTrip,
+      } = await import('./utils/planShare');
+      const sharedRef = extractSharedPlanFromLocation(window.location);
+      if (!sharedRef || cancelled) return;
+
       const planToken =
         sharedRef.kind === 'short'
-          ? await resolveShortPlanToken(sharedRef.code)
+          ? await import('./services/planShareService').then((m) =>
+              m.resolveShortPlanToken(sharedRef.code)
+            )
           : sharedRef.token;
 
       if (cancelled || !planToken) return;
@@ -333,6 +421,7 @@ function AppContent() {
       // Auto-fetch real DEM elevation in the background so shared links get true elevation curves
       const hydrateSharedDem = async () => {
         try {
+          const { fetchDemElevationProfile } = await import('./services/elevationService');
           if (finalTrip.stages && finalTrip.stages.length > 0) {
             const demResults = await Promise.all(
               finalTrip.stages.map((st) =>
@@ -458,10 +547,23 @@ function AppContent() {
     };
   }, []);
 
-  // Handle Strava & Head-Unit OAuth redirect return query params
+  // Handle Strava & Head-Unit OAuth redirect return query params lazily
   useEffect(() => {
-    consumeStravaOAuthRedirectParams();
-    consumeHeadUnitOAuthRedirectParams();
+    if (typeof window === 'undefined') return;
+    const search = window.location.search || '';
+    if (search.includes('strava')) {
+      void import('./services/stravaIntegration').then((m) => m.consumeStravaOAuthRedirectParams());
+    }
+    if (
+      search.includes('headunit') ||
+      search.includes('wahoo') ||
+      search.includes('hammerhead') ||
+      search.includes('garmin')
+    ) {
+      void import('./services/headUnitIntegration').then((m) =>
+        m.consumeHeadUnitOAuthRedirectParams()
+      );
+    }
   }, []);
 
   // PWA Share Target handler (?shared_file=1, ?shared_url=..., ?shared_text=...)
@@ -478,7 +580,9 @@ function AppContent() {
 
     (async () => {
       try {
-        let parsedResult: Awaited<ReturnType<typeof parseRouteFile>> | null = null;
+        let parsedResult: Awaited<
+          ReturnType<(typeof import('./utils/routeFileParser'))['parseRouteFile']>
+        > | null = null;
         let fileName = 'shared-route.gpx';
 
         if (hasSharedFile && 'caches' in window) {
@@ -490,6 +594,7 @@ function AppContent() {
             const blob = await cached.blob();
             const file = new File([blob], fileName, { type: blob.type || 'application/octet-stream' });
             await cache.delete('/__cadence_shared_route_file__');
+            const { parseRouteFile } = await import('./utils/routeFileParser');
             parsedResult = await parseRouteFile(file);
           }
         } else if (sharedUrl || sharedText) {
@@ -1111,54 +1216,30 @@ function AppContent() {
     setCurrentView('dashboard');
   };
 
+  const handleOpenTripFromTool = (trip: TripProfile, sourceTool: FreeWebToolId) => {
+    setTrips((prev) => {
+      const exists = prev.some((t) => t.id === trip.id);
+      const updated = exists ? prev.map((t) => (t.id === trip.id ? trip : t)) : [trip, ...prev];
+      saveTrips(updated);
+      return updated;
+    });
+    setActiveTripId(trip.id);
+    saveActiveTripId(trip.id);
+    setConfiguratorTrip(trip);
+    setIsNewTrip(false);
+    markOnboardingSeen();
+    setIsOnboardingOpen(false);
+    navigateAppView('dashboard');
+    trackCadenceEvent('tool_opened_full_plan', { tool: sourceTool });
+  };
+
   const handlePrint = () => {
     window.print();
   };
 
-  const sharePhysicsResult =
-    isShareModalOpen && activeTrip
-      ? calculatePhysics(
-          activeTrip.physics,
-          activeTrip.route,
-          activeTrip.weather,
-          lang,
-          riderSpecs?.ftpWatts,
-          buildPhysicsEnvironmentContext(activeTrip, {
-            extraBufferMinutes: getChipsExtraBufferMinutes(activeTrip),
-          })
-        )
-      : undefined;
-
-  const shareTimelineResult =
-    isShareModalOpen && activeTrip && sharePhysicsResult
-      ? calculateReverseTimeline(
-          activeTrip.route,
-          activeTrip.office,
-          activeTrip.weather,
-          activeTrip.tag,
-          activeTrip.route?.destination,
-          lang,
-          getChipsExtraBufferMinutes(activeTrip),
-          activeTrip.customChips || [],
-          {
-            effectiveSpeedKmH: sharePhysicsResult.effectiveSpeedKmH,
-            calmSpeedKmH: sharePhysicsResult.calmSpeedKmH,
-            arriveAtMode: activeTrip.arriveAtMode,
-            departureTime: activeTrip.departureTime,
-            movingTimeSeconds: sharePhysicsResult.movingTimeSeconds,
-            logistics: activeTrip.ruleSettings,
-            pinnedAmenities: activeTrip.pinnedAmenities,
-            departureDate:
-              activeTrip.stages?.[activeTrip.activeStageIndex ?? 0]?.departureDate ||
-              activeTrip.departureDate,
-            isMultiDayTour: Boolean(activeTrip.stages && activeTrip.stages.length > 1),
-          }
-        )
-      : undefined;
-
   return (
     <div
-      className={`min-h-screen w-full max-w-full overflow-x-clip ${
+      className={`min-h-screen print:min-h-0 print:h-auto w-full max-w-full overflow-x-clip ${
         isDark ? 'dark' : 'light'
       } bg-canvas text-ink flex flex-col font-sans selection:bg-volt selection:text-[#111111] transition-colors duration-200`}
     >
@@ -1170,7 +1251,7 @@ function AppContent() {
         dashboardBackTarget={homeMobileView}
         onOpenMobileWeather={homeMobileView === 'home' ? () => setIsMobileWeatherOpen(true) : undefined}
         onBackFromDashboard={() => {
-          setCurrentView('home');
+          navigateAppView('home');
           if (homeMobileView === 'trips' && typeof window !== 'undefined') {
             requestAnimationFrame(() => {
               window.scrollTo({ top: tripsScrollYRef.current, behavior: 'instant' as ScrollBehavior });
@@ -1181,17 +1262,17 @@ function AppContent() {
           if (view === 'configurator' && !isNewTrip) {
             setConfiguratorTrip(activeTrip);
           }
-          setCurrentView(view);
+          navigateAppView(view);
         }}
         onOpenSpecs={() => setIsSpecsModalOpen(true)}
         onPrint={handlePrint}
         onShareReceipt={() => setIsShareModalOpen(true)}
         onOpenFeedback={() => setIsFeedbackModalOpen(true)}
         onOpenRideBrief={() => {
-          setCurrentView('dashboard');
+          navigateAppView('dashboard');
           setIsRideBriefOpen(true);
         }}
-        onOpenTools={(tab) => handleOpenTools(tab || 'wind')}
+        onOpenTools={(tab) => handleOpenTools(tab || 'hub', 'top-bar')}
         riderSpecs={riderSpecs}
         isMenuOpen={isTopMenuOpen}
         onMenuOpenChange={setIsTopMenuOpen}
@@ -1215,7 +1296,7 @@ function AppContent() {
             onResetDefaults={handleResetDefaults}
             onOpenOnboarding={() => setIsOnboardingOpen(true)}
             onLoadDemoTrip={handleLoadDemoTrips}
-            onOpenTools={(tab) => handleOpenTools(tab || 'wind')}
+            onOpenTools={(tab) => handleOpenTools(tab || 'hub', 'home-card')}
             onQuickCreateTrip={handleQuickCreateTrip}
             riderSpecs={riderSpecs}
             mobileView={homeMobileView}
@@ -1277,19 +1358,21 @@ function AppContent() {
                   isRideBriefOpen={isRideBriefOpen}
                   onOpenRideBrief={() => setIsRideBriefOpen(true)}
                   onCloseRideBrief={() => setIsRideBriefOpen(false)}
-                  onOpenTools={(tab) => handleOpenTools(tab || 'wind')}
+                  onOpenTools={(tab) => handleOpenTools(tab || 'hub', 'home-card')}
                   sharedPlanBanner={sharedPlanBanner}
                   onApplyPartnerPersonalization={(nextSpecs, luggageWeightKg) => {
                     saveRiderBikeSpecs(nextSpecs);
                     setRiderSpecs(nextSpecs);
-                    const updatedTrip = applyPersonalLensToSharedTrip(activeTrip, nextSpecs, {
-                      luggageWeightKg,
-                      lang,
+                    void import('./utils/planShare').then(({ applyPersonalLensToSharedTrip }) => {
+                      const updatedTrip = applyPersonalLensToSharedTrip(activeTrip, nextSpecs, {
+                        luggageWeightKg,
+                        lang,
+                      });
+                      handleUpdateActiveTrip(updatedTrip);
+                      setSharedPlanBanner((prev) =>
+                        prev ? { ...prev, needsPersonalization: false } : prev
+                      );
                     });
-                    handleUpdateActiveTrip(updatedTrip);
-                    setSharedPlanBanner((prev) =>
-                      prev ? { ...prev, needsPersonalization: false } : prev
-                    );
                   }}
                   onDismissSharedPlanBanner={() => setSharedPlanBanner(null)}
                   autoOpenSlicer={autoOpenSlicer}
@@ -1306,14 +1389,16 @@ function AppContent() {
               initialTab={toolsInitialTab}
               activeTrip={activeTrip}
               riderSpecs={riderSpecs}
-              onBackToCockpit={() => setCurrentView('home')}
+              onSelectTool={handleSelectToolInView}
+              onOpenTripInCadence={handleOpenTripFromTool}
+              onBackToCockpit={() => navigateAppView('home')}
             />
           </Suspense>
         )}
       </main>
 
-      {/* Floating Dynamic Island Navigation Pill (Hidden when top settings menu overlay is open) */}
-      {!isTopMenuOpen && (
+      {/* Floating Dynamic Island Navigation Pill (Hidden on /tools or when top settings menu overlay is open) */}
+      {!isTopMenuOpen && currentView !== 'tools' && (
         <div className="hidden md:block">
           <DynamicIslandNav
             currentView={currentView}
@@ -1321,7 +1406,7 @@ function AppContent() {
               if (view === 'configurator' && !isNewTrip) {
                 setConfiguratorTrip(activeTrip);
               }
-              setCurrentView(view);
+              navigateAppView(view);
             }}
             activeTrip={activeTrip}
             allTrips={trips}
@@ -1436,14 +1521,12 @@ function AppContent() {
             isOpen={isShareModalOpen}
             onClose={() => setIsShareModalOpen(false)}
             trip={activeTrip || undefined}
-            physicsResult={sharePhysicsResult}
-            leaveByHHMM={shareTimelineResult?.hardDepartureTime}
-            arrivalHHMM={shareTimelineResult?.gateArrivalTime}
+            riderSpecs={riderSpecs}
           />
         </Suspense>
       )}
 
-      {activeTrip && (
+      {activeTrip && currentView === 'dashboard' && (
         <div className="hidden print:block print-only">
           <Suspense fallback={null}>
             <PrintFlightSheet trip={activeTrip} riderSpecs={riderSpecs} />

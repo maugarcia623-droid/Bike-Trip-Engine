@@ -193,15 +193,15 @@ function scoreWeather(w: RideReadinessInput['weather'], isFr: boolean) {
     if (worst === rainPen) {
       tip = isFr ? 'Décalez la sortie ou prenez une veste imperméable' : 'Shift the window or pack a rain shell';
     } else if (worst === windPen) {
-      tip = isFr ? 'Choisissez un créneau moins venté' : 'Pick a calmer window';
+      tip = isFr ? 'Choisis un créneau moins venté' : 'Pick a calmer window';
     } else {
       tip =
         t < 8
           ? isFr
-            ? 'Partez plus tard dans la journée ou couvrez-vous'
+            ? 'Pars plus tard dans la journée ou couvre-toi bien'
             : 'Ride later in the day or layer up'
           : isFr
-          ? 'Partez plus tôt, à la fraîche'
+          ? 'Pars plus tôt, à la fraîche'
           : 'Ride earlier, before the heat';
     }
   }
@@ -283,10 +283,10 @@ function scoreTerrain(
     if (cat === 'mtb' && unpaved < 10) {
       tip = isFr ? 'Un vélo route ou gravel irait plus vite ici' : 'A road or gravel bike would be faster here';
     } else if (single > singleTol) {
-      tip = isFr ? 'Prenez un VTT ou des pneus ≥ 45 mm' : 'Take an MTB or ≥ 45 mm tyres';
+      tip = isFr ? 'Prends un VTT ou des pneus ≥ 45 mm' : 'Take an MTB or ≥ 45 mm tyres';
     } else if (gravel > gravelTol) {
       const needed = gravel > 70 ? 45 : gravel > 45 ? 40 : gravel > 25 ? 35 : 32;
-      tip = isFr ? `Passez à des pneus ≥ ${needed} mm` : `Switch to ≥ ${needed} mm tyres`;
+      tip = isFr ? `Passe à des pneus ≥ ${needed} mm` : `Switch to ≥ ${needed} mm tyres`;
     } else if (!bike.isTubeless && unpaved >= 20) {
       tip = isFr ? 'Emportez chambres et rustines' : 'Carry spare tubes and a patch kit';
     } else {
@@ -336,7 +336,7 @@ function scoreEffort(e: RideReadinessInput['effort'], isFr: boolean) {
   let ctaLabel: string | undefined;
   if (score < 90) {
     if (intensityPen >= loadPen) {
-      tip = isFr ? 'Baissez l’allure d’une zone' : 'Ease the pace by one zone';
+      tip = isFr ? 'Baisse l’allure d’une zone' : 'Ease the pace by one zone';
       action = 'effort-pace';
       ctaLabel = isFr ? 'Baisser l’allure' : 'Ease pace';
     } else if (e.isPreDawnWinter) {
@@ -420,7 +420,7 @@ function scoreLight(l: RideReadinessInput['light'], isFr: boolean) {
   const tip =
     score < 92
       ? isFr
-        ? 'Partez plus tôt ou chargez vos éclairages'
+        ? 'Pars plus tôt ou charge tes éclairages'
         : 'Leave earlier or charge your lights'
       : undefined;
   const action: ReadinessActionKind | undefined = tip ? 'daylight-window' : undefined;
@@ -523,15 +523,15 @@ export function computeRideReadiness(input: RideReadinessInput): RideReadiness {
   const summary =
     level === 'good-to-go'
       ? isFr
-        ? 'Les conditions sont alignées. Vous pouvez y aller.'
-        : 'Conditions line up. Commit to it.'
+        ? 'Les conditions sont alignées — tu peux y aller.'
+        : 'Conditions line up. Good to go.'
       : level === 'worth-tweak'
       ? isFr
-        ? 'Faisable — un ou deux ajustements la rendront meilleure.'
+        ? 'Faisable — un ou deux ajustements la rendront plus agréable.'
         : 'Rideable. A tweak or two will make it better.'
       : isFr
-      ? 'Trop de points à revoir avant de vous engager.'
-      : 'Too much is off. Adjust before you commit.';
+      ? 'Pas mal de points à revoir avant de partir.'
+      : 'A few things are off — worth adjusting before you roll.';
 
   // Biggest single lift, among factors that offer an actionable tip.
   const liftable = factors

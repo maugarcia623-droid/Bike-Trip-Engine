@@ -6,7 +6,17 @@ import {
   encodePlanShareToken,
   PlanShareExtras,
 } from '../utils/planShare';
-import { isSupabaseConfigured, supabase } from './supabase';
+
+const isSupabaseEnvConfigured = Boolean(
+  import.meta.env?.VITE_SUPABASE_URL &&
+    import.meta.env?.VITE_SUPABASE_ANON_KEY &&
+    import.meta.env?.VITE_SUPABASE_URL.startsWith('http')
+);
+
+async function loadSupabaseClient() {
+  const mod = await import('./supabase');
+  return mod;
+}
 
 const SHORT_LINK_TIMEOUT_MS = 4500;
 const SHORT_CODE_REGEX = /^[a-z0-9]{6,16}$/i;
@@ -44,13 +54,15 @@ async function requestShortCodeForToken(
   const cached = tokenToShortCodeCache.get(token);
   if (cached) return cached;
 
-  if (!isSupabaseConfigured) return null;
+  if (!isSupabaseEnvConfigured) return null;
 
   const existingInFlight = inFlightCreateByToken.get(token);
   if (existingInFlight) return existingInFlight;
 
   const requestPromise = (async (): Promise<string | null> => {
     try {
+      const { isSupabaseConfigured, supabase } = await loadSupabaseClient();
+      if (!isSupabaseConfigured) return null;
       const { data, error } = await withTimeout(
         supabase.rpc('create_shared_plan', {
           p_token: token,
@@ -120,11 +132,13 @@ export async function createShortPlanShareUrl(
  */
 export async function resolveShortPlanToken(code: string): Promise<string | null> {
   const cleanCode = (code || '').trim().toLowerCase();
-  if (!SHORT_CODE_REGEX.test(cleanCode) || !isSupabaseConfigured) {
+  if (!SHORT_CODE_REGEX.test(cleanCode) || !isSupabaseEnvConfigured) {
     return null;
   }
 
   try {
+    const { isSupabaseConfigured, supabase } = await loadSupabaseClient();
+    if (!isSupabaseConfigured) return null;
     const { data, error } = await withTimeout(
       supabase.rpc('get_shared_plan', { p_code: cleanCode }),
       SHORT_LINK_TIMEOUT_MS + 2000

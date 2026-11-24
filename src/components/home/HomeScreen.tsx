@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, Suspense } from 'react';
 import {
   Plus,
   ArrowCounterClockwise,
@@ -17,8 +17,12 @@ import {
   Wind,
   Clock,
   Gauge,
+  Utensils,
+  Droplets,
+  Scissors,
   X,
 } from '@/components/icons';
+import type { FreeWebToolId } from '../../utils/toolCatalog';
 import { TripProfile, WeatherCondition } from '../../types/trip';
 import { RiderBikeSpecs } from '../../types/specs';
 import { TripCard } from './TripCard';
@@ -26,11 +30,13 @@ import { UpcomingTripCard, getTripDateDetails } from './UpcomingTripCard';
 import { WeatherWidget } from './WeatherWidget';
 import { QuickRideBuilder } from './QuickRideBuilder';
 import { CompactTripCard } from './CompactTripCard';
-import { MobileTripsView } from './MobileTripsView';
+const MobileTripsView = React.lazy(() =>
+  import('./MobileTripsView').then((m) => ({ default: m.MobileTripsView }))
+);
 import { Badge } from '../common/Badge';
 import { IconBadge } from '../common/IconBadge';
 import { ModalPortal } from '../common/ModalPortal';
-import { Button } from '@/components/arc';
+import { Button } from "@/components/arc/button/button";
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
   CHIP_RING_BASE,
@@ -48,7 +54,9 @@ import {
   WeeklyForecast,
 } from '../../services/weatherService';
 import { summarizeWeeklyWeather } from '../../utils/weeklyWeatherSummary';
-import { FeedbackModal } from '../FeedbackModal';
+const FeedbackModal = React.lazy(() =>
+  import('../FeedbackModal').then((m) => ({ default: m.FeedbackModal }))
+);
 
 interface HomeScreenProps {
   trips: TripProfile[];
@@ -64,7 +72,7 @@ interface HomeScreenProps {
   onOpenOnboarding?: () => void;
   onLoadDemoTrip?: () => void;
   onOpenFeedback?: () => void;
-  onOpenTools?: (tab?: 'wind' | 'leave-by' | 'pressure') => void;
+  onOpenTools?: (tab?: FreeWebToolId) => void;
   onQuickCreateTrip?: (
     trip: TripProfile,
     targetView: 'dashboard' | 'configurator',
@@ -353,23 +361,25 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           ═══════════════════════════════════════════════════════════════════════ */}
       <div className="md:hidden space-y-5">
         {mobileView === 'trips' ? (
-          <MobileTripsView
-            trips={trips}
-            filteredTrips={filteredTrips}
-            activeTrip={activeTrip}
-            nextUpcomingTrip={nextUpcomingTrip}
-            selectedArchetype={selectedArchetype}
-            onSelectArchetype={setSelectedArchetype}
-            filterTabs={filterTabs}
-            onBackHome={() => navigateMobileView('home')}
-            onSelectTrip={onSelectTrip}
-            onCreateNewTrip={onCreateNewTrip}
-            onEditTrip={onEditTrip}
-            onDuplicateTrip={onDuplicateTrip}
-            onDeleteTrip={onDeleteTrip}
-            onLaunchDashboard={onLaunchDashboard}
-            onLoadDemoTrip={onLoadDemoTrip}
-          />
+          <Suspense fallback={<div className="py-12 text-center text-xs text-ink-muted">Loading…</div>}>
+            <MobileTripsView
+              trips={trips}
+              filteredTrips={filteredTrips}
+              activeTrip={activeTrip}
+              nextUpcomingTrip={nextUpcomingTrip}
+              selectedArchetype={selectedArchetype}
+              onSelectArchetype={setSelectedArchetype}
+              filterTabs={filterTabs}
+              onBackHome={() => navigateMobileView('home')}
+              onSelectTrip={onSelectTrip}
+              onCreateNewTrip={onCreateNewTrip}
+              onEditTrip={onEditTrip}
+              onDuplicateTrip={onDuplicateTrip}
+              onDeleteTrip={onDeleteTrip}
+              onLaunchDashboard={onLaunchDashboard}
+              onLoadDemoTrip={onLoadDemoTrip}
+            />
+          </Suspense>
         ) : (
           <>
             {/* Greeting Header */}
@@ -465,44 +475,66 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               />
             )}
 
-            {/* Pre-ride Physics Tools Card */}
+            {/* Free Cycling Multi-Tool Card */}
             {onOpenTools && (
-              <div className="p-4 rounded-card bg-card border border-ink/5 dark:border-white/5 flex flex-col gap-2.5 text-xs text-ink-secondary shadow-xs">
+              <div className="p-4 rounded-card bg-card border border-ink/5 dark:border-white/5 flex flex-col gap-3 text-xs text-ink-secondary shadow-xs">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-rounded font-bold text-ink">
-                    {lang === 'fr' ? 'Calculateurs tactiques gratuits' : 'Pre-ride physics tools'}
-                  </span>
-                  <span className="text-[10px] font-rounded font-semibold px-2 py-0.5 rounded-full bg-pod text-ink-muted">
-                    {lang === 'fr' ? '100 % navigateur' : '100% browser'}
-                  </span>
+                  <div className="min-w-0">
+                    <span className="font-rounded font-bold text-ink block">
+                      {lang === 'fr' ? 'Multi-Tool vélo' : 'Cycling Multi-Tool'}
+                    </span>
+                    <span className="text-[11px] text-ink-muted">
+                      {lang === 'fr'
+                        ? 'Sans compte · 100 % navigateur'
+                        : 'No login · 100% in-browser'}
+                    </span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onOpenTools('hub')}
+                    className="inline-flex items-center gap-1 min-h-[36px] px-3 rounded-full bg-pod hover:bg-chip text-ink text-[11px] font-rounded font-semibold cursor-pointer shrink-0"
+                  >
+                    <span>{lang === 'fr' ? 'Tout voir' : 'All tools'}</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </Button>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => onOpenTools('wind')}
+                    onClick={() => onOpenTools('fuel-plan')}
+                    className={`inline-flex items-center gap-1.5 min-h-[44px] py-1.5 px-3 rounded-full text-xs font-rounded font-semibold cursor-pointer ${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary}`}
+                  >
+                    <Utensils className="w-3.5 h-3.5" />
+                    <span>{lang === 'fr' ? 'Nutrition & bidons' : 'Fuel & bottles'}</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onOpenTools('flip-my-loop')}
                     className={`inline-flex items-center gap-1.5 min-h-[44px] py-1.5 px-3 rounded-full text-xs font-rounded font-semibold cursor-pointer ${CHIP_TOKENS.sky.surface} ${CHIP_TOKENS.sky.primary}`}
                   >
                     <Wind className="w-3.5 h-3.5" />
-                    <span>{lang === 'fr' ? 'Coût du Vent' : 'Wind Cost'}</span>
+                    <span>{lang === 'fr' ? 'Sens du vent' : 'Flip my loop'}</span>
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => onOpenTools('leave-by')}
-                    className={`inline-flex items-center gap-1.5 min-h-[44px] py-1.5 px-3 rounded-full text-xs font-rounded font-semibold cursor-pointer ${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary}`}
-                  >
-                    <Clock className="w-3.5 h-3.5" />
-                    <span>{lang === 'fr' ? 'Heure de départ' : 'Leave-By'}</span>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onOpenTools('pressure')}
+                    onClick={() => onOpenTools('water-bakery')}
                     className={`inline-flex items-center gap-1.5 min-h-[44px] py-1.5 px-3 rounded-full text-xs font-rounded font-semibold cursor-pointer ${CHIP_TOKENS.teal.surface} ${CHIP_TOKENS.teal.primary}`}
                   >
-                    <Gauge className="w-3.5 h-3.5" />
-                    <span>{lang === 'fr' ? 'Pression Pneus' : 'Tyre Pressure'}</span>
+                    <Droplets className="w-3.5 h-3.5" />
+                    <span>{lang === 'fr' ? 'Eau & boulangeries' : 'Water & bakeries'}</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onOpenTools('stem-sticker')}
+                    className={`inline-flex items-center gap-1.5 min-h-[44px] py-1.5 px-3 rounded-full text-xs font-rounded font-semibold cursor-pointer ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary}`}
+                  >
+                    <Scissors className="w-3.5 h-3.5" />
+                    <span>{lang === 'fr' ? 'Sticker cadre' : 'Stem sticker'}</span>
                   </Button>
                 </div>
               </div>
@@ -620,21 +652,21 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         </div>
       </div>
 
-      {/* ── Zero-AI Quick-Start Ride Composer, 1-Tap Recipes & Drop & Go Importer ── */}
-      {onQuickCreateTrip && (
-        <QuickRideBuilder
-          riderSpecs={riderSpecs}
-          currentWeather={activeTrip?.weather}
-          onCreateTrip={onQuickCreateTrip}
-          onOpenOnboarding={onOpenOnboarding}
-        />
-      )}
-
-      {/* ── Main 5-Column Layout Grid (3 Cols Left: Main Card + Saved Trips | 2 Cols Right: Current Conditions) ── */}
+      {/* ── Main 5-Column Layout Grid (3 Cols Left: Drop Route + Upcoming Trip + Saved Trips | 2 Cols Right: Current Conditions) ── */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-3.5 sm:gap-4 lg:gap-5 items-start">
         {/* Left Column (3 of 5 Columns) */}
         <div className="lg:col-span-3 flex flex-col gap-3.5 sm:gap-4 lg:gap-5 min-w-0">
-          {/* 1. Main Card ("Your upcoming trip" Card) */}
+          {/* 1. Zero-AI Quick-Start Ride Composer, 1-Tap Recipes & Drop & Go Importer */}
+          {onQuickCreateTrip && (
+            <QuickRideBuilder
+              riderSpecs={riderSpecs}
+              currentWeather={activeTrip?.weather}
+              onCreateTrip={onQuickCreateTrip}
+              onOpenOnboarding={onOpenOnboarding}
+            />
+          )}
+
+          {/* 2. Upcoming Trip Card */}
           {nextUpcomingTrip && (
             <div className="animate-apple-in stagger-2 relative z-20">
               <UpcomingTripCard
@@ -845,24 +877,71 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </div>
 
           {onOpenTools && (
-            <div className="p-4 rounded-card bg-card border border-ink/5 dark:border-white/5 flex flex-col gap-2.5 text-xs text-ink-secondary shadow-xs">
+            <div className="p-4 rounded-card bg-card border border-ink/5 dark:border-white/5 flex flex-col gap-3 text-xs text-ink-secondary shadow-xs">
               <div className="flex items-center justify-between gap-2">
-                <span className="font-rounded font-bold text-ink">
-                  {lang === 'fr' ? 'Calculateurs tactiques gratuits' : 'Free pre-ride physics tools'}
-                </span>
-                <span className="text-[10px] font-rounded font-semibold px-2 py-0.5 rounded-full bg-pod text-ink-muted">
-                  {lang === 'fr' ? '100 % navigateur' : '100% browser'}
-                </span>
+                <div>
+                  <span className="font-rounded font-bold text-ink block">
+                    {lang === 'fr' ? 'Multi-Tool vélo' : 'Cycling Multi-Tool'}
+                  </span>
+                  <span className="text-[11px] text-ink-muted">
+                    {lang === 'fr' ? 'Sans compte · 100 % navigateur' : 'No signup · 100% browser'}
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onOpenTools('hub')}
+                  className="inline-flex items-center gap-1 min-h-[34px] px-3 rounded-full bg-pod hover:bg-chip text-ink text-[11px] font-rounded font-semibold cursor-pointer shrink-0"
+                >
+                  <span>{lang === 'fr' ? 'Tous les outils' : 'All tools'}</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </Button>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => onOpenTools('wind')}
+                  onClick={() => onOpenTools('fuel-plan')}
+                  className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] py-1.5 px-3 rounded-full text-xs font-rounded font-semibold cursor-pointer ${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary}`}
+                >
+                  <Utensils className="w-3.5 h-3.5" />
+                  <span>{lang === 'fr' ? 'Nutrition & bidons' : 'Fuel & bottles'}</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onOpenTools('flip-my-loop')}
                   className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] py-1.5 px-3 rounded-full text-xs font-rounded font-semibold cursor-pointer ${CHIP_TOKENS.sky.surface} ${CHIP_TOKENS.sky.primary}`}
                 >
                   <Wind className="w-3.5 h-3.5" />
-                  <span>{lang === 'fr' ? 'Coût du Vent' : 'Wind Cost'}</span>
+                  <span>{lang === 'fr' ? 'Sens du vent' : 'Flip my loop'}</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onOpenTools('water-bakery')}
+                  className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] py-1.5 px-3 rounded-full text-xs font-rounded font-semibold cursor-pointer ${CHIP_TOKENS.teal.surface} ${CHIP_TOKENS.teal.primary}`}
+                >
+                  <Droplets className="w-3.5 h-3.5" />
+                  <span>{lang === 'fr' ? 'Eau & boulangeries' : 'Water & bakeries'}</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onOpenTools('stem-sticker')}
+                  className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] py-1.5 px-3 rounded-full text-xs font-rounded font-semibold cursor-pointer ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary}`}
+                >
+                  <Scissors className="w-3.5 h-3.5" />
+                  <span>{lang === 'fr' ? 'Sticker cadre' : 'Stem sticker'}</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onOpenTools('tyre-pressure')}
+                  className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] py-1.5 px-3 rounded-full text-xs font-rounded font-semibold cursor-pointer ${CHIP_TOKENS.blue.surface} ${CHIP_TOKENS.blue.primary}`}
+                >
+                  <Gauge className="w-3.5 h-3.5" />
+                  <span>{lang === 'fr' ? 'Pression pneus' : 'Tyre pressure'}</span>
                 </Button>
                 <Button
                   variant="ghost"
@@ -871,16 +950,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] py-1.5 px-3 rounded-full text-xs font-rounded font-semibold cursor-pointer ${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary}`}
                 >
                   <Clock className="w-3.5 h-3.5" />
-                  <span>{lang === 'fr' ? 'Heure de départ' : 'Leave-By'}</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onOpenTools('pressure')}
-                  className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] py-1.5 px-3 rounded-full text-xs font-rounded font-semibold cursor-pointer ${CHIP_TOKENS.teal.surface} ${CHIP_TOKENS.teal.primary}`}
-                >
-                  <Gauge className="w-3.5 h-3.5" />
-                  <span>{lang === 'fr' ? 'Pression Pneus' : 'Tyre Pressure'}</span>
+                  <span>{lang === 'fr' ? 'Heure de départ' : 'Leave-by'}</span>
                 </Button>
               </div>
             </div>
@@ -946,11 +1016,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       </ModalPortal>
 
       {/* Standalone User Feedback Modal */}
-      <FeedbackModal
-        isOpen={isFeedbackOpen}
-        onClose={() => setIsFeedbackOpen(false)}
-        tripName={activeTrip?.name}
-      />
+      {isFeedbackOpen && (
+        <Suspense fallback={null}>
+          <FeedbackModal
+            isOpen={isFeedbackOpen}
+            onClose={() => setIsFeedbackOpen(false)}
+            tripName={activeTrip?.name}
+          />
+        </Suspense>
+      )}
     </div>
   );
 };

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Check, AlertCircle } from '@/components/icons';
-import { Button } from '@/components/arc';
+import { Button } from "@/components/arc/button/button";
 import { useTranslation } from '../../context/LanguageContext';
 import { RouteWaypoint } from '../../types/trip';
 import { SchematicRouteMap } from './SchematicRouteMap';

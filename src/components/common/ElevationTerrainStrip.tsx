@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useId } from 'react';
 import { Mountains, Upload, Route } from '@/components/icons';
-import { Button } from '@/components/arc';
+import { Button } from "@/components/arc/button/button";
 import { RouteParams, PhysicsCalculationResult, SurfaceSegment } from '../../types/trip';
 import { synthesizeRouteElevationProfile } from '../../utils/gpxParser';
 import { computeSurfaceBreakdown, SURFACE_VISUAL_META } from '../../utils/surfaceProfile';
