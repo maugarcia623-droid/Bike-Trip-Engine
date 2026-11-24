@@ -15,7 +15,7 @@ import {
   renderTelemetryCard,
   extractTelemetryShareData,
 } from '../utils/renderTelemetryCard';
-import { buildPlanShareUrl } from '../utils/planShare';
+import { copyShortPlanShareUrl } from '../services/planShareService';
 import {
   TelemetryShareData,
   TelemetryCardMode,
@@ -65,6 +65,7 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
   const [copiedPlanLink, setCopiedPlanLink] = useState<boolean>(false);
+  const [isCopyingPlanLink, setIsCopyingPlanLink] = useState<boolean>(false);
 
   // Keep track of active object URL to clean up properly
   const activeUrlRef = useRef<string | null>(null);
@@ -601,21 +602,29 @@ export const ShareTelemetryModal: React.FC<ShareTelemetryModalProps> = ({
               <Button
                 variant="secondary"
                 size="md"
+                disabled={isCopyingPlanLink}
                 onClick={async () => {
-                  const planUrl = buildPlanShareUrl(trip, {
-                    leaveByHHMM: leaveByHHMM || trip.departureTime || '08:00',
-                    arrivalHHMM: arrivalHHMM || trip.office?.targetGateArrivalTime || '09:30',
-                    goStatus: physicsResult?.goStatus || 'GO',
-                  });
+                  if (isCopyingPlanLink) return;
+                  setIsCopyingPlanLink(true);
                   try {
-                    if (navigator.clipboard && navigator.clipboard.writeText) {
-                      await navigator.clipboard.writeText(planUrl);
+                    const { copied } = await copyShortPlanShareUrl(
+                      trip,
+                      {
+                        leaveByHHMM: leaveByHHMM || trip.departureTime || '08:00',
+                        arrivalHHMM: arrivalHHMM || trip.office?.targetGateArrivalTime || '09:30',
+                        goStatus: physicsResult?.goStatus || 'GO',
+                      },
+                      {
+                        promptLabel: isFr ? 'Copiez le lien du plan :' : 'Copy Group Plan Link:',
+                      }
+                    );
+                    if (copied) {
+                      setCopiedPlanLink(true);
+                      setTimeout(() => setCopiedPlanLink(false), 2400);
                     }
-                  } catch {
-                    // noop
+                  } finally {
+                    setIsCopyingPlanLink(false);
                   }
-                  setCopiedPlanLink(true);
-                  setTimeout(() => setCopiedPlanLink(false), 2400);
                 }}
                 className={`w-full min-h-[42px] py-2 px-3 rounded-sub-pod ${CHIP_TOKENS.sky.surface} ${CHIP_TOKENS.sky.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.sky.selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} hover:brightness-95 text-xs font-bold font-rounded flex items-center justify-center gap-2 transition-all cursor-pointer`}
               >

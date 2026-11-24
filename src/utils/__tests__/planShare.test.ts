@@ -2,9 +2,12 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   applyPersonalLensToSharedTrip,
+  buildPlanShareSummaryMeta,
+  buildShortPlanShareUrl,
   computeGroupSyncCheck,
   decodePlanShareToken,
   encodePlanShareToken,
+  extractSharedPlanFromLocation,
   SenderBaseline,
 } from '../planShare';
 import { buildDefaultNewTripTemplate } from '../storage';
@@ -288,5 +291,54 @@ describe('planShare v2 Multi-Player Blueprints & Group Sync', () => {
     assert.ok(sync.recommendedGroupSpeedKmH !== null);
     assert.ok(sync.recommendedGroupSpeedKmH! < 23);
     assert.ok(sync.takeaway.includes('Alex'));
+  });
+
+  it('builds clean short URLs and extracts short & legacy plan refs from locations', () => {
+    assert.equal(
+      buildShortPlanShareUrl('K8m4P2x9', 'https://cadence.app/'),
+      'https://cadence.app/p/k8m4p2x9'
+    );
+
+    assert.deepEqual(
+      extractSharedPlanFromLocation({ pathname: '/p/K8m4P2x9/', search: '', hash: '' }),
+      { kind: 'short', code: 'k8m4p2x9' }
+    );
+    assert.deepEqual(
+      extractSharedPlanFromLocation({ pathname: '/', search: '?p=abc12345', hash: '' }),
+      { kind: 'short', code: 'abc12345' }
+    );
+    assert.deepEqual(
+      extractSharedPlanFromLocation({ pathname: '/', search: '?plan=eyJ2IjoyfQ', hash: '' }),
+      { kind: 'token', token: 'eyJ2IjoyfQ' }
+    );
+    assert.deepEqual(
+      extractSharedPlanFromLocation({ pathname: '/', search: '', hash: '#plan=eyJ2IjoxfQ' }),
+      { kind: 'token', token: 'eyJ2IjoxfQ' }
+    );
+    assert.equal(
+      extractSharedPlanFromLocation({ pathname: '/', search: '?p=bad!', hash: '' }),
+      null
+    );
+  });
+
+  it('builds concise preview metadata for single-day and multi-day rides', () => {
+    const base = buildDefaultNewTripTemplate('en');
+    const single = {
+      ...base,
+      name: 'Sunday Gravel Loop',
+      route: { ...base.route, distanceKm: 84.6, elevationGainM: 920 },
+    };
+    const meta = buildPlanShareSummaryMeta(single, {
+      leaveByHHMM: '08:00',
+      arrivalHHMM: '11:45',
+      goStatus: 'GO',
+    });
+    assert.equal(meta.title, 'Sunday Gravel Loop');
+    assert.equal(meta.distanceKm, 84.6);
+    assert.equal(meta.elevationM, 920);
+    assert.equal(meta.stageCount, 1);
+    assert.ok(meta.summary.includes('84.6 km'));
+    assert.ok(meta.summary.includes('+920 m'));
+    assert.ok(meta.summary.includes('08:00 → 11:45'));
   });
 });

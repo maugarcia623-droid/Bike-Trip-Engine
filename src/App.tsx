@@ -80,8 +80,10 @@ import { getChipsExtraBufferMinutes } from './utils/archetypeChips';
 import {
   applyPersonalLensToSharedTrip,
   decodePlanShareToken,
+  extractSharedPlanFromLocation,
   SharedPlanMeta,
 } from './utils/planShare';
+import { resolveShortPlanToken } from './services/planShareService';
 import { fetchDemElevationProfile } from './services/elevationService';
 import { parseRouteFile } from './utils/routeFileParser';
 import { consumeStravaOAuthRedirectParams } from './services/stravaIntegration';
@@ -257,7 +259,7 @@ function AppContent() {
       if (hash === '#tools' || search.includes('view=tools') || search.includes('tool=')) {
         return 'tools';
       }
-      const hasSharedPlan = hash.includes('plan=') || search.includes('plan=');
+      const hasSharedPlan = Boolean(extractSharedPlanFromLocation(window.location));
       if (!hasSharedPlan && !hasPotentialSupabaseSession()) {
         try {
           if (localStorage.getItem(STORAGE_KEY_ONBOARDED) !== 'true') {
@@ -276,17 +278,25 @@ function AppContent() {
     setCurrentView('tools');
   };
 
-  // Shareable Group Plan Link decoder (?plan=<token> or #plan=<token>)
+  // Shareable Group Plan Link decoder (/p/<code>, ?p=<code>, ?plan=<token>, or #plan=<token>)
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const params = new URLSearchParams(window.location.search);
-    const hashRaw = window.location.hash || '';
-    const hashParams = new URLSearchParams(hashRaw.startsWith('#') ? hashRaw.slice(1) : hashRaw);
-    const planToken = params.get('plan') || hashParams.get('plan');
-    if (!planToken) return;
+    const sharedRef = extractSharedPlanFromLocation(window.location);
+    if (!sharedRef) return;
 
-    const decoded = decodePlanShareToken(planToken, lang);
-    if (decoded) {
+    let cancelled = false;
+
+    const loadSharedPlan = async () => {
+      const planToken =
+        sharedRef.kind === 'short'
+          ? await resolveShortPlanToken(sharedRef.code)
+          : sharedRef.token;
+
+      if (cancelled || !planToken) return;
+
+      const decoded = decodePlanShareToken(planToken, lang);
+      if (!decoded) return;
+
       const hadSavedSpecs = hasSavedRiderBikeSpecs();
       const currentSpecs = loadRiderBikeSpecs();
       const finalTrip = hadSavedSpecs
@@ -308,11 +318,16 @@ function AppContent() {
       markOnboardingSeen();
       setIsOnboardingOpen(false);
 
+      const params = new URLSearchParams(window.location.search);
       params.delete('plan');
+      params.delete('p');
       const nextSearch = params.toString();
-      const nextHash = hashRaw.includes('plan=') ? '' : hashRaw;
-      const cleanUrl =
-        window.location.pathname + (nextSearch ? `?${nextSearch}` : '') + nextHash;
+      const hashRaw = window.location.hash || '';
+      const nextHash = hashRaw.includes('plan=') || hashRaw.includes('p=') ? '' : hashRaw;
+      const nextPath = /^\/p\/[a-z0-9]{6,16}\/?$/i.test(window.location.pathname)
+        ? '/'
+        : window.location.pathname;
+      const cleanUrl = nextPath + (nextSearch ? `?${nextSearch}` : '') + nextHash;
       window.history.replaceState({}, '', cleanUrl);
 
       // Auto-fetch real DEM elevation in the background so shared links get true elevation curves
@@ -326,7 +341,7 @@ function AppContent() {
                   : Promise.resolve(null)
               )
             );
-            if (!demResults.some(Boolean)) return;
+            if (cancelled || !demResults.some(Boolean)) return;
             setTrips((prev) =>
               prev.map((t) => {
                 if (t.id !== finalTrip.id || !t.stages) return t;
@@ -364,7 +379,7 @@ function AppContent() {
               finalTrip.route.coordinates,
               finalTrip.route.distanceKm
             );
-            if (!dem) return;
+            if (cancelled || !dem) return;
             setTrips((prev) =>
               prev.map((t) =>
                 t.id === finalTrip.id
@@ -386,7 +401,13 @@ function AppContent() {
         }
       };
       void hydrateSharedDem();
-    }
+    };
+
+    void loadSharedPlan();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Trip being edited in configurator

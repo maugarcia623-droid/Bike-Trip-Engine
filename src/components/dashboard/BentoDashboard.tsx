@@ -36,11 +36,11 @@ import { ResupplyRadarOverlay } from './ResupplyRadarOverlay';
 import { PartnerAdaptBanner, GroupSyncCheckPod } from './PartnerSyncCard';
 import { buildRideBrief } from '../../utils/rideBrief';
 import {
-  buildPlanShareUrl,
   computeGroupSyncCheck,
   SenderBaseline,
   SharedPlanMeta,
 } from '../../utils/planShare';
+import { copyShortPlanShareUrl } from '../../services/planShareService';
 import { getCachedRouteSectorForecast } from '../../services/routeWeatherService';
 import { getLocalTodayIso } from '../../services/weatherService';
 import {
@@ -631,6 +631,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
   ]);
 
   const [copiedTourLink, setCopiedTourLink] = React.useState(false);
+  const [isCopyingTourLink, setIsCopyingTourLink] = React.useState(false);
 
   const senderBaseline = React.useMemo<SenderBaseline>(() => {
     const eff = getEffectiveRiderSpecs(effectiveSpecs);
@@ -680,23 +681,30 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
   );
 
   const handleCopyTourShareLink = React.useCallback(async () => {
-    const shareUrl = buildPlanShareUrl(trip, {
-      leaveByHHMM: quickBrief.leaveByHHMM,
-      arrivalHHMM: quickBrief.arrivalHHMM,
-      goStatus: quickBrief.verdict,
-      bikeName: quickBrief.bikeName,
-      senderBaseline,
-    });
+    if (isCopyingTourLink) return;
+    setIsCopyingTourLink(true);
     try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(shareUrl);
+      const { copied } = await copyShortPlanShareUrl(
+        trip,
+        {
+          leaveByHHMM: quickBrief.leaveByHHMM,
+          arrivalHHMM: quickBrief.arrivalHHMM,
+          goStatus: quickBrief.verdict,
+          bikeName: quickBrief.bikeName,
+          senderBaseline,
+        },
+        {
+          promptLabel: isFr ? 'Copiez le lien du tour :' : 'Copy tour link:',
+        }
+      );
+      if (copied) {
+        setCopiedTourLink(true);
+        window.setTimeout(() => setCopiedTourLink(false), 2400);
       }
-      setCopiedTourLink(true);
-      window.setTimeout(() => setCopiedTourLink(false), 2400);
-    } catch {
-      window.prompt(isFr ? 'Copiez le lien du tour :' : 'Copy tour link:', shareUrl);
+    } finally {
+      setIsCopyingTourLink(false);
     }
-  }, [trip, quickBrief, senderBaseline, isFr]);
+  }, [trip, quickBrief, senderBaseline, isFr, isCopyingTourLink]);
 
   React.useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
@@ -890,7 +898,8 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
                     variant="ghost"
                     type="button"
                     onClick={handleCopyTourShareLink}
-                    className="inline-flex items-center justify-center gap-1.5 min-h-[38px] sm:min-h-[34px] px-3 py-1.5 rounded-full bg-pod hover:bg-chip text-ink text-xs font-semibold transition-all duration-150 shrink-0 cursor-pointer"
+                    disabled={isCopyingTourLink}
+                    className="inline-flex items-center justify-center gap-1.5 min-h-[38px] sm:min-h-[34px] px-3 py-1.5 rounded-full bg-pod hover:bg-chip text-ink text-xs font-semibold transition-all duration-150 shrink-0 cursor-pointer disabled:opacity-60"
                   >
                     {copiedTourLink ? (
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
@@ -902,6 +911,10 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
                         ? isFr
                           ? 'Lien copié !'
                           : 'Copied!'
+                        : isCopyingTourLink
+                        ? isFr
+                          ? 'Création…'
+                          : 'Creating…'
                         : isFr
                         ? 'Partager'
                         : 'Share'}

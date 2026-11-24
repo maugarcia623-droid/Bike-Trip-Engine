@@ -173,7 +173,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(event.request)
         .then((res) => {
-          if (res && res.ok) {
+          if (res && res.ok && (url.pathname === '/' || url.pathname === '/index.html')) {
             const copy = res.clone();
             caches.open(SHELL_CACHE_NAME).then((cache) => cache.put('/index.html', copy)).catch(() => {});
           }

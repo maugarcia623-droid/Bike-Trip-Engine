@@ -9,7 +9,8 @@ import { ReverseTimelineCalculation } from '../../utils/timeline';
 import { StageAmenity } from '../../types/amenities';
 import { RideBriefData, RideBriefPriorityIconKey } from '../../utils/rideBrief';
 import { formatTyrePressurePair } from '../../utils/tyrePressure';
-import { buildPlanShareUrl, SenderBaseline } from '../../utils/planShare';
+import { SenderBaseline } from '../../utils/planShare';
+import { copyShortPlanShareUrl } from '../../services/planShareService';
 import { downloadTripFit } from '../../utils/fitExporter';
 import { downloadTripGpx, downloadEntireTourGpx } from '../../utils/gpxExporter';
 import { useTranslation, getLocalizedTripMeta } from '../../context/LanguageContext';
@@ -120,6 +121,7 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
   const meta = getLocalizedTripMeta(trip, lang);
 
   const [copiedPlanLink, setCopiedPlanLink] = React.useState(false);
+  const [isCopyingPlanLink, setIsCopyingPlanLink] = React.useState(false);
   const [exportError, setExportError] = React.useState<string | null>(null);
   const [showReadinessBreakdown, setShowReadinessBreakdown] = React.useState(false);
   const [activeReadinessAction, setActiveReadinessAction] = React.useState<ReadinessActionKind | null>(null);
@@ -147,30 +149,28 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
       : Number(brief.distanceKm.toFixed(1)).toString();
 
   const handleCopyGroupLink = async () => {
-    const shareUrl = buildPlanShareUrl(trip, {
-      leaveByHHMM: brief.leaveByHHMM,
-      arrivalHHMM: brief.arrivalHHMM,
-      goStatus: brief.verdict,
-      bikeName: brief.bikeName,
-      senderBaseline,
-    });
+    if (isCopyingPlanLink) return;
+    setIsCopyingPlanLink(true);
     try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(shareUrl);
-      } else {
-        const el = document.createElement('textarea');
-        el.value = shareUrl;
-        el.style.position = 'fixed';
-        el.style.opacity = '0';
-        document.body.appendChild(el);
-        el.select();
-        document.execCommand('copy');
-        document.body.removeChild(el);
+      const { copied } = await copyShortPlanShareUrl(
+        trip,
+        {
+          leaveByHHMM: brief.leaveByHHMM,
+          arrivalHHMM: brief.arrivalHHMM,
+          goStatus: brief.verdict,
+          bikeName: brief.bikeName,
+          senderBaseline,
+        },
+        {
+          promptLabel: isFr ? 'Copiez le lien du plan :' : 'Copy Group Plan Link:',
+        }
+      );
+      if (copied) {
+        setCopiedPlanLink(true);
+        window.setTimeout(() => setCopiedPlanLink(false), 2400);
       }
-      setCopiedPlanLink(true);
-      window.setTimeout(() => setCopiedPlanLink(false), 2400);
-    } catch {
-      window.prompt(isFr ? 'Copiez le lien du plan :' : 'Copy Group Plan Link:', shareUrl);
+    } finally {
+      setIsCopyingPlanLink(false);
     }
   };
 
@@ -615,7 +615,8 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
               size="sm"
               type="button"
               onClick={handleCopyGroupLink}
-              className="min-h-[44px] sm:h-8 sm:min-h-0 px-3.5 sm:px-3 rounded-full bg-pod hover:bg-chip text-ink text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
+              disabled={isCopyingPlanLink}
+              className="min-h-[44px] sm:h-8 sm:min-h-0 px-3.5 sm:px-3 rounded-full bg-pod hover:bg-chip text-ink text-xs font-semibold inline-flex items-center gap-1.5 transition-colors disabled:opacity-60"
             >
               {copiedPlanLink ? (
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
@@ -627,6 +628,10 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
                   ? isFr
                     ? 'Lien copié !'
                     : 'Link copied!'
+                  : isCopyingPlanLink
+                  ? isFr
+                    ? 'Création…'
+                    : 'Creating…'
                   : isFr
                   ? 'Partager (duo)'
                   : 'Share with partner'}

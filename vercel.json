@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/p/:code",
+      "destination": "/api/p?code=:code"
+    },
+    {
+      "source": "/((?!api/|assets/|images/|onboarding/|.*\\..*).*)",
+      "destination": "/index.html"
+    }
+  ]
+}

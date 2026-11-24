@@ -24,7 +24,10 @@ import { RiderBikeSpecs } from '../../types/specs';
 import { useTranslation } from '../../context/LanguageContext';
 import { ReverseTimelineCalculation } from '../../utils/timeline';
 import { buildRideBrief } from '../../utils/rideBrief';
-import { buildPlanShareUrl } from '../../utils/planShare';
+import {
+  copyShortPlanShareUrl,
+  createShortPlanShareUrl,
+} from '../../services/planShareService';
 import { downloadTripFit } from '../../utils/fitExporter';
 import { downloadTripGpx } from '../../utils/gpxExporter';
 import {
@@ -106,48 +109,62 @@ export const RideBriefModal: React.FC<RideBriefModalProps> = ({
     [trip, physics, timeline, riderSpecs, sectorAnalysis, amenities, lang]
   );
 
-  const shareUrl = useMemo(
-    () =>
-      buildPlanShareUrl(trip, {
-        leaveByHHMM: brief.leaveByHHMM,
-        arrivalHHMM: brief.arrivalHHMM,
-        goStatus: brief.verdict,
-        bikeName: brief.bikeName,
-      }),
-    [trip, brief.leaveByHHMM, brief.arrivalHHMM, brief.verdict, brief.bikeName]
+  const [shortShareUrl, setShortShareUrl] = useState<string | null>(null);
+  const [isCopyingLink, setIsCopyingLink] = useState(false);
+
+  const shareExtras = useMemo(
+    () => ({
+      leaveByHHMM: brief.leaveByHHMM,
+      arrivalHHMM: brief.arrivalHHMM,
+      goStatus: brief.verdict,
+      bikeName: brief.bikeName,
+    }),
+    [brief.leaveByHHMM, brief.arrivalHHMM, brief.verdict, brief.bikeName]
   );
 
-  const handleCopyGroupLink = async () => {
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(shareUrl);
-      } else {
-        const el = document.createElement('textarea');
-        el.value = shareUrl;
-        el.style.position = 'fixed';
-        el.style.opacity = '0';
-        document.body.appendChild(el);
-        el.select();
-        document.execCommand('copy');
-        document.body.removeChild(el);
+  // Pre-warm the short share link when the modal opens so native share & copy are instant.
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    setShortShareUrl(null);
+    createShortPlanShareUrl(trip, shareExtras).then((res) => {
+      if (!cancelled) {
+        setShortShareUrl(res.url);
       }
-      setCopiedLink(true);
-      setTimeout(() => setCopiedLink(false), 2400);
-    } catch {
-      setCopiedLink(true);
-      setTimeout(() => setCopiedLink(false), 2400);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, trip, shareExtras]);
+
+  const handleCopyGroupLink = async () => {
+    if (isCopyingLink) return;
+    setIsCopyingLink(true);
+    try {
+      const { url, copied } = await copyShortPlanShareUrl(trip, shareExtras, {
+        promptLabel: isFr ? 'Copiez le lien du plan :' : 'Copy Group Plan Link:',
+      });
+      setShortShareUrl(url);
+      if (copied) {
+        setCopiedLink(true);
+        setTimeout(() => setCopiedLink(false), 2400);
+      }
+    } finally {
+      setIsCopyingLink(false);
     }
   };
 
   const handleNativeShareLink = async () => {
     if (typeof navigator !== 'undefined' && navigator.share) {
       try {
+        const resolvedUrl = shortShareUrl || (await createShortPlanShareUrl(trip, shareExtras)).url;
+        setShortShareUrl(resolvedUrl);
         await navigator.share({
           title: `Cadence · ${trip.name}`,
           text: isFr
             ? `${trip.name} (${brief.distanceKm} km) · Départ ${brief.leaveByHHMM} → Arrivée ${brief.arrivalHHMM}`
             : `${trip.name} (${brief.distanceKm} km) · Leave by ${brief.leaveByHHMM} → Finish ${brief.arrivalHHMM}`,
-          url: shareUrl,
+          url: resolvedUrl,
         });
         return;
       } catch {

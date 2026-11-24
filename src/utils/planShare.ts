@@ -312,15 +312,124 @@ function deserializeAmenities(rows: CompactAmenityTuple[] | undefined, prefix: s
   });
 }
 
+export interface PlanShareExtras {
+  leaveByHHMM: string;
+  arrivalHHMM: string;
+  goStatus: 'GO' | 'CAUTION' | 'NO-GO';
+  bikeName?: string;
+  senderBaseline?: SenderBaseline;
+}
+
+export interface PlanShareSummaryMeta {
+  title: string;
+  summary: string;
+  distanceKm: number;
+  elevationM: number;
+  stageCount: number;
+}
+
+export type ExtractedSharedPlanRef =
+  | { kind: 'short'; code: string }
+  | { kind: 'token'; token: string }
+  | null;
+
+const SHORT_CODE_REGEX = /^[a-z0-9]{6,16}$/i;
+const SHORT_PATH_REGEX = /^\/p\/([a-z0-9]{6,16})\/?$/i;
+
+export function buildPlanShareSummaryMeta(
+  trip: TripProfile,
+  extras: PlanShareExtras
+): PlanShareSummaryMeta {
+  const hasMultiStage = Boolean(trip.stages && trip.stages.length > 1);
+  const stageCount = hasMultiStage ? trip.stages!.length : 1;
+
+  const totalDistanceKm = hasMultiStage
+    ? trip.stages!.reduce((sum, st) => sum + (st.route?.distanceKm || 0), 0)
+    : trip.route?.distanceKm || 0;
+  const totalElevationM = hasMultiStage
+    ? trip.stages!.reduce((sum, st) => sum + (st.route?.elevationGainM || 0), 0)
+    : trip.route?.elevationGainM || 0;
+
+  const distanceKm = Number(Math.max(0, totalDistanceKm).toFixed(1));
+  const elevationM = Math.max(0, Math.round(totalElevationM));
+  const kmLabel = distanceKm >= 100 ? `${Math.round(distanceKm)}` : `${distanceKm}`;
+  const title = (trip.name || 'Cadence Ride Plan').trim().slice(0, 120) || 'Cadence Ride Plan';
+
+  const parts: string[] = [];
+  if (stageCount > 1) {
+    parts.push(`${stageCount}-day tour`);
+  }
+  if (distanceKm > 0) {
+    parts.push(`${kmLabel} km`);
+  }
+  if (elevationM > 0) {
+    parts.push(`+${elevationM} m`);
+  }
+  if (stageCount === 1 && extras.leaveByHHMM) {
+    parts.push(
+      extras.arrivalHHMM
+        ? `${extras.leaveByHHMM} → ${extras.arrivalHHMM}`
+        : `Start ${extras.leaveByHHMM}`
+    );
+  }
+  const pinnedCount = hasMultiStage
+    ? trip.stages!.reduce((sum, st) => sum + (st.pinnedAmenities?.length || 0), 0)
+    : trip.pinnedAmenities?.length || 0;
+  if (pinnedCount > 0) {
+    parts.push(`${pinnedCount} stop${pinnedCount === 1 ? '' : 's'}`);
+  }
+
+  const summary = (parts.join(' · ') || 'Shared cycling plan on Cadence').slice(0, 240);
+
+  return {
+    title,
+    summary,
+    distanceKm,
+    elevationM,
+    stageCount,
+  };
+}
+
+export function buildShortPlanShareUrl(code: string, baseUrl?: string): string {
+  const cleanCode = code.trim().toLowerCase();
+  const rawOrigin =
+    baseUrl ||
+    (typeof window !== 'undefined' ? window.location.origin : 'https://cadence.app');
+  const origin = rawOrigin.replace(/\/+$/, '');
+  return `${origin}/p/${cleanCode}`;
+}
+
+export function extractSharedPlanFromLocation(loc: {
+  pathname?: string;
+  search?: string;
+  hash?: string;
+}): ExtractedSharedPlanRef {
+  const pathname = (loc.pathname || '').trim();
+  const pathMatch = pathname.match(SHORT_PATH_REGEX);
+  if (pathMatch?.[1]) {
+    return { kind: 'short', code: pathMatch[1].toLowerCase() };
+  }
+
+  const searchParams = new URLSearchParams(loc.search || '');
+  const hashRaw = loc.hash || '';
+  const hashParams = new URLSearchParams(hashRaw.startsWith('#') ? hashRaw.slice(1) : hashRaw);
+
+  const shortParam = (searchParams.get('p') || hashParams.get('p') || '').trim();
+  if (shortParam && SHORT_CODE_REGEX.test(shortParam)) {
+    return { kind: 'short', code: shortParam.toLowerCase() };
+  }
+
+  const planToken = (searchParams.get('plan') || hashParams.get('plan') || '').trim();
+  if (planToken) {
+    return { kind: 'token', token: planToken };
+  }
+
+  return null;
+}
+
 export function encodePlanShareToken(
   trip: TripProfile,
-  extras: {
-    leaveByHHMM: string;
-    arrivalHHMM: string;
-    goStatus: 'GO' | 'CAUTION' | 'NO-GO';
-    bikeName?: string;
-    senderBaseline?: SenderBaseline;
-  }
+  extras: PlanShareExtras
 ): string {
   const hasMultiStage = Boolean(trip.stages && trip.stages.length > 1);
   const stageCount = hasMultiStage ? trip.stages!.length : 1;
