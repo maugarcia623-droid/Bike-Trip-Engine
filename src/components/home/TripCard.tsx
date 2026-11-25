@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import {
   ArrowUpRight,
+  CircleChevronUp,
   Copy,
   Trash,
   PencilSimple,
@@ -34,6 +35,7 @@ interface TripCardProps {
   onDuplicate: (trip: TripProfile) => void;
   onDelete: (id: string) => void;
   onLaunch: (id: string) => void;
+  onCollapse?: () => void;
 }
 
 export const TripCard: React.FC<TripCardProps> = ({
@@ -44,6 +46,7 @@ export const TripCard: React.FC<TripCardProps> = ({
   onDuplicate,
   onDelete,
   onLaunch,
+  onCollapse,
 }) => {
   const { lang, t } = useTranslation();
   const riderSpecs = loadRiderBikeSpecs();
@@ -128,6 +131,18 @@ export const TripCard: React.FC<TripCardProps> = ({
                 showIcon={false}
               />
             </span>
+            {onCollapse && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onCollapse}
+                title={t('collapseTripPreviewAria')}
+                aria-label={t('collapseTripPreviewAria')}
+                className={`relative before:content-[''] before:absolute before:-inset-1.5 sm:before:inset-0 w-9 h-9 sm:w-8 sm:h-8 p-0 rounded-full flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} hover:bg-pod hover:text-ink ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+              >
+                <CircleChevronUp className="w-4 h-4 text-current" />
+              </Button>
+            )}
             <Button
               variant="secondary"
               size="sm"

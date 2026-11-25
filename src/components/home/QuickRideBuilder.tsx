@@ -1577,11 +1577,11 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
         </div>
 
         {/* Optional Start/Destination Location + Vibe Pills + Build CTAs */}
-        <div className="mt-4 pt-4 border-t border-dashed border-ink/15 dark:border-white/15 flex flex-col lg:flex-row lg:items-end gap-3 justify-between min-w-0">
-          <div className="flex-1 min-w-0 flex flex-col gap-3">
+        <div className="mt-4 pt-4 border-t border-dashed border-ink/15 dark:border-white/15 flex flex-col gap-3 min-w-0">
+          <div className="flex flex-col lg:flex-row lg:items-end gap-3 justify-between min-w-0">
             <div
-              className={`grid grid-cols-1 gap-3 items-end min-w-0 ${
-                showDestinationInput ? 'sm:grid-cols-2' : 'md:grid-cols-[minmax(220px,1fr)_auto]'
+              className={`flex-1 grid grid-cols-1 gap-3 items-end min-w-0 ${
+                showDestinationInput ? 'sm:grid-cols-2' : ''
               }`}
             >
               <div className="relative z-30 focus-within:z-50 min-w-0">
@@ -1635,43 +1635,41 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
                   />
                 </div>
               )}
-
-              {!showDestinationInput && vibeToggleGroup}
             </div>
 
-            {showDestinationInput && vibeToggleGroup}
+            {/* Build Actions */}
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full lg:w-auto shrink-0">
+              <Button
+                variant="secondary"
+                size="md"
+                loading={isBuilding === 'configurator'}
+                disabled={Boolean(isBuilding)}
+                onClick={() => {
+                  void handleBuildFromComposer('configurator');
+                }}
+                className="w-full sm:w-auto min-h-[42px] sm:min-h-[40px] px-4 rounded-full bg-pod hover:bg-chip text-ink border border-ink/10 dark:border-white/10 gap-1.5 font-semibold text-xs sm:text-[13px] cursor-pointer justify-center"
+              >
+                <SlidersHorizontal className="w-4 h-4 shrink-0" />
+                <span>{isFr ? 'Affiner' : 'Fine-tune'}</span>
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                loading={isBuilding === 'dashboard'}
+                disabled={Boolean(isBuilding)}
+                onClick={() => {
+                  void handleBuildFromComposer('dashboard');
+                }}
+                className="w-full sm:w-auto min-h-[42px] sm:min-h-[40px] px-4 sm:px-5 rounded-full gap-1.5 bg-volt hover:bg-[#E2E443] text-[#111111] ring-1 ring-inset ring-black/10 font-rounded font-bold text-xs sm:text-[13px] cursor-pointer justify-center"
+              >
+                <Bike className="w-4 h-4 shrink-0" />
+                <span>{isFr ? 'Créer mon plan' : 'Build Ride Plan'}</span>
+                <ArrowRight className="w-4 h-4 shrink-0 hidden sm:inline" />
+              </Button>
+            </div>
           </div>
 
-          {/* Build Actions */}
-          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full lg:w-auto shrink-0">
-            <Button
-              variant="secondary"
-              size="md"
-              loading={isBuilding === 'configurator'}
-              disabled={Boolean(isBuilding)}
-              onClick={() => {
-                void handleBuildFromComposer('configurator');
-              }}
-              className="w-full sm:w-auto min-h-[42px] sm:min-h-[40px] px-4 rounded-full bg-pod hover:bg-chip text-ink border border-ink/10 dark:border-white/10 gap-1.5 font-semibold text-xs sm:text-[13px] cursor-pointer justify-center"
-            >
-              <SlidersHorizontal className="w-4 h-4 shrink-0" />
-              <span className="truncate">{isFr ? 'Affiner' : 'Fine-tune'}</span>
-            </Button>
-            <Button
-              variant="primary"
-              size="md"
-              loading={isBuilding === 'dashboard'}
-              disabled={Boolean(isBuilding)}
-              onClick={() => {
-                void handleBuildFromComposer('dashboard');
-              }}
-              className="w-full sm:w-auto min-h-[42px] sm:min-h-[40px] px-4 sm:px-5 rounded-full gap-1.5 bg-volt hover:bg-[#E2E443] text-[#111111] ring-1 ring-inset ring-black/10 font-rounded font-bold text-xs sm:text-[13px] cursor-pointer justify-center"
-            >
-              <Bike className="w-4 h-4 shrink-0" />
-              <span className="truncate">{isFr ? 'Créer mon plan' : 'Build Ride Plan'}</span>
-              <ArrowRight className="w-4 h-4 shrink-0 hidden sm:inline" />
-            </Button>
-          </div>
+          {vibeToggleGroup}
         </div>
 
         {/* 1-Tap Ride Recipes */}
@@ -1699,10 +1697,10 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
                     {renderRideTypeIcon(recipe.typeId, 'w-4 h-4')}
                   </div>
                   <div className="min-w-0">
-                    <div className="text-xs font-bold text-ink truncate">
+                    <div className="text-xs font-bold text-ink leading-snug">
                       {isFr ? recipe.titleFr : recipe.titleEn}
                     </div>
-                    <div className="text-[11px] tnum text-ink-secondary truncate">
+                    <div className="text-[11px] tnum text-ink-secondary leading-snug">
                       {isFr ? recipe.metaFr : recipe.metaEn}
                     </div>
                   </div>

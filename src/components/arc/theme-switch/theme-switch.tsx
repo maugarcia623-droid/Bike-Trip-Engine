@@ -1,6 +1,6 @@
 import React, { forwardRef, useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Moon, Sun } from "lucide-react";
+import { Moon, Sun } from "@keyline-icons/react/duotone";
 import { clsx } from "clsx";
 import { Button } from "../button/button";
 import { motionTokens } from "../lib/motion-tokens";

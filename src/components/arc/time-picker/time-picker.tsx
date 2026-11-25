@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { Variants } from "motion/react";
-import { ChevronDown, Clock3 } from "lucide-react";
+import { ChevronDown, Clock3 } from "@keyline-icons/react/duotone";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./time-picker.module.css";

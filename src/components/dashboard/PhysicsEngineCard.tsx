@@ -31,11 +31,13 @@ import {
 import { Card } from '../common/Card';
 import { Badge } from '../common/Badge';
 import { IconBadge } from '../common/IconBadge';
+import { CadenceInsight } from '../common/CadenceInsight';
 import { InfoTooltip } from '../common/InfoTooltip';
 import { Collapsible, DisclosureChevron } from '../common/Collapsible';
 import { SurfaceProfileBar } from '../common/SurfaceProfileBar';
 import { TerrainEffortStory } from './TerrainEffortStory';
 import { computeSurfaceBreakdown } from '../../utils/surfaceProfile';
+import { formatElevationRealWorldScale } from '../../utils/windInsights';
 import { useOsmSurface } from '../../services/osmSurfaceService';
 import { useTranslation } from '../../context/LanguageContext';
 import { CockpitViewMode, RiderBikeSpecs } from '../../types/specs';
@@ -276,6 +278,216 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
     [trip.physics, trip.route, trip.weather, physicsResult, lang, physicsEnvContext]
   );
 
+  const guidedHumanView = isEssential && !showWattsInGuided;
+
+  const humanRideStory = useMemo(() => {
+    const elevationM = Math.round(trip.route.elevationGainM || 0);
+    const elevationScale = formatElevationRealWorldScale(elevationM, lang);
+    const totalKcal = Math.round(physicsResult.totalKcalBurn || 0);
+    const croissants = Math.max(0.5, Number((totalKcal / 260).toFixed(1)));
+
+    const effortLabel =
+      powerZone === 'Z1'
+        ? isFr
+          ? 'Balade sans transpirer'
+          : 'No-sweat spin'
+        : powerZone === 'Z2'
+        ? isFr
+          ? 'Rythme de croisière'
+          : 'Steady cruise'
+        : powerZone === 'Z3'
+        ? isFr
+          ? 'Allure tonique'
+          : 'Brisk workout'
+        : isFr
+        ? 'Gros effort'
+        : 'Hard push';
+
+    const breathingCue =
+      powerZone === 'Z1'
+        ? isFr
+          ? 'Discussion facile'
+          : 'Easy conversation'
+        : powerZone === 'Z2'
+        ? isFr
+          ? 'Souffle posé'
+          : 'Comfortable chat'
+        : powerZone === 'Z3'
+        ? isFr
+          ? 'Phrases courtes'
+          : 'Short sentences'
+        : isFr
+        ? 'Souffle court'
+        : 'Deep breathing';
+
+    const freshnessNote =
+      powerZone === 'Z1'
+        ? isFr
+          ? 'Tu arrives frais, sans besoin de douche.'
+          : 'Arrive fresh with a dry shirt.'
+        : powerZone === 'Z2'
+        ? isFr
+          ? 'Jambes chaudes, tenable toute la journée.'
+          : 'Warm legs, sustainable all day.'
+        : powerZone === 'Z3'
+        ? isFr
+          ? 'Vrai entraînement — pense à boire.'
+          : 'Proper workout — sip regularly.'
+        : isFr
+        ? 'Dose ton départ et ravitailles bien.'
+        : 'Pace the start and fuel well.';
+
+    const headline =
+      powerZone === 'Z1'
+        ? elevationM >= 250
+          ? isFr
+            ? 'Allure tranquille malgré de vraies bosses — mouline léger et profite.'
+            : 'Relaxed pace with real hills — spin light and enjoy the ride.'
+          : isFr
+          ? 'Sortie facile sans transpirer — tu peux discuter tout du long et arriver frais.'
+          : 'Easy, no-sweat spin — chat the whole way and arrive fresh.'
+        : powerZone === 'Z2'
+        ? elevationM >= 400
+          ? isFr
+            ? 'Rythme d’endurance sur de vraies côtes — garde une cadence souple dans les bosses.'
+            : 'Steady endurance pace across real climbs — keep an easy cadence on the hills.'
+          : isFr
+          ? 'Rythme de croisière confortable — jambes chaudes, souffle posé, tenable toute la journée.'
+          : 'Comfortable cruising pace — warm legs, easy breathing, sustainable all day.'
+        : powerZone === 'Z3'
+        ? isFr
+          ? 'Allure tonique — les jambes chauffent et tu parleras par phrases courtes dans les bosses.'
+          : 'Brisk workout pace — warm legs and shorter sentences whenever the road tilts up.'
+        : isFr
+        ? 'Allure exigeante pour ce parcours — lève un peu le pied au début pour finir fort.'
+        : 'Demanding pace for this route — ease into the start so you still have legs at the finish.';
+
+    const paceDetail = cautionSummary
+      ? isFr
+        ? `Environ ${effectiveSpeed} km/h (allure légèrement assouplie pour le noir ou la chaussée humide).`
+        : `Around ${effectiveSpeed} km/h (trimmed slightly for darker or damper roads).`
+      : isFr
+      ? `Environ ${effectiveSpeed} km/h, vent et relief déjà intégrés.`
+      : `Around ${effectiveSpeed} km/h with wind and hills already factored in.`;
+
+    const hillDetail =
+      elevationM < 15
+        ? isFr
+          ? 'Quasiment tout plat du début à la fin.'
+          : 'Practically flat from start to finish.'
+        : elevationScale
+        ? isFr
+          ? `Le relief totalise +${elevationM} m (${elevationScale}).`
+          : `Climbing adds up to +${elevationM} m (${elevationScale}).`
+        : isFr
+        ? `Le relief totalise +${elevationM} m.`
+        : `Climbing adds up to +${elevationM} m.`;
+
+    const hillsTitle =
+      elevationM < 25
+        ? isFr
+          ? 'Tout plat'
+          : 'Pancake flat'
+        : elevationM < 150
+        ? isFr
+          ? 'Faux plats doux'
+          : 'Gentle rollers'
+        : elevationM < 500
+        ? isFr
+          ? 'Parcours vallonné'
+          : 'Hilly route'
+        : isFr
+        ? 'Grosse journée de bosses'
+        : 'Big climbing day';
+
+    const hillsContext =
+      elevationM >= 10 && elevationScale
+        ? `+${elevationM} m (${elevationScale})`
+        : elevationM > 0
+        ? `+${elevationM} m`
+        : isFr
+        ? 'Quasiment aucun dénivelé'
+        : 'Barely a rise along the way';
+
+    const surfaceNote =
+      surfaceBreakdown.pavedPct >= 85
+        ? isFr
+          ? `Quasi tout bitume (${surfaceBreakdown.pavedPct} %)`
+          : `Mostly smooth tarmac (${surfaceBreakdown.pavedPct}%)`
+        : surfaceBreakdown.gravelPct >= 25
+        ? isFr
+          ? `Mix bitume et ${surfaceBreakdown.gravelPct} % chemins`
+          : `Mixed roads · ${surfaceBreakdown.gravelPct}% gravel`
+        : isFr
+        ? `${surfaceBreakdown.pavedPct} % bitume · ${surfaceBreakdown.gravelPct} % gravel`
+        : `${surfaceBreakdown.pavedPct}% paved · ${surfaceBreakdown.gravelPct}% gravel`;
+
+    const mainFactor =
+      gravityBudgetPct >= 30
+        ? {
+            title: isFr ? 'Les côtes' : 'The hills',
+            tip: isFr
+              ? 'Mouline tôt dans les bosses pour garder des jambes fraîches.'
+              : 'Shift down early on rises to keep your legs fresh.',
+          }
+        : aeroBudgetPct >= 62
+        ? {
+            title: isFr ? 'Fendre l’air' : 'Pushing through air',
+            tip: isFr
+              ? 'Reste souple et détendu sur les portions exposées au vent.'
+              : 'Stay relaxed and tuck slightly on open stretches.',
+          }
+        : surfaceBreakdown.gravelPct >= 30 || rollingBudgetPct >= 42
+        ? {
+            title: isFr ? 'Pneus & revêtement' : 'Tyres & road drag',
+            tip: isFr
+              ? 'Un peu moins de pression rendra le roulage plus doux.'
+              : 'Slightly softer tyres will smooth out the road buzz.',
+          }
+        : {
+            title: isFr ? 'Fluide & équilibré' : 'Light & balanced',
+            tip: isFr
+              ? 'Rien ne te freine vraiment — pédalage régulier tout du long.'
+              : 'Nothing fighting you — smooth, predictable pedaling.',
+          };
+
+    const energyFootnote =
+      totalKcal >= 100
+        ? isFr
+          ? `~${totalKcal} kcal brûlées (≈ ${croissants} croissant${croissants >= 1.5 ? 's' : ''})`
+          : `~${totalKcal} kcal burned (≈ ${croissants} croissant${croissants >= 1.5 ? 's' : ''})`
+        : isFr
+        ? 'Effort léger, aucun ravito nécessaire.'
+        : 'Light burn — no special fueling needed.';
+
+    return {
+      effortLabel,
+      breathingCue,
+      freshnessNote,
+      headline,
+      detail: `${paceDetail} ${hillDetail}`,
+      tone: (powerZone === 'Z4' || powerZone === 'Z5' ? 'amber' : 'cadence') as 'amber' | 'cadence',
+      hillsTitle,
+      hillsContext,
+      surfaceNote,
+      mainFactor,
+      energyFootnote,
+    };
+  }, [
+    trip.route.elevationGainM,
+    lang,
+    isFr,
+    physicsResult.totalKcalBurn,
+    powerZone,
+    cautionSummary,
+    effectiveSpeed,
+    surfaceBreakdown.pavedPct,
+    surfaceBreakdown.gravelPct,
+    gravityBudgetPct,
+    aeroBudgetPct,
+    rollingBudgetPct,
+  ]);
+
   return (
     <Card
       title={
@@ -286,48 +498,58 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
           : t('physicsCardTitle')
       }
       subtitle={
-        isEssential
+        guidedHumanView
+          ? isFr
+            ? 'Ce que tes jambes, ton souffle et ton vélo vont vraiment ressentir'
+            : 'What your legs, lungs, and bike will actually feel'
+          : isEssential
           ? isFr
             ? 'Où part ton effort entre le vent, les côtes et la route'
             : 'Where your effort goes across air, hills, and road surface'
           : t('physicsCardSub')
       }
       badge={
-        <div className="inline-flex items-center gap-1.5 flex-wrap">
-          <Badge variant={zoneTheme} size="md" dot className="tnum">
-            {zoneLabel}
+        guidedHumanView ? (
+          <Badge variant={zoneTheme} size="md" dot>
+            {humanRideStory.effortLabel}
           </Badge>
-          {cautionSummary && (
-            <Badge
-              variant={physicsResult.cautionReasons?.includes('dark') ? 'purple' : 'amber'}
-              size="md"
-              className="tnum"
-              title={
-                isFr
-                  ? `Crr effectif ${formattedCrr} (×${(physicsResult.crrMultiplier ?? 1).toFixed(2)})${(physicsResult.cautionDelayMinutes ?? 0) > 0 ? ` · +${physicsResult.cautionDelayMinutes} min d'allure prudente` : ''}`
-                  : `Effective Crr ${formattedCrr} (×${(physicsResult.crrMultiplier ?? 1).toFixed(2)})${(physicsResult.cautionDelayMinutes ?? 0) > 0 ? ` · +${physicsResult.cautionDelayMinutes} min caution pace` : ''}`
-              }
-            >
-              {cautionSummary}
+        ) : (
+          <div className="inline-flex items-center gap-1.5 flex-wrap">
+            <Badge variant={zoneTheme} size="md" dot className="tnum">
+              {zoneLabel}
             </Badge>
-          )}
-          <Button variant="ghost"
-            type="button"
-            onClick={() => setShowDidactics((v) => !v)}
-            aria-expanded={showDidactics}
-            aria-controls={didacticPanelId}
-            className={`inline-flex items-center gap-1 min-h-[44px] sm:min-h-[34px] px-3.5 py-1.5 rounded-full text-xs font-rounded font-semibold transition-colors cursor-pointer ${
-              showDidactics
-                ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary}`
-                : `${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} hover:text-ink`
-            } ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
-          >
-            <Info className="w-3.5 h-3.5 text-current" />
-            <span>
-              {showDidactics ? t('didacticWattsToggleHide') : t('didacticWattsToggleShow')}
-            </span>
-          </Button>
-        </div>
+            {cautionSummary && (
+              <Badge
+                variant={physicsResult.cautionReasons?.includes('dark') ? 'purple' : 'amber'}
+                size="md"
+                className="tnum"
+                title={
+                  isFr
+                    ? `Crr effectif ${formattedCrr} (×${(physicsResult.crrMultiplier ?? 1).toFixed(2)})${(physicsResult.cautionDelayMinutes ?? 0) > 0 ? ` · +${physicsResult.cautionDelayMinutes} min d'allure prudente` : ''}`
+                    : `Effective Crr ${formattedCrr} (×${(physicsResult.crrMultiplier ?? 1).toFixed(2)})${(physicsResult.cautionDelayMinutes ?? 0) > 0 ? ` · +${physicsResult.cautionDelayMinutes} min caution pace` : ''}`
+                }
+              >
+                {cautionSummary}
+              </Badge>
+            )}
+            <Button variant="ghost"
+              type="button"
+              onClick={() => setShowDidactics((v) => !v)}
+              aria-expanded={showDidactics}
+              aria-controls={didacticPanelId}
+              className={`inline-flex items-center gap-1 min-h-[44px] sm:min-h-[34px] px-3.5 py-1.5 rounded-full text-xs font-rounded font-semibold transition-colors cursor-pointer ${
+                showDidactics
+                  ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary}`
+                  : `${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} hover:text-ink`
+              } ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+            >
+              <Info className="w-3.5 h-3.5 text-current" />
+              <span>
+                {showDidactics ? t('didacticWattsToggleHide') : t('didacticWattsToggleShow')}
+              </span>
+            </Button>
+          </div>
+        )
       }
     >
       {/* ── CONCENTRIC TELEMETRY VIEW SWITCHER: [ GUIDED VIEW ] / [ PRO TELEMETRY ] ── */}
@@ -377,8 +599,67 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
         </div>
       )}
 
-      {/* ── PRIMARY HEADLINE KPI PODS (GUIDED CALM VIEW vs PRO TELEMETRY) ── */}
-      {isEssential ? (
+      {/* ── PRIMARY HEADLINE: HUMAN CADENCE INTELLIGENCE STORY (GUIDED) vs KPI PODS (POWER / PRO) ── */}
+      {guidedHumanView ? (
+        <>
+          <CadenceInsight
+            tone={humanRideStory.tone}
+            headline={humanRideStory.headline}
+            detail={humanRideStory.detail}
+            className="mb-4"
+          />
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 mb-3.5">
+            {/* Story Card 1: Legs & breathing */}
+            <div className="rounded-pod bg-pod p-3.5 flex flex-col justify-between gap-1.5">
+              <span className="text-[11px] font-rounded font-semibold text-ink-muted leading-tight">
+                {isFr ? 'Jambes & souffle' : 'In your legs & lungs'}
+              </span>
+              <div className="text-[15px] font-bold font-rounded tracking-tight text-ink leading-snug">
+                {humanRideStory.effortLabel}
+              </div>
+              <p className="text-xs text-ink-secondary leading-snug tnum no-orphan">
+                ~{effectiveSpeed} km/h · {humanRideStory.breathingCue}
+              </p>
+              <span className="text-[11px] text-ink-muted leading-snug no-orphan">
+                {humanRideStory.freshnessNote}
+              </span>
+            </div>
+
+            {/* Story Card 2: Hills & road feel */}
+            <div className="rounded-pod bg-pod p-3.5 flex flex-col justify-between gap-1.5">
+              <span className="text-[11px] font-rounded font-semibold text-ink-muted leading-tight">
+                {isFr ? 'Relief & revêtement' : 'Hills & road feel'}
+              </span>
+              <div className="text-[15px] font-bold font-rounded tracking-tight text-ink leading-snug">
+                {humanRideStory.hillsTitle}
+              </div>
+              <p className="text-xs text-ink-secondary leading-snug tnum no-orphan">
+                {humanRideStory.hillsContext}
+              </p>
+              <span className="text-[11px] text-ink-muted leading-snug tnum no-orphan">
+                {humanRideStory.surfaceNote}
+              </span>
+            </div>
+
+            {/* Story Card 3: What works you most */}
+            <div className="rounded-pod bg-pod p-3.5 flex flex-col justify-between gap-1.5">
+              <span className="text-[11px] font-rounded font-semibold text-ink-muted leading-tight">
+                {isFr ? 'Ce qui demande le plus' : 'What works you most'}
+              </span>
+              <div className="text-[15px] font-bold font-rounded tracking-tight text-ink leading-snug">
+                {humanRideStory.mainFactor.title}
+              </div>
+              <p className="text-xs text-ink-secondary leading-snug no-orphan">
+                {humanRideStory.mainFactor.tip}
+              </p>
+              <span className="text-[11px] text-ink-muted leading-snug tnum no-orphan">
+                {humanRideStory.energyFootnote}
+              </span>
+            </div>
+          </div>
+        </>
+      ) : isEssential ? (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 mb-3.5">
           {/* Guided KPI 1: Pace */}
           <div className="rounded-pod bg-pod p-3.5 flex flex-col justify-between gap-1.5">
@@ -549,7 +830,8 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
         </div>
       )}
 
-      {/* ── UNIFIED STACKED EFFORT / POWER BUDGET BAR ── */}
+      {/* ── UNIFIED STACKED EFFORT / POWER BUDGET BAR (Power-mode & Pro Telemetry only) ── */}
+      {!guidedHumanView && (
       <div className="rounded-pod bg-pod p-3.5 mb-3.5">
         <div className="flex items-center justify-between gap-2 mb-2">
           <span className="text-[10px] font-rounded font-bold uppercase tracking-[0.14em] text-ink-muted">
@@ -685,6 +967,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
           </p>
         )}
       </div>
+      )}
 
       {/* ── DIDACTIC WATTS & POWER ZONES EXPLAINER (COLLAPSIBLE) ── */}
       <Collapsible open={showDidactics} id={didacticPanelId} innerClassName="pb-3.5">
@@ -717,7 +1000,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
             </div>
             <div className="p-2.5 rounded-sub-pod bg-card">
               <span className="font-bold font-rounded text-ink block mb-0.5 tnum">
-                {isFr ? `Votre FTP (${ftpWatts} W)` : `Your FTP (${ftpWatts}W)`}
+                {isFr ? `Ton FTP (${ftpWatts} W)` : `Your FTP (${ftpWatts}W)`}
               </span>
               <span className="text-ink-secondary leading-snug">{didactics.whatIsFtp}</span>
             </div>
@@ -734,7 +1017,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
             <div className="lane-divider mb-2" aria-hidden="true" />
             <div className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted mb-1.5 tnum">
               {isFr
-                ? `Vos 5 zones personnelles (calibrées sur FTP ${ftpWatts} W)`
+                ? `Tes 5 zones personnelles (calibrées sur FTP ${ftpWatts} W)`
                 : `Your 5 personal effort zones (calibrated to ${ftpWatts}W FTP)`}
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
@@ -775,8 +1058,18 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
               <h4 className="text-xs sm:text-[13px] font-bold font-rounded text-ink leading-snug">
                 {t('sectionalEnergyHeading')}
               </h4>
-              <p className="text-[11px] text-ink-muted break-words leading-relaxed tnum">
+              <p className="text-[11px] text-ink-muted break-words leading-relaxed tnum no-orphan">
                 {(() => {
+                  if (guidedHumanView) {
+                    if (sectional.peakAtKm > 0 && sectional.peakGradePct >= 3.5) {
+                      return isFr
+                        ? `Passage le plus raide : ${sectional.peakGradePct.toFixed(1)} % au km ${Math.round(sectional.peakAtKm)} · ${surfaceBreakdown.pavedPct} % bitume`
+                        : `Sharpest rise: ${sectional.peakGradePct.toFixed(1)}% around km ${Math.round(sectional.peakAtKm)} · ${surfaceBreakdown.pavedPct}% paved`;
+                    }
+                    return isFr
+                      ? `Profil régulier et fluide · ${surfaceBreakdown.pavedPct} % bitume`
+                      : `Smooth, steady profile · ${surfaceBreakdown.pavedPct}% paved`;
+                  }
                   const aerobic =
                     (sectional.zoneShares.find((z) => z.zone === 'Z1')?.pctTime ?? 0) +
                     (sectional.zoneShares.find((z) => z.zone === 'Z2')?.pctTime ?? 0);
@@ -823,7 +1116,8 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
         </Collapsible>
       </div>
 
-      {/* ── CLIMB-BY-CLIMB PACING & FUELING SPLITS (COLLAPSIBLE POD) ── */}
+      {/* ── CLIMB-BY-CLIMB PACING & FUELING SPLITS (hidden when empty in Guided View) ── */}
+      {(!guidedHumanView || climbSplits.climbs.length > 0 || climbSplits.checkpoints.length > 0) && (
       <div className="bg-pod rounded-pod mb-3 overflow-hidden">
         <Button
           variant="ghost"
@@ -839,8 +1133,36 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
               <h4 className="text-xs sm:text-[13px] font-bold font-rounded text-ink leading-snug">
                 {isFr ? 'Cols, Allures & Ravitaillement' : 'Climb Splits & Fueling'}
               </h4>
-              <p className="text-[11px] text-ink-muted break-words leading-relaxed tnum">
-                {climbSplits.climbs.length > 0
+              <p className="text-[11px] text-ink-muted break-words leading-relaxed tnum no-orphan">
+                {guidedHumanView
+                  ? climbSplits.climbs.length > 0
+                    ? isFr
+                      ? `${climbSplits.climbs.length} ${
+                          climbSplits.climbs.length === 1 ? 'côte' : 'côtes'
+                        } (+${climbSplits.totalClimbGainM}\u00A0m)${
+                          climbSplits.checkpoints.length > 0
+                            ? ` · ${climbSplits.checkpoints.length} ${
+                                climbSplits.checkpoints.length === 1 ? 'rappel ravito' : 'rappels ravito'
+                              }`
+                            : ''
+                        }`
+                      : `${climbSplits.climbs.length} ${
+                          climbSplits.climbs.length === 1 ? 'climb' : 'climbs'
+                        } (+${climbSplits.totalClimbGainM}\u00A0m)${
+                          climbSplits.checkpoints.length > 0
+                            ? ` · ${climbSplits.checkpoints.length} ${
+                                climbSplits.checkpoints.length === 1 ? 'snack reminder' : 'snack reminders'
+                              }`
+                            : ''
+                        }`
+                    : isFr
+                    ? `${climbSplits.checkpoints.length} ${
+                        climbSplits.checkpoints.length === 1 ? 'rappel ravito' : 'rappels ravito'
+                      } calés sur ton parcours`
+                    : `${climbSplits.checkpoints.length} ${
+                        climbSplits.checkpoints.length === 1 ? 'snack reminder' : 'snack reminders'
+                      } timed along your route`
+                  : climbSplits.climbs.length > 0
                   ? isFr
                     ? `${climbSplits.climbs.length} ${
                         climbSplits.climbs.length === 1 ? 'ascension' : 'ascensions'
@@ -1030,7 +1352,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
           ) : (
             <div className="rounded-sub-pod bg-card ring-1 ring-inset ring-ink/[0.06] dark:ring-white/[0.08] p-3 text-[11px] text-ink-muted">
               {isFr
-                ? 'Aucune ascension significative détectée (seuil ≥ 35 m D+ et ≥ 2,5 %). Maintenez une allure aérobie régulière.'
+                ? 'Aucune ascension significative détectée (seuil ≥ 35 m D+ et ≥ 2,5 %). Garde une allure aérobie régulière.'
                 : 'No major climbs detected (threshold ≥ 35 m gain at ≥ 2.5% grade). Maintain steady aerobic cadence.'}
             </div>
           )}
@@ -1077,14 +1399,16 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
           {climbSplits.isSynthesizedProfile && (
             <p className="text-[10px] text-ink-muted leading-relaxed">
               {isFr
-                ? 'Profil d’ascension synthétisé depuis le D+ total (importez un GPX pour la détection précise des rampes).'
+                ? 'Profil d’ascension synthétisé depuis le D+ total (importe un GPX pour la détection précise des rampes).'
                 : 'Climb splits synthesized from route elevation gain (import a GPX for exact gradient ramp detection).'}
             </p>
           )}
         </Collapsible>
       </div>
+      )}
 
-      {/* ── COLLAPSIBLE PHYSICS MATH DRAWER (tucked behind "Show physics math" in Guided view) ── */}
+      {/* ── COLLAPSIBLE PHYSICS MATH DRAWER (Power-mode & Pro Telemetry only) ── */}
+      {!guidedHumanView && (
       <div className="rounded-pod bg-pod overflow-hidden">
         {isEssential ? (
           <Button
@@ -1501,6 +1825,7 @@ export const PhysicsEngineCard: React.FC<PhysicsEngineCardProps> = ({
           </div>
         </Collapsible>
       </div>
+      )}
     </Card>
   );
 };

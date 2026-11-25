@@ -23,9 +23,13 @@ import {
 } from '@/components/icons';
 import { TripProfile, PhysicsCalculationResult } from '../../types/trip';
 import { getKitRecommendation } from '../../utils/kitAdvisor';
-import { calculateTripWindInsight } from '../../utils/windInsights';
+import {
+  calculateTripWindInsight,
+  formatElevationRealWorldScale,
+} from '../../utils/windInsights';
 import { Badge } from '../common/Badge';
 import { IconBadge } from '../common/IconBadge';
+import { CadenceInsight } from '../common/CadenceInsight';
 import { Collapsible, DisclosureChevron } from '../common/Collapsible';
 import { WeatherGlance } from './WeatherGlance';
 import {
@@ -212,17 +216,22 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
   );
 
   const realElevationM = Math.round(trip.route?.elevationGainM || 0);
+  const totalFeltElevationM = Math.max(0, realElevationM + windInsight.ghostElevationM);
+  const windScale = formatElevationRealWorldScale(Math.abs(windInsight.ghostElevationM), lang);
+  const feltScale = formatElevationRealWorldScale(totalFeltElevationM, lang);
   const hasInvisibleHillSignal =
-    Math.abs(windInsight.equivalentGradePct) >= 0.4 || Math.abs(windInsight.ghostElevationM) >= 90;
+    Math.abs(windInsight.equivalentGradePct) >= 0.4 || Math.abs(windInsight.ghostElevationM) >= 20;
+  const isStrongInvisibleHill =
+    Math.abs(windInsight.equivalentGradePct) >= 1.0 || Math.abs(windInsight.ghostElevationM) >= 80;
   const glanceWindNote =
     windInsight.ghostElevationM >= 150
       ? isFr
-        ? `Ce vent ajoute ~+${windInsight.ghostElevationM} m de montée invisible (pente +${windInsight.equivalentGradePct.toFixed(1)} %${windInsight.iconicClimbComparison ? ` · ${windInsight.iconicClimbComparison}` : ''}).`
-        : `This wind adds ~+${windInsight.ghostElevationM} m of invisible climbing (+${windInsight.equivalentGradePct.toFixed(1)}% grade${windInsight.iconicClimbComparison ? ` · ${windInsight.iconicClimbComparison}` : ''}).`
+        ? `Ce vent ajoute ~+${windInsight.ghostElevationM} m de montée invisible (${windScale ?? `pente +${windInsight.equivalentGradePct.toFixed(1)} %`}).`
+        : `This wind adds ~+${windInsight.ghostElevationM} m of invisible climbing (${windScale ?? `+${windInsight.equivalentGradePct.toFixed(1)}% grade`}).`
       : windInsight.ghostElevationM <= -150
       ? isFr
-        ? `Vent de dos aujourd’hui : l’équivalent de ${Math.abs(windInsight.ghostElevationM)} m de descente gratuite.`
-        : `Tailwind today: feels like ${Math.abs(windInsight.ghostElevationM)} m of free downhill.`
+        ? `Vent de dos aujourd’hui : l’équivalent de ${Math.abs(windInsight.ghostElevationM)} m de descente gratuite${windScale ? ` (${windScale})` : ''}.`
+        : `Tailwind today: feels like ${Math.abs(windInsight.ghostElevationM)} m of free downhill${windScale ? ` (${windScale})` : ''}.`
       : undefined;
 
   useEffect(() => {
@@ -612,7 +621,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
 
       <Collapsible open={isCardExpanded} innerClassName="pt-3">
       {/* ── 2. CONCENTRIC TAB SWITCHER: [ WIND & RESISTANCE ] / [ LIGHT & VISIBILITY ] ── */}
-      <div className="mb-4 flex justify-center">
+      <div className="mb-4 flex justify-start">
         <div
           role="tablist"
           aria-label={t('weatherTabWind')}
@@ -698,7 +707,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
                     ? t('clearanceCaution')
                     : t('clearanceNoGo')}
                 </div>
-                <p className="text-xs text-ink-secondary leading-snug mt-0.5">
+                <p className="text-xs text-ink-secondary leading-snug mt-0.5 no-orphan">
                   {goReason}
                 </p>
               </div>
@@ -785,29 +794,51 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
             </div>
           </div>
 
-          {/* Invisible Hill & Effective Climbing Card (shown whenever wind meaningfully affects the ride) */}
-          {hasInvisibleHillSignal && (
-            <div className="rounded-pod p-4 mb-4 space-y-2.5 bg-[#faffcb] text-[#3a3f00] ring-1 ring-inset ring-[#a3b300]/35 dark:bg-[#1e2108] dark:text-[#e3ff00] dark:ring-[#dfff00]/30">
+          {/* Invisible Hill & Real-Life Scale */}
+          {hasInvisibleHillSignal && !isStrongInvisibleHill && (
+            <CadenceInsight
+              tone={windInsight.ghostElevationM >= 0 ? 'sky' : 'emerald'}
+              className="mb-4 px-1"
+              headline={
+                windInsight.ghostElevationM >= 0
+                  ? isFr
+                    ? `Entre le relief et ce vent, tes jambes sentiront ${totalFeltElevationM} m de montée${feltScale ? ` (${feltScale})` : ''}.`
+                    : `Between the hills and this breeze, your legs will feel ${totalFeltElevationM} m of climbing${feltScale ? ` (${feltScale})` : ''}.`
+                  : isFr
+                  ? `Le vent de dos t’enlève ${Math.abs(windInsight.ghostElevationM)} m de montée dans les jambes${windScale ? ` (${windScale})` : ''}.`
+                  : `This tailwind takes ${Math.abs(windInsight.ghostElevationM)} m of climbing off your legs${windScale ? ` (${windScale})` : ''}.`
+              }
+              detail={
+                windInsight.ghostElevationM >= 0
+                  ? isFr
+                    ? `Vrai relief : +${realElevationM} m · le vent ajoute +${windInsight.ghostElevationM} m${windScale ? ` (${windScale})` : ''} · pente fantôme +${windInsight.equivalentGradePct.toFixed(1)} %${windInsight.timeDeltaMin >= 2 ? ` — environ +${windInsight.timeDeltaMin} min à effort égal` : ''}.`
+                    : `Real road: +${realElevationM} m · wind adds +${windInsight.ghostElevationM} m${windScale ? ` (${windScale})` : ''} · +${windInsight.equivalentGradePct.toFixed(1)}% ghost grade${windInsight.timeDeltaMin >= 2 ? ` — about +${windInsight.timeDeltaMin} min slower at the same effort` : ''}.`
+                  : isFr
+                  ? `Environ ${Math.abs(windInsight.timeDeltaMin)} min gagnées à effort égal sur tes ${Math.round(trip.route?.distanceKm || 0)} km.`
+                  : `About ${Math.abs(windInsight.timeDeltaMin)} min faster at the same effort across ${Math.round(trip.route?.distanceKm || 0)} km.`
+              }
+            />
+          )}
+
+          {hasInvisibleHillSignal && isStrongInvisibleHill && (
+            <div className="rounded-pod bg-pod p-4 mb-4 space-y-2">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="inline-flex items-center gap-1.5 text-[11px] font-rounded font-bold opacity-80">
-                    <Mountain className="w-3.5 h-3.5 shrink-0" />
-                    <span>
-                      {windInsight.equivalentGradePct >= 0
-                        ? isFr
-                          ? 'L’effet côte invisible sur ce parcours'
-                          : 'The Invisible Hill on this ride'
-                        : isFr
-                        ? 'Coup de pouce du vent de dos'
-                        : 'Free tailwind boost on this ride'}
-                    </span>
+                  <div className="text-[11px] font-rounded font-semibold text-ink-muted">
+                    {windInsight.equivalentGradePct >= 0
+                      ? isFr
+                        ? 'L’effet côte invisible sur ce parcours'
+                        : 'The Invisible Hill on this ride'
+                      : isFr
+                      ? 'Coup de pouce du vent de dos'
+                      : 'Free tailwind boost on this ride'}
                   </div>
-                  <div className="flex items-baseline gap-2 flex-wrap mt-1">
-                    <span className="text-2xl sm:text-3xl font-extrabold font-rounded tracking-tight tnum leading-none">
+                  <div className="flex items-baseline gap-2 flex-wrap mt-0.5">
+                    <span className="text-2xl sm:text-3xl font-extrabold font-rounded tracking-tight tnum leading-none text-ink">
                       {windInsight.equivalentGradePct >= 0 ? '+' : ''}
                       {windInsight.equivalentGradePct.toFixed(1)}%
                     </span>
-                    <span className="text-xs font-bold opacity-85">
+                    <span className="text-xs font-semibold text-ink-secondary">
                       {windInsight.equivalentGradePct >= 0
                         ? isFr
                           ? 'de pente fantôme'
@@ -818,30 +849,37 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
                     </span>
                   </div>
                 </div>
-                <span className="text-xs font-rounded font-bold tnum opacity-85 shrink-0">
+                <span className="text-xs font-rounded font-semibold tnum text-ink-muted shrink-0">
                   {windInsight.ghostElevationM >= 0
                     ? `+${windInsight.ghostElevationM} m`
                     : `${windInsight.ghostElevationM} m`}
                 </span>
               </div>
 
-              <div className="space-y-1 text-xs">
-                <div className="font-semibold opacity-95 tnum">
+              {(feltScale || windScale) && (
+                <p className="text-xs sm:text-[13px] font-rounded font-semibold leading-snug tnum no-orphan text-ink">
                   {windInsight.ghostElevationM >= 0
                     ? isFr
-                      ? `Vrai relief : ${realElevationM} m + vent : +${windInsight.ghostElevationM} m = ${realElevationM + windInsight.ghostElevationM} m ressentis`
-                      : `Real climbing: ${realElevationM} m + wind: +${windInsight.ghostElevationM} m = ${realElevationM + windInsight.ghostElevationM} m felt`
+                      ? `Effort total ressenti : ${totalFeltElevationM} m de dénivelé (${feltScale ?? windScale}).`
+                      : `Total felt climbing: ${totalFeltElevationM} m (${feltScale ?? windScale}).`
                     : isFr
-                    ? `Le vent t’économise l’équivalent de ${Math.abs(windInsight.ghostElevationM)} m de montée sur tes ${Math.round(trip.route?.distanceKm || 0)} km.`
-                    : `The breeze saves you the effort of ${Math.abs(windInsight.ghostElevationM)} m of climbing across ${Math.round(trip.route?.distanceKm || 0)} km.`}
-                </div>
-                {windInsight.iconicClimbComparison && (
-                  <div className="text-[11px] font-rounded font-semibold opacity-80">
-                    {windInsight.iconicClimbComparison}
-                  </div>
-                )}
+                    ? `Le vent t’efface ${Math.abs(windInsight.ghostElevationM)} m de montée (${windScale}).`
+                    : `This tailwind erases ${Math.abs(windInsight.ghostElevationM)} m of climbing (${windScale}).`}
+                </p>
+              )}
+
+              <div className="space-y-0.5 text-xs text-ink-secondary">
+                <p className="tnum no-orphan">
+                  {windInsight.ghostElevationM >= 0
+                    ? isFr
+                      ? `Vrai relief : ${realElevationM} m + vent : +${windInsight.ghostElevationM} m${windScale ? ` (${windScale})` : ''}`
+                      : `Real road: ${realElevationM} m + wind: +${windInsight.ghostElevationM} m${windScale ? ` (${windScale})` : ''}`
+                    : isFr
+                    ? `L’équivalent de ${Math.abs(windInsight.ghostElevationM)} m de descente gratuite sur tes ${Math.round(trip.route?.distanceKm || 0)} km.`
+                    : `Feels like ${Math.abs(windInsight.ghostElevationM)} m of free downhill across ${Math.round(trip.route?.distanceKm || 0)} km.`}
+                </p>
                 {(Math.abs(windInsight.timeDeltaMin) >= 3 || windInsight.extraCroissants >= 0.4) && (
-                  <div className="text-[11px] opacity-80 tnum">
+                  <p className="text-[11px] text-ink-muted tnum no-orphan">
                     {windInsight.timeDeltaMin > 0
                       ? isFr
                         ? `~+${windInsight.timeDeltaMin} min à effort égal`
@@ -852,11 +890,9 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
                         : `~${Math.abs(windInsight.timeDeltaMin)} min faster at the same effort`
                       : ''}
                     {windInsight.extraWindKcal > 80 && windInsight.extraCroissants >= 0.4
-                      ? isFr
-                        ? ` · +${windInsight.extraWindKcal} kcal (≈ ${windInsight.extraCroissants} croissant${windInsight.extraCroissants >= 1.5 ? 's' : ''})`
-                        : ` · +${windInsight.extraWindKcal} kcal (≈ ${windInsight.extraCroissants} croissant${windInsight.extraCroissants >= 1.5 ? 's' : ''})`
+                      ? ` · +${windInsight.extraWindKcal} kcal (≈ ${windInsight.extraCroissants} croissant${windInsight.extraCroissants >= 1.5 ? 's' : ''})`
                       : ''}
-                  </div>
+                  </p>
                 )}
               </div>
             </div>
@@ -890,81 +926,6 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
                 {trip.weather.visibilityKm ?? 15} km
               </div>
             </div>
-          </div>
-
-          {/* Collapsible Wind "What-If" Simulator — tucked cleanly out of sight until wanted */}
-          <div className="rounded-pod bg-pod overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setShowWindSimulator((v) => !v)}
-              aria-expanded={showWindSimulator}
-              className="w-full min-h-[42px] px-3.5 py-2.5 flex items-center justify-between gap-2 text-xs font-rounded font-semibold text-ink-secondary hover:text-ink hover:bg-chip/60 transition-colors cursor-pointer"
-            >
-              <span className="inline-flex items-center gap-2 min-w-0">
-                <SlidersHorizontal className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">
-                  {isFr ? 'Simuler un autre vent (scénario)' : 'Simulate different wind (what-if)'}
-                </span>
-              </span>
-              <span className="inline-flex items-center gap-1.5 text-[11px] text-ink-muted tnum shrink-0">
-                <span>{windSpeed} km/h</span>
-                <DisclosureChevron open={showWindSimulator} />
-              </span>
-            </button>
-
-            <Collapsible open={showWindSimulator} innerClassName="px-3.5 pb-3.5 pt-1">
-              <div className="relative py-1 flex items-center">
-                <input
-                  type="range"
-                  aria-label={t('manualWindSimAria')}
-                  min="0"
-                  max="45"
-                  step="1"
-                  value={windSpeed}
-                  onChange={(e) => handleWindSpeedChange(Number(e.target.value))}
-                  style={{
-                    background: `linear-gradient(to right, ${activeBarColor} 0%, ${activeBarColor} ${fillPercent}%, ${trackEmptyColor} ${fillPercent}%, ${trackEmptyColor} 100%)`,
-                  }}
-                  className="w-full peloton-slider focus:outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-2 text-xs mt-3">
-                <Button variant="ghost"
-                  type="button"
-                  onClick={() => handleWindSpeedChange(0)}
-                  className={`py-1.5 px-3 rounded-full transition-all cursor-pointer font-semibold tnum ${CHIP_RING_BASE} ${
-                    windSpeed === 0
-                      ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_TOKENS.emerald.selectedRing}`
-                      : `${CHIP_RING_UNSELECTED} bg-card hover:bg-chip text-ink-secondary`
-                  }`}
-                >
-                  {t('presetCalm')}
-                </Button>
-                <Button variant="ghost"
-                  type="button"
-                  onClick={() => handleWindSpeedChange(15)}
-                  className={`py-1.5 px-3 rounded-full transition-all cursor-pointer font-semibold tnum ${CHIP_RING_BASE} ${
-                    windSpeed === 15
-                      ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
-                      : `${CHIP_RING_UNSELECTED} bg-card hover:bg-chip text-ink-secondary`
-                  }`}
-                >
-                  {t('presetModerate')}
-                </Button>
-                <Button variant="ghost"
-                  type="button"
-                  onClick={() => handleWindSpeedChange(35)}
-                  className={`py-1.5 px-3 rounded-full transition-all cursor-pointer font-semibold tnum ${CHIP_RING_BASE} ${
-                    windSpeed >= 35
-                      ? `${CHIP_TOKENS.rose.surface} ${CHIP_TOKENS.rose.primary} ${CHIP_TOKENS.rose.selectedRing}`
-                      : `${CHIP_RING_UNSELECTED} bg-card hover:bg-chip text-ink-secondary`
-                  }`}
-                >
-                  {t('presetGale')}
-                </Button>
-              </div>
-            </Collapsible>
           </div>
 
           {/* ── SECTOR-BY-SECTOR WEATHER → WATTS & LOOP DIRECTION ── */}

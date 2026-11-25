@@ -8,7 +8,7 @@ import {
   Compass,
   Banana,
   Bakery,
-  Shirt,
+  Hanger,
   AlarmClock,
   Scissors,
 } from '@/components/icons';
@@ -126,7 +126,7 @@ const FIGMA_HUB_CARDS: HubQuestionCard[] = [
   },
   {
     id: 'what-to-wear',
-    icon: Shirt,
+    icon: Hanger,
     theme: 'purple',
     questionEn: 'What outfit should I wear today?',
     questionFr: 'Quelle tenue porter aujourd’hui ?',
@@ -180,7 +180,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
   riderSpecs,
   onSelectTool,
   onOpenTripInCadence,
-  onBackToCockpit,
+  onBackToCockpit: _onBackToCockpit,
 }) => {
   const { lang } = useTranslation();
   const isFr = lang === 'fr';
@@ -208,6 +208,8 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
     updateSwitcherFades();
     const el = switcherRef.current;
     if (!el) return;
+    const activePill = el.querySelector<HTMLElement>('[aria-current="page"]');
+    activePill?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
     el.addEventListener('scroll', updateSwitcherFades, { passive: true });
     window.addEventListener('resize', updateSwitcherFades);
     const raf = requestAnimationFrame(updateSwitcherFades);
@@ -235,20 +237,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
   // ═══════════════════════════════════════════════════════════════════════════
   if (activeTool === 'hub') {
     return (
-      <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 pt-1 sm:pt-3 pb-20 animate-apple-in">
-        {/* Top-left ← Home pill with crisp tactile hover feedback */}
-        <div className="flex items-center justify-between mb-6 sm:mb-4">
-          <Button
-            variant="secondary"
-            type="button"
-            onClick={onBackToCockpit}
-            className="group inline-flex items-center gap-2 min-h-[42px] px-4 rounded-full bg-card dark:bg-pod hover:bg-chip dark:hover:bg-elevated hover:ring-1 hover:ring-ink/15 dark:hover:ring-white/20 hover:-translate-y-px hover:shadow-sm text-xs sm:text-[13px] font-rounded font-bold text-ink shadow-xs transition-all duration-150 cursor-pointer active:scale-[0.98]"
-          >
-            <ArrowLeft className="w-4 h-4 shrink-0 transition-transform duration-150 group-hover:-translate-x-0.5" />
-            <span>{isFr ? 'Accueil' : 'Home'}</span>
-          </Button>
-        </div>
-
+      <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 pt-3 sm:pt-5 pb-6 animate-apple-in">
         {/* Hero: Left-aligned on Mobile, Centered on Desktop */}
         <div className="flex flex-col items-start md:items-center md:text-center max-w-xl md:mx-auto mb-7 sm:mb-10">
           <div className="w-12 h-12 sm:w-13 sm:h-13 rounded-full bg-pod dark:bg-card flex items-center justify-center text-ink mb-3.5 shadow-xs">
@@ -361,30 +350,27 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
     currentMeta.badgeClasses || `${activeTokens.surface} ${activeTokens.primary}`;
 
   return (
-    <div className="w-full max-w-5xl mx-auto px-3.5 sm:px-6 pt-2 pb-20 space-y-5 animate-apple-in">
-      {/* Top navigation row: ← All tools ONLY (Cadence Home removed per UX review) */}
-      <div className="flex flex-wrap items-center justify-between gap-2.5">
-        <Button
-          variant="secondary"
-          type="button"
-          onClick={() => navigateTool('hub')}
-          className="group inline-flex items-center gap-1.5 min-h-[42px] px-4 rounded-full bg-card dark:bg-pod hover:bg-chip dark:hover:bg-elevated hover:ring-1 hover:ring-ink/15 dark:hover:ring-white/20 hover:-translate-y-px hover:shadow-sm text-xs font-rounded font-bold text-ink shadow-xs transition-all duration-150 cursor-pointer active:scale-[0.98]"
-        >
-          <ArrowLeft className="w-4 h-4 shrink-0 transition-transform duration-150 group-hover:-translate-x-0.5" />
-          <span>{isFr ? 'Tous les outils' : 'All tools'}</span>
-        </Button>
-
-        <span className="text-[11px] font-rounded font-semibold text-ink-muted hidden sm:inline">
-          {isFr ? 'Sans compte · 100 % privé' : 'No accounts · 100% private'}
-        </span>
-      </div>
-
-      {/* Compact Tool Switcher Strip with smooth left & right opacity fade gradients (zero hard clipping!) */}
+    <div className="w-full max-w-5xl mx-auto px-3.5 sm:px-6 pt-2 pb-6 space-y-5 animate-apple-in">
+      {/* Compact Tool Switcher Strip with inline ← All tools (desktop) + left/right fade masks */}
       <div className="relative -mx-1">
         <div
           ref={switcherRef}
           className="flex items-center gap-1.5 overflow-x-auto no-scrollbar px-2 py-1 scroll-smooth"
         >
+          <Button
+            variant="secondary"
+            size="sm"
+            type="button"
+            onClick={() => navigateTool('hub')}
+            className="hidden md:inline-flex items-center gap-1.5 min-h-[40px] px-3.5 rounded-full bg-card dark:bg-pod hover:bg-chip dark:hover:bg-elevated text-xs font-rounded font-bold text-ink shadow-xs transition-all cursor-pointer shrink-0 active:scale-[0.98]"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
+            <span>{isFr ? 'Tous les outils' : 'All tools'}</span>
+          </Button>
+          <span
+            className="hidden md:inline-block w-px h-5 bg-ink/10 dark:bg-white/15 mx-0.5 shrink-0"
+            aria-hidden="true"
+          />
           {ALL_NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const active = normalizedNavId === item.id;
@@ -398,6 +384,7 @@ export const FreeWebToolsView: React.FC<FreeWebToolsViewProps> = ({
                 variant="ghost"
                 size="sm"
                 type="button"
+                aria-current={active ? 'page' : undefined}
                 onClick={() => navigateTool(item.id)}
                 className={`inline-flex items-center gap-1.5 min-h-[40px] px-3.5 rounded-full text-xs font-rounded font-bold transition-all cursor-pointer shrink-0 ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
                   active

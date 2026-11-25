@@ -9,7 +9,11 @@ import {
   buildStemStickerData,
   STEM_STICKER_PRESETS,
 } from '../stemSticker';
-import { calculateHumanWindImpact, calculateTripWindInsight } from '../windInsights';
+import {
+  calculateHumanWindImpact,
+  calculateTripWindInsight,
+  formatElevationRealWorldScale,
+} from '../windInsights';
 import {
   buildTripFromToolRoute,
   DEMO_TOOL_ROUTES,
@@ -204,5 +208,17 @@ describe('toolCatalog URL routing, windInsights, and stemSticker generator', () 
     assert.ok(res.ghostElevationM > 600, 'Expected substantial ghost elevation');
     assert.ok(res.iconicClimbComparison && res.iconicClimbComparison.length > 0);
     assert.equal(res.outboundIntoWindCardinal, 'O');
+  });
+
+  it('formatElevationRealWorldScale puts every climbing height into vivid real-life context', () => {
+    assert.equal(formatElevationRealWorldScale(5, 'en'), null);
+    assert.match(formatElevationRealWorldScale(27, 'en')!, /flights of stairs/);
+    assert.match(formatElevationRealWorldScale(27, 'fr')!, /étages d’escaliers/);
+    assert.match(formatElevationRealWorldScale(50, 'en')!, /Arc de Triomphe/);
+    assert.match(formatElevationRealWorldScale(95, 'en')!, /Statue of Liberty/);
+    assert.match(formatElevationRealWorldScale(135, 'en')!, /Montmartre/);
+    assert.match(formatElevationRealWorldScale(310, 'en')!, /Eiffel Tower/);
+    assert.match(formatElevationRealWorldScale(1071, 'en')!, /Alpe d’Huez/);
+    assert.match(formatElevationRealWorldScale(1610, 'fr')!, /Mont Ventoux/);
   });
 });

@@ -355,7 +355,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   }, [trips, lang]);
 
   return (
-    <div className="w-full max-w-[1720px] mx-auto px-3.5 sm:px-5 lg:px-7 pt-2 pb-28 sm:pb-28 space-y-5">
+    <div className="w-full max-w-[1720px] mx-auto px-3.5 sm:px-5 lg:px-7 pt-2 pb-6 space-y-5">
       {/* ═══════════════════════════════════════════════════════════════════════
           MOBILE NATIVE-APP LAYOUT (< md) — Matches Figma Wireframe
           ═══════════════════════════════════════════════════════════════════════ */}
@@ -711,7 +711,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                         variant="ghost"
                         size="sm"
                         onClick={() => setSelectedArchetype(tab.id)}
-                        className={`min-h-[44px] sm:min-h-[36px] py-1.5 px-4 rounded-full text-xs font-semibold flex items-center gap-2 transition-all duration-150 active:scale-[0.98] cursor-pointer shrink-0 ${
+                        className={`min-h-[40px] sm:min-h-[38px] py-2 px-3 rounded-full text-xs font-semibold flex items-center gap-2 transition-all duration-150 active:scale-[0.98] cursor-pointer shrink-0 ${
                           isSelected
                             ? tab.selectedClasses
                             : 'bg-card hover:bg-pod text-ink-secondary hover:text-ink border border-ink/5 dark:border-white/5'
@@ -724,7 +724,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                         />
                         <span>{tab.label}</span>
                         <span
-                          className={`text-[11px] font-semibold px-2 py-0.5 rounded-full tnum transition-colors ${
+                          className={`text-[11px] font-semibold min-w-[22px] h-[22px] px-1.5 inline-flex items-center justify-center rounded-full tnum transition-colors ${
                             isSelected
                               ? 'bg-black/10 dark:bg-white/15 text-current'
                               : 'bg-pod text-ink-muted'
@@ -821,8 +821,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </div>
         </div>
 
-        {/* Right Column (2 of 5 Columns: Current Conditions + Persistence Callout) */}
-        <div className="lg:col-span-2 flex flex-col gap-3.5 sm:gap-4 lg:gap-5 min-w-0 lg:sticky lg:top-5 animate-apple-in stagger-2">
+        {/* Right Column (2 of 5 Columns: Current Conditions + Multi-Tool + Persistence Callout) */}
+        <div className="lg:col-span-2 flex flex-col gap-3.5 sm:gap-4 lg:gap-5 min-w-0 lg:sticky lg:top-[calc(var(--cadence-nav-h)+1rem)] animate-apple-in stagger-2">
           {currentConditionTrip && (
             <WeatherWidget
               trip={currentConditionTrip}
@@ -831,50 +831,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               speedKmH={currentConditionTrip.route.targetSpeedKmH}
             />
           )}
-
-          {/* Concentric Chain-Link Persistence Callout */}
-          <div className="p-4 rounded-card bg-card border border-ink/5 dark:border-white/5 flex flex-col gap-3 text-xs text-ink-secondary shadow-xs">
-            <div className="flex items-center gap-3 min-w-0">
-              {user ? (
-                <div className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
-                  <Cloud className="w-4 h-4" />
-                </div>
-              ) : (
-                <IconBadge theme="emerald" icon={ShieldCheck} size="md" solidBacker />
-              )}
-              <span className="leading-relaxed">
-                {user ? t('cloudSyncNotice') : t('localStorageNotice')}
-              </span>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap justify-between pt-2 border-t border-ink/5 dark:border-white/5">
-              <div className="flex items-center gap-2 flex-wrap">
-                {!user && (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => openAuthModal('login')}
-                    className="py-1 px-3 rounded-full bg-volt text-[#111111] text-xs font-semibold hover:brightness-105 transition-all cursor-pointer shadow-xs"
-                  >
-                    {t('logInOrSignUp')}
-                  </Button>
-                )}
-                {onOpenOnboarding && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onOpenOnboarding}
-                    className="inline-flex items-center gap-1.5 min-h-[44px] px-3 py-1.5 rounded-full text-xs font-medium text-ink-secondary hover:text-ink hover:bg-pod transition-colors cursor-pointer"
-                  >
-                    <BookOpen2 className="w-3.5 h-3.5 text-current shrink-0" />
-                    <span>{lang === 'fr' ? 'Ouvrir l’assistant de démarrage' : 'Run guided setup'}</span>
-                  </Button>
-                )}
-              </div>
-              <span className="px-3 py-1 rounded-full bg-pod text-ink-muted tnum shrink-0 whitespace-nowrap">
-                {t('syncedAt', { time: syncedDisplayTime })}
-              </span>
-            </div>
-          </div>
 
           {onOpenTools && (
             <div className="p-4 rounded-card bg-card border border-ink/5 dark:border-white/5 flex flex-col gap-3 text-xs text-ink-secondary shadow-xs">
@@ -955,6 +911,50 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               </div>
             </div>
           )}
+
+          {/* Concentric Chain-Link Persistence Callout */}
+          <div className="p-4 rounded-card bg-card border border-ink/5 dark:border-white/5 flex flex-col gap-3 text-xs text-ink-secondary shadow-xs">
+            <div className="flex items-center gap-3 min-w-0">
+              {user ? (
+                <div className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
+                  <Cloud className="w-4 h-4" />
+                </div>
+              ) : (
+                <IconBadge theme="emerald" icon={ShieldCheck} size="md" solidBacker />
+              )}
+              <span className="leading-relaxed">
+                {user ? t('cloudSyncNotice') : t('localStorageNotice')}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap justify-between pt-2 border-t border-ink/5 dark:border-white/5">
+              <div className="flex items-center gap-2 flex-wrap">
+                {!user && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => openAuthModal('login')}
+                    className="py-1 px-3 rounded-full bg-volt text-[#111111] text-xs font-semibold hover:brightness-105 transition-all cursor-pointer shadow-xs"
+                  >
+                    {t('logInOrSignUp')}
+                  </Button>
+                )}
+                {onOpenOnboarding && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onOpenOnboarding}
+                    className="inline-flex items-center gap-1.5 min-h-[44px] px-3 py-1.5 rounded-full text-xs font-medium text-ink-secondary hover:text-ink hover:bg-pod transition-colors cursor-pointer"
+                  >
+                    <BookOpen2 className="w-3.5 h-3.5 text-current shrink-0" />
+                    <span>{lang === 'fr' ? 'Ouvrir l’assistant de démarrage' : 'Run guided setup'}</span>
+                  </Button>
+                )}
+              </div>
+              <span className="px-3 py-1 rounded-full bg-pod text-ink-muted tnum shrink-0 whitespace-nowrap">
+                {t('syncedAt', { time: syncedDisplayTime })}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 

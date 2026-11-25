@@ -46,6 +46,7 @@ import {
 } from '../../utils/routing';
 import { downloadEntireTourGpx, downloadTripGpx } from '../../utils/gpxExporter';
 import { evaluateOpeningHoursAtArrival, ArrivalOpeningVerdict } from '../../utils/openingHours';
+import { CadenceInsight } from '../common/CadenceInsight';
 
 function getOsmElementUrl(amenityId: string): string | null {
   const match = amenityId.match(/^(node|way|relation)\/(\d+)$/);
@@ -712,57 +713,61 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
         >
           <div className={embedded && embeddedLayout === 'split' ? 'lg:col-span-2 flex flex-col gap-2.5 min-w-0' : 'contents'}>
           {/* 1. INFORMATION BANNER */}
-          <div className="shrink-0">
+          <div className="shrink-0 px-0.5 py-0.5">
             {!hasScanned ? null : waterGaps.status === 'critical' ? (
-              <div className="rounded-[22px] p-3.5 sm:p-4 bg-rose-500/[0.1] dark:bg-rose-500/[0.15] text-rose-900 dark:text-rose-200 flex items-start gap-3 transition-colors shadow-none">
-                <div className="w-8 h-8 rounded-full bg-rose-500/20 text-rose-700 dark:text-rose-300 flex items-center justify-center shrink-0 mt-0.5">
-                  <TriangleAlert className="w-4 h-4 text-current" />
-                </div>
-                <div className="text-xs min-w-0 flex-1 leading-snug space-y-1">
-                  <span className="font-semibold font-rounded block">
-                    {t('hydrationCritical', {
-                      gap: formatKm(waterGaps.criticalGaps[0]?.distanceKm || waterGaps.maxGapKm, lang),
-                      start: formatKm(waterGaps.criticalGaps[0]?.startKm || 0, lang),
-                      end: formatKm(waterGaps.criticalGaps[0]?.endKm || totalDistanceKm, lang),
-                      advice: formatCriticalGapAdvice(waterGaps.criticalGaps[0], lang),
-                    })}
-                  </span>
-                  {waterGaps.criticalGaps[0] && (
-                    <div className="text-[11px] font-rounded tnum opacity-90">
-                      {formatGapDetail(waterGaps.criticalGaps[0], lang)}
-                    </div>
-                  )}
-                </div>
-              </div>
+              <CadenceInsight
+                compact
+                tone="rose"
+                headline={t('hydrationCritical', {
+                  gap: formatKm(waterGaps.criticalGaps[0]?.distanceKm || waterGaps.maxGapKm, lang),
+                  start: formatKm(waterGaps.criticalGaps[0]?.startKm || 0, lang),
+                  end: formatKm(waterGaps.criticalGaps[0]?.endKm || totalDistanceKm, lang),
+                  advice: formatCriticalGapAdvice(waterGaps.criticalGaps[0], lang),
+                })}
+                detail={
+                  waterGaps.criticalGaps[0]
+                    ? formatGapDetail(waterGaps.criticalGaps[0], lang)
+                    : undefined
+                }
+              />
             ) : waterGaps.status === 'caution' ? (
-              <div className="rounded-[22px] p-3.5 sm:p-4 bg-amber-500/[0.1] dark:bg-amber-500/[0.15] text-amber-900 dark:text-amber-200 border border-amber-500/25 dark:border-amber-400/25 flex items-start gap-3 transition-colors shadow-none">
-                <div className="w-8 h-8 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0 mt-0.5">
-                  <ShieldAlert className="w-4 h-4 text-current" />
-                </div>
-                <div className="text-xs min-w-0 flex-1 leading-snug space-y-1">
-                  <span className="font-semibold font-rounded block">
-                    {t('hydrationCaution', {
-                      gap: formatKm(waterGaps.cautionGaps[0]?.distanceKm || waterGaps.maxGapKm, lang),
-                      start: formatKm(waterGaps.cautionGaps[0]?.startKm || 0, lang),
-                      end: formatKm(waterGaps.cautionGaps[0]?.endKm || totalDistanceKm, lang),
-                    })}
-                  </span>
-                  {waterGaps.cautionGaps[0] && (
-                    <div className="text-[11px] font-rounded tnum opacity-90">
-                      {formatGapDetail(waterGaps.cautionGaps[0], lang)}
-                    </div>
-                  )}
-                </div>
-              </div>
+              <CadenceInsight
+                compact
+                tone="amber"
+                headline={t('hydrationCaution', {
+                  gap: formatKm(waterGaps.cautionGaps[0]?.distanceKm || waterGaps.maxGapKm, lang),
+                  start: formatKm(waterGaps.cautionGaps[0]?.startKm || 0, lang),
+                  end: formatKm(waterGaps.cautionGaps[0]?.endKm || totalDistanceKm, lang),
+                })}
+                detail={
+                  waterGaps.cautionGaps[0]
+                    ? formatGapDetail(waterGaps.cautionGaps[0], lang)
+                    : undefined
+                }
+              />
             ) : (
-              <div className="rounded-[22px] p-3 sm:p-3.5 bg-emerald-500/[0.08] dark:bg-emerald-500/[0.12] text-emerald-900 dark:text-emerald-200 flex items-center gap-2.5 transition-colors shadow-none">
-                <div className="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0">
-                  <ShieldCheck className="w-4 h-4 text-current" />
-                </div>
-                <span className="text-xs font-medium font-rounded">
-                  {t('hydrationStatusGo', { maxGap: formatKm(waterGaps.maxGapKm, lang) })}
-                </span>
-              </div>
+              <CadenceInsight
+                compact
+                tone="emerald"
+                headline={
+                  waterGaps.maxGapKm <= 5
+                    ? isFr
+                      ? `Tu es large côté eau — des points d’eau tous les ${formatKm(waterGaps.maxGapKm, lang)} km, tes bidons couvrent tout.`
+                      : `You’re well covered on water — taps within ${formatKm(waterGaps.maxGapKm, lang)} km, your bottles easily handle it.`
+                    : t('hydrationStatusGo', { maxGap: formatKm(waterGaps.maxGapKm, lang) })
+                }
+                detail={(() => {
+                  const openFood = amenities.filter((a) => a.category === 'food').length;
+                  if (openFood > 0) {
+                    return isFr
+                      ? `${openFood} boulangerie${openFood > 1 ? 's' : ''} / café${openFood > 1 ? 's' : ''} repéré${openFood > 1 ? 's' : ''} sur ton parcours — zéro stress pour te ravitailler.`
+                      : `${openFood} bakery / café stop${openFood > 1 ? 's' : ''} spotted along your route — zero resupply stress.`;
+                  }
+                  return isFr
+                    ? 'Aucun secteur sec préoccupant sur ta trace.'
+                    : 'No dry stretches to worry about along your route.';
+                })()}
+              />
             )}
           </div>
 

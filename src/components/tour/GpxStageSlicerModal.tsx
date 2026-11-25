@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { createPortal } from 'react-dom';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -29,6 +30,7 @@ import {
   Train,
   TriangleAlert,
   X,
+  type IconProps,
 } from '@/components/icons';
 import { TripProfile } from '../../types/trip';
 import { RiderBikeSpecs } from '../../types/specs';
@@ -892,18 +894,22 @@ export const GpxStageSlicerModal: React.FC<GpxStageSlicerModalProps> = ({
       station: '#F59E0B',
       town: '#64748B',
     };
-    const kindGlyph: Record<OvernightSpotKind, string> = {
-      campsite: '⛺',
-      lodging: '🛏',
-      station: '🚆',
-      town: '📍',
+    const kindIcon: Record<OvernightSpotKind, React.FC<IconProps>> = {
+      campsite: Tent,
+      lodging: Bed,
+      station: Train,
+      town: MapPin,
     };
 
     spots.forEach((spot) => {
+      const SpotIcon = kindIcon[spot.kind];
+      const spotIconSvg = renderToStaticMarkup(
+        <SpotIcon size={12} strokeWidth={2.2} aria-hidden="true" />
+      );
       const icon = L.divIcon({
         className: 'cadence-overnight-spot-pin',
-        html: `<div style="display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:999px;background:#FFFFFF;color:#111111;border:2px solid ${kindColor[spot.kind]};box-shadow:0 3px 10px rgba(0,0,0,0.28);font-size:10.5px;font-weight:700;font-family:Inter,sans-serif;white-space:nowrap;cursor:pointer;transform:translate(-50%,-100%);">
-          <span>${kindGlyph[spot.kind]}</span>
+        html: `<div style="display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:999px;background:#FFFFFF;color:#111111;border:2px solid ${kindColor[spot.kind]};box-shadow:0 3px 10px rgba(0,0,0,0.28);font-size:10.5px;font-weight:700;font-family:Inter,sans-serif;white-space:nowrap;cursor:pointer;transform:translate(-50%,-100%);">
+          <span style="display:inline-flex;align-items:center;color:${kindColor[spot.kind]};">${spotIconSvg}</span>
           <span>${spot.name.slice(0, 18)}</span>
         </div>`,
         iconSize: [0, 0],

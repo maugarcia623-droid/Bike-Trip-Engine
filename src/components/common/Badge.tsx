@@ -135,22 +135,22 @@ export const BADGE_TONAL_MAP: Record<BadgeVariant, BadgeTonalTokens> = {
 
 const SIZE_MAP: Record<BadgeSize, { pill: string; icon: string; iconSize: number }> = {
   xs: {
-    pill: 'px-2 py-0.5 text-[10px] gap-1',
+    pill: 'px-2.5 py-1 text-[10px] gap-1.5',
     icon: 'w-4 h-4',
     iconSize: 16,
   },
   sm: {
-    pill: 'px-2.5 py-0.5 text-[11px] gap-1.5',
+    pill: 'px-3 py-1.5 text-[11px] gap-1.5',
     icon: 'w-4 h-4',
     iconSize: 16,
   },
   md: {
-    pill: 'px-3 py-1 text-xs gap-1.5',
+    pill: 'px-3.5 py-1.5 text-xs gap-1.5',
     icon: 'w-5 h-5',
     iconSize: 20,
   },
   lg: {
-    pill: 'px-4 py-1.5 text-sm gap-2',
+    pill: 'px-4 py-2 text-sm gap-2',
     icon: 'w-5 h-5',
     iconSize: 20,
   },
@@ -232,7 +232,7 @@ export const Badge: React.FC<BadgeProps> = ({
         />
       )}
       {iconPosition === 'left' && iconElement}
-      {children && <span className="break-words leading-none">{children}</span>}
+      {children && <span className="break-words leading-snug no-orphan">{children}</span>}
       {iconPosition === 'right' && iconElement}
     </Component>
   );

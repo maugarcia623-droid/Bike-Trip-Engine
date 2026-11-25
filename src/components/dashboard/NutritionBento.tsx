@@ -580,13 +580,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
                 </strong>{' '}
                 {isFr ? 'brûlées' : 'burned'}{' '}
                 <span className="text-amber-700 dark:text-amber-400 font-semibold">
-                  (≈ {croissantsEarned} croissant{croissantsEarned >= 1.5 ? 's' : ''}{' '}
-                  {isFr
-                    ? croissantsEarned >= 1.5
-                      ? 'mérités'
-                      : 'mérité'
-                    : 'earned'}
-                  )
+                  (≈ {croissantsEarned} croissant{croissantsEarned >= 1.5 ? 's' : ''})
                 </span>
               </span>
             </span>

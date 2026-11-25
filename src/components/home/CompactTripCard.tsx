@@ -1,5 +1,15 @@
 import React from 'react';
-import { Briefcase, Calendar, Compass, Copy, Lightning, PencilSimple, Tent, Trash } from '@/components/icons';
+import {
+  Briefcase,
+  Calendar,
+  CircleChevronDown,
+  Compass,
+  Copy,
+  Lightning,
+  PencilSimple,
+  Tent,
+  Trash,
+} from '@/components/icons';
 import { TripProfile } from '../../types/trip';
 import { calculatePhysics } from '../../utils/physics';
 import { calculateReverseTimeline } from '../../utils/timeline';
@@ -21,6 +31,7 @@ interface CompactTripCardProps {
   isActive: boolean;
   variant: 'carousel' | 'list';
   onClick: () => void;
+  onToggleExpand?: () => void;
   onDuplicate?: (trip: TripProfile) => void;
   onEdit?: (trip: TripProfile) => void;
   onDelete?: (id: string) => void;
@@ -51,6 +62,7 @@ export const CompactTripCard: React.FC<CompactTripCardProps> = ({
   isActive,
   variant,
   onClick,
+  onToggleExpand,
   onDuplicate,
   onEdit,
   onDelete,
@@ -185,7 +197,7 @@ export const CompactTripCard: React.FC<CompactTripCardProps> = ({
       className="w-full rounded-card p-4 bg-card text-ink border border-ink/5 dark:border-white/5 shadow-xs flex flex-col gap-3 cursor-pointer transition-all active:scale-[0.99]"
     >
       {/* Top Row: Badges & Circular Action Buttons */}
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 flex-wrap min-w-0">
           <Badge variant={dateInfo.countdownVariant} size="md" icon={Calendar} className="h-9 tnum">
             {dateInfo.countdownText}
@@ -203,11 +215,23 @@ export const CompactTripCard: React.FC<CompactTripCardProps> = ({
           </Badge>
         </div>
 
-        {(onDuplicate || onEdit || onDelete) && (
+        {(onDuplicate || onEdit || onDelete || onToggleExpand) && (
           <div
             className="flex items-center gap-1 shrink-0"
             onClick={(e) => e.stopPropagation()}
           >
+            {onToggleExpand && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onToggleExpand}
+                title={t('expandTripPreviewAria')}
+                aria-label={t('expandTripPreviewAria')}
+                className={`relative before:content-[''] before:absolute before:-inset-1.5 w-9 h-9 p-0 rounded-full flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer ${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} hover:bg-pod hover:text-ink ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+              >
+                <CircleChevronDown className="w-4 h-4 text-current" />
+              </Button>
+            )}
             {onDuplicate && (
               <Button
                 variant="secondary"

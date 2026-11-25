@@ -35,6 +35,7 @@ import type { TripProfile, TimelineStep } from '../../types/trip';
 import type { RiderBikeSpecs } from '../../types/specs';
 import { Card } from '../common/Card';
 import { Badge } from '../common/Badge';
+import { CadenceInsight } from '../common/CadenceInsight';
 import { IconBadge } from '../common/IconBadge';
 import {
   CHIP_RING_BASE,
@@ -201,6 +202,67 @@ export const ReverseTimelineBento: React.FC<ReverseTimelineBentoProps> = ({
 
   const hiddenCount = timeline.steps.length - visibleSteps.length;
   const archetype = getTripArchetype(trip?.tag, trip?.name);
+
+  const timelineInsight = useMemo(() => {
+    const movingMin = Math.max(1, Math.round(timeline.pureMovingMinutes || 0));
+    const bufferMin = Math.max(0, Math.round(timeline.bufferMinutes || 0));
+    const windImpactMin = Math.max(0, Math.round(timeline.weatherHeadwindImpactMinutes || 0));
+    const departHour = parseInt((timeline.hardDepartureTime || '08:00').split(':')[0], 10) || 8;
+    const durStr =
+      movingMin >= 60
+        ? `${Math.floor(movingMin / 60)}h ${String(movingMin % 60).padStart(2, '0')}m`
+        : `${movingMin} min`;
+
+    if (windImpactMin >= 6) {
+      return {
+        tone: 'amber' as const,
+        icon: Wind,
+        headline: isFr
+          ? `Le vent ajoute ~${windImpactMin} min aujourd’hui — ton départ est avancé à ${timeline.hardDepartureTime}.`
+          : `Wind adds ~${windImpactMin} min today, so we nudged roll-out earlier to ${timeline.hardDepartureTime}.`,
+        detail: isFr
+          ? `Tu arrives quand même vers ${timeline.gateArrivalTime} sans courir après le chrono.`
+          : `You still reach your finish around ${timeline.gateArrivalTime} without chasing speed.`,
+      };
+    }
+
+    if (departHour < 7 || timeline.stationaryRecoveryRule?.isRestricted) {
+      return {
+        tone: 'sky' as const,
+        icon: Moon,
+        headline: isFr
+          ? `Départ matinal à ${timeline.hardDepartureTime} — prépare tes feux et ta tenue la veille.`
+          : `Early ${timeline.hardDepartureTime} roll-out — lay your lights and kit out tonight.`,
+        detail: isFr
+          ? `Ton matin reste fluide et tes ${durStr} de vélo démarrent sans stress.`
+          : `Keeps the morning effortless so your ${durStr} ride starts calm.`,
+      };
+    }
+
+    if (bufferMin >= 15) {
+      return {
+        tone: 'cadence' as const,
+        icon: Clock,
+        headline: isFr
+          ? `${bufferMin} min de marge déjà calées avant ${timeline.gateArrivalTime}.`
+          : `${bufferMin} min of built-in cushion before ${timeline.gateArrivalTime}.`,
+        detail: isFr
+          ? `Pars à ${timeline.hardDepartureTime} pour tes ${durStr} de selle — pas besoin de griller un seul feu.`
+          : `Roll out by ${timeline.hardDepartureTime} for your ${durStr} spin — no need to rush a single red light.`,
+      };
+    }
+
+    return {
+      tone: 'cadence' as const,
+      icon: Clock,
+      headline: isFr
+        ? `Timing tranquille — pars à ${timeline.hardDepartureTime} pour ${durStr} de vélo.`
+        : `Clean, unhurried schedule — roll out by ${timeline.hardDepartureTime} for an easy ${durStr} ride.`,
+      detail: isFr
+        ? `Arrivée estimée autour de ${timeline.gateArrivalTime} avec de la marge pour souffler.`
+        : `Brings you in around ${timeline.gateArrivalTime} with breathing room.`,
+    };
+  }, [timeline, isFr]);
 
   const cardTitle =
     archetype === 'sport'
@@ -380,6 +442,16 @@ export const ReverseTimelineBento: React.FC<ReverseTimelineBentoProps> = ({
       }
       className="w-full"
     >
+      {!timeline.severeHeadwindWarning && (
+        <CadenceInsight
+          compact
+          tone={timelineInsight.tone}
+          headline={timelineInsight.headline}
+          detail={timelineInsight.detail}
+          className="mt-1 mb-3.5"
+        />
+      )}
+
       {timeline.severeHeadwindWarning && (
         <div
           role="alert"

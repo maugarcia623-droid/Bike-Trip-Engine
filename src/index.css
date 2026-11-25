@@ -28,6 +28,21 @@
     /* Keyline Icons Rounded Duotone: Unified-Hue 4-Layer Token System */
     --icon-secondary: currentColor;
     --icon-secondary-opacity: 0.3;
+
+    /* Unified sticky top navigation bar height (keeps sticky sub-navs flush beneath Top Bar) */
+    --cadence-nav-h: calc(57px + env(safe-area-inset-top, 0px));
+  }
+
+  @media (min-width: 768px) {
+    :root {
+      --cadence-nav-h: 61px;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    :root {
+      --cadence-nav-h: 65px;
+    }
   }
 
   .dark {
@@ -55,6 +70,21 @@
     /* Keyline Icons Rounded Duotone: Unified-Hue 4-Layer Token System */
     --icon-secondary: currentColor;
     --icon-secondary-opacity: 0.3;
+
+    /* Unified sticky top navigation bar height (keeps sticky sub-navs flush beneath Top Bar) */
+    --cadence-nav-h: calc(57px + env(safe-area-inset-top, 0px));
+  }
+
+  @media (min-width: 768px) {
+    :root {
+      --cadence-nav-h: 61px;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    :root {
+      --cadence-nav-h: 65px;
+    }
   }
 
   html,
@@ -71,6 +101,26 @@
     -moz-osx-font-smoothing: grayscale;
     -webkit-text-size-adjust: 100%;
     overflow-x: clip;
+  }
+
+  /* Prevent single-word typographic orphans across the entire app */
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: balance;
+  }
+
+  p,
+  li,
+  dd,
+  blockquote,
+  figcaption {
+    text-wrap: pretty;
+  }
+
+  .no-orphan {
+    text-wrap: pretty;
   }
 
   /* Ensure styled select controls never render a second native dropdown arrow */
@@ -608,8 +658,9 @@ svg polyline[stroke-opacity="0.4"] {
   background-color: rgb(var(--ds-chip)) !important;
 }
 
-/* Fullscreen map stacking escape & DynamicIslandNav suppression */
-body.cadence-map-fullscreen .cadence-dynamic-island {
+/* Fullscreen map stacking escape & sticky navigation suppression */
+body.cadence-map-fullscreen .cadence-top-nav,
+body.cadence-map-fullscreen .cadence-sticky-subnav {
   display: none !important;
 }
 

@@ -707,8 +707,8 @@ export const FuelPlanTool: React.FC<FuelPlanToolProps> = ({
                   <Flame className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                   <span>
                     {isFr
-                      ? `~${plan.estimatedTotalKcal.toLocaleString()} kcal brûlées (≈ ${plan.croissantsEarned} croissants mérités)`
-                      : `~${plan.estimatedTotalKcal.toLocaleString()} kcal burned (≈ ${plan.croissantsEarned} croissants earned)`}
+                      ? `~${plan.estimatedTotalKcal.toLocaleString()} kcal brûlées (≈ ${plan.croissantsEarned} croissant${plan.croissantsEarned >= 1.5 ? 's' : ''})`
+                      : `~${plan.estimatedTotalKcal.toLocaleString()} kcal burned (≈ ${plan.croissantsEarned} croissant${plan.croissantsEarned >= 1.5 ? 's' : ''})`}
                   </span>
                 </span>
                 <span className="text-[11px] font-rounded font-semibold text-sky-600 dark:text-sky-400 tnum">

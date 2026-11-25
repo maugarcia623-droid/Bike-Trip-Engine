@@ -14,7 +14,7 @@ import {
 import type { CSSProperties, KeyboardEvent, ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { Transition } from "motion/react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown } from "@keyline-icons/react/duotone";
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./timeline.module.css";
 

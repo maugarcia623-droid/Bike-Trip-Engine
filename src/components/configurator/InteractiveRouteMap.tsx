@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { Button } from "@/components/arc/button/button";
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useTheme } from '../../context/ThemeContext';
 import { useTranslation } from '../../context/LanguageContext';
-import { Plus, X, SpinnerGap, MapPin, Compass } from '@/components/icons';
-import { Maximize2, Minimize2 } from 'lucide-react';
+import { Plus, X, SpinnerGap, MapPin, Compass, Maximize2, Minimize2 } from '@/components/icons';
 import { reverseGeocodeLocation } from '../../services/locationService';
 import { SurfaceBreakdown, SurfaceSegment } from '../../types/trip';
 import { computeSurfaceBreakdown, SURFACE_VISUAL_META } from '../../utils/surfaceProfile';
@@ -375,29 +375,12 @@ export const InteractiveRouteMap: React.FC<InteractiveRouteMapProps> = ({
         delBtn.style.cssText =
           'background:#fee2e2;color:#991b1b;border:none;padding:4px 10px;border-radius:9999px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;';
 
-        const svgNs = 'http://www.w3.org/2000/svg';
-        const svg = document.createElementNS(svgNs, 'svg');
-        svg.setAttribute('width', '10');
-        svg.setAttribute('height', '10');
-        svg.setAttribute('viewBox', '0 0 24 24');
-        svg.setAttribute('fill', 'none');
-        svg.setAttribute('stroke', 'currentColor');
-        svg.setAttribute('stroke-width', '2.5');
-        svg.setAttribute('stroke-linecap', 'round');
-        svg.setAttribute('stroke-linejoin', 'round');
-        const line1 = document.createElementNS(svgNs, 'line');
-        line1.setAttribute('x1', '18');
-        line1.setAttribute('y1', '6');
-        line1.setAttribute('x2', '6');
-        line1.setAttribute('y2', '18');
-        const line2 = document.createElementNS(svgNs, 'line');
-        line2.setAttribute('x1', '6');
-        line2.setAttribute('y1', '6');
-        line2.setAttribute('x2', '18');
-        line2.setAttribute('y2', '18');
-        svg.appendChild(line1);
-        svg.appendChild(line2);
-        delBtn.appendChild(svg);
+        const delIconSpan = document.createElement('span');
+        delIconSpan.style.cssText = 'display:inline-flex;align-items:center;';
+        delIconSpan.innerHTML = renderToStaticMarkup(
+          <X size={11} strokeWidth={2.5} aria-hidden="true" />
+        );
+        delBtn.appendChild(delIconSpan);
 
         const btnLabel = document.createElement('span');
         btnLabel.textContent = isFr ? 'Supprimer cet arrêt' : 'Remove stop';

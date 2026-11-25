@@ -1,6 +1,7 @@
 import React, { createContext, useContext } from 'react';
 import {
   AlarmClock as DuotoneAlarmClock,
+  Apple as DuotoneApple,
   ArrowDown as DuotoneArrowDown,
   ArrowLeft as DuotoneArrowLeft,
   ArrowRight as DuotoneArrowRight,
@@ -9,6 +10,7 @@ import {
   ArrowUpLeft as DuotoneArrowUpLeft,
   ArrowUpRight as DuotoneArrowUpRight,
   BadgeInfo as DuotoneBadgeInfo,
+  Banana as DuotoneBanana,
   Banknote as DuotoneBanknote,
   BatteryCharging as DuotoneBatteryCharging,
   Bed as DuotoneBed,
@@ -26,8 +28,10 @@ import {
   Buildings as DuotoneBuildings,
   Calculator as DuotoneCalculator,
   Calendar as DuotoneCalendar,
+  CalendarDays as DuotoneCalendarDays,
   Camera as DuotoneCamera,
   Check as DuotoneCheck,
+  ChevronLeft as DuotoneChevronLeft,
   ChevronRight as DuotoneChevronRight,
   CircleAlert as DuotoneCircleAlert,
   CircleArrowUpRight as DuotoneCircleArrowUpRight,
@@ -42,6 +46,7 @@ import {
   CircleZap as DuotoneCircleZap,
   ClipboardCheck as DuotoneClipboardCheck,
   Clock as DuotoneClock,
+  Clock3 as DuotoneClock3,
   Cloud as DuotoneCloud,
   CloudCheck as DuotoneCloudCheck,
   CloudDownload as DuotoneCloudDownload,
@@ -54,6 +59,8 @@ import {
   Compass as DuotoneCompass,
   Cookie as DuotoneCookie,
   Copy as DuotoneCopy,
+  CornerDownLeft as DuotoneCornerDownLeft,
+  Croissant as DuotoneCroissant,
   Download as DuotoneDownload,
   Droplet as DuotoneDroplet,
   Droplets as DuotoneDroplets,
@@ -66,11 +73,15 @@ import {
   Flame as DuotoneFlame,
   Flame2 as DuotoneFlame2,
   Flashlight as DuotoneFlashlight,
+  Fullscreen as DuotoneFullscreen,
+  FullscreenExit as DuotoneFullscreenExit,
   Gauge as DuotoneGauge,
   Grid2x2 as DuotoneGrid2x2,
   GridCirclesCheck as DuotoneGridCirclesCheck,
+  GripVertical as DuotoneGripVertical,
   Hamburger as DuotoneHamburger,
   HandClosed as DuotoneHandClosed,
+  Hanger as DuotoneHanger,
   Headphones as DuotoneHeadphones,
   HeartPulse as DuotoneHeartPulse,
   Home as DuotoneHome,
@@ -116,6 +127,7 @@ import {
   Save as DuotoneSave,
   Scale as DuotoneScale,
   Scissors as DuotoneScissors,
+  Search as DuotoneSearch,
   Send as DuotoneSend,
   Settings as DuotoneSettings,
   Share as DuotoneShare,
@@ -125,6 +137,7 @@ import {
   Shirt as DuotoneShirt,
   ShoppingBag as DuotoneShoppingBag,
   ShowerHead as DuotoneShowerHead,
+  Skull as DuotoneSkull,
   SlidersHorizontal as DuotoneSlidersHorizontal,
   Snowflake as DuotoneSnowflake,
   Sparkle as DuotoneSparkle,
@@ -138,6 +151,7 @@ import {
   Target as DuotoneTarget,
   Tent as DuotoneTent,
   Thermometer as DuotoneThermometer,
+  ThumbsUp as DuotoneThumbsUp,
   Timer as DuotoneTimer,
   TimerReset as DuotoneTimerReset,
   Train as DuotoneTrain,
@@ -212,83 +226,6 @@ function createKeylineIcon(
   return Icon;
 }
 
-// ── CUSTOM ROUNDED DUOTONE ICONS (DESIGN-GRID COMPLIANT, 0.4 TONE PLATE) ──
-const CustomAppleSvg: React.FC<any> = ({ size = 24, className = '', ...props }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    width={size}
-    height={size}
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={2}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-    {...props}
-  >
-    <path
-      d="M12 21c-2.5 0-3.5-1-5-1s-3.5 1-5 1c-1.5 0-2-1.5-2-4C0 12.5 2 7 6.5 7c2 0 3 1.5 5.5 1.5s3.5-1.5 5.5-1.5c4.5 0 6.5 5.5 6.5 10 0 2.5-.5 4-2 4-1.5 0-3.5-1-5-1s-2.5 1-5 1z"
-      fill="currentColor"
-      fillOpacity={0.4}
-      stroke="none"
-    />
-    <path d="M12 21c-2.5 0-3.5-1-5-1s-3.5 1-5 1c-1.5 0-2-1.5-2-4C0 12.5 2 7 6.5 7c2 0 3 1.5 5.5 1.5s3.5-1.5 5.5-1.5c4.5 0 6.5 5.5 6.5 10 0 2.5-.5 4-2 4-1.5 0-3.5-1-5-1s-2.5 1-5 1z" />
-    <path d="M12 7V3M12 3c2 0 4 1 5 3" />
-  </svg>
-);
-
-const CustomCemeterySvg: React.FC<any> = ({ size = 24, className = '', ...props }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    width={size}
-    height={size}
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={2}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-    {...props}
-  >
-    <path
-      d="M6 20V10a6 6 0 0 1 12 0v10H6z"
-      fill="currentColor"
-      fillOpacity={0.4}
-      stroke="none"
-    />
-    <path d="M6 20V10a6 6 0 0 1 12 0v10" />
-    <path d="M3 20h18" />
-    <path d="M12 7v6M9.5 9.5h5" />
-  </svg>
-);
-
-const CustomBananaSvg: React.FC<any> = ({ size = 24, className = '', ...props }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-    {...props}
-  >
-    <path
-      d="M4 17c3.5 2 8.5 1.5 12-2 3-3 4-7.5 3-11-1.5 3.5-4.5 6.5-8.5 8-3 1.1-5.5 1.2-6.5 5z"
-      fill="var(--icon-secondary, currentColor)"
-      fillOpacity="var(--icon-secondary-opacity, 0.3)"
-      stroke="none"
-    />
-    <path d="M4 17c3.5 2 8.5 1.5 12-2 3-3 4-7.5 3-11" />
-    <path d="M4 17c1-3.8 3.5-3.9 6.5-5 4-1.5 7-4.5 8.5-8" />
-    <path d="M19 4l1-1.5" />
-  </svg>
-);
-
 // ── CORE APPLICATION ICONS (TREE-SHAKEABLE KEYLINE ROUNDED DUOTONE) ──
 
 // Navigation & Actions
@@ -319,7 +256,13 @@ export const CaretDown = CircleChevronDown;
 export const CaretUp = CircleChevronUp;
 export const ChevronDown = CircleChevronDown;
 export const ChevronUp = CircleChevronUp;
+export const ChevronLeft = /*#__PURE__*/ createKeylineIcon(DuotoneChevronLeft, 'ChevronLeft');
 export const ChevronRight = /*#__PURE__*/ createKeylineIcon(DuotoneChevronRight, 'ChevronRight');
+export const GripVertical = /*#__PURE__*/ createKeylineIcon(DuotoneGripVertical, 'GripVertical');
+export const Fullscreen = /*#__PURE__*/ createKeylineIcon(DuotoneFullscreen, 'Fullscreen');
+export const FullscreenExit = /*#__PURE__*/ createKeylineIcon(DuotoneFullscreenExit, 'FullscreenExit');
+export const Maximize2 = Fullscreen;
+export const Minimize2 = FullscreenExit;
 export const ArrowLeft = /*#__PURE__*/ createKeylineIcon(DuotoneArrowLeft, 'ArrowLeft');
 export const ArrowRight = /*#__PURE__*/ createKeylineIcon(DuotoneArrowRight, 'ArrowRight');
 export const ArrowUp = /*#__PURE__*/ createKeylineIcon(DuotoneArrowUp, 'ArrowUp');
@@ -371,8 +314,11 @@ export const Language = /*#__PURE__*/ createKeylineIcon(DuotoneLanguage, 'Langua
 export const Languages = Language;
 export const Scissors = /*#__PURE__*/ createKeylineIcon(DuotoneScissors, 'Scissors');
 export const Shirt = /*#__PURE__*/ createKeylineIcon(DuotoneShirt, 'Shirt');
+export const Hanger = /*#__PURE__*/ createKeylineIcon(DuotoneHanger, 'Hanger');
 export const ShoppingBag = /*#__PURE__*/ createKeylineIcon(DuotoneShoppingBag, 'ShoppingBag');
 export const ClipboardCheck = /*#__PURE__*/ createKeylineIcon(DuotoneClipboardCheck, 'ClipboardCheck');
+export const Search = /*#__PURE__*/ createKeylineIcon(DuotoneSearch, 'Search');
+export const CornerDownLeft = /*#__PURE__*/ createKeylineIcon(DuotoneCornerDownLeft, 'CornerDownLeft');
 
 // Telemetry, Power & Physics
 export const Zap = /*#__PURE__*/ createKeylineIcon(DuotoneZap, 'Zap');
@@ -447,9 +393,11 @@ export const Coffee = /*#__PURE__*/ createKeylineIcon(DuotoneCoffee, 'Coffee');
 export const Utensils = /*#__PURE__*/ createKeylineIcon(DuotoneUtensils, 'Utensils');
 export const ForkKnife = Utensils;
 export const UtensilsCrossed = Utensils;
-export const AppleLogo = /*#__PURE__*/ createKeylineIcon(CustomAppleSvg, 'AppleLogo');
+export const AppleLogo = /*#__PURE__*/ createKeylineIcon(DuotoneApple, 'AppleLogo');
 export const Apple = AppleLogo;
-export const Banana = /*#__PURE__*/ createKeylineIcon(CustomBananaSvg, 'Banana');
+export const Banana = /*#__PURE__*/ createKeylineIcon(DuotoneBanana, 'Banana');
+export const Croissant = /*#__PURE__*/ createKeylineIcon(DuotoneCroissant, 'Croissant');
+export const ThumbsUp = /*#__PURE__*/ createKeylineIcon(DuotoneThumbsUp, 'ThumbsUp');
 export const Bottle = /*#__PURE__*/ createKeylineIcon(DuotoneBottle, 'Bottle');
 export const Wine = Bottle;
 export const Cookie = /*#__PURE__*/ createKeylineIcon(DuotoneCookie, 'Cookie');
@@ -489,6 +437,8 @@ export const Train = /*#__PURE__*/ createKeylineIcon(DuotoneTrain, 'Train');
 export const TrainSimple = Train;
 export const Wrench = /*#__PURE__*/ createKeylineIcon(DuotoneWrench, 'Wrench');
 export const Calendar = /*#__PURE__*/ createKeylineIcon(DuotoneCalendar, 'Calendar');
+export const CalendarDays = /*#__PURE__*/ createKeylineIcon(DuotoneCalendarDays, 'CalendarDays');
+export const Clock3 = /*#__PURE__*/ createKeylineIcon(DuotoneClock3, 'Clock3');
 export const HomeSmile = /*#__PURE__*/ createKeylineIcon(DuotoneHomeSmile, 'HomeSmile');
 export const Home = /*#__PURE__*/ createKeylineIcon(DuotoneHome, 'Home');
 export const Upload = /*#__PURE__*/ createKeylineIcon(DuotoneUpload, 'Upload');
@@ -516,8 +466,9 @@ export const Send = /*#__PURE__*/ createKeylineIcon(DuotoneSend, 'Send');
 export const BookOpen2 = /*#__PURE__*/ createKeylineIcon(DuotoneBookOpen2, 'BookOpen2');
 export const BookOpen = BookOpen2;
 
-export const Cemetery = /*#__PURE__*/ createKeylineIcon(CustomCemeterySvg, 'Cemetery');
-export const Graveyard = Cemetery;
+export const Skull = /*#__PURE__*/ createKeylineIcon(DuotoneSkull, 'Skull');
+export const Cemetery = Skull;
+export const Graveyard = Skull;
 export const Radar = /*#__PURE__*/ createKeylineIcon(DuotoneRadar, 'Radar');
 export const Baguette = /*#__PURE__*/ createKeylineIcon(DuotoneStore, 'Store');
 export const Bakery = Baguette;

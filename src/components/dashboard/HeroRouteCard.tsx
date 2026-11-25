@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Maximize2, Minimize2 } from 'lucide-react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { Button } from "@/components/arc/button/button";
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -40,6 +40,16 @@ import {
   Compass,
   Play,
   Luggage,
+  Maximize2,
+  Minimize2,
+  Droplets,
+  Skull,
+  Croissant,
+  Shield,
+  Train,
+  Wrench,
+  CheckCircle,
+  ThumbsUp,
 } from '@/components/icons';
 import { downloadTripGpx, downloadTripTcx } from '../../utils/gpxExporter';
 import { downloadTripFit } from '../../utils/fitExporter';
@@ -69,6 +79,7 @@ import { useTranslation } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { calculateDynamicCarbTarget } from '../../utils/nutrition';
 import { Badge } from '../common/Badge';
+import { CadenceInsight } from '../common/CadenceInsight';
 import { IconBadge } from '../common/IconBadge';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
@@ -109,11 +120,13 @@ interface HeroRouteCardProps {
   onSelectAmenity?: (amenity: StageAmenity) => void;
   onTogglePinAmenity?: (amenity: StageAmenity) => void;
   onAmenitiesLoaded?: (amenities: StageAmenity[]) => void;
+  showMapDots?: boolean;
+  onToggleShowMapDots?: () => void;
   onStartRideMode?: () => void;
   onOpenStageSlicer?: () => void;
 }
 
-type ActiveHeroPopover = 'bike' | 'load' | 'tripType' | 'target' | 'route' | 'pace' | 'elevation' | 'export' | null;
+type ActiveHeroPopover = 'bike' | 'load' | 'tripType' | 'target' | 'route' | 'pace' | 'fuel' | 'elevation' | 'export' | null;
 
 const ELEV_MATRIX_COLS = 60; // 60 × 12 @ 8u pitch → 5:1 aspect, fills the popover width edge to edge
 const ELEV_MATRIX_ROWS = 12;
@@ -193,6 +206,8 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
   onSelectAmenity,
   onTogglePinAmenity,
   onAmenitiesLoaded,
+  showMapDots: propShowMapDots,
+  onToggleShowMapDots: propOnToggleShowMapDots,
   onStartRideMode,
   onOpenStageSlicer,
 }) => {
@@ -312,7 +327,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
       );
     }
   };
-  const [showMapDots, setShowMapDots] = useState<boolean>(() => {
+  const [internalShowMapDots, setInternalShowMapDots] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem('cadence_show_map_amenity_dots');
       return saved !== 'false';
@@ -320,9 +335,14 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
       return true;
     }
   });
+  const showMapDots = propShowMapDots ?? internalShowMapDots;
 
   const handleToggleShowMapDots = () => {
-    setShowMapDots((prev) => {
+    if (propOnToggleShowMapDots) {
+      propOnToggleShowMapDots();
+      return;
+    }
+    setInternalShowMapDots((prev) => {
       const next = !prev;
       try {
         localStorage.setItem('cadence_show_map_amenity_dots', String(next));
@@ -1022,18 +1042,25 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
           lineJoin: 'round',
         });
 
-        const suitabilityLabel =
+        const suitabilityText =
           seg.suitability38c === 'ideal'
             ? isFr
-              ? `✅ Idéal en ${surfaceBreakdown.suitability.tireWidthMm}c`
-              : `✅ Ideal on ${surfaceBreakdown.suitability.tireWidthMm}c`
+              ? `Idéal en ${surfaceBreakdown.suitability.tireWidthMm}c`
+              : `Ideal on ${surfaceBreakdown.suitability.tireWidthMm}c`
             : seg.suitability38c === 'capable'
             ? isFr
-              ? `👍 Adapté en ${surfaceBreakdown.suitability.tireWidthMm}c`
-              : `👍 Capable on ${surfaceBreakdown.suitability.tireWidthMm}c`
+              ? `Adapté en ${surfaceBreakdown.suitability.tireWidthMm}c`
+              : `Capable on ${surfaceBreakdown.suitability.tireWidthMm}c`
             : isFr
-            ? `⚠️ Technique en ${surfaceBreakdown.suitability.tireWidthMm}c`
-            : `⚠️ Technical on ${surfaceBreakdown.suitability.tireWidthMm}c`;
+            ? `Technique en ${surfaceBreakdown.suitability.tireWidthMm}c`
+            : `Technical on ${surfaceBreakdown.suitability.tireWidthMm}c`;
+
+        const SuitabilityIcon =
+          seg.suitability38c === 'ideal'
+            ? CheckCircle
+            : seg.suitability38c === 'capable'
+            ? ThumbsUp
+            : TriangleAlert;
 
         const tooltipEl = document.createElement('div');
         tooltipEl.style.cssText = 'font-family:ui-rounded,Nunito,sans-serif;padding:2px 4px;';
@@ -1046,8 +1073,16 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
           isFr ? meta.labelFr : meta.labelEn
         }`;
         const suitEl = document.createElement('div');
-        suitEl.style.cssText = 'font-size:10px;font-weight:700;margin-top:2px;';
-        suitEl.textContent = suitabilityLabel;
+        suitEl.style.cssText = 'font-size:10px;font-weight:700;margin-top:2px;display:flex;align-items:center;gap:4px;';
+        const suitIconWrap = document.createElement('span');
+        suitIconWrap.style.cssText = 'display:inline-flex;align-items:center;flex-shrink:0;';
+        suitIconWrap.innerHTML = renderToStaticMarkup(
+          <SuitabilityIcon size={12} strokeWidth={2.2} aria-hidden="true" />
+        );
+        const suitLabelSpan = document.createElement('span');
+        suitLabelSpan.textContent = suitabilityText;
+        suitEl.appendChild(suitIconWrap);
+        suitEl.appendChild(suitLabelSpan);
         tooltipEl.appendChild(titleEl);
         tooltipEl.appendChild(metaEl);
         tooltipEl.appendChild(suitEl);
@@ -1334,18 +1369,22 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
     allAmenities.forEach((amenity) => {
       const isPinned = pinnedIds.has(amenity.id) || Boolean(amenity.isPinned);
 
-      const symbol =
+      const CategoryIcon =
         amenity.category === 'water'
-          ? '💧'
+          ? Droplets
           : amenity.category === 'cemetery'
-          ? '🪦'
+          ? Skull
           : amenity.category === 'food'
-          ? '🥖'
+          ? Croissant
           : amenity.category === 'essentials'
-          ? '🚻'
+          ? Shield
           : amenity.category === 'bailout'
-          ? '🚆'
-          : '🔧';
+          ? Train
+          : Wrench;
+
+      const iconSvg = renderToStaticMarkup(
+        <CategoryIcon size={isPinned ? 14 : 11} strokeWidth={2.2} aria-hidden="true" />
+      );
 
       const catBg =
         amenity.category === 'water'
@@ -1376,12 +1415,12 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
       const html = isPinned
         ? `<div style="position: relative; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
             <div style="position: absolute; inset: -4px; border-radius: 9999px; background: rgba(242, 244, 85, 0.45); box-shadow: 0 0 10px rgba(242, 244, 85, 0.85); animation: pulse 2s infinite;"></div>
-            <div style="background-color: #F2F455; width: 26px; height: 26px; border-radius: 9999px; border: 2.5px solid #111111; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: bold; box-shadow: 0 2px 6px rgba(0,0,0,0.35);">
-              ${symbol}
+            <div style="background-color: #F2F455; color: #111111; width: 26px; height: 26px; border-radius: 9999px; border: 2.5px solid #111111; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.35);">
+              ${iconSvg}
             </div>
           </div>`
-        : `<div style="width: 20px; height: 20px; border-radius: 9999px; background-color: ${catBg}; border: 2px solid #ffffff; display: flex; align-items: center; justify-content: center; font-size: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.25); cursor: pointer;">
-            ${symbol}
+        : `<div style="width: 20px; height: 20px; border-radius: 9999px; background-color: ${catBg}; color: #ffffff; border: 2px solid #ffffff; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.25); cursor: pointer;">
+            ${iconSvg}
           </div>`;
 
       const icon = L.divIcon({
@@ -1558,31 +1597,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
               )}
             </Button>
 
-            {/* 2. Corridor Resupply Radar Button */}
-            <Button variant="ghost"
-              type="button"
-              onClick={() => {
-                setActivePopover(null);
-                setIsRadarOpen((prev) => !prev);
-              }}
-              aria-expanded={isRadarOpen}
-              aria-label={t('resupplyRadarTitle')}
-              title={`${t('resupplyRadarTitle')}${
-                trip.pinnedAmenities && trip.pinnedAmenities.length > 0
-                  ? ` (${trip.pinnedAmenities.length} ${t('pinnedStop')})`
-                  : ''
-              }`}
-              className={`relative w-11 h-11 sm:w-9 sm:h-9 aspect-square rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 shrink-0 hover:bg-pod dark:hover:bg-white/10 text-ink-secondary hover:text-ink ${CHIP_RING_BASE} ${CHIP_RING_UNSELECTED} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
-            >
-              <Radar className="w-4 h-4 text-current" />
-              {trip.pinnedAmenities && trip.pinnedAmenities.length > 0 && (
-                <span className="pointer-events-none absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-volt text-[#111111] font-rounded font-extrabold text-[10px] leading-none flex items-center justify-center shadow-xs ring-1 ring-card tnum">
-                  {trip.pinnedAmenities.length}
-                </span>
-              )}
-            </Button>
-
-            {/* 3. Rider Bike Garage Button */}
+            {/* 2. Rider Bike Garage Button */}
             <Button variant="ghost"
               type="button"
               onClick={() => {
@@ -2114,14 +2129,14 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     size="md"
                     icon={isSportTrip ? BikeFast : undefined}
                     dot={!isSportTrip}
-                    className="py-1.5 px-3 sm:px-3.5"
+                    className="h-8 py-0 px-3.5"
                   >
                     {heroBadge}
                   </Badge>
                 );
               })()}
 
-              <Badge variant="rose" size="md" icon={MapPin} className="py-1.5 px-3 sm:px-3.5">
+              <Badge variant="rose" size="md" icon={MapPin} className="h-8 py-0 px-3.5">
                 {heroTarget}
               </Badge>
 
@@ -2133,7 +2148,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   onClick={() => setActivePopover((prev) => (prev === 'load' ? null : 'load'))}
                   aria-expanded={activePopover === 'load'}
                   data-testid="hero-quick-load-pill"
-                  className={`inline-flex items-center gap-1.5 rounded-full py-1.5 px-3 text-xs font-rounded font-bold transition-all tnum ${
+                  className={`inline-flex items-center gap-1.5 rounded-full h-8 px-3.5 text-xs font-rounded font-bold transition-all tnum ${
                     activePopover === 'load'
                       ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
                       : 'bg-card/90 dark:bg-[#161618]/90 text-ink hover:bg-card shadow-xs'
@@ -2244,7 +2259,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   onClick={() => setActivePopover((prev) => (prev === 'tripType' ? null : 'tripType'))}
                   aria-expanded={activePopover === 'tripType'}
                   data-testid="hero-quick-type-pill"
-                  className={`inline-flex items-center gap-1 rounded-full py-1.5 px-3 sm:px-3.5 text-xs font-rounded font-bold transition-all ${
+                  className={`inline-flex items-center gap-1 rounded-full h-8 px-3.5 text-xs font-rounded font-bold transition-all ${
                     activePopover === 'tripType'
                       ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
                       : `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary}`
@@ -2958,63 +2973,199 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
               </div>
             </div>
 
-            {/* 4. Energy Burned / Fuel Units */}
-            <div className="rounded-pod p-3 sm:p-3.5 bg-pod dark:bg-[#161618] text-ink flex flex-col justify-between min-h-[100px] sm:min-h-[112px] transition-all">
-              <div className="flex items-center justify-between gap-1.5 text-xs font-medium text-ink-muted shrink-0">
-                <span className="break-words">
-                  {effectiveSpecs.telemetryMode === 'quantitative'
-                    ? t('energyBurn')
-                    : effectiveSpecs.telemetryMode === 'fuel-first'
-                    ? isFr
-                      ? 'Unités Ravito'
-                      : 'Fuel Units'
-                    : isFr
-                    ? 'Rythme Ravito'
-                    : 'Fueling Rhythm'}
-                </span>
-                <Flame2 className={`w-4 h-4 shrink-0 ${CHIP_TOKENS.amber.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
-              </div>
-              <div className="mt-auto pt-2 flex flex-col items-start justify-between gap-1 min-w-0">
-                <div className="flex items-baseline gap-1 flex-wrap min-w-0">
-                  <span className="text-lg sm:text-xl xl:text-[22px] font-bold tracking-tight tnum leading-none text-ink">
-                    {effectiveSpecs.telemetryMode === 'quantitative'
-                      ? totalKcal
-                      : effectiveSpecs.telemetryMode === 'fuel-first'
-                      ? Math.max(1, Math.round(dynamicCarb.targetOnBikeCarbsG / 20))
-                      : isFr
-                      ? 'Régulier'
-                      : 'Steady'}
-                  </span>
-                  {effectiveSpecs.telemetryMode === 'quantitative' ? (
-                    <span className="text-xs font-medium text-ink-muted">kcal</span>
-                  ) : effectiveSpecs.telemetryMode === 'fuel-first' ? (
-                    <span className="text-xs font-medium text-ink-muted">{isFr ? 'unités' : 'units'}</span>
-                  ) : null}
+            {/* 4. Energy Burned / Fuel Units (Interactive Cadence Intelligence Popover) */}
+            {(() => {
+              const totalFuelUnits = Math.max(1, Math.round(dynamicCarb.targetOnBikeCarbsG / 20));
+              const fuelUnitsPerHr = Math.max(1, Math.round(dynamicCarb.effectiveHourlyRateG / 20));
+              const totalKcalNum = Math.round(physicsResult.totalKcalBurn || 0);
+              const croissantsEarned = Math.max(0.1, Number((totalKcalNum / 260).toFixed(1)));
+              const isShortFuelRide = movingMinutes < 45;
+              const eatEveryMin =
+                dynamicCarb.effectiveHourlyRateG >= 65
+                  ? 20
+                  : dynamicCarb.effectiveHourlyRateG >= 45
+                  ? 25
+                  : 30;
+              const unitWord = isFr
+                ? totalFuelUnits === 1
+                  ? 'unité'
+                  : 'unités'
+                : totalFuelUnits === 1
+                ? 'unit'
+                : 'units';
+              const unitPerHrWord = isFr
+                ? fuelUnitsPerHr === 1
+                  ? 'unité/h'
+                  : 'unités/h'
+                : fuelUnitsPerHr === 1
+                ? 'unit/h'
+                : 'units/h';
+
+              return (
+                <div className="relative">
+                  {activePopover === 'fuel' && (
+                    <div className="absolute left-0 sm:left-auto sm:right-0 bottom-full mb-2.5 w-[min(22rem,calc(100vw-2.5rem))] z-40 rounded-card p-3.5 sm:p-4 bg-card dark:bg-[#161618] text-ink ring-1 ring-inset ring-ink/10 dark:ring-white/15 shadow-2xl animate-apple-popover space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <h4 className="text-sm sm:text-[15px] font-bold font-rounded text-ink leading-snug">
+                            {isFr ? 'Carburant & énergie' : 'Fuel & energy insight'}
+                          </h4>
+                          <p className="text-[11px] text-ink-muted mt-0.5 leading-snug">
+                            {isFr
+                              ? '1 unité ≈ 20 g de glucides (1 banane, 2 dattes ou ½ barre)'
+                              : '1 unit ≈ 20 g easy carbs (1 banana, 2 dates, or ½ oat bar)'}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          type="button"
+                          onClick={() => setActivePopover(null)}
+                          aria-label={isFr ? 'Fermer' : 'Close'}
+                          className="w-8 h-8 p-0 rounded-full bg-pod hover:bg-chip text-ink-secondary shrink-0 cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+
+                      <CadenceInsight
+                        compact
+                        tone="amber"
+                        headline={
+                          isShortFuelRide
+                            ? isFr
+                              ? 'Pas besoin de ravito en selle — de l’eau suffit largement.'
+                              : 'No need to pack snacks — water alone easily covers this ride.'
+                            : isFr
+                            ? `Vise ~${fuelUnitsPerHr} en-cas/h (${totalFuelUnits} au total) pour garder de l’énergie jusqu’au bout.`
+                            : `Aim for ~${fuelUnitsPerHr} snack${fuelUnitsPerHr > 1 ? 's' : ''}/hr (${totalFuelUnits} total) so your legs stay steady.`
+                        }
+                        detail={
+                          isShortFuelRide
+                            ? isFr
+                              ? `Environ ${totalKcal} kcal brûlées (≈ ${croissantsEarned} croissant${croissantsEarned >= 1.5 ? 's' : ''}) — tes repas habituels font tout le travail.`
+                              : `Around ${totalKcal} kcal burned (≈ ${croissantsEarned} croissant${croissantsEarned >= 1.5 ? 's' : ''}) — your regular meals cover it.`
+                            : isFr
+                            ? `Environ ${totalKcal} kcal brûlées (≈ ${croissantsEarned} croissant${croissantsEarned >= 1.5 ? 's' : ''} mérité${croissantsEarned >= 1.5 ? 's' : ''}). Grignote toutes les ${eatEveryMin} min avant d’avoir faim.`
+                            : `Around ${totalKcal} kcal burned (≈ ${croissantsEarned} croissant${croissantsEarned >= 1.5 ? 's' : ''} earned). Nibble every ${eatEveryMin} min before hunger hits.`
+                        }
+                      />
+
+                      <div className="grid grid-cols-3 gap-2 tnum">
+                        <div className="rounded-sub-pod bg-pod p-2.5">
+                          <div className="text-[10px] font-rounded font-semibold text-ink-muted">
+                            {isFr ? 'Dépense' : 'Total burn'}
+                          </div>
+                          <div className="text-sm font-bold font-rounded text-ink mt-0.5">
+                            ~{totalKcal}
+                          </div>
+                          <div className="text-[10px] text-ink-muted">kcal</div>
+                        </div>
+                        <div className="rounded-sub-pod bg-pod p-2.5">
+                          <div className="text-[10px] font-rounded font-semibold text-ink-muted">
+                            {isFr ? 'En croissants' : 'In croissants'}
+                          </div>
+                          <div className="text-sm font-bold font-rounded text-amber-600 dark:text-amber-400 mt-0.5">
+                            ≈ {croissantsEarned}
+                          </div>
+                          <div className="text-[10px] text-ink-muted">
+                            {isFr ? 'mérités' : 'earned'}
+                          </div>
+                        </div>
+                        <div className="rounded-sub-pod bg-pod p-2.5">
+                          <div className="text-[10px] font-rounded font-semibold text-ink-muted">
+                            {isFr ? 'Rythme' : 'Rhythm'}
+                          </div>
+                          <div className="text-sm font-bold font-rounded text-ink mt-0.5">
+                            {isShortFuelRide ? (isFr ? 'Eau' : 'Water') : `${eatEveryMin} min`}
+                          </div>
+                          <div className="text-[10px] text-ink-muted">
+                            {isShortFuelRide
+                              ? isFr
+                                ? 'seule'
+                                : 'only'
+                              : isFr
+                              ? 'par bouchée'
+                              : 'per bite'}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={activePopover === 'fuel'}
+                    onClick={() => setActivePopover((prev) => (prev === 'fuel' ? null : 'fuel'))}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setActivePopover((prev) => (prev === 'fuel' ? null : 'fuel'));
+                      }
+                    }}
+                    className={`h-full rounded-pod p-3 sm:p-3.5 bg-pod dark:bg-[#161618] text-ink flex flex-col justify-between min-h-[100px] sm:min-h-[112px] transition-all cursor-pointer select-none group ${
+                      activePopover === 'fuel'
+                        ? 'ring-2 ring-inset ring-ink/35 dark:ring-white/35'
+                        : 'hover:bg-chip/60'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-1.5 text-xs font-medium text-ink-muted shrink-0">
+                      <span className="break-words">
+                        {effectiveSpecs.telemetryMode === 'quantitative'
+                          ? t('energyBurn')
+                          : effectiveSpecs.telemetryMode === 'fuel-first'
+                          ? isFr
+                            ? 'Unités Ravito'
+                            : 'Fuel Units'
+                          : isFr
+                          ? 'Rythme Ravito'
+                          : 'Fueling Rhythm'}
+                      </span>
+                      <span className="flex items-center gap-1.5 shrink-0">
+                        <CaretUp
+                          className={`w-3 h-3 opacity-55 group-hover:opacity-100 transition-transform ${
+                            activePopover === 'fuel' ? 'rotate-180 opacity-100 text-ink' : ''
+                          }`}
+                        />
+                        <Flame2 className={`w-4 h-4 shrink-0 ${CHIP_TOKENS.amber.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
+                      </span>
+                    </div>
+                    <div className="mt-auto pt-2 flex flex-col items-start justify-between gap-1 min-w-0">
+                      <div className="flex items-baseline gap-1 flex-wrap min-w-0">
+                        <span className="text-lg sm:text-xl xl:text-[22px] font-bold tracking-tight tnum leading-none text-ink">
+                          {effectiveSpecs.telemetryMode === 'quantitative'
+                            ? totalKcal
+                            : effectiveSpecs.telemetryMode === 'fuel-first'
+                            ? totalFuelUnits
+                            : isFr
+                            ? 'Régulier'
+                            : 'Steady'}
+                        </span>
+                        {effectiveSpecs.telemetryMode === 'quantitative' ? (
+                          <span className="text-xs font-medium text-ink-muted">kcal</span>
+                        ) : effectiveSpecs.telemetryMode === 'fuel-first' ? (
+                          <span className="text-xs font-medium text-ink-muted">{unitWord}</span>
+                        ) : null}
+                      </div>
+                      <span className="text-[11px] font-medium text-ink-muted tnum break-words w-full text-left min-w-0 leading-tight">
+                        {effectiveSpecs.telemetryMode === 'quantitative'
+                          ? `${dynamicCarb.effectiveHourlyRateG} g/h ${isFr ? 'ravito' : 'carbs'}`
+                          : effectiveSpecs.telemetryMode === 'fuel-first'
+                          ? isShortFuelRide
+                            ? isFr
+                              ? 'Eau seule suffit'
+                              : 'Water only needed'
+                            : `${fuelUnitsPerHr} ${unitPerHrWord}`
+                          : isFr
+                          ? '1 gorgée / 20 min'
+                          : 'Sip every 20 min'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <span
-                  className="text-[11px] font-medium text-ink-muted tnum break-words w-full text-left min-w-0 leading-tight"
-                  title={
-                    effectiveSpecs.telemetryMode === 'quantitative'
-                      ? isFr
-                        ? `Cible ravito : ${dynamicCarb.effectiveHourlyRateG} g/h`
-                        : `Fueling target: ${dynamicCarb.effectiveHourlyRateG} g/h`
-                      : effectiveSpecs.telemetryMode === 'fuel-first'
-                      ? `${Math.max(1, Math.round(dynamicCarb.effectiveHourlyRateG / 20))} ${isFr ? 'unités / h' : 'fuel units / hr'}`
-                      : isFr
-                      ? 'Hydratation régulière'
-                      : 'Steady hydration'
-                  }
-                >
-                  {effectiveSpecs.telemetryMode === 'quantitative'
-                    ? `${dynamicCarb.effectiveHourlyRateG} g/h ${isFr ? 'ravito' : 'carbs'}`
-                    : effectiveSpecs.telemetryMode === 'fuel-first'
-                    ? `${Math.max(1, Math.round(dynamicCarb.effectiveHourlyRateG / 20))} ${isFr ? 'unités/h' : 'units/h'}`
-                    : isFr
-                    ? '1 gorgée / 20 min'
-                    : 'Sip every 20 min'}
-                </span>
-              </div>
-            </div>
+              );
+            })()}
 
             {/* 5. Elevation Gain (Click Dot-Matrix Brand Overlay) */}
             <div className="relative">

@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { Search } from 'lucide-react';
 import { TripProfile } from '../../types/trip';
 import { RiderBikeSpecs } from '../../types/specs';
 import { getActiveBike } from '../../utils/specsStorage';
@@ -8,6 +9,8 @@ import { useTranslation, getLocalizedTripMeta } from '../../context/LanguageCont
 import { useAuth } from '../../context/AuthContext';
 import { useUserProfile } from '../../utils/userProfileStorage';
 import { calculatePhysics } from '../../utils/physics';
+import { AppView, HomeMobileView } from '../../utils/appNavigation';
+import { FreeWebToolId, TOOL_CATALOG } from '../../utils/toolCatalog';
 import {
   Sun,
   Moon,
@@ -30,72 +33,109 @@ import {
   ArrowLeft,
   SlidersHorizontal,
   Scissors,
+  Plus,
 } from '@/components/icons';
 
 import { IconBadge } from '../common/IconBadge';
 import { Button } from '@/components/arc/button/button';
-import type { FreeWebToolId } from '../../utils/toolCatalog';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
   CHIP_RING_BASE,
+  CHIP_RING_UNSELECTED,
   CHIP_TOKENS,
   GREYSCALE_TOKENS,
   YELLOW_VEST_SOLID_CTA_CLASSES,
   LayeredTokenTheme,
 } from '../../tokens/chipTokens';
 
-interface TopTelemetryBarProps {
+export interface TopTelemetryBarProps {
   activeTrip?: TripProfile | null;
-  currentView: 'home' | 'configurator' | 'dashboard' | 'tools';
-  onNavigate: (view: 'home' | 'configurator' | 'dashboard' | 'tools') => void;
+  allTrips: TripProfile[];
+  currentView: AppView;
+  homeMobileView?: HomeMobileView;
+  toolsActiveTab?: FreeWebToolId;
+  configuratorReturnView?: 'home' | 'dashboard';
+  dashboardBackTarget?: HomeMobileView;
+  onNavigate: (view: AppView) => void;
+  onSelectTrip?: (id: string) => void;
+  onCreateNewTrip: () => void;
+  onBackFromTrips?: () => void;
+  onBackFromDashboard?: () => void;
+  onBackFromConfigurator?: () => void;
   onOpenSpecs?: () => void;
   onPrint?: () => void;
   onShareReceipt?: () => void;
   onOpenFeedback?: () => void;
   onOpenRideBrief?: () => void;
   onOpenTools?: (tab?: FreeWebToolId) => void;
+  onOpenMobileWeather?: () => void;
+  onOpenCommandPalette?: () => void;
   riderSpecs?: RiderBikeSpecs;
   isMenuOpen?: boolean;
   onMenuOpenChange?: (open: boolean) => void;
-  dashboardBackTarget?: 'home' | 'trips';
-  onBackFromDashboard?: () => void;
-  onOpenMobileWeather?: () => void;
 }
 
 export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
   activeTrip,
+  allTrips: _allTrips,
   currentView,
+  homeMobileView = 'home',
+  toolsActiveTab = 'hub',
+  configuratorReturnView = 'dashboard',
+  dashboardBackTarget = 'home',
   onNavigate,
+  onSelectTrip: _onSelectTrip,
+  onCreateNewTrip,
+  onBackFromTrips,
+  onBackFromDashboard,
+  onBackFromConfigurator,
   onOpenSpecs,
   onPrint,
   onShareReceipt,
   onOpenFeedback,
   onOpenRideBrief: _onOpenRideBrief,
   onOpenTools,
+  onOpenMobileWeather,
+  onOpenCommandPalette,
   riderSpecs,
   isMenuOpen: propIsMenuOpen,
   onMenuOpenChange,
-  dashboardBackTarget = 'home',
-  onBackFromDashboard,
-  onOpenMobileWeather,
 }) => {
   const { isDark, themePreference, setThemePreference } = useTheme();
   const { lang, setLang, t } = useTranslation();
   const { user, openAuthModal, signOut, syncStatus, forceSyncNow } = useAuth();
   const { username } = useUserProfile();
-  const [currentTime, setCurrentTime] = useState<string>('');
   const [internalMenuOpen, setInternalMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+
   const isMenuOpen = propIsMenuOpen !== undefined ? propIsMenuOpen : internalMenuOpen;
   const setIsMenuOpen = (open: boolean | ((prev: boolean) => boolean)) => {
     const nextVal = typeof open === 'function' ? open(isMenuOpen) : open;
     setInternalMenuOpen(nextVal);
     onMenuOpenChange?.(nextVal);
   };
+
   const menuContainerRef = useRef<HTMLDivElement>(null);
+  const mobileMenuContainerRef = useRef<HTMLDivElement>(null);
   const mobileSheetRef = useRef<HTMLDivElement>(null);
+
   const [exportedFormat, setExportedFormat] = useState<'FIT' | 'GPX' | 'TCX' | null>(null);
   const [syncDone, setSyncDone] = useState(false);
   const exportFeedbackTimerRef = useRef<number | null>(null);
+
+  const isMac = useMemo(() => {
+    if (typeof navigator === 'undefined') return true;
+    return /mac|iphone|ipad|ipod/i.test(navigator.platform || navigator.userAgent || '');
+  }, []);
+
+  // Scroll hairline affordance for sticky top bar
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onScroll = () => setIsScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -115,7 +155,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
     }, 1500);
   };
 
-  // Close overlay on click outside or Escape, while preserving persistent state when modals are active
+  // Close Settings menu on click outside / Escape + lock background scroll on mobile sheet
   useEffect(() => {
     if (!isMenuOpen) return;
 
@@ -123,7 +163,6 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
       const target = e.target as HTMLElement | null;
       if (!target) return;
 
-      // If user is clicking inside an active modal dialog/backdrop, do NOT close the menu underneath
       if (
         target.closest('[role="dialog"]') ||
         target.closest('.modal-content') ||
@@ -132,19 +171,17 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
         return;
       }
 
-      // If user is clicking inside the portaled mobile card, do NOT close
-      if (mobileSheetRef.current && mobileSheetRef.current.contains(target)) {
-        return;
-      }
-
-      if (menuContainerRef.current && !menuContainerRef.current.contains(target)) {
+      const insideDesktopMenu = menuContainerRef.current?.contains(target);
+      const insideMobileMenuBtn = mobileMenuContainerRef.current?.contains(target);
+      const insideMobileSheet = mobileSheetRef.current?.contains(target);
+      if (!insideDesktopMenu && !insideMobileMenuBtn && !insideMobileSheet) {
         setIsMenuOpen(false);
       }
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        const hasOpenModal = document.querySelector('[role="dialog"]');
+        const hasOpenModal = document.querySelector('[role="dialog"][aria-modal="true"]');
         if (!hasOpenModal) {
           setIsMenuOpen(false);
         }
@@ -154,19 +191,14 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('keydown', handleKeyDown);
 
-    // Prevent background scrolling completely when overlay is open
+    const isMobileViewport = typeof window !== 'undefined' && window.innerWidth < 768;
     const originalBodyOverflow = document.body.style.overflow;
     const originalHtmlOverflow = document.documentElement.style.overflow;
 
-    document.body.style.overflow = 'hidden';
-    document.documentElement.style.overflow = 'hidden';
-
-    // Intercept touchmove on mobile so background page never scrolls when only the menu is open
     const handleTouchMove = (e: TouchEvent) => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
 
-      // Allow scrolling inside any open modal or dialog (Rider Specs, Share Receipt, Feedback, Auth, etc.)
       if (
         target.closest('[role="dialog"]') ||
         target.closest('[aria-modal="true"]') ||
@@ -177,12 +209,10 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
         return;
       }
 
-      // If any modal dialog is currently mounted in the DOM, let the modal handle all touches
       if (document.querySelector('[role="dialog"], [aria-modal="true"]')) {
         return;
       }
 
-      // Allow scrolling inside the mobile settings sheet
       if (mobileSheetRef.current && mobileSheetRef.current.contains(target)) {
         return;
       }
@@ -190,44 +220,38 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
       e.preventDefault();
     };
 
-    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    if (isMobileViewport) {
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+      document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('touchmove', handleTouchMove);
-      document.body.style.overflow = originalBodyOverflow;
-      document.documentElement.style.overflow = originalHtmlOverflow;
+      if (isMobileViewport) {
+        document.removeEventListener('touchmove', handleTouchMove);
+        document.body.style.overflow = originalBodyOverflow;
+        document.documentElement.style.overflow = originalHtmlOverflow;
+      }
     };
   }, [isMenuOpen]);
 
-  // Live real-time clock
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setCurrentTime(
-        now.toLocaleTimeString(lang === 'fr' ? 'fr-FR' : 'en-US', {
-          hour: '2-digit',
-          minute: '2-digit',
-        })
-      );
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 15000);
-    return () => clearInterval(interval);
-  }, [lang]);
-
   const activeMeta = activeTrip ? getLocalizedTripMeta(activeTrip, lang) : null;
   const activeBike = riderSpecs ? getActiveBike(riderSpecs) : null;
-  const physics = activeTrip
-    ? calculatePhysics(
-        activeTrip.physics,
-        activeTrip.route,
-        activeTrip.weather,
-        lang,
-        riderSpecs?.ftpWatts
-      )
-    : null;
+  const physics = useMemo(
+    () =>
+      activeTrip
+        ? calculatePhysics(
+            activeTrip.physics,
+            activeTrip.route,
+            activeTrip.weather,
+            lang,
+            riderSpecs?.ftpWatts
+          )
+        : null,
+    [activeTrip, lang, riderSpecs?.ftpWatts]
+  );
 
   const statusDotClass =
     physics?.goStatus === 'GO'
@@ -236,10 +260,12 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
       ? CHIP_TOKENS.amber.dot
       : CHIP_TOKENS.rose.dot;
 
-  const breadcrumbTargetView = currentView === 'dashboard' ? 'configurator' : 'dashboard';
+  const isFr = lang === 'fr';
+  const yellowVest = CHIP_TOKENS['yellow-vest'];
 
   // Avatar user display name / initial
-  const userDisplayName = username || (user?.email ? user.email.split('@')[0] : lang === 'fr' ? 'Cycliste' : 'Rider');
+  const userDisplayName =
+    username || (user?.email ? user.email.split('@')[0] : isFr ? 'Cycliste' : 'Rider');
   const userInitial = (userDisplayName[0] || 'R').toUpperCase();
 
   // Beacon status dot for cloud storage
@@ -251,10 +277,6 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
     ? 'bg-rose-500'
     : 'bg-emerald-500';
 
-  // ── Settings panel (shared by desktop popover + mobile sheet) ──────────────
-  const isFr = lang === 'fr';
-  const yellowVest = CHIP_TOKENS['yellow-vest'];
-
   const syncStatusLabel = !user
     ? isFr
       ? 'Enregistré sur cet appareil'
@@ -265,8 +287,8 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
     ? t('syncStatusError')
     : t('cloudSynced');
 
+  // ── Settings panel (shared by desktop popover + mobile sheet) ──────────────
   const renderPanel = (m: boolean) => {
-    // Size scale: mobile gets larger type and taller touch targets
     const rowH = m ? 'min-h-[60px]' : 'min-h-[52px]';
     const labelCls = m ? 'text-[15px]' : 'text-sm';
     const subCls = m ? 'text-[13px]' : 'text-xs';
@@ -315,11 +337,15 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
             >
               {label}
             </div>
-            {sub && <div className={`${subCls} text-ink-muted leading-snug break-words mt-0.5`}>{sub}</div>}
+            {sub && (
+              <div className={`${subCls} text-ink-muted leading-snug break-words mt-0.5`}>{sub}</div>
+            )}
           </div>
           {trailing !== undefined
             ? trailing
-            : onClick && <ChevronRight className="w-4 h-4 text-ink-muted/70 shrink-0" aria-hidden="true" />}
+            : onClick && (
+                <ChevronRight className="w-4 h-4 text-ink-muted/70 shrink-0" aria-hidden="true" />
+              )}
         </>
       );
 
@@ -387,7 +413,9 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
                   : 'ring-transparent text-ink-muted hover:text-ink'
               }`}
             >
-              {OptIcon && <OptIcon className="w-4 h-4 sm:w-3.5 sm:h-3.5 shrink-0 text-current" aria-hidden="true" />}
+              {OptIcon && (
+                <OptIcon className="w-4 h-4 sm:w-3.5 sm:h-3.5 shrink-0 text-current" aria-hidden="true" />
+              )}
               <span className={iconOnlyOnMobile && OptIcon ? 'hidden sm:inline' : undefined}>
                 {opt.label}
               </span>
@@ -546,7 +574,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
         </Group>
 
         {/* ── Ride ── */}
-        {(onOpenSpecs || onOpenTools) && (
+        {(onOpenSpecs || (m && onOpenTools)) && (
           <>
             <SectionLabel>{isFr ? 'Sortie' : 'Ride'}</SectionLabel>
             <Group>
@@ -570,12 +598,12 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
                   }}
                 />
               )}
-              {onOpenSpecs && onOpenTools && <Divider />}
-              {onOpenTools && (
+              {m && onOpenSpecs && onOpenTools && <Divider />}
+              {m && onOpenTools && (
                 <Row
                   theme="purple"
                   icon={Calculator}
-                  label="Multi-Tool"
+                  label={t('navMultiTool')}
                   sub={
                     isFr
                       ? 'Pneus · Vent · Nutrition · Boulangeries · Tenue · Sticker cadre'
@@ -705,7 +733,10 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
                         }}
                         className="min-h-[44px] px-3 rounded-[14px] bg-card dark:bg-white/[0.07] hover:bg-chip text-ink text-xs font-rounded font-semibold inline-flex items-center justify-center gap-1.5 cursor-pointer ring-1 ring-inset ring-ink/[0.04] dark:ring-white/[0.06] active:scale-[0.98]"
                       >
-                        <ShareNetwork className="w-3.5 h-3.5 shrink-0 text-lime-700 dark:text-lime-400" aria-hidden="true" />
+                        <ShareNetwork
+                          className="w-3.5 h-3.5 shrink-0 text-lime-700 dark:text-lime-400"
+                          aria-hidden="true"
+                        />
                         <span>{isFr ? 'Partager' : 'Share ride'}</span>
                       </Button>
                     )}
@@ -720,7 +751,10 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
                         }}
                         className="min-h-[44px] px-3 rounded-[14px] bg-card dark:bg-white/[0.07] hover:bg-chip text-ink text-xs font-rounded font-semibold inline-flex items-center justify-center gap-1.5 cursor-pointer ring-1 ring-inset ring-ink/[0.04] dark:ring-white/[0.06] active:scale-[0.98]"
                       >
-                        <Printer className="w-3.5 h-3.5 shrink-0 text-blue-600 dark:text-blue-400" aria-hidden="true" />
+                        <Printer
+                          className="w-3.5 h-3.5 shrink-0 text-blue-600 dark:text-blue-400"
+                          aria-hidden="true"
+                        />
                         <span>{isFr ? 'Imprimer A4' : 'Print A4'}</span>
                       </Button>
                     )}
@@ -735,7 +769,10 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
                         }}
                         className="col-span-2 min-h-[44px] px-3 rounded-[14px] bg-card dark:bg-white/[0.07] hover:bg-chip text-ink text-xs font-rounded font-semibold inline-flex items-center justify-center gap-1.5 cursor-pointer ring-1 ring-inset ring-ink/[0.04] dark:ring-white/[0.06] active:scale-[0.98]"
                       >
-                        <Scissors className="w-3.5 h-3.5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden="true" />
+                        <Scissors
+                          className="w-3.5 h-3.5 shrink-0 text-amber-600 dark:text-amber-400"
+                          aria-hidden="true"
+                        />
                         <span>
                           {isFr ? 'Sticker cadre imprimable (Top-Tube)' : 'Print Top-Tube Stem Sticker'}
                         </span>
@@ -758,7 +795,9 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
                   theme="purple"
                   icon={Send}
                   label={t('sendFeedbackBtn')}
-                  sub={isFr ? 'Signaler un bug ou proposer une idée' : 'Report a bug or suggest an idea'}
+                  sub={
+                    isFr ? 'Signaler un bug ou proposer une idée' : 'Report a bug or suggest an idea'
+                  }
                   onClick={() => {
                     setIsMenuOpen(false);
                     onOpenFeedback();
@@ -793,219 +832,333 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
     );
   };
 
+  // Shared Brand Mark SVG
+  const BrandMark = ({ size = 'md' }: { size?: 'sm' | 'md' }) => (
+    <div
+      className={`${
+        size === 'sm' ? 'w-9 h-9' : 'w-9 h-9 lg:w-10 lg:h-10'
+      } rounded-full flex items-center justify-center group-hover:scale-105 transition-transform shrink-0 shadow-xs ${
+        yellowVest.surface
+      } ${yellowVest.primary} ${CHIP_RING_BASE} ${yellowVest.selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+    >
+      <svg
+        className="keyline-icon w-4.5 h-4.5"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="7" cy="12" r="3.5" fill="currentColor" fillOpacity="0.4" />
+        <circle cx="17" cy="12" r="3.5" fill="currentColor" fillOpacity="0.4" />
+        <path d="M9.5 9.2c1.6.9 3.4.9 5 0" />
+        <path d="M9.5 14.8c1.6-.9 3.4-.9 5 0" />
+      </svg>
+    </div>
+  );
+
+  // Shared Profile Trigger Button
+  const ProfileAvatarButton = () => (
+    <Button
+      variant="secondary"
+      size="sm"
+      onClick={() => setIsMenuOpen((prev) => !prev)}
+      aria-expanded={isMenuOpen}
+      aria-label={t('menuOpenAria')}
+      title={user ? `${user.email} (${t('cloudSynced')})` : t('savedOnDeviceClickToSync')}
+      className={`relative aspect-square w-10 h-10 min-w-[40px] min-h-[40px] max-w-[40px] max-h-[40px] p-0 shrink-0 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-xs select-none focus:outline-none ring-2 ${
+        isMenuOpen
+          ? 'ring-volt bg-pod dark:bg-chip text-ink'
+          : 'ring-ink/10 dark:ring-white/15 bg-card dark:bg-pod text-ink hover:ring-volt/60'
+      }`}
+    >
+      {user ? (
+        <span className="font-bold text-sm text-ink">{userInitial}</span>
+      ) : (
+        <User size={19} className="w-5 h-5 text-ink-secondary shrink-0" />
+      )}
+      <span
+        className={`absolute bottom-0.5 right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-canvas ${syncBeaconClass}`}
+      />
+    </Button>
+  );
+
+  // Drilled-in back target & context (Home <-> Trip <-> Configurator | Home <-> Multi-Tool)
+  const isMobileHomeRoot = currentView === 'home' && homeMobileView === 'home';
+  const isMobileTrips = currentView === 'home' && homeMobileView === 'trips';
+  const isMobileFocusedTool = currentView === 'tools' && toolsActiveTab !== 'hub';
+  const isDesktopHome = currentView === 'home';
+
+  const activeToolMeta = useMemo(() => {
+    if (!isMobileFocusedTool) return null;
+    const normalized = toolsActiveTab === 'wind' ? 'flip-my-loop' : toolsActiveTab;
+    return TOOL_CATALOG.find((item) => item.id === normalized) || null;
+  }, [isMobileFocusedTool, toolsActiveTab]);
+
+  const backLabel = isMobileTrips
+    ? t('navHomeLabel')
+    : currentView === 'dashboard'
+    ? dashboardBackTarget === 'trips'
+      ? t('tripsPageHeading')
+      : t('navHomeLabel')
+    : currentView === 'configurator'
+    ? configuratorReturnView === 'dashboard'
+      ? t('navFlightDeck')
+      : t('navHomeLabel')
+    : isMobileFocusedTool
+    ? isFr
+      ? 'Tous les outils'
+      : 'All tools'
+    : t('navHomeLabel');
+
+  const handleBack = () => {
+    if (isMobileTrips) {
+      if (onBackFromTrips) onBackFromTrips();
+      else onNavigate('home');
+      return;
+    }
+    if (currentView === 'dashboard') {
+      if (onBackFromDashboard) onBackFromDashboard();
+      else onNavigate('home');
+      return;
+    }
+    if (currentView === 'configurator') {
+      if (onBackFromConfigurator) onBackFromConfigurator();
+      else onNavigate(configuratorReturnView);
+      return;
+    }
+    if (isMobileFocusedTool && onOpenTools) {
+      onOpenTools('hub');
+      return;
+    }
+    onNavigate('home');
+  };
+
   return (
-    <header className="w-full transition-colors duration-200 select-none no-print relative z-40">
-      <div className="w-full max-w-[1720px] mx-auto px-3.5 sm:px-5 lg:px-7 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-3 sm:pt-[calc(env(safe-area-inset-top,0px)+1rem)] sm:pb-4 flex items-center justify-between lg:grid lg:grid-cols-[1fr_auto_1fr] gap-2.5 sm:gap-4 lg:gap-5">
-        {/* Left: Back Button on Ride Plan (dashboard), or Chain-Link Brand Identifier */}
-        {currentView === 'dashboard' ? (
-          <Button
-            variant="secondary"
-            size="md"
-            onClick={() => (onBackFromDashboard ? onBackFromDashboard() : onNavigate('home'))}
-            className="lg:col-span-1 lg:justify-self-start inline-flex items-center gap-1.5 min-h-[44px] h-10 px-4 rounded-full bg-card hover:bg-pod text-ink border border-ink/5 dark:border-white/5 text-xs font-semibold shadow-xs cursor-pointer active:scale-[0.98]"
-          >
-            <ArrowLeft className="w-4 h-4 text-current shrink-0" />
-            <span>
-              {dashboardBackTarget === 'trips'
-                ? isFr
-                  ? 'Trajets'
-                  : 'Trips'
-                : isFr
-                ? 'Accueil'
-                : 'Home'}
-            </span>
-          </Button>
-        ) : (
-          <>
-            {currentView === 'home' && onOpenMobileWeather && (
+    <header
+      className={`cadence-top-nav sticky top-0 z-40 w-full select-none no-print transition-[background-color,border-color,box-shadow] duration-150 bg-canvas/90 backdrop-blur-md ${
+        isScrolled
+          ? 'border-b border-ink/[0.07] dark:border-white/[0.08] shadow-[0_1px_12px_rgba(0,0,0,0.04)] dark:shadow-[0_1px_14px_rgba(0,0,0,0.35)]'
+          : 'border-b border-transparent'
+      }`}
+    >
+      <div className="w-full max-w-[1720px] mx-auto px-3.5 sm:px-5 lg:px-7 pt-[max(0.5rem,env(safe-area-inset-top,0px))] pb-2 md:py-2.5">
+        {/* ════════════════════════════════════════════════════════════════════
+            DESKTOP & TABLET STICKY TOP BAR (>= md) — Drastically Simplified
+            Left: Cadence brand (Home) or ← Back pill (drilled-in)
+            Right: Equal-proportion Multi-Tool & Search (⌘K) pills + Profile avatar
+           ════════════════════════════════════════════════════════════════════ */}
+        <div className="hidden md:flex items-center justify-between gap-4 min-h-[40px]">
+          {/* LEFT: Brand (on Home) or Contextual ← Back Pill (on drilled-in views) */}
+          <div className="flex items-center gap-2.5 min-w-0">
+            {isDesktopHome ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onNavigate('home')}
+                title={t('navHome')}
+                aria-label={`${t('appName')} — ${t('navHome')}`}
+                className="inline-flex items-center gap-2.5 min-h-[40px] p-0 hover:bg-transparent cursor-pointer group shrink-0 focus:outline-none"
+              >
+                <BrandMark />
+                <span className="font-semibold tracking-tight text-ink text-[15px]">
+                  {t('appName')}
+                </span>
+              </Button>
+            ) : (
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={onOpenMobileWeather}
-                className="md:hidden inline-flex items-center gap-2 min-h-[40px] px-3.5 rounded-full bg-card hover:bg-pod text-ink border border-ink/5 dark:border-white/5 text-xs font-semibold shadow-xs cursor-pointer active:scale-[0.98]"
+                onClick={handleBack}
+                className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full bg-card hover:bg-pod text-ink border border-ink/5 dark:border-white/5 text-xs font-semibold shadow-xs cursor-pointer active:scale-[0.98] shrink-0"
               >
-                <span className={`w-2 h-2 rounded-full shrink-0 ${statusDotClass}`} />
-                <span>{t('weatherCardTitle')}</span>
+                <ArrowLeft className="w-3.5 h-3.5 text-current shrink-0" />
+                <span>{backLabel}</span>
               </Button>
             )}
-            <Button
-              variant="ghost"
-              size="md"
-              onClick={() => onNavigate('home')}
-              className={`${currentView === 'home' ? 'hidden md:flex' : 'flex'} lg:col-span-1 lg:justify-self-start items-center gap-2.5 sm:gap-3.5 min-h-[44px] p-0 hover:bg-transparent min-w-0 cursor-pointer group text-left focus:outline-none`}
-            >
-            <div
-              className={`w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center group-hover:scale-105 transition-transform shrink-0 shadow-xs ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
-            >
-              <svg
-                className="keyline-icon w-4.5 h-4.5 sm:w-5.5 sm:h-5.5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="7" cy="12" r="3.5" fill="currentColor" fillOpacity="0.4" />
-                <circle cx="17" cy="12" r="3.5" fill="currentColor" fillOpacity="0.4" />
-                <path d="M9.5 9.2c1.6.9 3.4.9 5 0" />
-                <path d="M9.5 14.8c1.6-.9 3.4-.9 5 0" />
-              </svg>
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="font-semibold tracking-tight text-ink text-[15px] sm:text-[17px] break-words">
-                  {t('appName')}
-                </span>
-              </div>
-              <p className="text-xs sm:text-[13px] text-ink-muted hidden md:block mt-0.5">
-                {t('headerTagline')}
-              </p>
-            </div>
-          </Button>
-          </>
-        )}
+          </div>
 
-        {/* Center: Live Operational Breadcrumb (True viewport center via symmetric 1fr_auto_1fr grid) */}
-        <div className="hidden lg:flex lg:justify-self-center min-w-0 max-w-[380px] xl:max-w-[540px] 2xl:max-w-[640px]">
-          {activeTrip && activeMeta && (
-            <Button
-              variant="secondary"
-              size="md"
-              onClick={() => onNavigate(breadcrumbTargetView)}
-              title={`${isFr ? 'Conditions de sortie' : 'Ride outlook'}: ${physics?.goStatus === 'GO' ? t('feasibilityOptimal') : physics?.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')} — ${physics?.goStatusReason || ''} (${currentView === 'dashboard' ? t('editParamsTitle') : t('openFlightDeckBtn')})`}
-              className="flex items-center gap-2.5 px-4 py-2 bg-card dark:bg-pod hover:bg-pod dark:hover:bg-chip rounded-full font-rounded text-[13px] sm:text-sm shadow-xs min-w-0 max-w-full transition-colors cursor-pointer focus:outline-none"
-            >
-              <span
-                className={`w-2.5 h-2.5 rounded-full shrink-0 ${statusDotClass}`}
-                title={`${physics?.goStatus === 'GO' ? t('feasibilityOptimal') : physics?.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')}: ${physics?.goStatusReason}`}
-              />
-              <span className="text-ink-muted font-rounded text-xs font-semibold shrink-0">
-                {activeTrip.tag === 'VÉLOTAF' ? (lang === 'fr' ? 'Vélotaf' : 'Commute') : activeTrip.tag}
-              </span>
-              <span className="text-ink-muted shrink-0">/</span>
-              <span className="text-ink font-semibold truncate leading-tight">{activeMeta.name}</span>
-              <span className="text-ink-muted shrink-0">·</span>
-              <span className="text-ink-secondary tnum font-bold shrink-0">
-                {activeTrip.route.distanceKm} km
-              </span>
-              <span
-                className={`text-[11px] font-medium px-2.5 py-0.5 rounded-full shrink-0 ${
-                  physics?.goStatus === 'GO'
-                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
-                    : physics?.goStatus === 'CAUTION'
-                    ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
-                    : 'bg-rose-500/15 text-rose-700 dark:text-rose-300'
+          {/* RIGHT: Multi-Tool + Search (⌘K) with matching proportions + Profile Avatar */}
+          <div className="flex items-center gap-2 shrink-0 relative" ref={menuContainerRef}>
+            {onOpenTools && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => onOpenTools('hub')}
+                aria-current={currentView === 'tools' ? 'page' : undefined}
+                className={`inline-flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-full text-xs font-rounded font-semibold shadow-xs cursor-pointer transition-all active:scale-[0.97] whitespace-nowrap shrink-0 ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                  currentView === 'tools'
+                    ? `${yellowVest.surface} ${yellowVest.primary} ${yellowVest.selectedRing}`
+                    : `${CHIP_RING_UNSELECTED} bg-card hover:bg-pod text-ink`
                 }`}
               >
-                {physics?.goStatus === 'GO' ? t('feasibilityOptimal') : physics?.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')}
-              </span>
-            </Button>
-          )}
+                <Calculator className="w-3.5 h-3.5 text-current shrink-0" aria-hidden="true" />
+                <span>{t('navMultiTool')}</span>
+              </Button>
+            )}
+
+            {onOpenCommandPalette && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onOpenCommandPalette}
+                aria-label={t('quickSwitchOpenAria')}
+                title={t('quickSwitchOpenAria')}
+                className="inline-flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-full bg-card hover:bg-pod text-ink text-xs font-rounded font-semibold shadow-xs cursor-pointer transition-all active:scale-[0.97] whitespace-nowrap shrink-0"
+              >
+                <Search className="w-3.5 h-3.5 text-ink-secondary shrink-0" aria-hidden="true" />
+                <span>{isFr ? 'Rechercher' : 'Search'}</span>
+                <kbd className="text-[11px] font-rounded font-bold text-ink-muted ml-0.5">
+                  {isMac ? '⌘K' : 'Ctrl K'}
+                </kbd>
+              </Button>
+            )}
+
+            <ProfileAvatarButton />
+
+            {/* Desktop Settings Popover */}
+            {isMenuOpen && (
+              <div
+                role="menu"
+                aria-label={isFr ? 'Réglages' : 'Settings'}
+                className="hidden md:block absolute right-0 top-full mt-2.5 w-[26rem] max-h-[calc(100dvh-5.5rem)] overflow-y-auto overscroll-contain bg-card dark:bg-[#18181B] border border-ink/[0.06] dark:border-white/[0.08] rounded-[28px] p-3 shadow-[0_24px_60px_rgba(0,0,0,0.16)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.6)] z-50 animate-apple-popover select-none"
+              >
+                {renderPanel(false)}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Right: Trip Setup on Ride Plan (dashboard), or Multi-Tool, Sync Clock & Profile Trigger */}
-        {currentView === 'dashboard' ? (
-          <div className="lg:justify-self-end flex items-center shrink-0">
-            <Button
-              variant="secondary"
-              size="md"
-              onClick={() => onNavigate('configurator')}
-              className="inline-flex items-center gap-1.5 min-h-[44px] h-10 px-4 rounded-full bg-card hover:bg-pod text-ink border border-ink/5 dark:border-white/5 text-xs font-semibold shadow-xs cursor-pointer active:scale-[0.98] whitespace-nowrap shrink-0"
-            >
-              <SlidersHorizontal className="w-4 h-4 text-current shrink-0" />
-              <span>{isFr ? 'Configuration' : 'Trip Setup'}</span>
-            </Button>
-          </div>
-        ) : (
-          <div className="lg:justify-self-end flex items-center gap-2 sm:gap-2.5 shrink-0 relative" ref={menuContainerRef}>
-          {/* Direct Multi-Tool Link (visible on BOTH mobile and desktop on non-tools screens) */}
-          {onOpenTools && currentView !== 'tools' && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => onOpenTools('hub')}
-              className="inline-flex items-center gap-1.5 min-h-[40px] sm:min-h-[38px] px-3 sm:px-3.5 rounded-full bg-card dark:bg-pod hover:bg-chip dark:hover:bg-elevated text-ink text-xs font-rounded font-semibold shadow-xs cursor-pointer active:scale-[0.98] whitespace-nowrap shrink-0"
-            >
-              <Calculator className="w-3.5 h-3.5 text-ink-secondary shrink-0" aria-hidden="true" />
-              <span>Multi-Tool</span>
-            </Button>
+        {/* ════════════════════════════════════════════════════════════════════
+            MOBILE STICKY STACK HEADER (< md)
+            Branch A: Home <-> Trips / Ride plan <-> Trip setup
+            Branch B: Home <-> Multi-Tool
+            Branch C: Home <-> Settings (persistent avatar)
+           ════════════════════════════════════════════════════════════════════ */}
+        <div className="flex md:hidden items-center justify-between gap-2 min-h-[40px]">
+          {isMobileHomeRoot ? (
+            <>
+              {/* Mobile Home Left: Brand Mark + Weather Quick Pill */}
+              <div className="flex items-center gap-2 min-w-0">
+                <BrandMark size="sm" />
+                {onOpenMobileWeather && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={onOpenMobileWeather}
+                    className="inline-flex items-center gap-1.5 min-h-[40px] px-3 rounded-full bg-card hover:bg-pod text-ink border border-ink/5 dark:border-white/5 text-xs font-semibold shadow-xs cursor-pointer active:scale-[0.98]"
+                  >
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${statusDotClass}`} />
+                    <span>{t('weatherCardTitle')}</span>
+                  </Button>
+                )}
+              </div>
+
+              {/* Mobile Home Right: Multi-Tool + Profile/Settings */}
+              <div className="flex items-center gap-2 shrink-0" ref={mobileMenuContainerRef}>
+                {onOpenTools && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => onOpenTools('hub')}
+                    className="inline-flex items-center gap-1.5 min-h-[40px] px-3 rounded-full bg-card hover:bg-pod text-ink text-xs font-rounded font-semibold shadow-xs cursor-pointer active:scale-[0.98] whitespace-nowrap shrink-0"
+                  >
+                    <Calculator className="w-3.5 h-3.5 text-ink-secondary shrink-0" aria-hidden="true" />
+                    <span>{t('navMultiTool')}</span>
+                  </Button>
+                )}
+                <ProfileAvatarButton />
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Mobile Drilled-in Left: Single Contextual Back Pill */}
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleBack}
+                className="inline-flex items-center gap-1.5 min-h-[40px] h-10 px-3 rounded-full bg-card hover:bg-pod text-ink border border-ink/5 dark:border-white/5 text-xs font-semibold shadow-xs cursor-pointer active:scale-[0.98] shrink-0"
+              >
+                <ArrowLeft className="w-4 h-4 text-current shrink-0" />
+                <span className="max-w-[110px] truncate">{backLabel}</span>
+              </Button>
+
+              {/* Mobile Drilled-in Center: Clean View Title (No trip switcher clutter) */}
+              <div className="min-w-0 flex-1 flex justify-center px-1">
+                <span className="text-sm font-semibold font-rounded text-ink tracking-tight truncate">
+                  {isMobileTrips
+                    ? t('tripsPageHeading')
+                    : currentView === 'dashboard'
+                    ? t('navFlightDeck')
+                    : currentView === 'configurator'
+                    ? t('navConfigurator')
+                    : isMobileFocusedTool && activeToolMeta
+                    ? isFr
+                      ? activeToolMeta.shortLabelFr
+                      : activeToolMeta.shortLabelEn
+                    : t('navMultiTool')}
+                </span>
+              </div>
+
+              {/* Mobile Drilled-in Right: Contextual Action + Persistent Profile Avatar */}
+              <div className="flex items-center gap-1.5 shrink-0" ref={mobileMenuContainerRef}>
+                {currentView === 'dashboard' && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => onNavigate('configurator')}
+                    aria-label={t('navConfigurator')}
+                    title={t('navConfigurator')}
+                    className="w-10 h-10 p-0 rounded-full bg-card hover:bg-pod text-ink border border-ink/5 dark:border-white/5 flex items-center justify-center shadow-xs cursor-pointer active:scale-[0.97] shrink-0"
+                  >
+                    <SlidersHorizontal className="w-4 h-4 text-current" />
+                  </Button>
+                )}
+
+                {isMobileTrips && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onCreateNewTrip}
+                    aria-label={t('createNewTripBtn')}
+                    title={t('createNewTripBtn')}
+                    className="w-10 h-10 p-0 rounded-full bg-[#111111] hover:bg-[#262626] text-white dark:bg-[#F5F5F7] dark:hover:bg-white dark:text-[#111111] flex items-center justify-center shadow-xs cursor-pointer active:scale-[0.97] shrink-0"
+                  >
+                    <Plus className="w-4 h-4 text-current stroke-[2.2]" />
+                  </Button>
+                )}
+
+                <ProfileAvatarButton />
+              </div>
+            </>
           )}
-          {/* Real-time Clock — strict single-line, never wraps */}
-          <div className="hidden sm:inline-flex items-center px-3.5 py-2 bg-card dark:bg-pod rounded-full text-xs sm:text-[13px] font-rounded text-ink shadow-xs whitespace-nowrap shrink-0">
-            <span className="font-bold text-ink tnum whitespace-nowrap">{currentTime}</span>
-          </div>
+        </div>
+      </div>
 
-          {/* Unified Profile & Utility Trigger Button — strict 1:1 circle, never squircle */}
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setIsMenuOpen((prev) => !prev)}
-            aria-expanded={isMenuOpen}
-            aria-label={t('menuOpenAria')}
-            title={user ? `${user.email} (${t('cloudSynced')})` : t('savedOnDeviceClickToSync')}
-            className={`relative aspect-square w-10 h-10 min-w-[40px] min-h-[40px] max-w-[40px] max-h-[40px] p-0 shrink-0 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-xs select-none focus:outline-none ring-2 ${
-              isMenuOpen
-                ? 'ring-volt bg-pod dark:bg-chip text-ink'
-                : 'ring-ink/10 dark:ring-white/15 bg-card dark:bg-pod text-ink hover:ring-volt/60'
-            }`}
-          >
-            {user ? (
-              <span className="font-bold text-sm text-ink">{userInitial}</span>
-            ) : (
-              <User size={19} className="w-5 h-5 text-ink-secondary shrink-0" />
-            )}
-
-            {/* Live Sync Beacon Indicator Dot */}
-            <span
-              className={`absolute bottom-0.5 right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-canvas ${syncBeaconClass}`}
-            />
-          </Button>
-
-
-          {/* ══════════════════════════════════════════════════════════════════
-              DESKTOP SETTINGS POPOVER (anchored to avatar trigger)
-             ══════════════════════════════════════════════════════════════════ */}
-          {isMenuOpen && (
+      {/* ══════════════════════════════════════════════════════════════════════
+          MOBILE SETTINGS SHEET (inset floating card, portaled to body)
+         ══════════════════════════════════════════════════════════════════════ */}
+      {isMenuOpen &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div className="md:hidden no-print print:hidden">
             <div
+              className="fixed inset-0 z-[60] bg-black/80 animate-apple-fade-in touch-none"
+              onClick={() => setIsMenuOpen(false)}
+            />
+            <div
+              ref={mobileSheetRef}
               role="menu"
               aria-label={isFr ? 'Réglages' : 'Settings'}
-              className="hidden sm:block absolute right-0 top-full mt-3 w-[26rem] max-h-[calc(100dvh-6.5rem)] overflow-y-auto overscroll-contain bg-card dark:bg-[#18181B] border border-ink/[0.06] dark:border-white/[0.08] rounded-[28px] p-3 shadow-[0_24px_60px_rgba(0,0,0,0.16)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.6)] z-50 animate-apple-popover select-none"
+              className="fixed inset-x-3.5 bottom-[max(1rem,env(safe-area-inset-bottom))] z-[65] max-w-lg mx-auto bg-card dark:bg-[#18181B] border-0 rounded-[32px] px-4 pt-3 pb-4 shadow-2xl max-h-[85dvh] overflow-y-auto overscroll-contain animate-apple-modal select-none"
             >
-              {renderPanel(false)}
+              <div className="w-10 h-1 bg-ink/15 dark:bg-white/20 rounded-full mx-auto mb-3" />
+              {renderPanel(true)}
             </div>
-          )}
-
-          {/* ══════════════════════════════════════════════════════════════════
-              MOBILE SETTINGS SHEET (inset floating card, portaled to body)
-             ══════════════════════════════════════════════════════════════════ */}
-          {isMenuOpen &&
-            typeof document !== 'undefined' &&
-            createPortal(
-              <div className="sm:hidden no-print print:hidden">
-                {/* Solid dark backdrop (no blur) */}
-                <div
-                  className="fixed inset-0 z-[60] bg-black/85 animate-apple-fade-in touch-none"
-                  onClick={() => setIsMenuOpen(false)}
-                />
-
-                {/* Inset floating card */}
-                <div
-                  ref={mobileSheetRef}
-                  role="menu"
-                  aria-label={isFr ? 'Réglages' : 'Settings'}
-                  className="fixed inset-x-3.5 bottom-[max(1rem,env(safe-area-inset-bottom))] z-[65] max-w-lg mx-auto bg-card dark:bg-[#18181B] border-0 rounded-[32px] px-4 pt-3 pb-4 shadow-2xl max-h-[85vh] max-h-[85dvh] overflow-y-auto overscroll-contain animate-apple-modal select-none"
-                >
-                  {/* Grabber */}
-                  <div className="w-10 h-1 bg-ink/15 dark:bg-white/20 rounded-full mx-auto mb-3" />
-                  {renderPanel(true)}
-                </div>
-              </div>,
-              document.body
-            )}
-          </div>
+          </div>,
+          document.body
         )}
-      </div>
     </header>
   );
 };

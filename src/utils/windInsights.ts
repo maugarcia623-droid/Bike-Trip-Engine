@@ -57,31 +57,66 @@ export interface HumanWindImpactResult {
   iconicClimbComparison: string | null;
 }
 
-function getIconicClimbComparison(ghostElevationM: number, lang: 'en' | 'fr'): string | null {
+/**
+ * Translates any climbing height (meters) — real terrain or wind ghost elevation —
+ * into an immediate real-life scale comparison from everyday stairs up to Mont Ventoux.
+ */
+export function formatElevationRealWorldScale(
+  meters: number,
+  lang: 'en' | 'fr'
+): string | null {
+  const m = Math.round(Math.abs(meters));
   const isFr = lang === 'fr';
-  if (ghostElevationM < 180) return null;
-  if (ghostElevationM >= 1500) {
-    const ratio = (ghostElevationM / 1610).toFixed(1);
+  if (m < 10) return null;
+
+  if (m < 45) {
+    const floors = Math.max(3, Math.round(m / 3));
     return isFr
-      ? `≈ ${ratio}× l’ascension du Mont Ventoux (1 610 m)`
-      : `≈ ${ratio}× climbing Mont Ventoux (1,610 m)`;
+      ? `≈ ${floors} étages d’escaliers`
+      : `≈ ${floors} flights of stairs`;
   }
-  if (ghostElevationM >= 800) {
-    const ratio = (ghostElevationM / 1071).toFixed(1);
+  if (m < 85) {
+    if (m <= 60) {
+      return isFr ? '≈ l’Arc de Triomphe' : '≈ the Arc de Triomphe';
+    }
+    const floors = Math.round(m / 3);
     return isFr
-      ? `≈ ${ratio}× l’Alpe d’Huez (1 071 m)`
-      : `≈ ${ratio}× Alpe d’Huez (1,071 m)`;
+      ? `≈ un immeuble de ${floors} étages`
+      : `≈ a ${floors}-story building`;
   }
-  if (ghostElevationM >= 450) {
-    const towers = (ghostElevationM / 300).toFixed(1);
+  if (m < 120) {
+    return isFr ? '≈ la Statue de la Liberté' : '≈ the Statue of Liberty';
+  }
+  if (m < 180) {
+    return isFr ? '≈ la butte Montmartre' : '≈ climbing Montmartre';
+  }
+  if (m < 270) {
+    const pct = Math.round((m / 300) * 100);
     return isFr
-      ? `≈ ${towers}× la Tour Eiffel`
-      : `≈ ${towers}× the Eiffel Tower`;
+      ? `≈ ${pct} % de la Tour Eiffel`
+      : `≈ ${pct}% of the Eiffel Tower`;
   }
-  const empirePct = Math.round((ghostElevationM / 381) * 100);
+  if (m < 800) {
+    const ratio = (m / 300).toFixed(1);
+    return isFr
+      ? `≈ ${ratio}× la Tour Eiffel`
+      : `≈ ${ratio}× the Eiffel Tower`;
+  }
+  if (m < 1500) {
+    const ratio = (m / 1071).toFixed(1);
+    return isFr
+      ? `≈ ${ratio}× l’Alpe d’Huez`
+      : `≈ ${ratio}× Alpe d’Huez`;
+  }
+  const ratio = (m / 1610).toFixed(1);
   return isFr
-    ? `≈ ${empirePct} % de l’Empire State Building`
-    : `≈ ${empirePct}% of the Empire State Building`;
+    ? `≈ ${ratio}× le Mont Ventoux`
+    : `≈ ${ratio}× Mont Ventoux`;
+}
+
+function getIconicClimbComparison(ghostElevationM: number, lang: 'en' | 'fr'): string | null {
+  if (ghostElevationM < 15) return null;
+  return formatElevationRealWorldScale(ghostElevationM, lang);
 }
 
 const GRAVITY = 9.81;

@@ -20,6 +20,7 @@ import {
   resolveEffectiveRestStopMinutes,
 } from '../../utils/stationaryRecovery';
 import { Badge } from '../common/Badge';
+import { CadenceInsight } from '../common/CadenceInsight';
 import { IconBadge } from '../common/IconBadge';
 import { Collapsible } from '../common/Collapsible';
 import {
@@ -379,18 +380,18 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
               </span>
             </div>
             {brief.companionNote && (
-              <div className="mt-1.5 inline-flex items-start gap-2 rounded-sub-pod bg-pod px-3 py-2 text-xs text-ink-secondary leading-snug max-w-3xl">
-                {brief.companionNote.icon === 'wind' ? (
-                  <Wind className="w-3.5 h-3.5 text-sky-500 shrink-0 mt-0.5" aria-hidden="true" />
-                ) : brief.companionNote.icon === 'flame' ? (
-                  <Flame className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" aria-hidden="true" />
-                ) : brief.companionNote.icon === 'thermometer' ? (
-                  <ThermometerSimple className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" aria-hidden="true" />
-                ) : (
-                  <Compass className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" aria-hidden="true" />
-                )}
-                <span className="tnum">{brief.companionNote.text}</span>
-              </div>
+              <CadenceInsight
+                compact
+                tone={
+                  brief.companionNote.icon === 'flame'
+                    ? 'amber'
+                    : brief.companionNote.icon === 'wind' || brief.companionNote.icon === 'thermometer'
+                    ? 'sky'
+                    : 'cadence'
+                }
+                headline={brief.companionNote.text}
+                className="mt-1.5 max-w-3xl"
+              />
             )}
           </div>
 

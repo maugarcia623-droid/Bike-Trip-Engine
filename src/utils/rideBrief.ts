@@ -357,7 +357,8 @@ function buildRideBriefCardMeta(input: {
   // Single, quiet "Reality check" companion note — picks at most ONE genuinely meaningful observation
   const realElevM = Math.round(trip.route?.elevationGainM || 0);
   const totalKcal = Math.round(physics.totalKcalBurn || 0);
-  const croissantsEarned = Number((totalKcal / 260).toFixed(1));
+  const croissantsEquiv = Number((totalKcal / 260).toFixed(1));
+  const croissantLabel = `croissant${croissantsEquiv >= 1.5 ? 's' : ''}`;
   const chillDropC = Math.max(0, tempC - feelsLikeC);
 
   let companionNote: RideBriefData['companionNote'] = undefined;
@@ -372,8 +373,8 @@ function buildRideBriefCardMeta(input: {
     companionNote = {
       icon: 'flame',
       text: isFr
-        ? `Environ ${totalKcal.toLocaleString('fr-FR')} kcal brûlées (≈ ${croissantsEarned} croissants mérités) et ~${totalSweatLiters} L de sueur — pense à boire régulièrement.`
-        : `Around ${totalKcal.toLocaleString('en-US')} kcal burned (≈ ${croissantsEarned} croissants earned) and ~${totalSweatLiters} L of sweat — keep sipping steadily.`,
+        ? `Environ ${totalKcal.toLocaleString('fr-FR')} kcal brûlées (≈ ${croissantsEquiv} ${croissantLabel}) et ~${totalSweatLiters} L de sueur — pense à boire régulièrement.`
+        : `Around ${totalKcal.toLocaleString('en-US')} kcal burned (≈ ${croissantsEquiv} ${croissantLabel}) and ~${totalSweatLiters} L of sweat — keep sipping steadily.`,
     };
   } else if (chillDropC >= 3 && feelsLikeC <= 12) {
     companionNote = {

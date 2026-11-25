@@ -369,10 +369,10 @@ export const en = {
 
   // Physics Go Status Reasons
   goReasonGale: "High wind alert ({wind} km/h gusts) — consider postponing or taking a sheltered route.",
-  goReasonHeadwind: "Headwind ({wind} km/h) — completely rideable! +{watts} W at steady speed, or switch to Steady effort to relax.",
-  goReasonPower: "Heads up: this pace is brisk for you. Switch to Steady effort to ride more relaxed.",
-  goReasonBreeze: "Light breeze ({wind} km/h) — friendly riding weather, already factored into your schedule.",
-  goReasonCalm: "Calm, gentle air — smooth and easy pedaling ahead.",
+  goReasonHeadwind: "Headwind ({wind} km/h) — completely rideable! +{watts} W at steady speed, or switch to Steady\u00A0effort.",
+  goReasonPower: "Heads up: this pace is brisk for you. Switch to Steady effort to ride more\u00A0relaxed.",
+  goReasonBreeze: "Light breeze ({wind} km/h) — friendly riding air, already built into your\u00A0timing.",
+  goReasonCalm: "Calm, gentle air — smooth and easy pedaling\u00A0ahead.",
   rideFeasibility: "Ride status",
   feasibilityStatus: "Ride status",
   feasibilityLegend: "Status based on wind, terrain, and your riding pace",
@@ -900,7 +900,7 @@ export const en = {
   effortPresetZ2: "Z2 No-sweat ({watts} W)",
   effortPresetTempo: "Z3 Tempo ({watts} W)",
   effortPresetCalm: "Calm pace ({watts} W)",
-  dragHoldSpeedPill: "+{watts} W to keep {speed} km/h (tip: switch to Steady effort to relax)",
+  dragHoldSpeedPill: "+{watts} W to hold {speed} km/h · try Steady\u00A0effort",
   dragHoldEffortPill: "Zero extra strain · {watts} W ({zone}) at {speed} km/h (+{min} min included)",
   headwindSlowdownRow: "Headwind effect",
 
@@ -1301,6 +1301,20 @@ export const en = {
   readinessTooltipPrefix: "Ride readiness",
   customizationSingular: "customization",
   customizationPlural: "customizations",
+  navMultiTool: "Multi-Tool",
+  quickSwitchOpenAria: "Quick jump (⌘K)",
+  quickSwitchPlaceholder: "Jump to a trip, screen, or tool…",
+  quickSwitchTripsHeading: "Saved trips",
+  quickSwitchViewsHeading: "Screens",
+  quickSwitchToolsHeading: "Multi-Tool calculators",
+  quickSwitchActionsHeading: "Quick actions",
+  quickSwitchEmpty: "No matching trip, screen, or tool",
+  stepPreviousBtn: "Previous",
+  stepNextBtn: "Next",
+  expandTripPreviewAria: "Show trip details",
+  collapseTripPreviewAria: "Hide trip details",
+  switchTripAria: "Switch active trip",
+  filterTripsPlaceholder: "Filter trips…",
 };
 
 export type TranslationKey = keyof typeof en;

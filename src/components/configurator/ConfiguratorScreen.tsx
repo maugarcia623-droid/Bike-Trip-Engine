@@ -4,6 +4,7 @@ import { DatePicker } from '@/components/arc/date-picker/date-picker';
 import { TimePicker } from '@/components/arc/time-picker/time-picker';
 import {
   ArrowLeft,
+  ArrowRight,
   ArrowUp,
   ArrowDown,
   ArrowUpRight,
@@ -31,6 +32,7 @@ import {
   Settings,
   Bicycle,
   Mountain,
+  GripVertical,
 } from '@/components/icons';
 import {
   fetchHourlyWeather,
@@ -80,6 +82,7 @@ import {
   CHIP_RING_UNSELECTED,
   CHIP_TOKENS,
   GREYSCALE_TOKENS,
+  YELLOW_VEST_SOLID_CTA_CLASSES,
 } from '../../tokens/chipTokens';
 import {
   ARCHETYPE_CHIP_DEFINITIONS,
@@ -91,17 +94,6 @@ import {
   CHIP_ICONS,
   findChipDef,
 } from '../../utils/archetypeChips';
-
-const GripDotsIcon: React.FC<{ className?: string }> = ({ className = 'w-3.5 h-3.5' }) => (
-  <svg viewBox="0 0 16 16" fill="currentColor" className={className} aria-hidden="true">
-    <circle cx="5" cy="3.5" r="1.3" />
-    <circle cx="11" cy="3.5" r="1.3" />
-    <circle cx="5" cy="8" r="1.3" />
-    <circle cx="11" cy="8" r="1.3" />
-    <circle cx="5" cy="12.5" r="1.3" />
-    <circle cx="11" cy="12.5" r="1.3" />
-  </svg>
-);
 
 /** Derives average effective grade (%) from route distance (km) and positive gain (m D+). */
 function deriveAverageGradePct(distanceKm: number, elevationGainM: number): number {
@@ -145,7 +137,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
   isNew,
   onSave,
   onAutoSync,
-  onCancel,
+  onCancel: _onCancel,
   onLaunch,
 }) => {
   const { lang, t } = useTranslation();
@@ -273,6 +265,39 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
   } | null>(null);
   const [hasSaved, setHasSaved] = useState(false);
   const [activeStep, setActiveStep] = useState<'route-map' | 'date-time' | 'trip-style' | 'cycling-pace'>('route-map');
+  const stepTabsRef = useRef<HTMLDivElement>(null);
+  const [stepFadeLeft, setStepFadeLeft] = useState(false);
+  const [stepFadeRight, setStepFadeRight] = useState(false);
+
+  const updateStepFades = () => {
+    const el = stepTabsRef.current;
+    if (!el) return;
+    setStepFadeLeft(el.scrollLeft > 6);
+    setStepFadeRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 6);
+  };
+
+  useEffect(() => {
+    updateStepFades();
+    const el = stepTabsRef.current;
+    if (!el) return;
+    el.addEventListener('scroll', updateStepFades, { passive: true });
+    window.addEventListener('resize', updateStepFades);
+    const raf = window.requestAnimationFrame(updateStepFades);
+    return () => {
+      window.cancelAnimationFrame(raf);
+      el.removeEventListener('scroll', updateStepFades);
+      window.removeEventListener('resize', updateStepFades);
+    };
+  }, [lang]);
+
+  useEffect(() => {
+    const el = stepTabsRef.current;
+    if (!el) return;
+    const activeBtn = el.querySelector<HTMLElement>('[aria-selected="true"]');
+    activeBtn?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    const raf = window.requestAnimationFrame(updateStepFades);
+    return () => window.cancelAnimationFrame(raf);
+  }, [activeStep]);
   const [isArriveAtMode, setIsArriveAtMode] = useState<boolean>(trip.arriveAtMode !== false);
   const [routeGenMode, setRouteGenMode] = useState<'corridor' | 'manual-radius' | 'gpx'>(() => {
     const initialMode = getArchetypeFromTag(initialTrip.tag, initialTrip.name);
@@ -1488,100 +1513,120 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
       ? 'Allure & physique'
       : 'Pace & physics';
 
+  const currentStepIdx = Math.max(
+    0,
+    stepOptions.findIndex((s) => s.id === activeStep)
+  );
+  const canGoPrevStep = currentStepIdx > 0;
+  const canGoNextStep = currentStepIdx < stepOptions.length - 1;
+
+  const goToStepByIndex = (idx: number) => {
+    const clamped = Math.max(0, Math.min(stepOptions.length - 1, idx));
+    setActiveStep(stepOptions[clamped].id);
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
   return (
-    <div className="w-full max-w-[1720px] min-w-0 mx-auto px-3.5 sm:px-5 lg:px-7 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] sm:pt-[calc(env(safe-area-inset-top,0px)+1rem)] pb-28 sm:pb-28 space-y-5">
-      {/* ── Top Bar: Back Button (Left) + Auto-saved Tag (Right) ── */}
-      <div className="flex items-center justify-between gap-3 animate-apple-in stagger-1">
-        <Button variant="ghost"
-          type="button"
-          onClick={onCancel}
-          title={isFr ? 'Retour à la sortie' : 'Back to ride plan'}
-          aria-label={isFr ? 'Retour' : 'Back'}
-          className="inline-flex items-center justify-center gap-1.5 min-h-[44px] px-3.5 rounded-full text-xs sm:text-[13px] font-medium text-ink-secondary hover:text-ink bg-card hover:bg-pod transition-all duration-150 active:scale-[0.98] cursor-pointer shrink-0"
-        >
-          <ArrowLeft className="w-4 h-4 shrink-0" />
-          <span>{isFr ? 'Retour' : 'Back'}</span>
-        </Button>
-
-        <span
-          className={`inline-flex items-center gap-1.5 min-h-[36px] h-9 px-3 rounded-full text-xs font-medium bg-card text-ink-secondary shrink-0 ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
-        >
-          <CheckCircle className={`w-3.5 h-3.5 shrink-0 ${CHIP_TOKENS.emerald.primary}`} />
-          <span>{isFr ? 'Enregistré auto' : 'Auto-saved'}</span>
-        </span>
-      </div>
-
-      {/* ── Editable Ride Title ── */}
-      <div className="min-w-0 animate-apple-in stagger-1">
-        <input
-          type="text"
-          value={trip.name}
-          onChange={(e) => commitTrip((prev) => ({ ...prev, name: e.target.value }))}
-          placeholder={(() => {
-            const arch = getArchetypeFromTag(trip.tag, trip.name);
-            if (arch === 'ESCAPADE') return t('tripNamePlaceholderEscapade');
-            if (arch === 'BIKEPACKING') return t('tripNamePlaceholderBikepacking');
-            if (arch === 'SPORT') return t('tripNamePlaceholderSport');
-            return t('tripNamePlaceholderCommute');
-          })()}
-          className="w-full sm:w-auto sm:min-w-[300px] lg:min-w-[360px] max-w-full min-h-[44px] text-base sm:text-lg font-semibold text-ink-secondary focus:text-ink tracking-tight bg-transparent border-b border-ink/10 focus:border-ink/40 focus:outline-none transition-colors"
-          title={isFr ? 'Renommer la sortie' : 'Click to rename ride'}
-        />
-      </div>
-
-      {/* ── Centered Top Step Switcher Pill (Route & Map | Date & Time | Style & Stops | Pace & Physics) ── */}
-      <div className="flex sm:justify-center w-full min-w-0 animate-apple-in stagger-1">
-        <div className="relative w-full sm:w-auto max-w-full rounded-full overflow-hidden">
-          <div
-            role="tablist"
-            aria-label={isFr ? 'Étapes de configuration' : 'Configuration steps'}
-            className="flex sm:inline-flex items-center p-1 sm:p-1.5 pr-8 sm:pr-1.5 gap-1.5 rounded-full bg-card dark:bg-pod shadow-xs w-full sm:w-auto max-w-full overflow-x-auto no-scrollbar snap-x"
-          >
-            {stepOptions.map((step) => {
-              const StepIcon = step.icon;
-              const isStepActive = activeStep === step.id;
-              return (
-                <Button variant="ghost"
-                  key={step.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={isStepActive}
-                  onClick={() => setActiveStep(step.id)}
-                  className={`inline-flex items-center justify-center gap-1.5 sm:gap-2 min-h-[44px] sm:min-h-[40px] px-3.5 py-2 sm:py-0 sm:px-4 rounded-full text-xs sm:text-[13px] leading-tight text-center font-semibold transition-all duration-150 cursor-pointer shrink-0 snap-start whitespace-nowrap active:scale-[0.98] ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
-                    isStepActive
-                      ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing} shadow-xs`
-                      : `${CHIP_RING_UNSELECTED} text-ink-secondary hover:text-ink hover:bg-pod/60`
-                  }`}
-                >
-                  <StepIcon className="w-4 h-4 shrink-0 text-current" />
-                  <span>{step.label}</span>
-                </Button>
-              );
-            })}
-          </div>
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-y-0 right-0 w-14 rounded-r-full bg-gradient-to-l from-card dark:from-pod via-card/90 dark:via-pod/90 to-transparent sm:hidden"
+    <div className="w-full max-w-[1720px] min-w-0 mx-auto px-3.5 sm:px-5 lg:px-7 pt-2 pb-24 lg:pb-8 space-y-4">
+      {/* ── Editable Ride Title + Auto-saved / Revert Status Row ── */}
+      <div className="flex items-center justify-between gap-3 animate-apple-in stagger-1 min-w-0">
+        <div className="min-w-0 flex-1">
+          <input
+            type="text"
+            value={trip.name}
+            onChange={(e) => commitTrip((prev) => ({ ...prev, name: e.target.value }))}
+            placeholder={(() => {
+              const arch = getArchetypeFromTag(trip.tag, trip.name);
+              if (arch === 'ESCAPADE') return t('tripNamePlaceholderEscapade');
+              if (arch === 'BIKEPACKING') return t('tripNamePlaceholderBikepacking');
+              if (arch === 'SPORT') return t('tripNamePlaceholderSport');
+              return t('tripNamePlaceholderCommute');
+            })()}
+            className="w-full sm:w-auto sm:min-w-[300px] lg:min-w-[380px] max-w-full min-h-[44px] text-base sm:text-lg font-semibold text-ink focus:text-ink tracking-tight bg-transparent border-b border-ink/10 focus:border-ink/40 focus:outline-none transition-colors"
+            title={isFr ? 'Renommer la sortie' : 'Click to rename ride'}
           />
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          {hasModified && (
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={handleRevertChanges}
+              className="inline-flex items-center justify-center gap-1.5 min-h-[36px] h-9 px-3 text-xs font-medium text-ink-secondary hover:text-ink bg-card hover:bg-pod rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer whitespace-nowrap shrink-0"
+            >
+              <ArrowsClockwise className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">{isFr ? 'Rétablir' : 'Revert'}</span>
+            </Button>
+          )}
+          <span
+            className={`inline-flex items-center gap-1.5 min-h-[36px] h-9 px-3 rounded-full text-xs font-medium bg-card text-ink-secondary shrink-0 ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+          >
+            <CheckCircle className={`w-3.5 h-3.5 shrink-0 ${CHIP_TOKENS.emerald.primary}`} />
+            <span className="hidden min-[400px]:inline">{isFr ? 'Enregistré auto' : 'Auto-saved'}</span>
+          </span>
         </div>
       </div>
 
-      {/* ── Section Header Bar (Left: Step Title | Right: Revert if modified) ── */}
-      <div className="flex items-center justify-between gap-3 min-h-[44px] animate-apple-in stagger-2">
+      {/* ── Sticky 4-Step Switcher Pill (Route & Map | Date & Time | Style & Stops | Pace & Physics) ── */}
+      <div className="cadence-sticky-subnav sticky top-[var(--cadence-nav-h)] z-30 -mx-3.5 px-3.5 sm:-mx-5 sm:px-5 lg:-mx-7 lg:px-7 py-2 bg-canvas/90 backdrop-blur-md">
+        <div className="flex sm:justify-center w-full min-w-0">
+          <div className="relative w-full sm:w-auto max-w-full rounded-full overflow-hidden">
+            <div
+              ref={stepTabsRef}
+              role="tablist"
+              aria-label={isFr ? 'Étapes de configuration' : 'Configuration steps'}
+              className="flex sm:inline-flex items-center p-1 sm:p-1.5 gap-1.5 rounded-full bg-card dark:bg-pod shadow-xs w-full sm:w-auto max-w-full overflow-x-auto no-scrollbar snap-x scroll-smooth"
+            >
+              {stepOptions.map((step) => {
+                const StepIcon = step.icon;
+                const isStepActive = activeStep === step.id;
+                return (
+                  <Button
+                    variant="ghost"
+                    key={step.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={isStepActive}
+                    onClick={() => setActiveStep(step.id)}
+                    className={`inline-flex items-center justify-center gap-1.5 sm:gap-2 min-h-[40px] px-3.5 py-2 sm:py-0 sm:px-4 rounded-full text-xs sm:text-[13px] leading-tight text-center font-semibold transition-all duration-150 cursor-pointer shrink-0 snap-start whitespace-nowrap active:scale-[0.98] ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                      isStepActive
+                        ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing} shadow-xs`
+                        : `${CHIP_RING_UNSELECTED} text-ink-secondary hover:text-ink hover:bg-pod/60`
+                    }`}
+                  >
+                    <StepIcon className="w-4 h-4 shrink-0 text-current" />
+                    <span>{step.label}</span>
+                  </Button>
+                );
+              })}
+            </div>
+            <div
+              aria-hidden="true"
+              className={`pointer-events-none absolute inset-y-0 left-0 w-10 rounded-l-full bg-gradient-to-r from-card dark:from-pod via-card/85 dark:via-pod/85 to-transparent transition-opacity duration-200 sm:hidden ${
+                stepFadeLeft ? 'opacity-100' : 'opacity-0'
+              }`}
+            />
+            <div
+              aria-hidden="true"
+              className={`pointer-events-none absolute inset-y-0 right-0 w-12 rounded-r-full bg-gradient-to-l from-card dark:from-pod via-card/85 dark:via-pod/85 to-transparent transition-opacity duration-200 sm:hidden ${
+                stepFadeRight ? 'opacity-100' : 'opacity-0'
+              }`}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Section Header Bar ── */}
+      <div className="flex items-center justify-between gap-3 min-h-[36px] animate-apple-in stagger-2">
         <h1 className="text-2xl sm:text-[28px] font-semibold text-ink tracking-tight leading-tight font-rounded min-w-0 truncate">
           {currentStepTitle}
         </h1>
-
-        {hasModified && (
-          <Button variant="ghost"
-            type="button"
-            onClick={handleRevertChanges}
-            className="inline-flex items-center justify-center gap-1.5 min-h-[44px] px-3.5 text-xs sm:text-[13px] font-medium text-ink-secondary hover:text-ink bg-card hover:bg-pod rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer whitespace-nowrap shrink-0"
-          >
-            <ArrowsClockwise className="w-3.5 h-3.5 shrink-0" />
-            <span>{isFr ? 'Rétablir' : 'Revert'}</span>
-          </Button>
-        )}
+        <span className="hidden sm:inline-flex items-center px-2.5 py-1 rounded-full bg-card text-xs font-rounded font-semibold text-ink-muted tnum shrink-0">
+          {currentStepIdx + 1} / {stepOptions.length}
+        </span>
       </div>
 
       {/* ── MAIN 5-COLUMN GRID: Left 3 Cols (2 Stacked Step Cards) + Right 2 Cols (Live Results) ── */}
@@ -2012,7 +2057,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                         className="cursor-grab active:cursor-grabbing text-ink-muted hover:text-ink p-1 shrink-0 select-none"
                         title={t('dragToReorderHint')}
                       >
-                        <GripDotsIcon className="w-3.5 h-3.5 opacity-50 group-hover:opacity-100 transition-opacity" />
+                        <GripVertical className="w-3.5 h-3.5 opacity-50 group-hover:opacity-100 transition-opacity" />
                       </div>
 
                       {/* Accessible Reorder Shift Buttons */}
@@ -3410,7 +3455,7 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
 </div>
 
 {/* Right 2 Columns: Sticky Live Results Card */}
-<div className="lg:col-span-2 min-w-0 lg:sticky lg:top-5 animate-apple-in stagger-3 relative z-10">
+<div className="lg:col-span-2 min-w-0 lg:sticky lg:top-[calc(var(--cadence-nav-h)+4.25rem)] animate-apple-in stagger-3 relative z-10">
   <div className="bg-card text-ink rounded-card p-4 sm:p-5 shadow-xs transition-colors space-y-4">
     <div className="flex items-center justify-between gap-2">
       <h3 className="text-base sm:text-[17px] font-semibold tracking-tight text-ink">
@@ -3773,7 +3818,91 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
                 </span>
               </div>
             </div>
+
+            {/* Desktop Primary Completion & Step Flow Actions (Home <-> Trip <-> Configurator) */}
+            <div className="hidden lg:flex flex-col gap-2 pt-1">
+              <Button
+                variant="primary"
+                size="md"
+                type="button"
+                onClick={handleLaunchDirect}
+                className={`w-full min-h-[44px] px-4 rounded-full text-sm font-rounded font-bold inline-flex items-center justify-center gap-2 cursor-pointer transition-all hover:brightness-[0.97] active:scale-[0.98] shadow-xs ${YELLOW_VEST_SOLID_CTA_CLASSES}`}
+              >
+                <span>{t('launchCockpitBtn')}</span>
+                <ArrowRight className="w-4 h-4 shrink-0" />
+              </Button>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  disabled={!canGoPrevStep}
+                  onClick={() => goToStepByIndex(currentStepIdx - 1)}
+                  className="min-h-[38px] px-3 rounded-full bg-pod hover:bg-chip text-ink text-xs font-semibold inline-flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
+                  <span>{t('stepPreviousBtn')}</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  disabled={!canGoNextStep}
+                  onClick={() => goToStepByIndex(currentStepIdx + 1)}
+                  className="min-h-[38px] px-3 rounded-full bg-pod hover:bg-chip text-ink text-xs font-semibold inline-flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <span>{t('stepNextBtn')}</span>
+                  <ArrowRight className="w-3.5 h-3.5 shrink-0" />
+                </Button>
+              </div>
+            </div>
           </div>
+        </div>
+      </div>
+
+      {/* Mobile & Tablet Thumb-Zone Step + Launch Action Bar (Configurator Only) */}
+      <div className="cadence-sticky-subnav fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom,0px))] lg:hidden z-30 pointer-events-none no-print print:hidden">
+        <div className="pointer-events-auto max-w-lg mx-auto rounded-full bg-card/95 dark:bg-[#18181B]/95 backdrop-blur-md p-1.5 ring-1 ring-inset ring-ink/[0.08] dark:ring-white/[0.12] shadow-[0_14px_34px_rgba(0,0,0,0.18)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.65)] flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1 shrink-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              disabled={!canGoPrevStep}
+              onClick={() => goToStepByIndex(currentStepIdx - 1)}
+              aria-label={t('stepPreviousBtn')}
+              className="w-10 h-10 p-0 rounded-full bg-pod hover:bg-chip text-ink flex items-center justify-center cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed active:scale-[0.96]"
+            >
+              <ArrowLeft className="w-4 h-4 shrink-0" />
+            </Button>
+            <span className="px-1.5 text-[11px] font-rounded font-bold text-ink-muted tnum">
+              {currentStepIdx + 1}/{stepOptions.length}
+            </span>
+            {canGoNextStep && (
+              <Button
+                variant="ghost"
+                size="sm"
+                type="button"
+                onClick={() => goToStepByIndex(currentStepIdx + 1)}
+                aria-label={t('stepNextBtn')}
+                className="min-h-[40px] px-3 rounded-full bg-pod hover:bg-chip text-ink text-xs font-semibold inline-flex items-center gap-1 cursor-pointer active:scale-[0.96]"
+              >
+                <span>{t('stepNextBtn')}</span>
+                <ArrowRight className="w-3.5 h-3.5 shrink-0" />
+              </Button>
+            )}
+          </div>
+
+          <Button
+            variant="primary"
+            size="sm"
+            type="button"
+            onClick={handleLaunchDirect}
+            className={`min-h-[40px] px-4 rounded-full text-xs font-rounded font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer transition-all hover:brightness-[0.97] active:scale-[0.97] shadow-xs whitespace-nowrap ${YELLOW_VEST_SOLID_CTA_CLASSES}`}
+          >
+            <span>{t('launchCockpitBtn')}</span>
+            <ArrowRight className="w-3.5 h-3.5 shrink-0" />
+          </Button>
         </div>
       </div>
 

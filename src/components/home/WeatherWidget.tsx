@@ -6,6 +6,7 @@ import { calculatePhysics } from '../../utils/physics';
 import { calculateTripWindInsight } from '../../utils/windInsights';
 import { degreesToCompassCardinal } from '../../services/weatherService';
 import { Badge } from '../common/Badge';
+import { CadenceInsight } from '../common/CadenceInsight';
 import { loadRiderBikeSpecs } from '../../utils/specsStorage';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
@@ -81,29 +82,69 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
     lang: isFr ? 'fr' : 'en',
   });
 
-  const companionReadout = isHighWind
-    ? isFr
-      ? `Grosses rafales (${peakGust} km/h) — délicat sur les routes exposées. Ça vaut le coup d’attendre une accalmie.`
-      : `Strong gusts (${peakGust} km/h) — tricky handling on open roads. Worth waiting for a calmer window.`
-    : effectiveWindSpeed >= 12 && windInsight.ghostElevationM >= 150
-    ? isFr
-      ? `Ce vent de face (${effectiveWindSpeed} km/h) donne la sensation d’une côte à +${windInsight.equivalentGradePct.toFixed(1)} % (+${windInsight.ghostElevationM} m invisibles${windInsight.iconicClimbComparison ? ` · ${windInsight.iconicClimbComparison}` : ''}).`
-      : `That ${effectiveWindSpeed} km/h headwind feels like a +${windInsight.equivalentGradePct.toFixed(1)}% climb (+${windInsight.ghostElevationM} m ghost climbing${windInsight.iconicClimbComparison ? ` · ${windInsight.iconicClimbComparison}` : ''}).`
+  const companionInsight: {
+    tone: 'cadence' | 'emerald' | 'amber' | 'rose' | 'sky';
+    headline: string;
+    detail: string;
+  } = isHighWind
+    ? {
+        tone: 'rose',
+        headline: isFr
+          ? `Grosses rafales (${peakGust} km/h) — délicat sur les routes exposées.`
+          : `Strong gusts (${peakGust} km/h) — tricky handling on open roads.`,
+        detail: isFr
+          ? 'Ça vaut le coup de choisir un parcours abrité ou d’attendre une accalmie.'
+          : 'Worth picking a sheltered route or waiting for a calmer window.',
+      }
+    : effectiveWindSpeed >= 12 && windInsight.ghostElevationM >= 45
+    ? {
+        tone: 'amber',
+        headline: isFr
+          ? `Ce vent de face ajoute +${windInsight.ghostElevationM} m de montée invisible${windInsight.iconicClimbComparison ? ` (${windInsight.iconicClimbComparison})` : ''}.`
+          : `This headwind adds +${windInsight.ghostElevationM} m of invisible climbing${windInsight.iconicClimbComparison ? ` (${windInsight.iconicClimbComparison})` : ''}.`,
+        detail: isFr
+          ? `Sensation de pente à +${windInsight.equivalentGradePct.toFixed(1)} % sur le plat — démarre souple au lieu de forcer.`
+          : `Feels like a +${windInsight.equivalentGradePct.toFixed(1)}% climb on flat ground — spin easy early instead of fighting it.`,
+      }
     : weather.precipitationRiskPercent >= 50
-    ? isFr
-      ? `Routes probablement humides (${weather.precipitationRiskPercent} %) — prends un coupe-pluie et garde de la marge dans les virages.`
-      : `Wet roads likely (${weather.precipitationRiskPercent}%) — grab a shell and take corners smoothly.`
-    : weather.temperatureC <= 5
-    ? isFr
-      ? `Air vif (${weather.temperatureC} °C) — des gants chauds et un coupe-vent te sauveront les 20 premières minutes.`
-      : `Crisp ${weather.temperatureC}°C air — warm gloves and a windproof layer will save the first 20 minutes.`
+    ? {
+        tone: 'sky',
+        headline: isFr
+          ? `Routes probablement humides (${weather.precipitationRiskPercent} %) — prends un coupe-pluie.`
+          : `Wet tarmac likely (${weather.precipitationRiskPercent}%) — grab a light rain shell.`,
+        detail: isFr
+          ? 'Garde un peu plus de marge au freinage et dans les virages.'
+          : 'Leave a touch more room for braking and smooth corners.',
+      }
+    : weather.temperatureC <= 6
+    ? {
+        tone: 'sky',
+        headline: isFr
+          ? `Air vif (${weather.temperatureC} °C) — des gants et un coupe-vent sauveront le début.`
+          : `Crisp ${weather.temperatureC}°C air — warm gloves and a wind shell save the first 15 min.`,
+        detail: isFr
+          ? 'Une fois réchauffé, les conditions restent sèches et agréables.'
+          : 'Once your legs warm up, conditions stay dry and clean.',
+      }
     : weather.windDirection === 'tailwind' && (weather.baseWindSpeedKmH ?? 0) >= 12
-    ? isFr
-      ? `Joli vent de dos (${weather.baseWindSpeedKmH} km/h) — profite de la vitesse gratuite.`
-      : `Friendly ${weather.baseWindSpeedKmH} km/h tailwind — enjoy the free speed.`
-    : isFr
-    ? 'Air calme et routes sèches — une bonne excuse pour rallonger un peu la sortie.'
-    : 'Calm air and dry roads — easy excuse to take the long way.';
+    ? {
+        tone: 'emerald',
+        headline: isFr
+          ? `Joli vent de dos (${weather.baseWindSpeedKmH} km/h) — profite de la vitesse gratuite.`
+          : `Friendly ${weather.baseWindSpeedKmH} km/h tailwind — enjoy the free speed today.`,
+        detail: isFr
+          ? 'Conditions portantes et fluides sur la majorité du parcours.'
+          : 'Smooth, supportive riding conditions across the route.',
+      }
+    : {
+        tone: 'cadence',
+        headline: isFr
+          ? 'Air calme et bitume sec — une belle excuse pour rallonger un peu.'
+          : 'Calm air and dry roads — easy excuse to take the long way.',
+        detail: isFr
+          ? `Seulement ${effectiveWindSpeed} km/h de vent et ${weather.temperatureC} °C : rien ne te freine aujourd’hui.`
+          : `Just ${effectiveWindSpeed} km/h of breeze at ${weather.temperatureC}°C — nothing fighting your legs today.`,
+      };
 
   return (
     <div
@@ -154,6 +195,15 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
         </div>
       </div>
 
+      {/* Cadence Intelligence Hero Verdict — words before numbers */}
+      <CadenceInsight
+        tone={companionInsight.tone}
+        headline={companionInsight.headline}
+        detail={companionInsight.detail}
+        compact
+        className="mb-3.5"
+      />
+
       {/* 4 Borderless Weather Gauge Pods */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mb-4">
         <div className="bg-pod rounded-pod p-3.5 sm:p-4 min-w-0">
@@ -185,7 +235,15 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
             <span className="break-words leading-snug">
               {isProView ? t('airTempDensityLabel') : isFr ? 'Température' : 'Temperature'}
             </span>
-            <ThermometerSimple className={`w-4 h-4 shrink-0 ${GREYSCALE_TOKENS.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
+            <ThermometerSimple
+              className={`w-4 h-4 shrink-0 ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                weather.temperatureC >= 25
+                  ? CHIP_TOKENS.rose.primary
+                  : weather.temperatureC <= 8
+                  ? CHIP_TOKENS.sky.primary
+                  : CHIP_TOKENS.amber.primary
+              }`}
+            />
           </div>
           <div className="mt-2.5 flex items-baseline gap-x-1.5 gap-y-0.5 flex-wrap">
             <span className="text-2xl sm:text-3xl font-semibold tracking-tight text-ink tnum">
@@ -209,7 +267,15 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
         <div className="bg-pod rounded-pod p-3.5 sm:p-4 min-w-0">
           <div className="flex items-start justify-between gap-1.5 text-xs font-medium text-ink-muted">
             <span className="break-words leading-snug">{t('bridgeGustsLabel')}</span>
-            <Wind className={`w-4 h-4 shrink-0 ${GREYSCALE_TOKENS.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
+            <Wind
+              className={`w-4 h-4 shrink-0 ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                peakGust >= 40
+                  ? CHIP_TOKENS.rose.primary
+                  : peakGust >= 24
+                  ? CHIP_TOKENS.amber.primary
+                  : CHIP_TOKENS.teal.primary
+              }`}
+            />
           </div>
           <div className="mt-2.5 flex items-baseline gap-1 flex-wrap">
             <span className="text-2xl sm:text-3xl font-semibold tracking-tight text-ink tnum">
@@ -233,7 +299,7 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
               className={`w-4 h-4 shrink-0 ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
                 weather.precipitationRiskPercent >= 25
                   ? CHIP_TOKENS.blue.primary
-                  : GREYSCALE_TOKENS.primary
+                  : CHIP_TOKENS.sky.primary
               }`}
             />
           </div>
@@ -255,8 +321,8 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
         </div>
       </div>
 
-      {/* Companion Weather Readout (or Pro Aero Summary) */}
-      {isProView ? (
+      {/* Pro Aero Summary Capsule (Pro View only — Companion Insight now leads above) */}
+      {isProView && (
         <div className="rounded-pod lg:rounded-full bg-pod px-4 sm:px-5 py-3 flex flex-wrap items-center justify-between gap-2.5 text-xs">
           <div className="flex items-center gap-2 flex-wrap min-w-0">
             <span className="text-ink-secondary font-medium shrink-0">
@@ -278,10 +344,6 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
               </Badge>
             )}
           </div>
-        </div>
-      ) : (
-        <div className="rounded-pod bg-pod px-4 py-3 text-xs text-ink-secondary leading-relaxed">
-          {companionReadout}
         </div>
       )}
     </div>

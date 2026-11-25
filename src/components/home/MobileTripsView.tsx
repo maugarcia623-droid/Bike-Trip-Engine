@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence, LayoutGroup, MotionConfig } from 'motion/react';
 import {
-  ArrowLeft,
   Plus,
   Sparkle,
 } from '@/components/icons';
@@ -53,7 +52,7 @@ export const MobileTripsView: React.FC<MobileTripsViewProps> = ({
   selectedArchetype,
   onSelectArchetype,
   filterTabs,
-  onBackHome,
+  onBackHome: _onBackHome,
   onSelectTrip,
   onCreateNewTrip,
   onEditTrip,
@@ -144,6 +143,7 @@ export const MobileTripsView: React.FC<MobileTripsViewProps> = ({
                 onDuplicate={onDuplicateTrip}
                 onDelete={onDeleteTrip}
                 onLaunch={onLaunchDashboard}
+                onCollapse={() => toggleExpandTrip(trip.id)}
               />
             </motion.div>
           ) : (
@@ -158,7 +158,8 @@ export const MobileTripsView: React.FC<MobileTripsViewProps> = ({
                 trip={trip}
                 isActive={isActive}
                 variant="list"
-                onClick={() => toggleExpandTrip(trip.id)}
+                onClick={() => onLaunchDashboard(trip.id)}
+                onToggleExpand={() => toggleExpandTrip(trip.id)}
                 onDuplicate={onDuplicateTrip}
                 onEdit={onEditTrip}
                 onDelete={onDeleteTrip}
@@ -173,31 +174,8 @@ export const MobileTripsView: React.FC<MobileTripsViewProps> = ({
   return (
     <MotionConfig reducedMotion="user">
     <LayoutGroup>
-    <div className="pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] sm:pt-[calc(env(safe-area-inset-top,0px)+1rem)] space-y-5 animate-apple-in">
-      {/* Top Row: Back to Home Pill + New Trip Button */}
-      <div className="flex items-center justify-between gap-2">
-        <Button
-          variant="secondary"
-          size="md"
-          onClick={onBackHome}
-          className="inline-flex items-center gap-1.5 min-h-[44px] h-10 px-4 rounded-full bg-card hover:bg-pod text-ink border border-ink/5 dark:border-white/5 text-xs font-semibold shadow-xs cursor-pointer active:scale-[0.98]"
-        >
-          <ArrowLeft className="w-4 h-4 text-current shrink-0" />
-          <span>{t('navHomeLabel')}</span>
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="md"
-          onClick={onCreateNewTrip}
-          className={`inline-flex items-center gap-1.5 min-h-[44px] h-10 px-5 rounded-full bg-[#111111] hover:bg-[#262626] text-white dark:bg-[#F5F5F7] dark:hover:bg-white dark:text-[#111111] border-0 ring-0 text-[13px] font-medium cursor-pointer active:scale-[0.98] ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
-        >
-          <Plus className="w-4 h-4 text-current stroke-[2.2]" />
-          <span>{t('createNewTripBtn')}</span>
-        </Button>
-      </div>
-
-      {/* Page Heading */}
+    <div className="pt-1 space-y-5 animate-apple-in">
+      {/* Page Heading (Top bar handles ← Home & + New trip cleanly) */}
       <h1 className="text-2xl font-semibold text-ink tracking-tight leading-tight">
         {t('tripsPageHeading')}
       </h1>
@@ -248,7 +226,7 @@ export const MobileTripsView: React.FC<MobileTripsViewProps> = ({
                     variant="ghost"
                     size="sm"
                     onClick={() => onSelectArchetype(tab.id)}
-                    className={`min-h-[44px] py-1.5 px-4 rounded-full text-xs font-semibold flex items-center gap-2 transition-all duration-150 active:scale-[0.98] cursor-pointer shrink-0 ${
+                    className={`min-h-[40px] py-2 px-3 rounded-full text-xs font-semibold flex items-center gap-2 transition-all duration-150 active:scale-[0.98] cursor-pointer shrink-0 ${
                       isSelected
                         ? tab.selectedClasses
                         : 'bg-card hover:bg-pod text-ink-secondary hover:text-ink border border-ink/5 dark:border-white/5'
@@ -261,7 +239,7 @@ export const MobileTripsView: React.FC<MobileTripsViewProps> = ({
                     />
                     <span>{tab.label}</span>
                     <span
-                      className={`text-[11px] font-semibold px-2 py-0.5 rounded-full tnum transition-colors ${
+                      className={`text-[11px] font-semibold min-w-[22px] h-[22px] px-1.5 inline-flex items-center justify-center rounded-full tnum transition-colors ${
                         isSelected ? 'bg-black/10 dark:bg-white/15 text-current' : 'bg-pod text-ink-muted'
                       }`}
                     >

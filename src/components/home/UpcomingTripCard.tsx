@@ -260,7 +260,7 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
       }`}
     >
       {/* ── Top Header: Day Countdown, Next Trip Title, Controls & Collapse Button ── */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
         <div className="space-y-2 flex-1 min-w-0">
           <div className="flex items-center gap-2.5 flex-wrap">
             {/* Prominent Day Countdown Badge (Uniform h-9 px-4 padding matching other chips) */}

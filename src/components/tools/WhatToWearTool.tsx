@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Button } from '@/components/arc/button/button';
 import {
-  Shirt,
+  Hanger,
   Flashlight,
   CloudRain,
   Wind,
@@ -269,7 +269,7 @@ export const WhatToWearTool: React.FC<WhatToWearToolProps> = ({
       <div className="lg:col-span-6 rounded-card bg-card p-4 sm:p-6 space-y-4 shadow-xs">
         <div className="flex items-center justify-between gap-2">
           <span className="inline-flex items-center gap-1.5 text-xs font-rounded font-bold text-purple-600 dark:text-purple-400">
-            <Shirt className="w-4 h-4" />
+            <Hanger className="w-4 h-4" />
             <span>{isFr ? 'Tenue recommandée' : 'Recommended kit'}</span>
           </span>
           <span

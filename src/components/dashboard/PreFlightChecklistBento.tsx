@@ -188,7 +188,7 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
       subtitle={t('checklistSub', { done: completedCount, total: items.length, tag: effectiveTag === 'VÉLOTAF' ? (isFr ? 'Vélotaf' : 'Commute') : effectiveTag })}
       badge={
         <div className="flex items-center gap-2 flex-wrap">
-          <Badge variant={isTubeless ? 'emerald' : 'zinc'} size="sm" className="tnum">
+          <Badge variant={isTubeless ? 'emerald' : 'zinc'} size="md" className="tnum">
             {isTubeless
               ? isFr
                 ? 'Tubeless'
@@ -270,20 +270,22 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
           type="button"
           onClick={() => setHideChecked((prev) => !prev)}
           aria-pressed={hideChecked}
-          className={`self-start sm:self-auto inline-flex items-center gap-1.5 min-h-[38px] px-3 py-1.5 rounded-full text-xs font-rounded font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer select-none tnum ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+          aria-label={t('checklistHideChecked')}
+          title={
+            hideChecked && completedCount > 0
+              ? `${t('checklistHideChecked')} (${completedCount})`
+              : t('checklistHideChecked')
+          }
+          className={`self-start sm:self-auto inline-flex items-center justify-center w-9 h-9 p-0 rounded-full shrink-0 transition-all cursor-pointer select-none ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
             hideChecked
               ? `${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary} ${CHIP_TOKENS.emerald.selectedRing}`
               : `${GREYSCALE_TOKENS.surface} ${GREYSCALE_TOKENS.primary} ${CHIP_RING_UNSELECTED} hover:text-ink`
           }`}
         >
           {hideChecked ? (
-            <Eye className="w-3.5 h-3.5 text-current shrink-0" />
+            <Eye className="w-4 h-4 text-current shrink-0" />
           ) : (
-            <EyeSlash className="w-3.5 h-3.5 text-current shrink-0" />
-          )}
-          <span>{t('checklistHideChecked')}</span>
-          {hideChecked && completedCount > 0 && (
-            <span className="font-rounded font-medium text-[11px] opacity-80">({completedCount})</span>
+            <EyeSlash className="w-4 h-4 text-current shrink-0" />
           )}
         </Button>
       </div>

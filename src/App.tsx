@@ -42,15 +42,28 @@ import {
   useTranslation,
 } from './context/LanguageContext';
 import { TopTelemetryBar } from './components/navigation/TopTelemetryBar';
-import { DynamicIslandNav } from './components/navigation/DynamicIslandNav';
 import { DashboardEmptyState } from './components/dashboard/DashboardEmptyState';
 import {
   applyToolDocumentMeta,
   FreeWebToolId,
-  getToolPath,
   parseToolFromLocation,
 } from './utils/toolCatalog';
+import {
+  AppView,
+  buildNavigationHistoryState,
+  getAppPath,
+  hasSpecialEntryLocation,
+  HomeMobileView,
+  parseAppLocation,
+  resolvePopStateRoute,
+} from './utils/appNavigation';
 import { trackCadenceEvent } from './utils/analytics';
+
+const QuickCommandModal = React.lazy(() =>
+  import('./components/navigation/QuickCommandModal').then((m) => ({
+    default: m.QuickCommandModal,
+  }))
+);
 
 const HomeScreen = React.lazy(() =>
   import('./components/home/HomeScreen').then((m) => ({ default: m.HomeScreen }))
@@ -218,26 +231,27 @@ function AppContent() {
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isTopMenuOpen, setIsTopMenuOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isRideBriefOpen, setIsRideBriefOpen] = useState(false);
   const [sharedPlanBanner, setSharedPlanBanner] = useState<
     ({ name: string; needsPersonalization?: boolean } & SharedPlanMeta) | null
   >(null);
-  const [toolsInitialTab, setToolsInitialTab] = useState<FreeWebToolId>(() => {
-    if (typeof window !== 'undefined') {
-      const parsed = parseToolFromLocation(window.location);
-      if (parsed.isToolsRoute) {
-        return parsed.toolId;
-      }
+
+  const initialParsedRoute = React.useMemo(() => {
+    if (typeof window === 'undefined') {
+      return { view: 'home' as AppView, homeMobileView: 'home' as HomeMobileView, toolId: 'hub' as FreeWebToolId, isCanonicalPath: true };
     }
-    return 'hub';
-  });
+    return parseAppLocation(window.location);
+  }, []);
+
+  const [toolsInitialTab, setToolsInitialTab] = useState<FreeWebToolId>(initialParsedRoute.toolId);
 
   const isCloudApplyingRef = React.useRef(false);
   const saveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSyncedPayloadHashRef = React.useRef<string>('');
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
-    // Never ambush visitors opening /tools/* or shared plan links with onboarding
+    // Never ambush visitors opening /tools/*, direct deep-links, or shared plan links with onboarding
     if (parseToolFromLocation(window.location).isToolsRoute) return false;
     if (hasSharedPlanInLocation(window.location)) return false;
     if (hasPotentialSupabaseSession()) return false;
@@ -256,96 +270,125 @@ function AppContent() {
     }
   }, [user]);
 
-  const [homeMobileView, setHomeMobileView] = useState<'home' | 'trips'>('home');
+  const [homeMobileView, setHomeMobileView] = useState<HomeMobileView>(
+    initialParsedRoute.homeMobileView
+  );
   const [isMobileWeatherOpen, setIsMobileWeatherOpen] = useState(false);
   const [autoOpenSlicer, setAutoOpenSlicer] = useState(false);
   const tripsScrollYRef = React.useRef<number>(0);
-  const [currentView, setCurrentView] = useState<'home' | 'configurator' | 'dashboard' | 'tools'>(() => {
-    if (typeof window !== 'undefined') {
-      const toolRoute = parseToolFromLocation(window.location);
-      if (toolRoute.isToolsRoute) {
-        return 'tools';
-      }
-      const hash = window.location.hash;
-      const search = window.location.search;
-      if (hash === '#configurator' || search.includes('view=configurator')) {
-        return 'configurator';
-      }
-      if (hash === '#home' || search.includes('view=home')) {
-        return 'home';
-      }
-      const hasSharedPlan = hasSharedPlanInLocation(window.location);
-      if (!hasSharedPlan && !hasPotentialSupabaseSession()) {
-        try {
-          if (localStorage.getItem(STORAGE_KEY_ONBOARDED) !== 'true') {
-            return 'home';
-          }
-        } catch {
-          return 'home';
-        }
-      }
-    }
-    return 'home';
-  });
+  const [currentView, setCurrentView] = useState<AppView>(initialParsedRoute.view);
 
-  const syncUrlForView = (
-    nextView: 'home' | 'configurator' | 'dashboard' | 'tools',
-    toolId?: FreeWebToolId
-  ) => {
-    if (typeof window === 'undefined') return;
-    if (nextView === 'tools') {
-      const targetPath = getToolPath(toolId ?? toolsInitialTab);
-      if (window.location.pathname !== targetPath || window.location.search.includes('tool=')) {
-        window.history.pushState({ view: 'tools', toolId: toolId ?? toolsInitialTab }, '', targetPath);
+  const syncBrowserHistory = React.useCallback(
+    (
+      nextView: AppView,
+      options?: {
+        homeMobileView?: HomeMobileView;
+        toolId?: FreeWebToolId;
+        replace?: boolean;
       }
-    } else if (
-      window.location.pathname === '/tools' ||
-      window.location.pathname.startsWith('/tools/') ||
-      window.location.search.includes('tool=')
-    ) {
-      window.history.pushState({ view: nextView }, '', '/');
-    }
-  };
+    ) => {
+      if (typeof window === 'undefined') return;
+      // Preserve one-shot entry URLs (shared plans, OAuth callbacks, PWA share targets) until consumed
+      if (hasSpecialEntryLocation(window.location)) return;
+      const targetMobileView: HomeMobileView =
+        nextView === 'home' ? options?.homeMobileView ?? homeMobileView : 'home';
+      const targetToolId: FreeWebToolId = options?.toolId ?? toolsInitialTab;
+      const targetPath = getAppPath(nextView, {
+        homeMobileView: targetMobileView,
+        toolId: targetToolId,
+      });
+      const state = buildNavigationHistoryState(nextView, targetMobileView, targetToolId);
+      const currentFull = window.location.pathname + window.location.search + window.location.hash;
+      if (currentFull === targetPath && !options?.replace) {
+        return;
+      }
+      if (options?.replace) {
+        window.history.replaceState(state, '', targetPath);
+      } else {
+        window.history.pushState(state, '', targetPath);
+      }
+    },
+    [homeMobileView, toolsInitialTab]
+  );
+
+  // Stamp initial history state so Back/Forward returns cleanly to the landing route
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (hasSpecialEntryLocation(window.location)) return;
+    const targetPath = getAppPath(currentView, {
+      homeMobileView,
+      toolId: toolsInitialTab,
+    });
+    const state = buildNavigationHistoryState(currentView, homeMobileView, toolsInitialTab);
+    window.history.replaceState(state, '', targetPath);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleOpenTools = (tab: FreeWebToolId = 'hub', source = 'in-app') => {
     setToolsInitialTab(tab);
     setCurrentView('tools');
     setIsOnboardingOpen(false);
-    syncUrlForView('tools', tab);
+    syncBrowserHistory('tools', { toolId: tab });
     trackCadenceEvent('tool_opened', { tool: tab, source });
   };
 
   const handleSelectToolInView = (tab: FreeWebToolId) => {
     setToolsInitialTab(tab);
-    syncUrlForView('tools', tab);
+    syncBrowserHistory('tools', { toolId: tab });
     trackCadenceEvent('tool_opened', { tool: tab, source: 'tools-nav' });
   };
 
-  const navigateAppView = (nextView: 'home' | 'configurator' | 'dashboard' | 'tools') => {
+  const navigateAppView = (
+    nextView: AppView,
+    options?: { homeMobileView?: HomeMobileView; replace?: boolean }
+  ) => {
     if (nextView === 'tools') {
       handleOpenTools(toolsInitialTab, 'nav');
       return;
     }
+    const nextMobileView: HomeMobileView =
+      nextView === 'home' ? options?.homeMobileView ?? 'home' : homeMobileView;
+    if (nextView === 'home') {
+      setHomeMobileView(nextMobileView);
+    }
     setCurrentView(nextView);
-    syncUrlForView(nextView);
+    syncBrowserHistory(nextView, {
+      homeMobileView: nextMobileView,
+      replace: options?.replace,
+    });
   };
 
-  // Sync browser Back/Forward navigation with /tools/* routes
+  const handleHomeMobileViewChange = (nextMobileView: HomeMobileView) => {
+    setHomeMobileView(nextMobileView);
+    syncBrowserHistory('home', { homeMobileView: nextMobileView });
+  };
+
+  // Sync browser Back/Forward & mobile swipe-back gestures across all SPA views
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const handlePopState = () => {
-      const parsed = parseToolFromLocation(window.location);
-      if (parsed.isToolsRoute) {
-        setToolsInitialTab(parsed.toolId);
+    const handlePopState = (event: PopStateEvent) => {
+      const resolved = resolvePopStateRoute(window.location, event.state);
+      setIsTopMenuOpen(false);
+      setIsCommandPaletteOpen(false);
+      if (resolved.view === 'tools') {
+        setToolsInitialTab(resolved.toolId);
         setCurrentView('tools');
         setIsOnboardingOpen(false);
-      } else if (currentView === 'tools') {
+      } else if (resolved.view === 'home') {
+        setHomeMobileView(resolved.homeMobileView);
         setCurrentView('home');
+        if (resolved.homeMobileView === 'trips') {
+          window.requestAnimationFrame(() => {
+            window.scrollTo({ top: tripsScrollYRef.current, behavior: 'instant' as ScrollBehavior });
+          });
+        }
+      } else {
+        setCurrentView(resolved.view);
       }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [currentView]);
+  }, []);
 
   // Keep page <title> & meta description in sync for SEO + browser tabs, and log direct /tools landings
   const didTrackDirectToolRef = React.useRef(false);
@@ -412,11 +455,12 @@ function AppContent() {
       const nextSearch = params.toString();
       const hashRaw = window.location.hash || '';
       const nextHash = hashRaw.includes('plan=') || hashRaw.includes('p=') ? '' : hashRaw;
-      const nextPath = /^\/p\/[a-z0-9]{6,16}\/?$/i.test(window.location.pathname)
-        ? '/'
-        : window.location.pathname;
-      const cleanUrl = nextPath + (nextSearch ? `?${nextSearch}` : '') + nextHash;
-      window.history.replaceState({}, '', cleanUrl);
+      const cleanUrl = '/plan' + (nextSearch ? `?${nextSearch}` : '') + nextHash;
+      window.history.replaceState(
+        buildNavigationHistoryState('dashboard', 'home', 'hub'),
+        '',
+        cleanUrl
+      );
 
       // Auto-fetch real DEM elevation in the background so shared links get true elevation curves
       const hydrateSharedDem = async () => {
@@ -641,7 +685,7 @@ function AppContent() {
           if (parsedResult.distanceKm >= 180 && parsedResult.coordinates.length >= 2) {
             setAutoOpenSlicer(true);
           }
-          setCurrentView('dashboard');
+          navigateAppView('dashboard', { replace: true });
           markOnboardingSeen();
           setIsOnboardingOpen(false);
         }
@@ -870,7 +914,7 @@ function AppContent() {
       tripsScrollYRef.current = window.scrollY;
     }
     handleSelectTrip(id);
-    setCurrentView('dashboard');
+    navigateAppView('dashboard');
   };
 
   const handleCreateNewTrip = () => {
@@ -907,14 +951,14 @@ function AppContent() {
     setConfiguratorTrip(newProfile);
     setConfiguratorReturnView(currentView === 'home' ? 'home' : 'dashboard');
     setIsNewTrip(true);
-    setCurrentView("configurator");
+    navigateAppView('configurator');
   };
 
   const handleEditTrip = (trip: TripProfile) => {
     setConfiguratorTrip(trip);
     setConfiguratorReturnView(currentView === 'home' ? 'home' : 'dashboard');
     setIsNewTrip(false);
-    setCurrentView('configurator');
+    navigateAppView('configurator');
   };
 
   const handleDuplicateTrip = (trip: TripProfile) => {
@@ -1000,7 +1044,7 @@ function AppContent() {
     if (target) {
       handleSaveConfiguratorTrip(target);
     }
-    setCurrentView("dashboard");
+    navigateAppView('dashboard');
   };
 
   const applySpecsToActiveTrip = (nextSpecs: RiderBikeSpecs) => {
@@ -1089,7 +1133,10 @@ function AppContent() {
     if (options?.autoOpenSlicer) {
       setAutoOpenSlicer(true);
     }
-    setCurrentView(targetView);
+    if (targetView === 'configurator') {
+      setConfiguratorReturnView('home');
+    }
+    navigateAppView(targetView);
   };
 
   const handleLaunchFromOnboarding = (calibratedTrip: TripProfile) => {
@@ -1183,7 +1230,7 @@ function AppContent() {
     setConfiguratorTrip(calibratedTrip);
     setIsNewTrip(false);
     setIsOnboardingOpen(false);
-    setCurrentView('dashboard');
+    navigateAppView('dashboard');
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   };
 
@@ -1213,7 +1260,7 @@ function AppContent() {
     setConfiguratorTrip(sampleTrips[0]);
     setIsNewTrip(false);
     saveTrips(sampleTrips);
-    setCurrentView('dashboard');
+    navigateAppView('dashboard');
   };
 
   const handleOpenTripFromTool = (trip: TripProfile, sourceTool: FreeWebToolId) => {
@@ -1237,32 +1284,113 @@ function AppContent() {
     window.print();
   };
 
+  const handleBackFromDashboard = () => {
+    const returnToMobileTrips = homeMobileView === 'trips';
+    navigateAppView('home', { homeMobileView: returnToMobileTrips ? 'trips' : 'home' });
+    if (returnToMobileTrips && typeof window !== 'undefined') {
+      window.requestAnimationFrame(() => {
+        window.scrollTo({ top: tripsScrollYRef.current, behavior: 'instant' as ScrollBehavior });
+      });
+    }
+  };
+
+  const handleBackFromConfigurator = () => {
+    setIsNewTrip(false);
+    if (configuratorReturnView === 'home') {
+      navigateAppView('home', { homeMobileView });
+    } else {
+      navigateAppView('dashboard');
+    }
+  };
+
+  // Global keyboard shortcuts: ⌘K / Ctrl+K quick switcher + 1–4 primary views
+  const shortcutHandlersRef = React.useRef({
+    navigateView: (_v: AppView) => {},
+    openToolsHub: () => {},
+  });
+  shortcutHandlersRef.current = {
+    navigateView: (v: AppView) => {
+      if (v === 'configurator') {
+        if (!isNewTrip) setConfiguratorTrip(activeTrip);
+        setConfiguratorReturnView(currentView === 'home' ? 'home' : 'dashboard');
+      }
+      navigateAppView(v, v === 'home' ? { homeMobileView: 'home' } : undefined);
+    },
+    openToolsHub: () => handleOpenTools('hub', 'shortcut'),
+  };
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // ⌘K or Ctrl+K toggles Quick Command Switcher from anywhere
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsTopMenuOpen(false);
+        setIsCommandPaletteOpen((prev) => !prev);
+        return;
+      }
+
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        e.target instanceof HTMLSelectElement ||
+        (e.target as HTMLElement | null)?.isContentEditable
+      ) {
+        return;
+      }
+
+      if (
+        e.metaKey ||
+        e.ctrlKey ||
+        e.altKey ||
+        document.querySelector('[role="dialog"][aria-modal="true"]')
+      ) {
+        return;
+      }
+
+      if (e.key === '1') {
+        shortcutHandlersRef.current.navigateView('home');
+      } else if (e.key === '2') {
+        shortcutHandlersRef.current.navigateView('dashboard');
+      } else if (e.key === '3') {
+        shortcutHandlersRef.current.navigateView('configurator');
+      } else if (e.key === '4') {
+        shortcutHandlersRef.current.openToolsHub();
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
+
   return (
     <div
       className={`min-h-screen print:min-h-0 print:h-auto w-full max-w-full overflow-x-clip ${
         isDark ? 'dark' : 'light'
       } bg-canvas text-ink flex flex-col font-sans selection:bg-volt selection:text-[#111111] transition-colors duration-200`}
     >
-      {/* High-End Minimalist Top Telemetry Bar */}
-      {currentView !== 'configurator' && !(currentView === 'home' && homeMobileView === 'trips') && (
+      {/* Unified Sticky Top Navigation Bar (Persistent across all views on desktop & mobile) */}
       <TopTelemetryBar
         activeTrip={activeTrip}
+        allTrips={trips}
         currentView={currentView}
+        homeMobileView={homeMobileView}
+        toolsActiveTab={toolsInitialTab}
+        configuratorReturnView={configuratorReturnView}
         dashboardBackTarget={homeMobileView}
         onOpenMobileWeather={homeMobileView === 'home' ? () => setIsMobileWeatherOpen(true) : undefined}
-        onBackFromDashboard={() => {
-          navigateAppView('home');
-          if (homeMobileView === 'trips' && typeof window !== 'undefined') {
-            requestAnimationFrame(() => {
-              window.scrollTo({ top: tripsScrollYRef.current, behavior: 'instant' as ScrollBehavior });
-            });
-          }
-        }}
+        onBackFromTrips={() => navigateAppView('home', { homeMobileView: 'home' })}
+        onBackFromDashboard={handleBackFromDashboard}
+        onBackFromConfigurator={handleBackFromConfigurator}
+        onSelectTrip={handleSelectTrip}
+        onCreateNewTrip={handleCreateNewTrip}
         onNavigate={(view) => {
-          if (view === 'configurator' && !isNewTrip) {
-            setConfiguratorTrip(activeTrip);
+          if (view === 'configurator') {
+            if (!isNewTrip) {
+              setConfiguratorTrip(activeTrip);
+            }
+            setConfiguratorReturnView(currentView === 'home' ? 'home' : 'dashboard');
           }
-          navigateAppView(view);
+          navigateAppView(view, view === 'home' ? { homeMobileView: 'home' } : undefined);
         }}
         onOpenSpecs={() => setIsSpecsModalOpen(true)}
         onPrint={handlePrint}
@@ -1273,14 +1401,17 @@ function AppContent() {
           setIsRideBriefOpen(true);
         }}
         onOpenTools={(tab) => handleOpenTools(tab || 'hub', 'top-bar')}
+        onOpenCommandPalette={() => {
+          setIsTopMenuOpen(false);
+          setIsCommandPaletteOpen(true);
+        }}
         riderSpecs={riderSpecs}
         isMenuOpen={isTopMenuOpen}
         onMenuOpenChange={setIsTopMenuOpen}
       />
-      )}
 
-      {/* Screen Views (with ample bottom padding for the floating navigation island & iOS safe area) */}
-      <main className="flex-1 min-w-0 w-full max-w-full pb-[calc(8rem+env(safe-area-inset-bottom,0px))] sm:pb-40 print:hidden no-print">
+      {/* Screen Views */}
+      <main className="flex-1 min-w-0 w-full max-w-full pb-[calc(2rem+env(safe-area-inset-bottom,0px))] sm:pb-12 print:hidden no-print">
         {currentView === 'home' && (
           <Suspense fallback={<ViewLoadingFallback />}>
             <HomeScreen
@@ -1300,7 +1431,7 @@ function AppContent() {
             onQuickCreateTrip={handleQuickCreateTrip}
             riderSpecs={riderSpecs}
             mobileView={homeMobileView}
-            onMobileViewChange={setHomeMobileView}
+            onMobileViewChange={handleHomeMobileViewChange}
             isMobileWeatherOpen={isMobileWeatherOpen}
             onMobileWeatherOpenChange={setIsMobileWeatherOpen}
           />
@@ -1315,10 +1446,7 @@ function AppContent() {
               isNew={isNewTrip}
               onSave={handleSaveConfiguratorTrip}
               onAutoSync={handleSaveConfiguratorTrip}
-              onCancel={() => {
-                setIsNewTrip(false);
-                setCurrentView(configuratorReturnView);
-              }}
+              onCancel={handleBackFromConfigurator}
               onLaunch={(savedTrip) => handleLaunchFromConfigurator(savedTrip || configuratorTrip || activeTrip)}
             />
           </Suspense>
@@ -1391,32 +1519,38 @@ function AppContent() {
               riderSpecs={riderSpecs}
               onSelectTool={handleSelectToolInView}
               onOpenTripInCadence={handleOpenTripFromTool}
-              onBackToCockpit={() => navigateAppView('home')}
+              onBackToCockpit={() => navigateAppView('home', { homeMobileView: 'home' })}
             />
           </Suspense>
         )}
       </main>
 
-      {/* Floating Dynamic Island Navigation Pill (Hidden on /tools or when top settings menu overlay is open) */}
-      {!isTopMenuOpen && currentView !== 'tools' && (
-        <div className="hidden md:block">
-          <DynamicIslandNav
+      {/* ⌘K Quick Command & Trip Switcher Palette */}
+      {isCommandPaletteOpen && (
+        <Suspense fallback={null}>
+          <QuickCommandModal
+            isOpen={isCommandPaletteOpen}
+            onClose={() => setIsCommandPaletteOpen(false)}
             currentView={currentView}
-            onNavigate={(view) => {
-              if (view === 'configurator' && !isNewTrip) {
-                setConfiguratorTrip(activeTrip);
-              }
-              navigateAppView(view);
-            }}
+            trips={trips}
             activeTrip={activeTrip}
-            allTrips={trips}
-            onSelectTrip={handleSelectTrip}
-            onCreateNew={handleCreateNewTrip}
-            onPrint={handlePrint}
+            riderSpecs={riderSpecs}
+            onNavigateView={(view) => {
+              if (view === 'configurator') {
+                if (!isNewTrip) setConfiguratorTrip(activeTrip);
+                setConfiguratorReturnView(currentView === 'home' ? 'home' : 'dashboard');
+              }
+              navigateAppView(view, view === 'home' ? { homeMobileView: 'home' } : undefined);
+            }}
+            onLaunchTrip={handleLaunchDashboard}
+            onEditTrip={handleEditTrip}
+            onCreateNewTrip={handleCreateNewTrip}
+            onOpenTool={(toolId) => handleOpenTools(toolId, 'command-palette')}
             onOpenSpecs={() => setIsSpecsModalOpen(true)}
-            onResetDefaults={handleResetDefaults}
+            onShareReceipt={() => setIsShareModalOpen(true)}
+            onPrint={handlePrint}
           />
-        </div>
+        </Suspense>
       )}
 
       {/* Printable A4 Flight Sheet Layout (Hidden on Screen, Active on Print) */}
