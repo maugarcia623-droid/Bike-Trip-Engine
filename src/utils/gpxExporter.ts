@@ -463,7 +463,7 @@ export function exportTripToGpx(trip: TripProfile, options: GpxExportOptions = {
     trip.name || `${trip.route.origin || 'Start'} → ${trip.route.destination || 'Finish'}`;
   const description =
     trip.description ||
-    `${trip.route.distanceKm} km ride · Planned with Cadence (bike-trip-engine)`;
+    `${trip.route.distanceKm} km ride · Planned with Cadence (ridecadence.cc)`;
   const time = points.length > 0 ? points[0].timestamp : new Date().toISOString();
 
   const wptXml =
@@ -487,7 +487,7 @@ export function exportTripToGpx(trip: TripProfile, options: GpxExportOptions = {
   const trkptsXml = buildTrackPointsXml(points);
 
   return `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="Cadence - bike-trip-engine"
+<gpx version="1.1" creator="Cadence (ridecadence.cc)"
   xmlns="http://www.topografix.com/GPX/1/1"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">

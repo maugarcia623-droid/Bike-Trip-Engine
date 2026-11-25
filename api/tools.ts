@@ -1,5 +1,7 @@
+const CANONICAL_ORIGIN = 'https://ridecadence.cc';
+
 const BOT_UA_REGEX =
-  /facebookexternalhit|facebot|twitterbot|whatsapp|slackbot|discordbot|telegrambot|linkedinbot|applebot|skypeuripreview|embedly|pinterest|vkshare|redditbot|signal|line-poker|googlebot|bingbot|duckduckbot|kakaotalk|viber|mattermost|imessage|linkpresentation/i;
+  /facebookexternalhit|facebot|twitterbot|whatsapp|slackbot|discordbot|telegrambot|linkedinbot|applebot|skypeuripreview|embedly|pinterest|vkshare|redditbot|signal|line-poker|googlebot|bingbot|duckduckbot|kakaotalk|viber|mattermost|imessage|linkpresentation|oai-searchbot|chatgpt-user|gptbot|perplexitybot|claudebot|claude-searchbot|anthropic-ai/i;
 
 interface ToolSeoRecord {
   slug: string;
@@ -22,9 +24,9 @@ const TOOL_SEO_MAP: Record<string, ToolSeoRecord> = {
   },
   'flip-my-loop': {
     slug: 'flip-my-loop',
-    title: 'Cycling Loop Wind Direction Checker: Clockwise or Counter-Clockwise? — Cadence',
+    title: 'Cycling Loop Wind Direction Checker & Invisible Hill Calculator — Cadence',
     description:
-      'Drop any cycling loop GPX and compare clockwise vs. counter-clockwise wind cost in minutes and watts saved. Instant browser tool, free.',
+      'Drop any cycling loop GPX to compare clockwise vs. counter-clockwise wind, or check today’s live wind in your city as an equivalent hill grade, ghost climbing meters, and best ride-out direction. Free, no account.',
   },
   'water-bakery': {
     slug: 'water-bakery',
@@ -107,6 +109,37 @@ function resolveSeoRecord(url: URL): ToolSeoRecord {
   return TOOL_SEO_MAP[canonicalKey] || TOOL_SEO_MAP.hub;
 }
 
+function buildToolJsonLd(meta: {
+  title: string;
+  description: string;
+  canonicalUrl: string;
+  imageUrl: string;
+}): string {
+  const payload = {
+    '@context': 'https://schema.org',
+    '@type': 'WebApplication',
+    name: meta.title,
+    url: meta.canonicalUrl,
+    image: meta.imageUrl,
+    description: meta.description,
+    applicationCategory: 'SportsApplication',
+    operatingSystem: 'Any',
+    inLanguage: ['en', 'fr'],
+    isAccessibleForFree: true,
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'USD',
+    },
+    isPartOf: {
+      '@type': 'WebSite',
+      name: 'Cadence',
+      url: `${CANONICAL_ORIGIN}/`,
+    },
+  };
+  return JSON.stringify(payload).replace(/</g, '\\u003c');
+}
+
 function injectMetaIntoSpaHtml(
   html: string,
   meta: { title: string; description: string; canonicalUrl: string; imageUrl: string }
@@ -115,6 +148,7 @@ function injectMetaIntoSpaHtml(
   const d = escapeHtml(meta.description);
   const u = escapeHtml(meta.canonicalUrl);
   const img = escapeHtml(meta.imageUrl);
+  const jsonLdScript = `<script type="application/ld+json" id="cadence-ld-json">${buildToolJsonLd(meta)}</script>`;
 
   let out = html
     .replace(/<title>[\s\S]*?<\/title>/i, `<title>${t}</title>`)
@@ -126,11 +160,22 @@ function injectMetaIntoSpaHtml(
     .replace(/<meta\s+name="twitter:description"\s+content="[^"]*"\s*\/?>/i, `<meta name="twitter:description" content="${d}" />`)
     .replace(/<meta\s+name="twitter:image"\s+content="[^"]*"\s*\/?>/i, `<meta name="twitter:image" content="${img}" />`);
 
-  if (!/<link\s+rel="canonical"/i.test(out)) {
+  if (/<link\s+rel="canonical"[^>]*\/?>/i.test(out)) {
+    out = out.replace(/<link\s+rel="canonical"[^>]*\/?>/i, `<link rel="canonical" href="${u}" />`);
+  } else {
     out = out.replace('</head>', `    <link rel="canonical" href="${u}" />\n  </head>`);
   }
-  if (!/<meta\s+property="og:url"/i.test(out)) {
+
+  if (/<meta\s+property="og:url"[^>]*\/?>/i.test(out)) {
+    out = out.replace(/<meta\s+property="og:url"[^>]*\/?>/i, `<meta property="og:url" content="${u}" />`);
+  } else {
     out = out.replace('</head>', `    <meta property="og:url" content="${u}" />\n  </head>`);
+  }
+
+  if (/<script\s+type="application\/ld\+json"[^>]*>[\s\S]*?<\/script>/i.test(out)) {
+    out = out.replace(/<script\s+type="application\/ld\+json"[^>]*>[\s\S]*?<\/script>/i, jsonLdScript);
+  } else {
+    out = out.replace('</head>', `    ${jsonLdScript}\n  </head>`);
   }
 
   return out;
@@ -141,6 +186,7 @@ function buildBotHtml(meta: { title: string; description: string; canonicalUrl: 
   const d = escapeHtml(meta.description);
   const u = escapeHtml(meta.canonicalUrl);
   const img = escapeHtml(meta.imageUrl);
+  const jsonLd = buildToolJsonLd(meta);
 
   return `<!doctype html>
 <html lang="en">
@@ -160,12 +206,13 @@ function buildBotHtml(meta: { title: string; description: string; canonicalUrl: 
     <meta name="twitter:title" content="${t}" />
     <meta name="twitter:description" content="${d}" />
     <meta name="twitter:image" content="${img}" />
+    <script type="application/ld+json">${jsonLd}</script>
   </head>
   <body>
     <main>
       <h1>${t}</h1>
       <p>${d}</p>
-      <p><a href="${u}">Open in Cadence</a></p>
+      <p><a href="${u}">Open in Cadence</a> · <a href="${CANONICAL_ORIGIN}/tools">All free Cadence cycling tools</a></p>
     </main>
   </body>
 </html>`;
@@ -180,8 +227,8 @@ export async function GET(request: Request): Promise<Response> {
   const meta = {
     title: record.title,
     description: record.description,
-    canonicalUrl: `${origin}${canonicalPath}`,
-    imageUrl: `${origin}/images/ride-plan-light.jpg`,
+    canonicalUrl: `${CANONICAL_ORIGIN}${canonicalPath}`,
+    imageUrl: `${CANONICAL_ORIGIN}/images/ride-plan-light.jpg`,
   };
 
   const userAgent = request.headers.get('user-agent') || '';
