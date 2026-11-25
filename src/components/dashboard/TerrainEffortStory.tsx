@@ -1,6 +1,4 @@
-import React, { useId, useMemo, useState } from 'react';
-import { Button } from "@/components/arc/button/button";
-import { Flame, Mountains, Route } from '@/components/icons';
+import React, { useMemo, useState } from 'react';
 import {
   EffortTracePoint,
   PowerZoneCode,
@@ -10,10 +8,6 @@ import {
 import { useTranslation } from '../../context/LanguageContext';
 import { Badge } from '../common/Badge';
 import {
-  CHIP_DUOTONE_ISOLATION_CLASSES,
-  CHIP_RING_BASE,
-  CHIP_RING_UNSELECTED,
-  CHIP_TOKENS,
   ChipTheme,
 } from '../../tokens/chipTokens';
 
@@ -55,14 +49,12 @@ function zoneForPct(pct: number): PowerZoneCode {
   return 'Z5';
 }
 
-type TabKey = 'effort' | 'terrain' | 'surface';
-
 interface TerrainEffortStoryProps {
   sectional: SectionalEnergySummary;
   /** Show watts readouts (Pro view, or Guided riders who pace by power). */
   showWatts: boolean;
   totalKcal: number;
-  /** Rendered inside the "Surface" tab (road surfaces & tire suitability). */
+  /** Rendered below effort & terrain (road surfaces & tire suitability). */
   surfaceSlot?: React.ReactNode;
 }
 
@@ -193,14 +185,12 @@ const ElevationBars: React.FC<{
 export const TerrainEffortStory: React.FC<TerrainEffortStoryProps> = ({
   sectional,
   showWatts,
-  totalKcal,
+  totalKcal: _totalKcal,
   surfaceSlot,
 }) => {
   const { lang, t } = useTranslation();
   const isFr = lang === 'fr';
   const f = useFormatters(isFr);
-  const tabsId = useId();
-  const [tab, setTab] = useState<TabKey>('effort');
   const [hoveredZone, setHoveredZone] = useState<PowerZoneCode | null>(null);
 
   const ftp = Math.max(80, sectional.ftpWatts);
@@ -315,260 +305,151 @@ export const TerrainEffortStory: React.FC<TerrainEffortStoryProps> = ({
       ? 'Effort homogène sur tout le parcours — garde une cadence tranquille.'
       : 'Even effort across the whole route — hold a steady rhythm.';
 
-  /* ── Energy ── */
-  const kcalPerKm = (b: SectionalEffortBand) => b.kcalShare / Math.max(0.1, b.distanceKm);
-  const fuelBands = activeBands.filter((b) => b.distanceKm >= 0.3 && b.kcalShare > 0);
-  const fuelEasy = fuelBands.find((b) => b.id === 'easy');
-  const fuelHard = fuelBands.filter((b) => b.id !== 'easy').sort((a, b) => kcalPerKm(b) - kcalPerKm(a))[0];
-  const costRatio = fuelEasy && fuelHard ? kcalPerKm(fuelHard) / Math.max(0.1, kcalPerKm(fuelEasy)) : 1;
-  const fuelInsight =
-    fuelEasy && fuelHard && costRatio >= 1.3
-      ? isFr
-        ? `${bandName(fuelHard.id, true)} coûtent ${f.num(costRatio)}× plus au km que le plat — mange quelques minutes avant.`
-        : `${bandName(fuelHard.id, false)} cost ${f.num(costRatio)}× more per km than flats — eat a few minutes before.`
-      : isFr
-      ? 'Coût régulier — mange un petit bout toutes les 20–25 min.'
-      : 'Even burn — nibble steadily every 20–25 min.';
-  const kcalPerHour = Math.round(totalKcal / Math.max(0.25, sectional.totalMinutes / 60));
-
-  const tabs: Array<{ key: TabKey; label: string; icon: React.ElementType; theme: ChipTheme }> = [
-    { key: 'effort', label: isFr ? 'Effort' : 'Effort', icon: Flame, theme: 'emerald' },
-    { key: 'terrain', label: isFr ? 'Relief & énergie' : 'Terrain & fuel', icon: Mountains, theme: 'yellow-vest' },
-    ...(surfaceSlot
-      ? [{ key: 'surface' as const, label: isFr ? 'Revêtement' : 'Surface', icon: Route, theme: 'sky' as ChipTheme }]
-      : []),
-  ];
-
   return (
-    <div>
-      {/* ── Tabs: left-aligned concentric pill switcher matching Guided/Pro switcher above ── */}
-      <div className="flex justify-start">
+    <div className="space-y-4">
+      {/* ─────────── EFFORT & ZONES ─────────── */}
+      <div>
+        <p className={EYEBROW}>{isFr ? 'Ta sortie sera' : 'Your ride will be'}</p>
+        <h5 className="mt-1 text-[28px] leading-none font-rounded font-extrabold tracking-tight text-ink">
+          {isFr ? character.fr : character.en}
+        </h5>
+        <p className="mt-2 text-xs font-body text-ink-secondary leading-relaxed tnum">
+          {lead}
+          {peakSentence}
+        </p>
+
+        <div className="mt-3">
+          <ElevationBars
+            trace={trace}
+            ftp={ftp}
+            peakKm={peakKm}
+            peakLabel={showWatts ? `${sectional.peakClimbWatts} W` : sectional.peakZone}
+            peakTheme={ZONE_THEME[sectional.peakZone]}
+            isFr={isFr}
+            fmtNum={f.num}
+          />
+        </div>
+
+        <div className="mt-4 flex items-center justify-between gap-2">
+          <p className={EYEBROW}>{isFr ? 'Temps par zone' : 'Time in zones'}</p>
+          {showWatts && (
+            <span className="text-[10px] font-rounded font-bold text-ink-muted tnum">FTP {ftp} W</span>
+          )}
+        </div>
+        {/* Proportional 5-zone segmented pill histogram */}
         <div
-          role="tablist"
-          aria-label={t('sectionalEnergyHeading')}
-          className="inline-flex items-center gap-1 p-1 rounded-full bg-pod w-fit max-w-full overflow-x-auto no-scrollbar"
+          className="mt-2 mb-2.5 h-3.5 w-full rounded-full bg-chip dark:bg-white/10 p-0.5 flex items-stretch gap-0.5 overflow-hidden"
+          onMouseLeave={() => setHoveredZone(null)}
+          role="img"
+          aria-label={isFr ? 'Répartition proportionnelle des zones de puissance' : 'Proportional power zone distribution'}
         >
-          {tabs.map((tb) => {
-            const sel = tab === tb.key;
-            const TabIcon = tb.icon;
-            const tokens = CHIP_TOKENS[tb.theme];
+          {ZONE_ORDER.map((z) => {
+            const s = share(z);
+            const p = s?.pctTime ?? 0;
+            if (p <= 0) return null;
+            const isActive = hoveredZone === z;
             return (
-              <Button
-                variant="ghost"
-                key={tb.key}
+              <button
+                key={z}
                 type="button"
-                role="tab"
-                id={`${tabsId}-tab-${tb.key}`}
-                aria-selected={sel}
-                aria-controls={`${tabsId}-panel-${tb.key}`}
-                onClick={() => setTab(tb.key)}
-                className={`min-h-[44px] sm:min-h-[34px] px-3 sm:px-3.5 py-2 sm:py-1.5 rounded-full text-xs font-rounded font-semibold whitespace-nowrap cursor-pointer transition-all flex items-center justify-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30 ${CHIP_RING_BASE} ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
-                  sel
-                    ? `${tokens.surface} ${tokens.primary} ${tokens.selectedRing}`
-                    : `${CHIP_RING_UNSELECTED} text-ink-muted hover:text-ink`
+                style={{ flex: `${p} 1 0%` }}
+                onMouseEnter={() => setHoveredZone(z)}
+                onFocus={() => setHoveredZone(z)}
+                onBlur={() => setHoveredZone(null)}
+                title={`${z} ${zoneName(z)} · ${f.pct(p)} (${f.duration(s?.minutes ?? 0)})`}
+                aria-label={`${z} ${zoneName(z)} ${f.pct(p)}`}
+                className={`h-full min-w-[8px] rounded-full cursor-pointer transition-opacity focus:outline-none ${ZONE_FILL[z]} ${
+                  hoveredZone && !isActive ? 'opacity-45' : 'opacity-100'
                 }`}
-              >
-                <TabIcon className="w-3.5 h-3.5 shrink-0 text-current" />
-                <span>{tb.label}</span>
-              </Button>
+              />
             );
           })}
         </div>
+        <ul className="mt-1 space-y-1">
+          {ZONE_ORDER.map((z) => {
+            const s = share(z);
+            const p = s?.pctTime ?? 0;
+            const isHighlighted = hoveredZone === z;
+            return (
+              <li
+                key={z}
+                onMouseEnter={() => setHoveredZone(z)}
+                onMouseLeave={() => setHoveredZone(null)}
+                className={`px-2 py-1 -mx-2 rounded-sub-pod ring-2 ring-inset transition-colors ${
+                  isHighlighted
+                    ? 'ring-ink/30 dark:ring-white/35 bg-card/60'
+                    : 'ring-transparent'
+                } ${p === 0 ? 'opacity-50' : ''}`}
+              >
+                <div className="flex items-baseline justify-between gap-2 text-[11px] leading-tight">
+                  <span className="font-rounded font-bold text-ink truncate">
+                    {z} <span className="font-semibold text-ink-secondary">{zoneName(z)}</span>
+                    {showWatts && s && (
+                      <span className="font-semibold text-ink-muted tnum"> · {s.wattsRange.replace('W', '\u00A0W')}</span>
+                    )}
+                  </span>
+                  <span className="font-rounded tnum whitespace-nowrap">
+                    <span className="font-bold text-ink">{f.pct(p)}</span>
+                    <span className="font-semibold text-ink-muted"> · {f.duration(s?.minutes ?? 0)}</span>
+                  </span>
+                </div>
+                <div className="mt-1 h-1.5 rounded-full bg-chip overflow-hidden" aria-hidden="true">
+                  {p > 0 && (
+                    <div
+                      className={`h-full rounded-full ${ZONE_FILL[z]}`}
+                      style={{ width: `${p}%`, minWidth: 6 }}
+                    />
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+        <p className="mt-2.5 text-[11px] font-body text-ink-secondary leading-relaxed">{zoneInsight}</p>
       </div>
 
-      {/* ─────────── PANEL · EFFORT ─────────── */}
-      {tab === 'effort' && (
-        <div
-          role="tabpanel"
-          id={`${tabsId}-panel-effort`}
-          aria-labelledby={`${tabsId}-tab-effort`}
-          className="pt-3.5 animate-fade-in"
-        >
-          <p className={EYEBROW}>{isFr ? 'Ta sortie sera' : 'Your ride will be'}</p>
-          <h5 className="mt-1 text-[28px] leading-none font-rounded font-extrabold tracking-tight text-ink">
-            {isFr ? character.fr : character.en}
-          </h5>
-          <p className="mt-2 text-xs font-body text-ink-secondary leading-relaxed tnum">
-            {lead}
-            {peakSentence}
-          </p>
-
-          <div className="mt-3">
-            <ElevationBars
-              trace={trace}
-              ftp={ftp}
-              peakKm={peakKm}
-              peakLabel={showWatts ? `${sectional.peakClimbWatts} W` : sectional.peakZone}
-              peakTheme={ZONE_THEME[sectional.peakZone]}
-              isFr={isFr}
-              fmtNum={f.num}
-            />
-          </div>
-
-          <div className="mt-4 flex items-center justify-between gap-2">
-            <p className={EYEBROW}>{isFr ? 'Temps par zone' : 'Time in zones'}</p>
-            {showWatts && (
-              <span className="text-[10px] font-rounded font-bold text-ink-muted tnum">FTP {ftp} W</span>
-            )}
-          </div>
-          {/* Proportional 5-zone segmented pill histogram */}
-          <div
-            className="mt-2 mb-2.5 h-3.5 w-full rounded-full bg-chip dark:bg-white/10 p-0.5 flex items-stretch gap-0.5 overflow-hidden"
-            onMouseLeave={() => setHoveredZone(null)}
-            role="img"
-            aria-label={isFr ? 'Répartition proportionnelle des zones de puissance' : 'Proportional power zone distribution'}
-          >
-            {ZONE_ORDER.map((z) => {
-              const s = share(z);
-              const p = s?.pctTime ?? 0;
-              if (p <= 0) return null;
-              const isActive = hoveredZone === z;
-              return (
-                <button
-                  key={z}
-                  type="button"
-                  style={{ flex: `${p} 1 0%` }}
-                  onMouseEnter={() => setHoveredZone(z)}
-                  onFocus={() => setHoveredZone(z)}
-                  onBlur={() => setHoveredZone(null)}
-                  title={`${z} ${zoneName(z)} · ${f.pct(p)} (${f.duration(s?.minutes ?? 0)})`}
-                  aria-label={`${z} ${zoneName(z)} ${f.pct(p)}`}
-                  className={`h-full min-w-[8px] rounded-full cursor-pointer transition-opacity focus:outline-none ${ZONE_FILL[z]} ${
-                    hoveredZone && !isActive ? 'opacity-45' : 'opacity-100'
-                  }`}
-                />
-              );
-            })}
-          </div>
-          <ul className="mt-1 space-y-1">
-            {ZONE_ORDER.map((z) => {
-              const s = share(z);
-              const p = s?.pctTime ?? 0;
-              const isHighlighted = hoveredZone === z;
-              return (
-                <li
-                  key={z}
-                  onMouseEnter={() => setHoveredZone(z)}
-                  onMouseLeave={() => setHoveredZone(null)}
-                  className={`px-2 py-1 -mx-2 rounded-sub-pod ring-2 ring-inset transition-colors ${
-                    isHighlighted
-                      ? 'ring-ink/30 dark:ring-white/35 bg-card/60'
-                      : 'ring-transparent'
-                  } ${p === 0 ? 'opacity-50' : ''}`}
-                >
-                  <div className="flex items-baseline justify-between gap-2 text-[11px] leading-tight">
-                    <span className="font-rounded font-bold text-ink truncate">
-                      {z} <span className="font-semibold text-ink-secondary">{zoneName(z)}</span>
-                      {showWatts && s && (
-                        <span className="font-semibold text-ink-muted tnum"> · {s.wattsRange.replace('W', '\u00A0W')}</span>
-                      )}
-                    </span>
-                    <span className="font-rounded tnum whitespace-nowrap">
-                      <span className="font-bold text-ink">{f.pct(p)}</span>
-                      <span className="font-semibold text-ink-muted"> · {f.duration(s?.minutes ?? 0)}</span>
-                    </span>
-                  </div>
-                  <div className="mt-1 h-1.5 rounded-full bg-chip overflow-hidden" aria-hidden="true">
-                    {p > 0 && (
-                      <div
-                        className={`h-full rounded-full ${ZONE_FILL[z]}`}
-                        style={{ width: `${p}%`, minWidth: 6 }}
-                      />
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-          <p className="mt-3 text-[11px] font-body text-ink-secondary leading-relaxed">{zoneInsight}</p>
-        </div>
-      )}
-
-      {/* ─────────── PANEL · TERRAIN ─────────── */}
-      {tab === 'terrain' && (
-        <div
-          role="tabpanel"
-          id={`${tabsId}-panel-terrain`}
-          aria-labelledby={`${tabsId}-tab-terrain`}
-          className="pt-3.5 animate-fade-in"
-        >
+      {/* ─────────── TERRAIN BANDS (only when varied terrain exists) ─────────── */}
+      {activeBands.length > 1 && (
+        <div>
+          <div className="lane-divider mb-3" aria-hidden="true" />
           <p className={EYEBROW}>{isFr ? 'Où partent les watts' : 'Where the watts go'}</p>
           <p className="mt-1.5 text-xs font-body text-ink-secondary leading-relaxed tnum">{terrainCopy}</p>
-
           <ul className="mt-2">
-            {bands.map((b, i) => {
-              const empty = b.distanceKm < 0.1 || b.pctDistance === 0;
-              return (
-                <li
-                  key={b.id}
-                  className={`flex items-center gap-3 py-2.5 ${i > 0 ? 'border-t border-ink/[0.08]' : ''} ${
-                    empty ? 'opacity-55' : ''
-                  }`}
+            {activeBands.map((b, i) => (
+              <li
+                key={b.id}
+                className={`flex items-center gap-3 py-2 ${i > 0 ? 'border-t border-ink/[0.08]' : ''}`}
+              >
+                <Badge
+                  variant={ZONE_THEME[b.zone]}
+                  size="sm"
+                  className="min-w-[58px] justify-center tnum shrink-0"
                 >
-                  <Badge
-                    variant={empty ? 'zinc' : ZONE_THEME[b.zone]}
-                    size="sm"
-                    className="min-w-[58px] justify-center tnum shrink-0"
-                  >
-                    {empty ? '—' : showWatts ? `${b.avgWatts} W` : b.zone}
-                  </Badge>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <span className="text-[13px] font-rounded font-bold text-ink leading-tight truncate">
-                        {bandName(b.id, isFr)}
-                      </span>
-                      <span className="text-[13px] font-rounded font-bold text-ink tnum whitespace-nowrap">
-                        {empty ? '' : `${f.num(b.distanceKm)}\u00A0km`}
-                      </span>
-                    </div>
-                    <div className="mt-0.5 text-[11px] font-rounded font-semibold text-ink-muted tnum leading-snug">
-                      {empty
-                        ? b.id === 'climbs'
-                          ? isFr
-                            ? 'Aucune rampe au-dessus de 3,5 %'
-                            : 'No ramps above 3.5% on this route'
-                          : isFr
-                          ? 'Absent du parcours'
-                          : 'Not on this route'
-                        : `${f.pct(b.pctDistance)} · ${f.num(b.avgSpeedKmH)}\u00A0km/h · ${f.int(b.kcalShare)}\u00A0kcal`}
-                    </div>
+                  {showWatts ? `${b.avgWatts} W` : b.zone}
+                </Badge>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-[13px] font-rounded font-bold text-ink leading-tight truncate">
+                      {bandName(b.id, isFr)}
+                    </span>
+                    <span className="text-[13px] font-rounded font-bold text-ink tnum whitespace-nowrap">
+                      {f.num(b.distanceKm)}&nbsp;km
+                    </span>
                   </div>
-                </li>
-              );
-            })}
+                  <div className="mt-0.5 text-[11px] font-rounded font-semibold text-ink-muted tnum leading-snug">
+                    {`${f.pct(b.pctDistance)} · ${f.num(b.avgSpeedKmH)}\u00A0km/h`}
+                  </div>
+                </div>
+              </li>
+            ))}
           </ul>
-
-          <div className="lane-divider my-3" aria-hidden="true" />
-
-          <p className={EYEBROW}>{isFr ? 'Coût énergétique' : 'Energy cost'}</p>
-          <dl className="mt-2 grid grid-cols-2 divide-x divide-ink/10">
-            <div className="pr-3">
-              <dt className="text-[10px] font-rounded font-semibold text-ink-muted">{isFr ? 'Total' : 'Total'}</dt>
-              <dd className="mt-0.5 text-xl leading-none font-rounded font-extrabold text-ink tnum">
-                {f.int(totalKcal)}
-                <span className="ml-1 text-[11px] font-bold text-ink-muted">kcal</span>
-              </dd>
-            </div>
-            <div className="pl-3">
-              <dt className="text-[10px] font-rounded font-semibold text-ink-muted">{isFr ? 'Dépense' : 'Burn rate'}</dt>
-              <dd className="mt-0.5 text-xl leading-none font-rounded font-extrabold text-ink tnum">
-                {f.int(kcalPerHour)}
-                <span className="ml-1 text-[11px] font-bold text-ink-muted">kcal/h</span>
-              </dd>
-            </div>
-          </dl>
-          <p className="mt-2.5 text-[11px] font-body text-ink-secondary leading-relaxed tnum">{fuelInsight}</p>
         </div>
       )}
 
-      {/* ─────────── PANEL · SURFACE ─────────── */}
-      {tab === 'surface' && surfaceSlot && (
-        <div
-          role="tabpanel"
-          id={`${tabsId}-panel-surface`}
-          aria-labelledby={`${tabsId}-tab-surface`}
-          className="pt-3.5 animate-fade-in"
-        >
+      {/* ─────────── SURFACE & TYRE SUITABILITY ─────────── */}
+      {surfaceSlot && (
+        <div>
+          <div className="lane-divider mb-3" aria-hidden="true" />
           {surfaceSlot}
         </div>
       )}

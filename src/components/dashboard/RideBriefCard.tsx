@@ -5,15 +5,11 @@ import { TripProfile } from '../../types/trip';
 import { RiderBikeSpecs } from '../../types/specs';
 import { loadRiderBikeSpecs } from '../../utils/specsStorage';
 import { PhysicsCalculationResult } from '../../types/trip';
-import { formatCautionPaceSummary } from '../../utils/physics';
 import { ReverseTimelineCalculation } from '../../utils/timeline';
 import { StageAmenity } from '../../types/amenities';
 import { RideBriefData, RideBriefPriorityIconKey } from '../../utils/rideBrief';
-import { formatTyrePressurePair } from '../../utils/tyrePressure';
 import { SenderBaseline } from '../../utils/planShare';
 import { copyShortPlanShareUrl } from '../../services/planShareService';
-import { downloadTripFit } from '../../utils/fitExporter';
-import { downloadTripGpx, downloadEntireTourGpx } from '../../utils/gpxExporter';
 import { useTranslation, getLocalizedTripMeta } from '../../context/LanguageContext';
 import {
   getStationaryRecoveryRuleForTrip,
@@ -45,17 +41,15 @@ import {
   TriangleAlert,
   ThermometerSimple,
   Compass,
-  Flame,
-  Link2,
   CheckCircle2,
-  Download,
-  Calculator,
   Coffee,
   ArrowCounterClockwise,
   ArrowRight,
+  ArrowUpRight,
+  SlidersHorizontal,
+  Link2,
   Newspaper,
   X,
-  SlidersHorizontal,
 } from '@/components/icons';
 
 export interface RideBriefCardProps {
@@ -110,7 +104,7 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
   layout = 'full',
   partnerSyncSlot,
   senderBaseline,
-  onOpenTools,
+  onOpenTools: _onOpenTools,
   onUpdateTrip,
   onSelectBike,
   onOpenSpecs,
@@ -119,16 +113,15 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
 }) => {
   const isSidecar = layout === 'sidecar';
   const effectiveExpanded = isSidecar ? true : isExpanded;
-  const { lang } = useTranslation();
+  const { lang, t } = useTranslation();
   const isFr = lang === 'fr';
   const meta = getLocalizedTripMeta(trip, lang);
 
-  const [copiedPlanLink, setCopiedPlanLink] = React.useState(false);
-  const [isCopyingPlanLink, setIsCopyingPlanLink] = React.useState(false);
-  const [exportError, setExportError] = React.useState<string | null>(null);
   const [showReadinessBreakdown, setShowReadinessBreakdown] = React.useState(false);
   const [activeReadinessAction, setActiveReadinessAction] = React.useState<ReadinessActionKind | null>(null);
   const [appliedFeedback, setAppliedFeedback] = React.useState<ReadinessActionAppliedInfo | null>(null);
+  const [copiedPlanLink, setCopiedPlanLink] = React.useState(false);
+  const [isCopyingPlanLink, setIsCopyingPlanLink] = React.useState(false);
   const readiness = brief.readiness;
   const effectiveSpecs = riderSpecs ?? loadRiderBikeSpecs();
   const rawPlannedLongStopMin = Math.max(0, Math.round(Number(trip.ruleSettings?.plannedLongStopMin ?? 0)));
@@ -145,12 +138,6 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
     setActiveReadinessAction((prev) => (prev === actionKind ? null : actionKind));
   };
 
-  const hasMultipleStages = Boolean(trip.stages && trip.stages.length > 1);
-  const distLabel =
-    brief.distanceKm >= 100
-      ? `${Math.round(brief.distanceKm)}`
-      : Number(brief.distanceKm.toFixed(1)).toString();
-
   const handleCopyGroupLink = async () => {
     if (isCopyingPlanLink) return;
     setIsCopyingPlanLink(true);
@@ -165,7 +152,7 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
           senderBaseline,
         },
         {
-          promptLabel: isFr ? 'Copiez le lien du plan :' : 'Copy Group Plan Link:',
+          promptLabel: isFr ? 'Copiez le lien du plan :' : 'Copy ride plan link:',
         }
       );
       if (copied) {
@@ -177,59 +164,31 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
     }
   };
 
-  const handleDownloadFit = () => {
-    setExportError(null);
-    try {
-      const specs = riderSpecs ?? loadRiderBikeSpecs();
-      downloadTripFit(trip, {
-        lang,
-        ftpWatts: specs.ftpWatts,
-        carbTargetGPerHr: specs.carbTargetGPerHr,
-        nutritionPreference: specs.nutritionPreference,
-      });
-    } catch (err) {
-      setExportError(
-        err instanceof Error
-          ? err.message
-          : isFr
-          ? 'Export .FIT indisponible'
-          : '.FIT export unavailable'
-      );
-      window.setTimeout(() => setExportError(null), 4000);
-    }
-  };
-
-  const handleDownloadGpx = () => {
-    setExportError(null);
-    try {
-      if (hasMultipleStages) {
-        downloadEntireTourGpx(trip);
-      } else {
-        downloadTripGpx(trip);
-      }
-    } catch (err) {
-      setExportError(
-        err instanceof Error
-          ? err.message
-          : isFr
-          ? 'Export .GPX indisponible'
-          : '.GPX export unavailable'
-      );
-      window.setTimeout(() => setExportError(null), 4000);
-    }
-  };
-
-  const showBlockerBadge =
-    !brief.blockerAlreadyFeatured &&
-    (brief.firstProblem.severity === 'critical' ||
-      brief.firstProblem.severity === 'warning');
-
   const loopComp = brief.loopComparison;
   const showLoopBadge = Boolean(
     loopComp?.isLoop &&
       loopComp.recommendedDirection !== 'neutral' &&
       loopComp.minutesSaved >= 2
   );
+
+  const getPriorityTarget = (
+    id: string,
+    iconKey: RideBriefPriorityIconKey
+  ): { sectionId: string; label: string } => {
+    if (iconKey === 'tyre' || iconKey === 'lights') {
+      return { sectionId: 'bento-checklist', label: isFr ? 'Check-list' : 'Checklist' };
+    }
+    if (iconKey === 'blocker') {
+      if (id.includes('water') || id.includes('resupply') || id.includes('gap')) {
+        return { sectionId: 'bento-resupply', label: isFr ? 'Ravito' : 'Resupply' };
+      }
+      return { sectionId: 'bento-timeline', label: isFr ? 'Horaires' : 'Schedule' };
+    }
+    if (iconKey === 'wind' || iconKey === 'rain' || iconKey === 'sun') {
+      return { sectionId: 'bento-weather', label: isFr ? 'Météo' : 'Weather' };
+    }
+    return { sectionId: 'bento-nutrition', label: isFr ? 'Nutrition' : 'Fuel' };
+  };
 
   return (
     <section
@@ -274,14 +233,10 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
               aria-label={isFr ? 'Déplier le briefing départ' : 'Expand ride brief'}
               className="inline-flex items-center gap-2 rounded-full bg-pod hover:bg-chip px-3 py-1.5 min-h-[44px] sm:min-h-[32px] sm:px-2.5 sm:py-1 text-xs font-semibold text-ink tnum max-w-full cursor-pointer transition-colors"
             >
-              <span className="whitespace-nowrap font-bold">{brief.leaveByHHMM}</span>
+              <span className="whitespace-nowrap font-bold">{readiness.label}</span>
               <span className="text-ink-muted font-medium">·</span>
-              <span className="whitespace-nowrap">{distLabel} km</span>
-              <span className="text-ink-muted font-medium whitespace-nowrap hidden sm:inline">
-                · {brief.totalDurationFormatted}
-              </span>
-              <span className="text-ink-muted font-medium whitespace-nowrap hidden md:inline">
-                · {formatTyrePressurePair(brief.tyrePressure.frontBar, brief.tyrePressure.rearBar, brief.pressureUnit, lang)}
+              <span className="min-w-0 truncate font-medium text-ink-secondary">
+                {readiness.topLift?.tip || brief.priorities[0]?.headline || brief.headline}
               </span>
             </Button>
           )}
@@ -335,7 +290,7 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
         </div>
       </div>
 
-      {/* ── Collapsible Body (Always open on desktop sidecar; collapsible on mobile) ── */}
+      {/* ── Collapsible Body (Decision Summary Layer) ── */}
       <Collapsible
         open={effectiveExpanded}
         id="ride-brief-body"
@@ -343,42 +298,21 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
         innerClassName={isSidecar ? 'pt-3.5 h-full flex flex-col justify-between' : 'pt-4 md:pt-3.5'}
       >
         <div>
-        {/* Top Row: Leave-By Volt Pod + Natural-Language Ride Guidance */}
+        {/* Top Row: Plain-Language Verdict + Readiness Gauge */}
         <div
           className={
             isSidecar
-              ? 'grid grid-cols-1 sm:grid-cols-[152px_minmax(0,1fr)] gap-3.5 items-stretch'
-              : 'grid grid-cols-1 md:grid-cols-[200px_minmax(0,1fr)] xl:grid-cols-[208px_minmax(0,1fr)_320px] md:items-center gap-4 md:gap-5'
+              ? 'flex flex-col gap-3.5'
+              : 'grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_320px] md:items-center gap-4 md:gap-5'
           }
         >
-          <div className="w-full shrink-0 rounded-pod bg-volt dark:bg-[#242706] dark:ring-1 dark:ring-inset dark:ring-volt/45 text-[#111111] dark:text-[#F2F455] px-4 py-3.5 md:py-3.5 flex flex-col justify-between gap-3 shadow-xs">
-            <span className="text-[13px] font-medium font-body leading-tight text-[#111111]/85 dark:text-[#F2F455]/90">
-              {brief.leavePodLabel}
-            </span>
-            <div className="flex flex-col gap-1">
-              <span className={`${isSidecar ? 'text-[32px]' : 'text-[36px]'} leading-none font-extrabold tracking-tight font-sans tnum`}>
-                {brief.leaveByHHMM}
-              </span>
-              <span className="text-xs font-medium font-body leading-tight text-[#111111]/75 dark:text-[#DDE07A]">
-                {brief.targetContextLabel}
-              </span>
-            </div>
-          </div>
-
           <div className="flex-1 min-w-0 flex flex-col justify-center gap-1.5">
-            <h3 className={`${isSidecar ? 'text-xl sm:text-[22px]' : 'text-2xl sm:text-[28px]'} leading-[1.15] font-bold tracking-tight text-ink font-sans`}>
+            <h3 className={`${isSidecar ? 'text-xl sm:text-[22px]' : 'text-2xl sm:text-[26px]'} leading-[1.15] font-bold tracking-tight text-ink font-sans`}>
               {brief.headline}
             </h3>
-            <p className={`${isSidecar ? 'text-xs sm:text-[13px]' : 'text-sm'} font-medium text-ink-secondary font-body leading-snug max-w-4xl`}>
+            <p className={`${isSidecar ? 'text-xs sm:text-[13px]' : 'text-sm'} font-medium text-ink-secondary font-body leading-snug max-w-3xl`}>
               {brief.narrativeSummary}
             </p>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-1 text-[13px] sm:text-[14px] font-rounded">
-              <span className="font-bold text-ink tnum">{distLabel} km</span>
-              <span className="font-bold text-ink tnum">{brief.totalDurationFormatted}</span>
-              <span className="font-medium text-ink-muted tnum">
-                {brief.tempC}°C · {isFr ? 'ressenti' : 'feels like'} {brief.feelsLikeC}°C
-              </span>
-            </div>
             {brief.companionNote && (
               <CadenceInsight
                 compact
@@ -390,13 +324,12 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
                     : 'cadence'
                 }
                 headline={brief.companionNote.text}
-                className="mt-1.5 max-w-3xl"
+                className="mt-1 max-w-3xl"
               />
             )}
           </div>
 
-          {/* Readiness score pod — full width under on sidecar/mobile/tablet, third column on xl */}
-          <div className={isSidecar ? 'sm:col-span-2 min-w-0' : 'md:col-span-2 xl:col-span-1 min-w-0'}>
+          <div className="min-w-0">
             <RideReadinessPanel
               readiness={readiness}
               isFr={isFr}
@@ -502,12 +435,12 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
           />
         </Collapsible>
 
-        {/* Bottom Intelligent Priority Highlights with Keyline Colored Duotone Icons */}
+        {/* Clickable Priority Rows — jump straight to Layer 2 canonical tab */}
         <div
           className={
             isSidecar
-              ? 'mt-4 md:mt-3.5 grid grid-cols-1 gap-3'
-              : 'mt-4 md:mt-3.5 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 lg:gap-8'
+              ? 'mt-4 md:mt-3.5 grid grid-cols-1 gap-1.5'
+              : 'mt-4 md:mt-3.5 grid grid-cols-1 md:grid-cols-3 gap-2.5 md:gap-4'
           }
         >
           {brief.priorities.map((item) => {
@@ -515,8 +448,14 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
               item.id === 'visibility-twilight'
                 ? Flashlight
                 : getPriorityIcon(item.iconKey);
+            const target = getPriorityTarget(item.id, item.iconKey);
             return (
-              <div key={item.id} className="flex items-center gap-3 min-w-0">
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onJumpToSection?.(target.sectionId)}
+                className="group w-full flex items-center gap-3 min-w-0 px-2.5 py-2 rounded-pod hover:bg-pod transition-colors text-left cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
+              >
                 <IconBadge
                   theme={item.theme}
                   icon={PriorityIcon}
@@ -524,15 +463,21 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
                   shape="circle"
                   className="shrink-0"
                 />
-                <div className="min-w-0 flex flex-col gap-0.5">
+                <div className="min-w-0 flex-1 flex flex-col gap-0.5">
                   <p className="text-[14px] font-bold text-ink font-rounded leading-[1.3]">
                     {item.headline}
                   </p>
-                  <p className="text-[12px] font-medium text-ink-muted font-body leading-[1.3]">
+                  <p className="text-[12px] font-medium text-ink-muted font-body leading-[1.3] line-clamp-1">
                     {item.detail}
                   </p>
                 </div>
-              </div>
+                {onJumpToSection && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-pod group-hover:bg-chip px-2.5 py-1 text-[11px] font-rounded font-semibold text-ink-muted group-hover:text-ink transition-colors shrink-0">
+                    <span>{target.label}</span>
+                    <ArrowUpRight className="w-3 h-3 shrink-0 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                  </span>
+                )}
+              </button>
             );
           })}
         </div>
@@ -541,106 +486,80 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
         {partnerSyncSlot && <div className="mt-4">{partnerSyncSlot}</div>}
         </div>
 
-        {/* Tactical Pills & Pre-Ride Action Strip */}
-        <div>
-        <div className="mt-4 pt-1 md:mt-3.5 flex flex-wrap items-center justify-between gap-2.5">
-          <div className="flex flex-wrap items-center gap-2 min-w-0">
-            <Badge variant="sky" size="md" icon={Gauge} className="tnum">
-              {formatTyrePressurePair(brief.tyrePressure.frontBar, brief.tyrePressure.rearBar, brief.pressureUnit, lang)} · {brief.tireWidthMm}mm{' '}
-              {brief.isTubeless ? 'TL' : isFr ? 'chambre' : 'tubes'}
-            </Badge>
-
-            <Badge variant={brief.kit.tierTheme} size="md" icon={ThermometerSimple}>
-              {brief.kit.tierBadge}
-            </Badge>
-
-            {plannedLongStopMin > 0 && (
-              <button
-                type="button"
-                onClick={() => onUpdateTrip && handleTriggerReadinessAction('effort-load')}
-                className="inline-flex cursor-pointer active:scale-[0.98] transition-transform"
-                title={isFr ? 'Modifier ou retirer la pause longue' : 'Adjust or remove planned stop'}
-              >
-                <Badge variant="amber" size="md" icon={Coffee} className="tnum">
-                  {isFr ? `Pause ${plannedLongStopMin} min` : `${plannedLongStopMin} min stop`}
-                </Badge>
-              </button>
-            )}
-
-            {recoveryRule.isRestricted && (
-              <Badge
-                variant="sky"
-                size="md"
-                icon={ThermometerSimple}
-                className="tnum"
-                title={
-                  isFr
-                    ? 'Départ hivernal avant l’aube : pauses ≤ 5 min max et pauses déjeuner (30 min+) désactivées'
-                    : 'Pre-dawn winter start: rest stops capped at 5 min max and 30-min+ lunch breaks disabled'
-                }
-              >
-                {isFr ? 'Pauses ≤ 5 min (hiver avant l’aube)' : 'Stops ≤ 5 min (pre-dawn winter)'}
-              </Badge>
-            )}
-
-            {(() => {
-              const cautionLabel = formatCautionPaceSummary(physics, lang);
-              if (!cautionLabel) return null;
-              const isDark = physics.cautionReasons?.includes('dark');
-              const delayMin = physics.cautionDelayMinutes ?? 0;
-              const crrMultPct = Math.round(((physics.crrMultiplier ?? 1) - 1) * 100);
-              const tip = isFr
-                ? `Facteur d'allure intégré au temps de selle${delayMin > 0 ? ` (+${delayMin} min)` : ''}${crrMultPct >= 4 ? ` · Crr effectif ${physics.effectiveCrr.toFixed(4)} (+${crrMultPct}%)` : ''}`
-                : `Automatically factored into moving time${delayMin > 0 ? ` (+${delayMin} min)` : ''}${crrMultPct >= 4 ? ` · Effective Crr ${physics.effectiveCrr.toFixed(4)} (+${crrMultPct}%)` : ''}`;
-              return (
-                <Badge
-                  variant={isDark ? 'purple' : 'amber'}
-                  size="md"
-                  icon={isDark ? Moon : CloudRain}
-                  className="tnum"
-                  title={tip}
+        <div className="mt-4 pt-3 border-t border-dashed border-ink/15 dark:border-white/15 flex flex-col gap-2.5">
+          {/* Active Schedule Modifiers (only rendered when triggered) */}
+          {(plannedLongStopMin > 0 || recoveryRule.isRestricted || showLoopBadge) && (
+            <div className="flex flex-wrap items-center gap-2 min-w-0">
+              {plannedLongStopMin > 0 && (
+                <button
+                  type="button"
+                  onClick={() => onUpdateTrip && handleTriggerReadinessAction('effort-load')}
+                  className="inline-flex cursor-pointer active:scale-[0.98] transition-transform"
+                  title={isFr ? 'Modifier ou retirer la pause longue' : 'Adjust or remove planned stop'}
                 >
-                  {cautionLabel}
+                  <Badge variant="amber" size="md" icon={Coffee} className="tnum">
+                    {isFr ? `Pause ${plannedLongStopMin} min` : `${plannedLongStopMin} min stop`}
+                  </Badge>
+                </button>
+              )}
+
+              {recoveryRule.isRestricted && (
+                <Badge
+                  variant="sky"
+                  size="md"
+                  icon={ThermometerSimple}
+                  className="tnum"
+                  title={
+                    isFr
+                      ? 'Départ hivernal avant l’aube : pauses ≤ 5 min max et pauses déjeuner (30 min+) désactivées'
+                      : 'Pre-dawn winter start: rest stops capped at 5 min max and 30-min+ lunch breaks disabled'
+                  }
+                >
+                  {isFr ? 'Pauses ≤ 5 min (hiver avant l’aube)' : 'Stops ≤ 5 min (pre-dawn winter)'}
                 </Badge>
-              );
-            })()}
+              )}
 
-            {showLoopBadge && loopComp && (
-              <Badge variant="emerald" size="md" icon={Compass} className="tnum">
-                {loopComp.recommendedDirection === 'reverse'
-                  ? isFr
-                    ? `Sens inverse (−${loopComp.minutesSaved} min)`
-                    : `Flip loop (−${loopComp.minutesSaved} min)`
-                  : isFr
-                  ? `Sens normal (−${loopComp.minutesSaved} min)`
-                  : `Default dir (−${loopComp.minutesSaved} min)`}
-              </Badge>
-            )}
+              {showLoopBadge && loopComp && (
+                <Badge variant="emerald" size="md" icon={Compass} className="tnum">
+                  {loopComp.recommendedDirection === 'reverse'
+                    ? isFr
+                      ? `Sens inverse (−${loopComp.minutesSaved} min)`
+                      : `Flip loop (−${loopComp.minutesSaved} min)`
+                    : isFr
+                    ? `Sens normal (−${loopComp.minutesSaved} min)`
+                    : `Default dir (−${loopComp.minutesSaved} min)`}
+                </Badge>
+              )}
+            </div>
+          )}
 
-            {showBlockerBadge && (
-              <Badge
-                variant={brief.firstProblem.severity === 'critical' ? 'red' : 'amber'}
-                size="md"
-                icon={TriangleAlert}
+          {/* Layer 1 Actions: Trip Setup + Duo Partner Share */}
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
+            {onOpenConfigurator && (
+              <Button
+                variant="ghost"
+                size="sm"
+                type="button"
+                onClick={onOpenConfigurator}
+                className="min-h-[40px] sm:h-9 sm:min-h-0 px-3.5 rounded-full bg-pod hover:bg-chip text-ink text-xs font-rounded font-semibold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
               >
-                {brief.firstProblem.headline}
-              </Badge>
+                <SlidersHorizontal className="w-3.5 h-3.5 shrink-0" />
+                <span>{t('navConfigurator')}</span>
+              </Button>
             )}
-          </div>
 
-          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto min-w-0">
             <Button
               variant="ghost"
               size="sm"
               type="button"
               onClick={handleCopyGroupLink}
               disabled={isCopyingPlanLink}
-              className="min-h-[44px] sm:h-8 sm:min-h-0 px-3.5 sm:px-3 rounded-full bg-pod hover:bg-chip text-ink text-xs font-semibold inline-flex items-center gap-1.5 transition-colors disabled:opacity-60"
+              className="min-h-[40px] sm:h-9 sm:min-h-0 px-3.5 rounded-full bg-pod hover:bg-chip text-ink-secondary hover:text-ink text-xs font-rounded font-semibold inline-flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60"
             >
               {copiedPlanLink ? (
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
               ) : (
-                <Link2 className="w-3.5 h-3.5" />
+                <Link2 className="w-3.5 h-3.5 shrink-0" />
               )}
               <span>
                 {copiedPlanLink
@@ -656,62 +575,7 @@ export const RideBriefCard: React.FC<RideBriefCardProps> = ({
                   : 'Share with partner'}
               </span>
             </Button>
-
-            {onOpenConfigurator && (
-              <Button
-                variant="ghost"
-                size="sm"
-                type="button"
-                onClick={onOpenConfigurator}
-                className="min-h-[44px] sm:h-8 sm:min-h-0 px-3.5 sm:px-3 rounded-full bg-pod hover:bg-chip text-ink-secondary hover:text-ink text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
-              >
-                <SlidersHorizontal className="w-3.5 h-3.5" />
-                <span>{isFr ? 'Affiner réglages' : 'Fine-tune'}</span>
-              </Button>
-            )}
-
-            <Button
-              variant="ghost"
-              size="sm"
-              type="button"
-              onClick={handleDownloadFit}
-              className="min-h-[44px] sm:h-8 sm:min-h-0 px-3.5 sm:px-3 rounded-full bg-pod hover:bg-chip text-ink-secondary hover:text-ink text-xs font-semibold inline-flex items-center gap-1.5 transition-colors tnum"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>.FIT</span>
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              type="button"
-              onClick={handleDownloadGpx}
-              className="min-h-[44px] sm:h-8 sm:min-h-0 px-3.5 sm:px-3 rounded-full bg-pod hover:bg-chip text-ink-secondary hover:text-ink text-xs font-semibold inline-flex items-center gap-1.5 transition-colors tnum"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>{hasMultipleStages ? (isFr ? '.GPX Tour' : 'Tour .GPX') : '.GPX'}</span>
-            </Button>
-
-            {onOpenTools && (
-              <Button
-                variant="ghost"
-                size="sm"
-                type="button"
-                onClick={() => onOpenTools('wind')}
-                className="min-h-[44px] sm:h-8 sm:min-h-0 px-3.5 sm:px-3 rounded-full bg-pod hover:bg-chip text-ink-secondary hover:text-ink text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
-              >
-                <Calculator className="w-3.5 h-3.5" />
-                <span>{isFr ? 'Outils' : 'Tools'}</span>
-              </Button>
-            )}
           </div>
-        </div>
-
-        {exportError && (
-          <p className="mt-2 text-xs font-semibold text-rose-600 dark:text-rose-400 font-body">
-            {exportError}
-          </p>
-        )}
         </div>
       </Collapsible>
     </section>

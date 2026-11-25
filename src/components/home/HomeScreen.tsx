@@ -666,7 +666,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             />
           )}
 
-          {/* 2. Upcoming Trip Card */}
+          {/* 2. Upcoming Trip Card (Slim Strip) */}
           {nextUpcomingTrip && (
             <div className="animate-apple-in stagger-2 relative z-20">
               <UpcomingTripCard
@@ -675,153 +675,157 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 onSelectTrip={onSelectTrip}
                 onLaunchDashboard={onLaunchDashboard}
                 onEditTrip={onEditTrip}
-                defaultExpanded={true}
               />
             </div>
           )}
 
-          {/* 2. Saved Trips Section (Heading + Subtitle + Filter Pills + 2-Col Trip Cards Grid) */}
-          <div className="space-y-5 animate-apple-in stagger-3">
-            <div className="space-y-3">
-              <div>
-                <div className="flex items-center gap-2.5">
-                  <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-ink">
-                    {t('savedProfilesHeading')}
-                  </h2>
-                  {selectedArchetype !== 'all' && (
-                    <Badge variant="zinc" size="sm" className="tnum">
-                      {filteredTrips.length} / {trips.length}
-                    </Badge>
+          {/* 3. Saved Trips Section (excluding nextUpcomingTrip so it never renders twice) */}
+          {(() => {
+            const visibleSavedTrips = nextUpcomingTrip
+              ? filteredTrips.filter((tr) => tr.id !== nextUpcomingTrip.id)
+              : filteredTrips;
+            const onlyUpcomingExists =
+              Boolean(nextUpcomingTrip) && trips.length === 1 && selectedArchetype === 'all';
+            if (onlyUpcomingExists) return null;
+
+            return (
+              <div className="space-y-5 animate-apple-in stagger-3">
+                <div className="space-y-3">
+                  <div>
+                    <div className="flex items-center gap-2.5">
+                      <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-ink">
+                        {t('savedProfilesHeading')}
+                      </h2>
+                      {selectedArchetype !== 'all' && (
+                        <Badge variant="zinc" size="sm" className="tnum">
+                          {visibleSavedTrips.length} / {trips.length}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Archetype Quick-Filter Bar */}
+                  {trips.length > 0 && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {filterTabs.map((tab) => {
+                        const isSelected = selectedArchetype === tab.id;
+                        const IconComponent = tab.icon;
+                        return (
+                          <Button
+                            key={tab.id}
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedArchetype(tab.id)}
+                            className={`min-h-[40px] sm:min-h-[38px] py-2 px-3 rounded-full text-xs font-semibold flex items-center gap-2 transition-all duration-150 active:scale-[0.98] cursor-pointer shrink-0 ${
+                              isSelected
+                                ? tab.selectedClasses
+                                : 'bg-card hover:bg-pod text-ink-secondary hover:text-ink border border-ink/5 dark:border-white/5'
+                            }`}
+                          >
+                            <IconComponent
+                              className={`w-4 h-4 shrink-0 transition-colors ${
+                                isSelected ? 'text-current' : tab.iconColor
+                              } ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                            />
+                            <span>{tab.label}</span>
+                            <span
+                              className={`text-[11px] font-semibold min-w-[22px] h-[22px] px-1.5 inline-flex items-center justify-center rounded-full tnum transition-colors ${
+                                isSelected
+                                  ? 'bg-black/10 dark:bg-white/15 text-current'
+                                  : 'bg-pod text-ink-muted'
+                              }`}
+                            >
+                              {tab.count}
+                            </span>
+                          </Button>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
-                <p className="text-xs text-ink-muted mt-0.5">
-                  {t('savedProfilesHint')}
-                </p>
-              </div>
 
-              {/* Archetype Quick-Filter Bar directly beneath Saved Trips subtitle */}
-              {trips.length > 0 && (
-                <div className="flex items-center gap-2 flex-wrap">
-                  {filterTabs.map((tab) => {
-                    const isSelected = selectedArchetype === tab.id;
-                    const IconComponent = tab.icon;
-                    return (
-                      <Button
-                        key={tab.id}
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSelectedArchetype(tab.id)}
-                        className={`min-h-[40px] sm:min-h-[38px] py-2 px-3 rounded-full text-xs font-semibold flex items-center gap-2 transition-all duration-150 active:scale-[0.98] cursor-pointer shrink-0 ${
-                          isSelected
-                            ? tab.selectedClasses
-                            : 'bg-card hover:bg-pod text-ink-secondary hover:text-ink border border-ink/5 dark:border-white/5'
-                        }`}
+                {visibleSavedTrips.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4 lg:gap-5">
+                    {visibleSavedTrips.map((trip, idx) => (
+                      <div
+                        key={trip.id}
+                        className="animate-apple-in"
+                        style={{ animationDelay: `${Math.min(idx * 60 + 100, 420)}ms` }}
                       >
-                        <IconComponent
-                          className={`w-4 h-4 shrink-0 transition-colors ${
-                            isSelected ? 'text-current' : tab.iconColor
-                          } ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                        <TripCard
+                          trip={trip}
+                          isActive={activeTrip ? trip.id === activeTrip.id : false}
+                          onSelect={onSelectTrip}
+                          onEdit={onEditTrip}
+                          onDuplicate={onDuplicateTrip}
+                          onDelete={onDeleteTrip}
+                          onLaunch={onLaunchDashboard}
                         />
-                        <span>{tab.label}</span>
-                        <span
-                          className={`text-[11px] font-semibold min-w-[22px] h-[22px] px-1.5 inline-flex items-center justify-center rounded-full tnum transition-colors ${
-                            isSelected
-                              ? 'bg-black/10 dark:bg-white/15 text-current'
-                              : 'bg-pod text-ink-muted'
-                          }`}
-                        >
-                          {tab.count}
-                        </span>
-                      </Button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Trip Cards 2-Column Grid */}
-            {filteredTrips.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4 lg:gap-5">
-                {filteredTrips.map((trip, idx) => (
-                  <div
-                    key={trip.id}
-                    className="animate-apple-in"
-                    style={{ animationDelay: `${Math.min(idx * 60 + 100, 420)}ms` }}
-                  >
-                    <TripCard
-                      trip={trip}
-                      isActive={activeTrip ? trip.id === activeTrip.id : false}
-                      onSelect={onSelectTrip}
-                      onEdit={onEditTrip}
-                      onDuplicate={onDuplicateTrip}
-                      onDelete={onDeleteTrip}
-                      onLaunch={onLaunchDashboard}
-                    />
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            ) : trips.length > 0 ? (
-              /* Empty state for filtered archetype */
-              <div className="rounded-card bg-card border border-ink/10 dark:border-white/10 p-8 text-center shadow-xs space-y-3">
-                <h3 className="text-base font-semibold text-ink">
-                  {t('noFilteredProfilesTitle')}
-                </h3>
-                <p className="text-xs text-ink-muted max-w-sm mx-auto">
-                  {t('noFilteredProfilesDesc')}
-                </p>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setSelectedArchetype('all')}
-                  className="mt-2 px-4 py-2 rounded-full bg-pod hover:bg-chip text-ink text-xs font-semibold transition-all cursor-pointer"
-                >
-                  {t('clearFilterBtn')}
-                </Button>
-              </div>
-            ) : (
-              /* Global Empty State (No trips at all) */
-              <div className="rounded-card bg-card border border-ink/10 dark:border-white/10 p-8 sm:p-12 text-center shadow-xs space-y-4 animate-apple-in stagger-3">
-                <div className="w-12 h-12 rounded-full bg-pod flex items-center justify-center mx-auto text-ink-muted">
-                  <Sparkle className="w-6 h-6 text-volt-dim dark:text-volt" />
-                </div>
-                <div className="space-y-1">
-                  <h3 className="text-lg font-bold text-ink">
-                    {lang === 'fr' ? 'Aucune sortie enregistrée' : 'No trips saved yet'}
-                  </h3>
-                  <p className="text-xs text-ink-muted max-w-md mx-auto leading-relaxed">
-                    {lang === 'fr'
-                      ? 'Configurez votre première sortie personnalisée ou chargez un profil démo pour explorer votre plan de route Cadence.'
-                      : 'Create your first custom ride or load a demo profile to explore your Cadence ride plan.'}
-                  </p>
-                </div>
-                <div className="flex items-center justify-center gap-3 pt-2 flex-wrap">
-                  <Button
-                    variant="primary"
-                    size="md"
-                    onClick={onCreateNewTrip}
-                    className={`flex items-center gap-1.5 h-10 px-5 ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} font-semibold text-xs rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer`}
-                  >
-                    <Plus className="w-4 h-4 text-current stroke-[2.2]" />
-                    <span>{t('createNewTripBtn')}</span>
-                  </Button>
-                  {onLoadDemoTrip && (
+                ) : trips.length > 0 ? (
+                  <div className="rounded-card bg-card border border-ink/10 dark:border-white/10 p-8 text-center shadow-xs space-y-3">
+                    <h3 className="text-base font-semibold text-ink">
+                      {t('noFilteredProfilesTitle')}
+                    </h3>
+                    <p className="text-xs text-ink-muted max-w-sm mx-auto">
+                      {t('noFilteredProfilesDesc')}
+                    </p>
                     <Button
                       variant="secondary"
-                      size="md"
-                      onClick={onLoadDemoTrip}
-                      className="flex items-center gap-1.5 h-10 px-5 bg-pod hover:bg-chip text-ink border border-black/10 dark:border-white/15 font-semibold text-xs rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer"
+                      size="sm"
+                      onClick={() => setSelectedArchetype('all')}
+                      className="mt-2 px-4 py-2 rounded-full bg-pod hover:bg-chip text-ink text-xs font-semibold transition-all cursor-pointer"
                     >
-                      <Sparkle className="w-4 h-4 text-volt-dim dark:text-volt" />
-                      <span>{lang === 'fr' ? 'Charger un trajet démo' : 'Load Sample Trip (Demo)'}</span>
+                      {t('clearFilterBtn')}
                     </Button>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div className="rounded-card bg-card border border-ink/10 dark:border-white/10 p-8 sm:p-12 text-center shadow-xs space-y-4 animate-apple-in stagger-3">
+                    <div className="w-12 h-12 rounded-full bg-pod flex items-center justify-center mx-auto text-ink-muted">
+                      <Sparkle className="w-6 h-6 text-volt-dim dark:text-volt" />
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-bold text-ink">
+                        {lang === 'fr' ? 'Aucune sortie enregistrée' : 'No trips saved yet'}
+                      </h3>
+                      <p className="text-xs text-ink-muted max-w-md mx-auto leading-relaxed">
+                        {lang === 'fr'
+                          ? 'Configurez votre première sortie personnalisée ou chargez un profil démo pour explorer votre plan de route Cadence.'
+                          : 'Create your first custom ride or load a demo profile to explore your Cadence ride plan.'}
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-center gap-3 pt-2 flex-wrap">
+                      <Button
+                        variant="primary"
+                        size="md"
+                        onClick={onCreateNewTrip}
+                        className={`flex items-center gap-1.5 h-10 px-5 ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} font-semibold text-xs rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer`}
+                      >
+                        <Plus className="w-4 h-4 text-current stroke-[2.2]" />
+                        <span>{t('createNewTripBtn')}</span>
+                      </Button>
+                      {onLoadDemoTrip && (
+                        <Button
+                          variant="secondary"
+                          size="md"
+                          onClick={onLoadDemoTrip}
+                          className="flex items-center gap-1.5 h-10 px-5 bg-pod hover:bg-chip text-ink border border-black/10 dark:border-white/15 font-semibold text-xs rounded-full transition-all duration-150 active:scale-[0.98] cursor-pointer"
+                        >
+                          <Sparkle className="w-4 h-4 text-volt-dim dark:text-volt" />
+                          <span>{lang === 'fr' ? 'Charger un trajet démo' : 'Load Sample Trip (Demo)'}</span>
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            );
+          })()}
         </div>
 
-        {/* Right Column (2 of 5 Columns: Current Conditions + Multi-Tool + Persistence Callout) */}
+        {/* Right Column (2 of 5 Columns: WeatherWidget only) */}
         <div className="lg:col-span-2 flex flex-col gap-3.5 sm:gap-4 lg:gap-5 min-w-0 lg:sticky lg:top-[calc(var(--cadence-nav-h)+1rem)] animate-apple-in stagger-2">
           {currentConditionTrip && (
             <WeatherWidget
@@ -831,140 +835,28 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               speedKmH={currentConditionTrip.route.targetSpeedKmH}
             />
           )}
-
-          {onOpenTools && (
-            <div className="p-4 rounded-card bg-card border border-ink/5 dark:border-white/5 flex flex-col gap-3 text-xs text-ink-secondary shadow-xs">
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <span className="font-rounded font-bold text-ink block">
-                    {lang === 'fr' ? 'Multi-Tool vélo' : 'Cycling Multi-Tool'}
-                  </span>
-                  <span className="text-[11px] text-ink-muted">
-                    {lang === 'fr' ? 'Sans compte · 100 % navigateur' : 'No signup · 100% browser'}
-                  </span>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onOpenTools('hub')}
-                  className="inline-flex items-center gap-1 min-h-[34px] px-3 rounded-full bg-pod hover:bg-chip text-ink text-[11px] font-rounded font-semibold cursor-pointer shrink-0"
-                >
-                  <span>{lang === 'fr' ? 'Tous les outils' : 'All tools'}</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </Button>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onOpenTools('fuel-plan')}
-                  className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] py-1.5 px-3 rounded-full text-xs font-rounded font-semibold cursor-pointer ${CHIP_TOKENS.emerald.surface} ${CHIP_TOKENS.emerald.primary}`}
-                >
-                  <Utensils className="w-3.5 h-3.5" />
-                  <span>{lang === 'fr' ? 'Nutrition & bidons' : 'Fuel & bottles'}</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onOpenTools('flip-my-loop')}
-                  className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] py-1.5 px-3 rounded-full text-xs font-rounded font-semibold cursor-pointer ${CHIP_TOKENS.sky.surface} ${CHIP_TOKENS.sky.primary}`}
-                >
-                  <Wind className="w-3.5 h-3.5" />
-                  <span>{lang === 'fr' ? 'Sens du vent' : 'Flip my loop'}</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onOpenTools('water-bakery')}
-                  className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] py-1.5 px-3 rounded-full text-xs font-rounded font-semibold cursor-pointer ${CHIP_TOKENS.teal.surface} ${CHIP_TOKENS.teal.primary}`}
-                >
-                  <Droplets className="w-3.5 h-3.5" />
-                  <span>{lang === 'fr' ? 'Eau & boulangeries' : 'Water & bakeries'}</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onOpenTools('stem-sticker')}
-                  className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] py-1.5 px-3 rounded-full text-xs font-rounded font-semibold cursor-pointer ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary}`}
-                >
-                  <Scissors className="w-3.5 h-3.5" />
-                  <span>{lang === 'fr' ? 'Sticker cadre' : 'Stem sticker'}</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onOpenTools('tyre-pressure')}
-                  className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] py-1.5 px-3 rounded-full text-xs font-rounded font-semibold cursor-pointer ${CHIP_TOKENS.blue.surface} ${CHIP_TOKENS.blue.primary}`}
-                >
-                  <Gauge className="w-3.5 h-3.5" />
-                  <span>{lang === 'fr' ? 'Pression pneus' : 'Tyre pressure'}</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onOpenTools('leave-by')}
-                  className={`inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] py-1.5 px-3 rounded-full text-xs font-rounded font-semibold cursor-pointer ${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary}`}
-                >
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>{lang === 'fr' ? 'Heure de départ' : 'Leave-by'}</span>
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Concentric Chain-Link Persistence Callout */}
-          <div className="p-4 rounded-card bg-card border border-ink/5 dark:border-white/5 flex flex-col gap-3 text-xs text-ink-secondary shadow-xs">
-            <div className="flex items-center gap-3 min-w-0">
-              {user ? (
-                <div className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
-                  <Cloud className="w-4 h-4" />
-                </div>
-              ) : (
-                <IconBadge theme="emerald" icon={ShieldCheck} size="md" solidBacker />
-              )}
-              <span className="leading-relaxed">
-                {user ? t('cloudSyncNotice') : t('localStorageNotice')}
-              </span>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap justify-between pt-2 border-t border-ink/5 dark:border-white/5">
-              <div className="flex items-center gap-2 flex-wrap">
-                {!user && (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => openAuthModal('login')}
-                    className="py-1 px-3 rounded-full bg-volt text-[#111111] text-xs font-semibold hover:brightness-105 transition-all cursor-pointer shadow-xs"
-                  >
-                    {t('logInOrSignUp')}
-                  </Button>
-                )}
-                {onOpenOnboarding && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onOpenOnboarding}
-                    className="inline-flex items-center gap-1.5 min-h-[44px] px-3 py-1.5 rounded-full text-xs font-medium text-ink-secondary hover:text-ink hover:bg-pod transition-colors cursor-pointer"
-                  >
-                    <BookOpen2 className="w-3.5 h-3.5 text-current shrink-0" />
-                    <span>{lang === 'fr' ? 'Ouvrir l’assistant de démarrage' : 'Run guided setup'}</span>
-                  </Button>
-                )}
-              </div>
-              <span className="px-3 py-1 rounded-full bg-pod text-ink-muted tnum shrink-0 whitespace-nowrap">
-                {t('syncedAt', { time: syncedDisplayTime })}
-              </span>
-            </div>
-          </div>
         </div>
       </div>
 
-      {/* Subtle Secondary Utilities Footer (Feedback + Reset Defaults) */}
+      {/* Subtle Single-Line Sync & Utilities Footer */}
       <footer className="pt-4 mt-2 border-t border-dashed border-ink/20 dark:border-white/15 flex flex-wrap items-center justify-between gap-3 text-xs text-ink-muted">
-        <span>
-          {lang === 'fr'
-            ? 'Planificateur local · Physique cycliste & ravitaillement 100 % navigateur'
-            : 'Local-first cycling physics & nutrition planner'}
-        </span>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <span>
+            {user ? t('cloudSyncNotice') : t('localStorageNotice')}
+          </span>
+          <span className="px-2.5 py-0.5 rounded-full bg-pod text-ink-muted tnum">
+            {t('syncedAt', { time: syncedDisplayTime })}
+          </span>
+          {!user && (
+            <button
+              type="button"
+              onClick={() => openAuthModal('login')}
+              className="font-semibold text-ink underline underline-offset-4 hover:opacity-80 cursor-pointer"
+            >
+              {t('logInOrSignUp')}
+            </button>
+          )}
+        </div>
         <div className="flex items-center gap-4">
           <button
             type="button"

@@ -85,6 +85,7 @@ export const MobileTripsView: React.FC<MobileTripsViewProps> = ({
     const datedCompleted: { trip: TripProfile; time: number }[] = [];
 
     for (const tr of filteredTrips) {
+      if (nextUpcomingTrip && tr.id === nextUpcomingTrip.id) continue;
       const dateStr = tr.departureDate || tr.stages?.[0]?.departureDate;
       if (dateStr) {
         const info = getTripDateDetails(tr, lang);

@@ -185,19 +185,8 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
   return (
     <Card
       title={t('checklistTitle')}
-      subtitle={t('checklistSub', { done: completedCount, total: items.length, tag: effectiveTag === 'VÉLOTAF' ? (isFr ? 'Vélotaf' : 'Commute') : effectiveTag })}
       badge={
         <div className="flex items-center gap-2 flex-wrap">
-          <Badge variant={isTubeless ? 'emerald' : 'zinc'} size="md" className="tnum">
-            {isTubeless
-              ? isFr
-                ? 'Tubeless'
-                : 'Tubeless'
-              : isFr
-              ? 'Chambres à air'
-              : 'Standard tubes'}
-          </Badge>
-
           <Button variant="ghost"
             type="button"
             onClick={handleRegenerate}
@@ -214,7 +203,7 @@ export const PreFlightChecklistBento: React.FC<PreFlightChecklistBentoProps> = (
             dot
             className="py-1.5 px-3 tnum"
           >
-            {isAllReady ? t('readyStatus') : t('pendingCountStatus', { count: pendingCount })}
+            {isAllReady ? t('readyStatus') : `${completedCount}/${items.length}`}
           </Badge>
         </div>
       }

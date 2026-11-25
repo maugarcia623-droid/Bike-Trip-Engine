@@ -195,11 +195,10 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
         </div>
       </div>
 
-      {/* Cadence Intelligence Hero Verdict — words before numbers */}
+      {/* Cadence Intelligence Hero Verdict — single crisp line */}
       <CadenceInsight
         tone={companionInsight.tone}
         headline={companionInsight.headline}
-        detail={companionInsight.detail}
         compact
         className="mb-3.5"
       />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Button } from "@/components/arc/button/button";
 import { createPortal } from 'react-dom';
 import {
@@ -153,6 +153,30 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
     isError?: boolean;
   } | null>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
+  const filterScrollRef = useRef<HTMLDivElement>(null);
+  const [filterFadeLeft, setFilterFadeLeft] = useState(false);
+  const [filterFadeRight, setFilterFadeRight] = useState(false);
+
+  const updateFilterFades = useCallback(() => {
+    const el = filterScrollRef.current;
+    if (!el) return;
+    setFilterFadeLeft(el.scrollLeft > 6);
+    setFilterFadeRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 6);
+  }, []);
+
+  useEffect(() => {
+    updateFilterFades();
+    const el = filterScrollRef.current;
+    if (!el) return;
+    el.addEventListener('scroll', updateFilterFades, { passive: true });
+    window.addEventListener('resize', updateFilterFades);
+    const raf = window.requestAnimationFrame(updateFilterFades);
+    return () => {
+      window.cancelAnimationFrame(raf);
+      el.removeEventListener('scroll', updateFilterFades);
+      window.removeEventListener('resize', updateFilterFades);
+    };
+  }, [lang, embedded, embeddedLayout, isOpen, updateFilterFades]);
 
   // Lock background page scroll while overlay is active (iOS Safari bulletproof lock)
   useEffect(() => {
@@ -642,11 +666,11 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
             <div id="resupply-radar-title" className="text-[17px] font-semibold text-ink tracking-tight break-words font-rounded">
               {t('resupplyRadarTitle')}
             </div>
-            <div className="text-[13px] text-ink-muted break-words mt-0.5">
-              {hasScanned
-                ? `${filteredAmenities.length} POIs · ${pinnedAmenities.length} ${t('pinnedStop').toLowerCase()}`
-                : t('resupplyRadarSub')}
-            </div>
+            {hasScanned && (
+              <div className="text-[12px] text-ink-muted break-words mt-0.5 tnum">
+                {filteredAmenities.length} POIs · {pinnedAmenities.length} {t('pinnedStop').toLowerCase()}
+              </div>
+            )}
           </div>
 
           {/* Right actions: 1:1 Map Dots Toggle + Re-scan + 1:1 Close Button (modal only) */}
@@ -775,13 +799,15 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
           <div className="px-2 pt-2 pb-1 text-xs font-semibold text-ink-muted font-rounded shrink-0">
             {isFr ? 'Filtres de ravitaillement' : 'Resupply filters'}
           </div>
-          <div
-            className={
-              embedded && embeddedLayout === 'split'
-                ? 'flex flex-wrap items-center gap-1.5 py-0.5 shrink-0'
-                : 'flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 shrink-0'
-            }
-          >
+          <div className="relative min-w-0 shrink-0">
+            <div
+              ref={filterScrollRef}
+              className={
+                embedded && embeddedLayout === 'split'
+                  ? 'flex flex-wrap items-center gap-1.5 py-0.5 shrink-0'
+                  : 'flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 shrink-0 scroll-smooth'
+              }
+            >
             {categoryConfig
               .filter((cat) => cat.id !== 'cemetery')
               .map((cat) => {
@@ -833,6 +859,23 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
             >
               <span>{t('radarDetourOnly')}</span>
             </Button>
+            </div>
+            {!(embedded && embeddedLayout === 'split') && (
+              <>
+                <div
+                  aria-hidden="true"
+                  className={`pointer-events-none absolute inset-y-0 left-0 w-9 bg-gradient-to-r from-card via-card/85 to-transparent dark:from-[#18181B] dark:via-[#18181B]/85 transition-opacity duration-200 ${
+                    filterFadeLeft ? 'opacity-100' : 'opacity-0'
+                  }`}
+                />
+                <div
+                  aria-hidden="true"
+                  className={`pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-card via-card/85 to-transparent dark:from-[#18181B] dark:via-[#18181B]/85 transition-opacity duration-200 ${
+                    filterFadeRight ? 'opacity-100' : 'opacity-0'
+                  }`}
+                />
+              </>
+            )}
           </div>
 
           {/* 3. CORRIDOR HORIZON BAR */}

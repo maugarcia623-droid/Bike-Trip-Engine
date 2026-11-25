@@ -2,6 +2,17 @@
 
 All notable changes to **Cadence** (`ridecadence.cc`) are documented in this file.
 
+## [2026-11-25] — Ride Plan Information Diet & Cockpit UI Polish
+
+### Changed
+- **3-Tab Layer 2 Cockpit (`BentoDashboard`):** Consolidated Layer 2 from 4 tabs (with duplicate `AtmosphereCard` mount and `"Show all cards"` toggle) into **3 zero-duplication tabs**: *Schedule & Checklist*, *Fuel & Resupply*, and *Weather & Effort*.
+- **Layer 1 Cockpit Split (`HeroRouteCard`, `RideBriefCard`):** Kept the 3 editable Hero popovers (*Time*, *Route*, *Pace*) and replaced read-only Fuel/Surface popovers with direct Layer 2 tab jumps. Streamlined `RideBriefCard` into a decision summary with 1-to-1 tab-jump pills (`Checklist ↗`, `Weather ↗`, `Fuel ↗`), a non-duplicated collapsed readiness pill, and a bottom-anchored **Trip setup** + **Share with partner** bar.
+- **Collapsed-by-Default Layer 2 & Physics Diet (`NutritionBento`, `ReverseTimelineBento`, `AtmosphereCard`, `PhysicsEngineCard`, `TerrainEffortStory`):** Defaulted Layer 2 timelines, nutrition phases, weather details, and climb splits to collapsed on initial load; removed ~16 physics tooltip essays, the `"What are Watts?"` drawer, nested `TerrainEffortStory` sub-tabs, and duplicate fuel/croissant blocks.
+- **Home, Configurator & Ride Mode Diet (`HomeScreen`, `UpcomingTripCard`, `TripCard`, `ConfiguratorScreen`, `RideModeOverlay`):** Deduplicated the next-ride card from Saved Trips, trimmed `UpcomingTripCard` to a 1-row strip, slimmed `ConfiguratorScreen`'s sticky sidebar from 6 pods to 2, made `RideModeOverlay`'s top strip hazard-driven, and added horizontal scroll fade masks to `ResupplyRadarOverlay` filters.
+
+### Removed
+- Deleted unused `RideBriefModal.tsx` (534 lines), zombie `ResupplyRadarOverlay` mount in `HeroRouteCard.tsx`, and 42 orphaned physics tooltip keys across `en.ts` and `fr.ts`.
+
 ## [2026-11-25] — Understated Cadence Intelligence, Human Effort Card & UI Polish
 
 ### Added

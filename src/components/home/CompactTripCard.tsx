@@ -150,17 +150,15 @@ export const CompactTripCard: React.FC<CompactTripCardProps> = ({
           <Badge variant={dateInfo.countdownVariant} size="md" icon={Calendar} className="h-9 tnum">
             {dateInfo.countdownText}
           </Badge>
-          <Badge variant={rideStyleBadge.variant} size="md" icon={rideStyleBadge.icon} className="h-9">
-            {trip.tag === 'VÉLOTAF' ? t('commuteTagLabel') : trip.tag}
-          </Badge>
-          {isActive && (
-            <Badge variant="yellow-vest" size="md" dot className="h-9">
-              {t('activeBadge')}
+          {physicsResult.goStatus !== 'GO' ? (
+            <Badge variant={feasibilityVariant} size="md" dot className="h-9">
+              {feasibilityLabel}
+            </Badge>
+          ) : (
+            <Badge variant={rideStyleBadge.variant} size="md" icon={rideStyleBadge.icon} className="h-9">
+              {trip.tag === 'VÉLOTAF' ? t('commuteTagLabel') : trip.tag}
             </Badge>
           )}
-          <Badge variant={feasibilityVariant} size="md" dot className="h-9">
-            {feasibilityLabel}
-          </Badge>
         </div>
 
         <div className="flex items-end justify-between gap-2.5">
@@ -202,17 +200,15 @@ export const CompactTripCard: React.FC<CompactTripCardProps> = ({
           <Badge variant={dateInfo.countdownVariant} size="md" icon={Calendar} className="h-9 tnum">
             {dateInfo.countdownText}
           </Badge>
-          <Badge variant={rideStyleBadge.variant} size="md" icon={rideStyleBadge.icon} className="h-9">
-            {trip.tag === 'VÉLOTAF' ? t('commuteTagLabel') : trip.tag}
-          </Badge>
-          {isActive && (
-            <Badge variant="yellow-vest" size="md" dot className="h-9">
-              {t('activeBadge')}
+          {physicsResult.goStatus !== 'GO' ? (
+            <Badge variant={feasibilityVariant} size="md" dot className="h-9">
+              {feasibilityLabel}
+            </Badge>
+          ) : (
+            <Badge variant={rideStyleBadge.variant} size="md" icon={rideStyleBadge.icon} className="h-9">
+              {trip.tag === 'VÉLOTAF' ? t('commuteTagLabel') : trip.tag}
             </Badge>
           )}
-          <Badge variant={feasibilityVariant} size="md" dot className="h-9">
-            {feasibilityLabel}
-          </Badge>
         </div>
 
         {(onDuplicate || onEdit || onDelete || onToggleExpand) && (
@@ -294,19 +290,12 @@ export const CompactTripCard: React.FC<CompactTripCardProps> = ({
         </span>
       </div>
 
-      {/* Bottom Row: Description + Customizations | Speed + Duration + Ready */}
+      {/* Bottom Row: Customizations | Speed + Duration + Ready */}
       <div className="flex items-end justify-between gap-3">
-        <div className="min-w-0 flex-1 space-y-1">
-          {meta.description && (
-            <p className="text-[13px] text-ink-muted line-clamp-2 leading-relaxed">
-              {meta.description}
-            </p>
-          )}
-          <div className="pt-1.5">
-            <span className="inline-flex items-center px-3 py-1 rounded-full bg-pod text-ink-secondary text-xs font-medium tnum">
-              {customizationsLabel}
-            </span>
-          </div>
+        <div className="min-w-0 flex-1">
+          <span className="inline-flex items-center px-3 py-1 rounded-full bg-pod text-ink-secondary text-xs font-medium tnum">
+            {customizationsLabel}
+          </span>
         </div>
 
         <div className="text-right tnum shrink-0 space-y-0.5">

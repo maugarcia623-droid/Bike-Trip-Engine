@@ -985,7 +985,7 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
       aria-label={isFr ? 'Importer une trace ou esquisser une sortie' : 'Import Route or Quick Ride Builder'}
       className="relative z-30 min-w-0 max-w-full bg-card border border-ink/5 dark:border-white/5 rounded-card p-4 sm:p-6 shadow-xs overflow-visible animate-apple-in"
     >
-      {/* Top Badge & Optional Guided Setup Hint */}
+      {/* Top Badge */}
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <div className="inline-flex items-center gap-2 flex-wrap">
           <span
@@ -996,19 +996,10 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
           </span>
           <span className="text-xs text-ink-muted">
             {isFr
-              ? 'Komoot, Strava, RideWithGPS, Bikemap ou fichier .GPX / .TCX / .FIT'
-              : 'Komoot, Strava, RideWithGPS, Bikemap or .GPX / .TCX / .FIT file'}
+              ? 'Komoot, Strava, RideWithGPS ou .GPX / .FIT'
+              : 'Komoot, Strava, RideWithGPS or .GPX / .FIT'}
           </span>
         </div>
-        {onOpenOnboarding && (
-          <button
-            type="button"
-            onClick={onOpenOnboarding}
-            className="text-xs font-medium text-ink-secondary hover:text-ink underline underline-offset-4 transition-colors cursor-pointer min-h-[36px] inline-flex items-center"
-          >
-            {isFr ? 'Ou lancer l’assistant guidé' : 'Prefer step-by-step guided setup?'}
-          </button>
-        )}
       </div>
 
       {/* ── 1. IMPORT-FIRST HERO (URL Paste + Drag-and-Drop Dropzone) ── */}
@@ -1019,8 +1010,8 @@ export const QuickRideBuilder: React.FC<QuickRideBuilderProps> = ({
           </h2>
           <p className="text-xs sm:text-[13px] text-ink-secondary mt-0.5 leading-relaxed">
             {isFr
-              ? 'Collez un lien Komoot ou déposez un fichier GPX : météo par secteur, points d’eau, nutrition et découpage multi-jours calculés instantanément.'
-              : 'Paste a Komoot link or drop a GPX file — get instant weather, water gaps, fueling, and multi-day stage cuts.'}
+              ? 'Lien Komoot ou fichier GPX — météo, points d’eau et ravito calculés en un instant.'
+              : 'Paste a route link or drop a GPX — weather, water stops, and fueling computed instantly.'}
           </p>
         </div>
 

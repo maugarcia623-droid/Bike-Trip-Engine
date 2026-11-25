@@ -64,6 +64,7 @@ interface AtmosphereCardProps {
   physicsResult: PhysicsCalculationResult;
   onUpdateTrip: (updated: TripProfile) => void;
   hardRolloutTime?: string;
+  defaultExpanded?: boolean;
 }
 
 export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
@@ -71,6 +72,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
   physicsResult,
   onUpdateTrip,
   hardRolloutTime,
+  defaultExpanded = false,
 }) => {
   const { lang, t } = useTranslation();
   const isFr = lang === 'fr';
@@ -83,7 +85,7 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
     typeof navigator === 'undefined' ? true : navigator.onLine !== false
   );
   // Collapsed summary view by default when opening the Cockpit
-  const [isCardExpanded, setIsCardExpanded] = useState<boolean>(false);
+  const [isCardExpanded, setIsCardExpanded] = useState<boolean>(defaultExpanded);
   const [isKitOpen, setIsKitOpen] = useState<boolean>(false);
   const [showWindSimulator, setShowWindSimulator] = useState<boolean>(false);
   const toggleCardExpanded = () => setIsCardExpanded((prev) => !prev);
@@ -849,11 +851,13 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
                     </span>
                   </div>
                 </div>
-                <span className="text-xs font-rounded font-semibold tnum text-ink-muted shrink-0">
-                  {windInsight.ghostElevationM >= 0
-                    ? `+${windInsight.ghostElevationM} m`
-                    : `${windInsight.ghostElevationM} m`}
-                </span>
+                <IconBadge
+                  theme={windInsight.equivalentGradePct >= 0 ? 'amber' : 'emerald'}
+                  icon={windInsight.equivalentGradePct >= 0 ? Mountain : Wind}
+                  size="md"
+                  shape="circle"
+                  className="shrink-0"
+                />
               </div>
 
               {(feltScale || windScale) && (

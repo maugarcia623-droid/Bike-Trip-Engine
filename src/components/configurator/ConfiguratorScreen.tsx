@@ -3454,370 +3454,134 @@ export const ConfiguratorScreen: React.FC<ConfiguratorScreenProps> = ({
   )}
 </div>
 
-{/* Right 2 Columns: Sticky Live Results Card */}
-<div className="lg:col-span-2 min-w-0 lg:sticky lg:top-[calc(var(--cadence-nav-h)+4.25rem)] animate-apple-in stagger-3 relative z-10">
-  <div className="bg-card text-ink rounded-card p-4 sm:p-5 shadow-xs transition-colors space-y-4">
-    <div className="flex items-center justify-between gap-2">
-      <h3 className="text-base sm:text-[17px] font-semibold tracking-tight text-ink">
-        {isFr ? 'Aperçu en direct' : 'Live ride summary'}
-      </h3>
-              <Badge
-                variant={
-                  physicsResult.goStatus === 'GO'
-                    ? 'emerald'
-                    : physicsResult.goStatus === 'CAUTION'
-                    ? 'amber'
-                    : 'rose'
-                }
-                size="md"
-                dot
-                title={physicsResult.goStatusReason}
-              >
-                {physicsResult.goStatus === 'GO' ? t('feasibilityOptimal') : physicsResult.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')}
-              </Badge>
-            </div>
-
-            {/* Live Ride Conditions Banner */}
-            <div
-              className={`p-2.5 rounded-pod text-xs flex items-start gap-2 ${
-                physicsResult.goStatus === 'GO'
-                  ? 'bg-emerald-500/10 text-emerald-900 dark:text-emerald-200'
-                  : physicsResult.goStatus === 'CAUTION'
-                  ? 'bg-amber-500/10 text-amber-900 dark:text-amber-200'
-                  : 'bg-rose-500/10 text-rose-900 dark:text-rose-200'
-              }`}
-            >
-              <span
-                className={`w-2 h-2 rounded-full mt-0.5 shrink-0 ${
-                  physicsResult.goStatus === 'GO'
-                    ? CHIP_TOKENS.emerald.dot
-                    : physicsResult.goStatus === 'CAUTION'
-                    ? CHIP_TOKENS.amber.dot
-                    : CHIP_TOKENS.rose.dot
-                }`}
-              />
-              <div className="min-w-0 flex-1">
-                <span className="font-semibold block">
-                  {isFr ? 'Conditions météo' : 'Ride conditions'}:{' '}
-                  {physicsResult.goStatus === 'GO'
-                    ? t('feasibilityOptimal')
-                    : physicsResult.goStatus === 'CAUTION'
-                    ? t('feasibilityCaution')
-                    : t('feasibilitySevere')}
-                </span>
-                <p className="mt-0.5 text-[11px] opacity-90 leading-relaxed">
-                  {physicsResult.goStatusReason}
-                </p>
-              </div>
-            </div>
-
-            {/* Hero Hard Departure Pod (4-Layer Yellow-Vest Brand Surface) */}
-            <div
-              className={`${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} rounded-pod p-4 sm:p-5 transition-colors`}
-            >
-              <div className="flex items-center justify-between text-xs font-medium opacity-80">
-                <span>
-                  {isArriveAtMode
-                    ? t('calculatedHardRollout')
-                    : isFr
-                    ? 'Départ programmé'
-                    : 'Scheduled departure'}
-                </span>
-                <Clock className="w-4 h-4 text-current shrink-0" />
-              </div>
-              <div className="mt-2 flex items-baseline justify-between gap-2">
-                <span className="text-3xl sm:text-4xl font-semibold text-current tracking-tight tnum">
-                  {timelineResult.hardDepartureTime}
-                </span>
-                <span className="text-xs font-medium opacity-80 tnum">
-                  {t('targetTimeLabel', { time: timelineResult.gateArrivalTime })}
-                </span>
-              </div>
-              <div className="lane-divider mt-2.5 mb-2" aria-hidden="true" />
-<div className="text-[11px] space-y-0.5 tnum opacity-90">
-                <div className="flex items-center justify-between">
-                  <span>{t('timeSaddleExclPauses')}</span>
-                  <span className="font-rounded font-semibold">{physicsResult.movingTimeFormatted}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>{t('timePausesAndBuffers')}</span>
-                  <span className="font-rounded font-semibold">+{timelineResult.bufferMinutes} min</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Pace & Effort Breakdown (Guided vs Power mode) */}
-            {effectiveSpecs.cockpitViewMode === 'pro' ? (
-              <div className="bg-pod rounded-pod p-4 sm:p-5">
-                <div className="flex items-center justify-between text-xs font-medium text-ink-muted">
-                  <span>{t('requiredLegOutput')}</span>
+            {/* Right 2 Columns: Sticky Live Results Card (2-Pod Summary) */}
+            <div className="lg:col-span-2 min-w-0 lg:sticky lg:top-[calc(var(--cadence-nav-h)+4.25rem)] animate-apple-in stagger-3 relative z-10">
+              <div className="bg-card text-ink rounded-card p-4 sm:p-5 shadow-xs transition-colors space-y-4">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-base sm:text-[17px] font-semibold tracking-tight text-ink">
+                    {isFr ? 'Aperçu en direct' : 'Live ride summary'}
+                  </h3>
                   <Badge
                     variant={
-                      physicsResult.powerZone === 'Z1'
+                      physicsResult.goStatus === 'GO'
                         ? 'emerald'
-                        : physicsResult.powerZone === 'Z2'
-                        ? 'lime'
-                        : physicsResult.powerZone === 'Z3'
-                        ? 'yellow-vest'
-                        : physicsResult.powerZone === 'Z4'
+                        : physicsResult.goStatus === 'CAUTION'
                         ? 'amber'
                         : 'rose'
                     }
-                    size="xs"
-                    className="tnum font-bold"
+                    size="md"
+                    dot
+                    title={physicsResult.goStatusReason}
                   >
-                    {physicsResult.powerZone} &middot; {physicsResult.ftpPercent}% FTP
+                    {physicsResult.goStatus === 'GO' ? t('feasibilityOptimal') : physicsResult.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')}
                   </Badge>
                 </div>
-                <div className="mt-1.5 flex items-baseline justify-between gap-2 mb-3">
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-3xl font-semibold text-ink tracking-tight tnum">
-                      {Math.round(physicsResult.legWatts)}
+
+                {/* Pod 1: Hard Departure Pod (4-Layer Yellow-Vest Brand Surface) */}
+                <div
+                  className={`${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES} rounded-pod p-4 sm:p-5 transition-colors`}
+                >
+                  <div className="flex items-center justify-between text-xs font-medium opacity-80">
+                    <span>
+                      {isArriveAtMode
+                        ? t('calculatedHardRollout')
+                        : isFr
+                        ? 'Départ programmé'
+                        : 'Scheduled departure'}
                     </span>
-                    <span className="text-xs font-medium text-ink-muted">{t('wattsUnit')}</span>
+                    <Clock className="w-4 h-4 text-current shrink-0" />
                   </div>
-                  <span className="text-xs font-semibold text-ink-secondary tnum">
-                    {physicsResult.wattsPerKg} W/kg &middot; {physicsResult.effectiveSpeedKmH} km/h
-                  </span>
+                  <div className="mt-2 flex items-baseline justify-between gap-2">
+                    <span className="text-3xl sm:text-4xl font-semibold text-current tracking-tight tnum">
+                      {timelineResult.hardDepartureTime}
+                    </span>
+                    <span className="text-xs font-medium opacity-80 tnum">
+                      {t('targetTimeLabel', { time: timelineResult.gateArrivalTime })}
+                    </span>
+                  </div>
+                  <div className="lane-divider mt-2.5 mb-2" aria-hidden="true" />
+                  <div className="text-[11px] space-y-0.5 tnum opacity-90">
+                    <div className="flex items-center justify-between">
+                      <span>{t('timeSaddleExclPauses')}</span>
+                      <span className="font-rounded font-semibold">{physicsResult.movingTimeFormatted}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>{t('timePausesAndBuffers')}</span>
+                      <span className="font-rounded font-semibold">+{timelineResult.bufferMinutes} min</span>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="text-xs">
-                  <div className="lane-divider" aria-hidden="true" />
-                  <div className="flex items-center justify-between py-2">
-                    <span className="text-ink-secondary">{t('aeroDragRow', { cda: trip.physics.cda })}</span>
-                    <span className="text-ink font-semibold tnum">{Math.round(physicsResult.aerodynamicDragWatts)} W</span>
-                  </div>
-                  <div className="lane-divider" aria-hidden="true" />
-                  <div className="flex items-center justify-between py-2">
-                    <span className="text-ink-secondary">{t('rollingRow', { crr: trip.physics.crr })}</span>
-                    <span className="text-ink font-semibold tnum">{Math.round(physicsResult.rollingResistanceWatts)} W</span>
-                  </div>
-                  {Math.abs(Math.round(physicsResult.gravityWatts)) >= 2 && (
-                    <>
-                      <div className="lane-divider" aria-hidden="true" />
-                      <div className="flex items-center justify-between py-2">
-                        <span className="text-ink-secondary">
-                          {isFr
-                            ? `Pente (${trip.physics.gradientPercent}%)`
-                            : `Grade (${trip.physics.gradientPercent}%)`}
+                {/* Pod 2: Pace & Effort Breakdown (Guided vs Pro) */}
+                {effectiveSpecs.cockpitViewMode === 'pro' ? (
+                  <div className="bg-pod rounded-pod p-4 sm:p-5">
+                    <div className="flex items-center justify-between text-xs font-medium text-ink-muted">
+                      <span>{t('requiredLegOutput')}</span>
+                      <Badge
+                        variant={
+                          physicsResult.powerZone === 'Z1'
+                            ? 'emerald'
+                            : physicsResult.powerZone === 'Z2'
+                            ? 'lime'
+                            : physicsResult.powerZone === 'Z3'
+                            ? 'yellow-vest'
+                            : physicsResult.powerZone === 'Z4'
+                            ? 'amber'
+                            : 'rose'
+                        }
+                        size="xs"
+                        className="tnum font-bold"
+                      >
+                        {physicsResult.powerZone} &middot; {physicsResult.ftpPercent}% FTP
+                      </Badge>
+                    </div>
+                    <div className="mt-1.5 flex items-baseline justify-between gap-2">
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-3xl font-semibold text-ink tracking-tight tnum">
+                          {Math.round(physicsResult.legWatts)}
                         </span>
-                        <span className="text-ink font-semibold tnum">
-                          {physicsResult.gravityWatts < 0 ? '−' : ''}
-                          {Math.abs(Math.round(physicsResult.gravityWatts))} W
+                        <span className="text-xs font-medium text-ink-muted">{t('wattsUnit')}</span>
+                      </div>
+                      <span className="text-xs font-semibold text-ink-secondary tnum">
+                        {physicsResult.wattsPerKg} W/kg &middot; {physicsResult.effectiveSpeedKmH} km/h
+                      </span>
+                    </div>
+                    {trip.weather.isHeadwindActive && (
+                      <div className="mt-2 pt-2 border-t border-ink/10 text-xs font-semibold text-amber-700 dark:text-amber-300 flex items-center justify-between">
+                        <span>{t('headwindSurchargeRow')}</span>
+                        <span className="tnum">
+                          {physicsResult.pacingMode === 'effort'
+                            ? `+${physicsResult.windDelayMinutes} min`
+                            : `+${Math.round(physicsResult.powerDeltaWatts)} W`}
                         </span>
                       </div>
-                    </>
-                  )}
-                  <div className="lane-divider" aria-hidden="true" />
-                  <div className="flex items-center justify-between pt-2">
-                    <span className="text-ink-secondary flex items-center gap-1.5">
-                      <Settings className="w-3.5 h-3.5 text-ink-secondary shrink-0" />
-                      {t('drivetrainLossRow')}
-                    </span>
-                    <span className="text-ink font-semibold tnum">{Math.round(physicsResult.legWatts - physicsResult.wheelWatts)} W</span>
-                  </div>
-                  {trip.weather.isHeadwindActive && (
-                    <>
-                      <div className="lane-divider mt-2" aria-hidden="true" />
-                      {physicsResult.pacingMode === 'effort' ? (
-                        <div className={`flex items-center justify-between pt-2 font-semibold ${CHIP_TOKENS.emerald.primary}`}>
-                          <span>
-                            {lang === 'fr'
-                              ? `Le vent vous ralentit de ${physicsResult.speedDeltaKmH} km/h (+${physicsResult.windDelayMinutes} min)`
-                              : `Headwind slows you by ${physicsResult.speedDeltaKmH} km/h (adds ${physicsResult.windDelayMinutes} min)`}
-                          </span>
-                        </div>
-                      ) : (
-                        <div className={`flex items-center justify-between pt-2 font-semibold ${CHIP_TOKENS.amber.primary}`}>
-                          <span>{t('headwindSurchargeRow')}</span>
-                          <span className="tnum">+{Math.round(physicsResult.powerDeltaWatts)} W</span>
-                        </div>
-                      )}
-                    </>
-                  )}
-                  {!trip.weather.isHeadwindActive &&
-                    trip.weather.windDirection === 'tailwind' &&
-                    physicsResult.powerDeltaWatts < -1 && (
-                      <>
-                        <div className="lane-divider mt-2" aria-hidden="true" />
-                        <div className={`flex items-center justify-between pt-2 font-semibold ${CHIP_TOKENS.emerald.primary}`}>
-                          <span>{isFr ? 'Gain vent arrière' : 'Tailwind assist'}</span>
-                          <span className="tnum">{Math.round(physicsResult.powerDeltaWatts)} W</span>
-                        </div>
-                      </>
                     )}
-                </div>
-              </div>
-            ) : (
-              <div className="bg-pod rounded-pod p-4 sm:p-5">
-                <div className="flex items-center justify-between text-xs font-medium text-ink-muted">
-                  <span>{isFr ? 'Allure & Effort estimé' : 'Pace & Effort'}</span>
-                  <Badge variant="zinc" size="xs" className="tnum font-semibold">
-                    {physicsResult.powerZone === 'Z1' || physicsResult.powerZone === 'Z2'
-                      ? (isFr ? 'Endurance fluide' : 'Steady endurance')
-                      : (isFr ? 'Rythme soutenu' : 'Brisk effort')}
-                  </Badge>
-                </div>
-                <div className="mt-1.5 flex items-baseline justify-between gap-2">
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-3xl font-semibold text-ink tracking-tight tnum">
-                      {physicsResult.effectiveSpeedKmH}
-                    </span>
-                    <span className="text-xs font-medium text-ink-muted">km/h</span>
                   </div>
-                  <span className="text-xs font-medium text-ink-secondary tnum">
-                    {trip.weather.isHeadwindActive
-                      ? (isFr ? `Vent de face · +${physicsResult.windDelayMinutes} min` : `Headwind · +${physicsResult.windDelayMinutes} min`)
-                      : (isFr ? 'Vent modéré' : 'Moderate wind')}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Surface & 38c Gravel Suitability Summary Pod */}
-            <div className="bg-pod rounded-pod p-4 sm:p-5 text-xs space-y-2.5">
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <div className="flex items-center gap-1.5">
-                  <span className="font-rounded font-semibold text-ink">
-                    {isFr ? 'Surfaces & Gravel' : 'Surface & Gravel Suitability'}
-                  </span>
-                  <span
-                    className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[9.5px] font-rounded font-bold tnum ${
-                      surfaceBreakdown.isLoadingOsm
-                        ? 'bg-sky-500/15 text-sky-700 dark:text-sky-300'
-                        : surfaceBreakdown.dataSource === 'osm-overpass'
-                        ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
-                        : 'bg-ink/8 dark:bg-white/10 text-ink-muted'
-                    }`}
-                  >
-                    {surfaceBreakdown.isLoadingOsm
-                      ? (isFr ? 'Analyse…' : 'Syncing…')
-                      : surfaceBreakdown.dataSource === 'osm-overpass'
-                      ? `${isFr ? 'Carte' : 'Map'} · ${surfaceBreakdown.osmCoveragePct ?? 100}%`
-                      : isFr
-                      ? 'Estimé'
-                      : 'Est.'}
-                  </span>
-                </div>
-                <span
-                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-rounded font-bold tnum ${
-                    surfaceBreakdown.suitability.overallLevel === 'ideal'
-                      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 ring-1 ring-inset ring-emerald-500/30'
-                      : surfaceBreakdown.suitability.overallLevel === 'good-with-care'
-                      ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300 ring-1 ring-inset ring-amber-500/30'
-                      : 'bg-rose-500/15 text-rose-700 dark:text-rose-300 ring-1 ring-inset ring-rose-500/30'
-                  }`}
-                >
-                  {surfaceBreakdown.suitability.tireWidthMm}c ·{' '}
-                  {surfaceBreakdown.suitability.scorePct}%
-                </span>
-              </div>
-
-              <div className="h-2.5 w-full rounded-full overflow-hidden bg-black/10 dark:bg-white/10 p-0.5 flex items-stretch gap-0.5">
-                {surfaceBreakdown.segments.map((seg) => {
-                  const meta = SURFACE_VISUAL_META[seg.type];
-                  const pctSpan = Math.max(0.5, seg.endPct - seg.startPct);
-                  return (
-                    <div
-                      key={seg.id}
-                      style={{ flex: `${pctSpan} 1 0%` }}
-                      title={`${isFr ? seg.nameFr : seg.nameEn} (km ${seg.startKm}–${seg.endKm})`}
-                      className={`h-full min-w-[3px] first:rounded-l-full last:rounded-r-full ${meta.barBgClass}`}
-                    />
-                  );
-                })}
-              </div>
-
-              <div className="flex items-center justify-between text-[11px] font-rounded font-semibold text-ink-secondary tnum">
-                <span className="inline-flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-sky-500 dark:bg-sky-400" />
-                  {surfaceBreakdown.pavedPct}% {isFr ? 'Bitume' : 'Paved'}
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-amber-500 dark:bg-amber-400" />
-                  {surfaceBreakdown.gravelPct}% Gravel
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-rose-500 dark:bg-rose-400" />
-                  {surfaceBreakdown.singletrackPct}% {isFr ? 'Sentier' : 'Trail'}
-                </span>
-              </div>
-
-              <p className="text-[11px] text-ink-muted leading-snug">
-                {isFr
-                  ? surfaceBreakdown.suitability.headlineFr
-                  : surfaceBreakdown.suitability.headlineEn}{' '}
-                ·{' '}
-                <span className="font-rounded font-semibold text-ink tnum">
-                  {surfaceBreakdown.suitability.recommendedFrontBar}/
-                  {surfaceBreakdown.suitability.recommendedRearBar} bar
-                </span>
-              </p>
-            </div>
-
-            {/* Metabolic Fueling Summary */}
-            <div className="bg-pod rounded-pod p-4 sm:p-5 text-xs">
-              <div className="font-semibold text-ink mb-2">
-                {t('metabolicExpenditureHeading')}
-              </div>
-              <div className="flex items-center justify-between py-1.5">
-                <span className="text-ink-secondary">{t('mechanicalWorkRow')}</span>
-                <span className="text-ink font-semibold tnum">{Math.round(physicsResult.totalWorkKj)} kJ</span>
-              </div>
-              {effectiveSpecs.telemetryMode === 'quantitative' && (
-                <>
-                  <div className="lane-divider" aria-hidden="true" />
-                  <div className="flex items-center justify-between py-1.5">
-                    <span className="text-ink-secondary">{t('caloricBurnRow')}</span>
-                    <span className="text-ink font-semibold tnum">{Math.round(physicsResult.totalKcalBurn)} kcal</span>
+                ) : (
+                  <div className="bg-pod rounded-pod p-4 sm:p-5">
+                    <div className="flex items-center justify-between text-xs font-medium text-ink-muted">
+                      <span>{isFr ? 'Allure & Effort estimé' : 'Pace & Effort'}</span>
+                      <Badge variant="zinc" size="xs" className="tnum font-semibold">
+                        {physicsResult.powerZone === 'Z1' || physicsResult.powerZone === 'Z2'
+                          ? (isFr ? 'Endurance fluide' : 'Steady endurance')
+                          : (isFr ? 'Rythme soutenu' : 'Brisk effort')}
+                      </Badge>
+                    </div>
+                    <div className="mt-1.5 flex items-baseline justify-between gap-2">
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-3xl font-semibold text-ink tracking-tight tnum">
+                          {physicsResult.effectiveSpeedKmH}
+                        </span>
+                        <span className="text-xs font-medium text-ink-muted">km/h</span>
+                      </div>
+                      <span className="text-xs font-medium text-ink-secondary tnum">
+                        {trip.weather.isHeadwindActive
+                          ? (isFr ? `Vent de face · +${physicsResult.windDelayMinutes} min` : `Headwind · +${physicsResult.windDelayMinutes} min`)
+                          : (isFr ? 'Vent modéré' : 'Moderate wind')}
+                      </span>
+                    </div>
                   </div>
-                </>
-              )}
-              <div className="lane-divider" aria-hidden="true" />
-              <div className="flex items-center justify-between pt-1.5">
-                <span className="text-ink-secondary">{t('carbOxidationRow')}</span>
-                <span className={`font-semibold tnum ${CHIP_TOKENS.lime.primary}`}>
-                  {effectiveSpecs.telemetryMode === 'quantitative'
-                    ? `${physicsResult.carbOxidationGramPerHour} g/h`
-                    : effectiveSpecs.telemetryMode === 'fuel-first'
-                    ? `${Math.max(1, Math.round(physicsResult.carbOxidationGramPerHour / 20))} ${isFr ? 'unités/h' : 'fuel units/h'}`
-                    : isFr
-                    ? 'Rythme régulier'
-                    : 'Steady rhythm'}
-                </span>
-              </div>
-            </div>
-
-            {/* Concise Protocol Capsule */}
-            <div className="pl-2.5 pr-4 py-2.5 rounded-pod sm:rounded-full bg-pod flex items-center gap-3">
-              <IconBadge
-                theme={(trip.customChips || []).includes('coffee-stop') ? 'amber' : 'yellow-vest'}
-                icon={(trip.customChips || []).includes('coffee-stop') ? Coffee : ShieldCheck}
-                size="md"
-                solidBacker
-              />
-              <div className="min-w-0 text-xs">
-                <span className="text-ink font-semibold block break-words leading-tight">
-                  {(trip.customChips || []).includes('coffee-stop')
-                    ? (isFr ? 'Pause café : Activée (+15 min)' : 'Coffee stop: Scheduled (+15 min)')
-                    : archetype === 'sport'
-                    ? t('protocolSport')
-                    : archetype === 'bikepacking'
-                    ? t('protocolBikepacking')
-                    : archetype === 'escapade'
-                    ? t('protocolEscapade')
-                    : t('protocolDeskFoodBan', {
-                        state: trip.office.strictNoFoodInOpenSpace ? t('enforcedState') : t('advisoryState'),
-                      })}
-                </span>
-                <span className="text-ink-muted block break-words leading-tight mt-0.5">
-                  {t('targetWithBuffer', {
-                    time: timelineResult.gateArrivalTime,
-                    buffer: timelineResult.bufferMinutes,
-                  })}
-                </span>
-              </div>
-            </div>
+                )}
 
             {/* Desktop Primary Completion & Step Flow Actions (Home <-> Trip <-> Configurator) */}
             <div className="hidden lg:flex flex-col gap-2 pt-1">

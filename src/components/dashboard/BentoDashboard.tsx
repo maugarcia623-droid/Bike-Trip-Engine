@@ -59,9 +59,7 @@ import {
   X,
   CloudSun,
   Clock,
-  GridCirclesCheck,
   Mountain,
-  Radar,
   Route,
   SlidersHorizontal,
 } from '@/components/icons';
@@ -211,18 +209,11 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
     onAutoOpenSlicerConsumed?.();
   }, [autoOpenSlicer, trip.route.coordinates, trip.route.distanceKm, trip.stages, onAutoOpenSlicerConsumed]);
   const [activeLayer2Tab, setActiveLayer2Tab] = React.useState<
-    'schedule' | 'resupply' | 'fuel-packing' | 'weather-physics'
+    'schedule' | 'fuel' | 'conditions'
   >('schedule');
   const layer2TabsRef = React.useRef<HTMLDivElement>(null);
   const [layer2FadeLeft, setLayer2FadeLeft] = React.useState(false);
   const [layer2FadeRight, setLayer2FadeRight] = React.useState(false);
-  const [dashboardLayout, setDashboardLayout] = React.useState<'tabs' | 'all'>(() => {
-    try {
-      return localStorage.getItem('cadence_dashboard_layout_v1') === 'all' ? 'all' : 'tabs';
-    } catch {
-      return 'tabs';
-    }
-  });
 
   const updateLayer2Fades = React.useCallback(() => {
     const el = layer2TabsRef.current;
@@ -232,7 +223,6 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
   }, []);
 
   React.useEffect(() => {
-    if (dashboardLayout !== 'tabs') return;
     updateLayer2Fades();
     const el = layer2TabsRef.current;
     if (!el) return;
@@ -244,29 +234,16 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
       el.removeEventListener('scroll', updateLayer2Fades);
       window.removeEventListener('resize', updateLayer2Fades);
     };
-  }, [dashboardLayout, lang, updateLayer2Fades]);
+  }, [lang, updateLayer2Fades]);
 
   React.useEffect(() => {
-    if (dashboardLayout !== 'tabs') return;
     const el = layer2TabsRef.current;
     if (!el) return;
     const activeBtn = el.querySelector<HTMLElement>('[aria-selected="true"]');
     activeBtn?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
     const raf = window.requestAnimationFrame(updateLayer2Fades);
     return () => window.cancelAnimationFrame(raf);
-  }, [activeLayer2Tab, dashboardLayout, updateLayer2Fades]);
-
-  const handleToggleDashboardLayout = React.useCallback(() => {
-    setDashboardLayout((prev) => {
-      const next = prev === 'tabs' ? 'all' : 'tabs';
-      try {
-        localStorage.setItem('cadence_dashboard_layout_v1', next);
-      } catch {
-        // ignore storage errors
-      }
-      return next;
-    });
-  }, []);
+  }, [activeLayer2Tab, updateLayer2Fades]);
 
   const [isBriefExpanded, setIsBriefExpanded] = React.useState<boolean>(true);
 
@@ -282,27 +259,22 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
     }
   }, [onShareReceiptProp]);
 
-  const handleJumpToSection = React.useCallback(
-    (sectionId: string) => {
-      if (dashboardLayout === 'tabs') {
-        if (sectionId === 'bento-timeline') setActiveLayer2Tab('schedule');
-        else if (sectionId === 'bento-resupply') setActiveLayer2Tab('resupply');
-        else if (sectionId === 'bento-nutrition' || sectionId === 'bento-checklist') {
-          setActiveLayer2Tab('fuel-packing');
-        } else if (sectionId === 'bento-weather' || sectionId === 'bento-physics') {
-          setActiveLayer2Tab('weather-physics');
-        }
-      }
-      window.setTimeout(() => {
-        const el = document.getElementById(sectionId);
-        if (!el) return;
-        const offset = sectionId === 'bento-route' ? 76 : 136;
-        const top = el.getBoundingClientRect().top + window.scrollY - offset;
-        window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
-      }, 60);
-    },
-    [dashboardLayout]
-  );
+  const handleJumpToSection = React.useCallback((sectionId: string) => {
+    if (sectionId === 'bento-timeline' || sectionId === 'bento-checklist') {
+      setActiveLayer2Tab('schedule');
+    } else if (sectionId === 'bento-nutrition' || sectionId === 'bento-resupply') {
+      setActiveLayer2Tab('fuel');
+    } else if (sectionId === 'bento-weather' || sectionId === 'bento-physics') {
+      setActiveLayer2Tab('conditions');
+    }
+    window.setTimeout(() => {
+      const el = document.getElementById(sectionId);
+      if (!el) return;
+      const offset = sectionId === 'bento-route' ? 76 : 136;
+      const top = el.getBoundingClientRect().top + window.scrollY - offset;
+      window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    }, 60);
+  }, []);
 
   React.useEffect(() => {
     if (!externalRideBriefOpen) return;
@@ -1102,6 +1074,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
             onToggleShowMapDots={handleToggleShowMapDots}
             onStartRideMode={() => setIsRideModeOpen(true)}
             onOpenStageSlicer={() => openStageSlicer(undefined)}
+            onJumpToSection={handleJumpToSection}
           />
         </div>
 
@@ -1136,224 +1109,110 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
         </div>
       </div>
 
-      {/* ── LAYER 2: STICKY DEEP-DIVE WORKSPACE (SHOW ALL + SCROLLABLE 4-TAB SWITCHER) ── */}
+      {/* ── LAYER 2: STICKY DEEP-DIVE WORKSPACE (3 ZERO-DUPLICATION TABS) ── */}
       <div className="cadence-sticky-subnav sticky top-[var(--cadence-nav-h)] z-30 -mx-3.5 px-3.5 sm:-mx-5 sm:px-5 lg:-mx-7 lg:px-7 py-2 mb-3 bg-canvas/90 backdrop-blur-md">
         <div className="flex flex-row items-center gap-2 min-w-0">
-          <Button
-            variant="ghost"
-            size="sm"
-            type="button"
-            onClick={handleToggleDashboardLayout}
-            data-testid="toggle-dashboard-layout"
-            aria-label={
-              dashboardLayout === 'tabs'
-                ? isFr
-                  ? 'Tout afficher'
-                  : 'Show all cards'
-                : isFr
-                ? 'Vue par onglets'
-                : 'Tabbed view'
-            }
-            title={
-              dashboardLayout === 'tabs'
-                ? isFr
-                  ? 'Tout afficher'
-                  : 'Show all cards'
-                : isFr
-                ? 'Vue par onglets'
-                : 'Tabbed view'
-            }
-            className="inline-flex items-center justify-center gap-1.5 h-[44px] w-[44px] sm:w-auto px-0 sm:px-4 rounded-full bg-card hover:bg-pod text-ink-secondary hover:text-ink text-xs font-semibold shadow-xs transition-colors cursor-pointer shrink-0 whitespace-nowrap"
-          >
-            <GridCirclesCheck className="w-4 h-4 sm:w-3.5 sm:h-3.5 shrink-0" />
-            <span className="hidden sm:inline">
-              {dashboardLayout === 'tabs'
-                ? isFr
-                  ? 'Tout afficher'
-                  : 'Show all cards'
-                : isFr
-                ? 'Vue par onglets'
-                : 'Tabbed view'}
-            </span>
-          </Button>
-
-          {dashboardLayout === 'tabs' ? (
-            <div className="relative flex-1 min-w-0 sm:flex-initial sm:max-w-full rounded-full overflow-hidden">
-              <div
-                ref={layer2TabsRef}
-                role="tablist"
-                aria-label={isFr ? 'Sections détaillées du plan' : 'Ride plan sections'}
-                data-testid="layer2-tab-bar"
-                className="flex sm:inline-flex items-center gap-1 p-1.5 h-[44px] rounded-full bg-card shadow-xs overflow-x-auto no-scrollbar w-full sm:w-auto max-w-full scroll-smooth"
-              >
-                {(
-                  [
-                    { id: 'schedule' as const, label: isFr ? 'Horaires' : 'Schedule', icon: Clock },
-                    { id: 'resupply' as const, label: isFr ? 'Eau & Ravito' : 'Resupply & Water', icon: Radar },
-                    { id: 'fuel-packing' as const, label: isFr ? 'Nutrition & Check-list' : 'Fuel & Packing', icon: Banana },
-                    { id: 'weather-physics' as const, label: isFr ? 'Météo & Physique' : 'Weather & Physics', icon: CloudSun },
-                  ] as const
-                ).map((tab) => {
-                  const TabIcon = tab.icon;
-                  const isActive = activeLayer2Tab === tab.id;
-                  return (
-                    <Button
-                      key={tab.id}
-                      variant="ghost"
-                      size="sm"
-                      type="button"
-                      role="tab"
-                      aria-selected={isActive}
-                      onClick={() => setActiveLayer2Tab(tab.id)}
-                      className={`inline-flex items-center gap-1.5 h-[32px] px-3.5 rounded-full text-xs font-rounded font-bold whitespace-nowrap shrink-0 transition-all cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
-                        isActive
-                          ? `${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
-                          : 'ring-0 border-0 text-ink-secondary hover:text-ink hover:bg-pod'
-                      }`}
-                    >
-                      <TabIcon className="w-3.5 h-3.5 shrink-0 text-current" />
-                      <span>{tab.label}</span>
-                      {tab.id === 'resupply' && resupplyBadge && (
-                        <span
-                          className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] leading-none font-extrabold tnum ${
-                            resupplyBadge.tone === 'critical'
-                              ? 'bg-rose-500/20 text-rose-700 dark:text-rose-300'
-                              : resupplyBadge.tone === 'caution'
-                              ? 'bg-amber-500/20 text-amber-800 dark:text-amber-300'
-                              : 'bg-ink/10 dark:bg-white/15 text-ink'
-                          }`}
-                        >
-                          {resupplyBadge.text}
-                        </span>
-                      )}
-                    </Button>
-                  );
-                })}
-              </div>
-              <div
-                aria-hidden="true"
-                className={`pointer-events-none absolute inset-y-0 left-0 w-9 rounded-l-full bg-gradient-to-r from-card via-card/85 to-transparent transition-opacity duration-200 ${
-                  layer2FadeLeft ? 'opacity-100' : 'opacity-0'
-                }`}
-              />
-              <div
-                aria-hidden="true"
-                className={`pointer-events-none absolute inset-y-0 right-0 w-10 rounded-r-full bg-gradient-to-l from-card via-card/85 to-transparent transition-opacity duration-200 ${
-                  layer2FadeRight ? 'opacity-100' : 'opacity-0'
-                }`}
-              />
+          <div className="relative flex-1 min-w-0 sm:flex-initial sm:max-w-full rounded-full overflow-hidden">
+            <div
+              ref={layer2TabsRef}
+              role="tablist"
+              aria-label={isFr ? 'Sections détaillées du plan' : 'Ride plan sections'}
+              data-testid="layer2-tab-bar"
+              className="flex sm:inline-flex items-center gap-1 p-1.5 h-[44px] rounded-full bg-card shadow-xs overflow-x-auto no-scrollbar w-full sm:w-auto max-w-full scroll-smooth"
+            >
+              {(
+                [
+                  { id: 'schedule' as const, label: isFr ? 'Horaires & Check-list' : 'Schedule & Checklist', icon: Clock },
+                  { id: 'fuel' as const, label: isFr ? 'Nutrition & Ravito' : 'Fuel & Resupply', icon: Banana },
+                  { id: 'conditions' as const, label: isFr ? 'Météo & Effort' : 'Weather & Effort', icon: CloudSun },
+                ] as const
+              ).map((tab) => {
+                const TabIcon = tab.icon;
+                const isActive = activeLayer2Tab === tab.id;
+                return (
+                  <Button
+                    key={tab.id}
+                    variant="ghost"
+                    size="sm"
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    onClick={() => setActiveLayer2Tab(tab.id)}
+                    className={`inline-flex items-center gap-1.5 h-[32px] px-3.5 rounded-full text-xs font-rounded font-bold whitespace-nowrap shrink-0 transition-all cursor-pointer ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
+                      isActive
+                        ? `${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
+                        : 'ring-0 border-0 text-ink-secondary hover:text-ink hover:bg-pod'
+                    }`}
+                  >
+                    <TabIcon className="w-3.5 h-3.5 shrink-0 text-current" />
+                    <span>{tab.label}</span>
+                    {tab.id === 'fuel' && resupplyBadge && (
+                      <span
+                        className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] leading-none font-extrabold tnum ${
+                          resupplyBadge.tone === 'critical'
+                            ? 'bg-rose-500/20 text-rose-700 dark:text-rose-300'
+                            : resupplyBadge.tone === 'caution'
+                            ? 'bg-amber-500/20 text-amber-800 dark:text-amber-300'
+                            : 'bg-ink/10 dark:bg-white/15 text-ink'
+                        }`}
+                      >
+                        {resupplyBadge.text}
+                      </span>
+                    )}
+                  </Button>
+                );
+              })}
             </div>
-          ) : (
-            <div className="text-xs font-rounded font-bold uppercase tracking-wider text-ink-muted px-2 truncate">
-              {isFr ? 'Vue complète' : 'All Ride Plan Cards'}
-            </div>
-          )}
+            <div
+              aria-hidden="true"
+              className={`pointer-events-none absolute inset-y-0 left-0 w-9 rounded-l-full bg-gradient-to-r from-card via-card/85 to-transparent transition-opacity duration-200 ${
+                layer2FadeLeft ? 'opacity-100' : 'opacity-0'
+              }`}
+            />
+            <div
+              aria-hidden="true"
+              className={`pointer-events-none absolute inset-y-0 right-0 w-10 rounded-r-full bg-gradient-to-l from-card via-card/85 to-transparent transition-opacity duration-200 ${
+                layer2FadeRight ? 'opacity-100' : 'opacity-0'
+              }`}
+            />
+          </div>
         </div>
       </div>
 
-      {dashboardLayout === 'tabs' ? (
-        <div className="min-w-0">
-          {activeLayer2Tab === 'schedule' && (
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-5 items-start animate-apple-step-in">
-              <div id="bento-timeline" className="lg:col-span-3 scroll-mt-36 min-w-0">
-                <ReverseTimelineBento
-                  trip={trip}
-                  timeline={timelineResult}
-                  riderSpecs={effectiveSpecs}
-                />
-              </div>
-              <div id="bento-weather" className="lg:col-span-2 scroll-mt-36 min-w-0">
-                <AtmosphereCard
-                  trip={trip}
-                  physicsResult={physicsResult}
-                  onUpdateTrip={onUpdateTrip}
-                  hardRolloutTime={timelineResult.hardDepartureTime}
-                />
-              </div>
-            </div>
-          )}
-
-          {activeLayer2Tab === 'resupply' && (
-            <div id="bento-resupply" className="scroll-mt-36 animate-apple-step-in min-w-0">
-              <ResupplyRadarOverlay
-                embedded
-                embeddedLayout="split"
-                isOpen
-                onClose={() => {}}
-                trip={trip}
-                hardDepartureTime={timelineResult.hardDepartureTime}
-                effectiveSpeedKmH={physicsResult.effectiveSpeedKmH}
-                legWatts={physicsResult.legWatts}
-                onUpdateTrip={onUpdateTrip}
-                selectedAmenity={selectedAmenity}
-                onSelectAmenity={setSelectedAmenity}
-                onAmenitiesLoaded={setLoadedAmenities}
-                activeCategories={activeRadarCategories}
-                onActiveCategoriesChange={setActiveRadarCategories}
-                showMapDots={showMapDots}
-                onToggleShowMapDots={handleToggleShowMapDots}
-                onJumpToMap={() => handleJumpToSection('bento-route')}
-              />
-            </div>
-          )}
-
-          {activeLayer2Tab === 'fuel-packing' && (
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-5 items-start animate-apple-step-in">
-              <div id="bento-nutrition" className="lg:col-span-3 scroll-mt-36 min-w-0">
-                <NutritionBento
-                  trip={trip}
-                  hardDepartureTime={timelineResult.hardDepartureTime}
-                  gateArrivalTime={timelineResult.gateArrivalTime}
-                  physicsResult={physicsResult}
-                  riderSpecs={effectiveSpecs}
-                  onOpenSpecs={onOpenSpecs}
-                  onUpdateTrip={onUpdateTrip}
-                />
-              </div>
-              <div id="bento-checklist" className="lg:col-span-2 scroll-mt-36 min-w-0">
-                <PreFlightChecklistBento
-                  trip={trip}
-                  onUpdateTrip={onUpdateTrip}
-                  riderSpecs={effectiveSpecs}
-                />
-              </div>
-            </div>
-          )}
-
-          {activeLayer2Tab === 'weather-physics' && (
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-5 items-start animate-apple-step-in">
-              <div id="bento-physics" className="lg:col-span-3 scroll-mt-36 min-w-0">
-                <PhysicsEngineCard
-                  trip={trip}
-                  physicsResult={physicsResult}
-                  viewMode={viewMode}
-                  onToggleViewMode={handleSetViewMode}
-                  riderSpecs={effectiveSpecs}
-                />
-              </div>
-              <div id="bento-weather" className="lg:col-span-2 scroll-mt-36 min-w-0">
-                <AtmosphereCard
-                  trip={trip}
-                  physicsResult={physicsResult}
-                  onUpdateTrip={onUpdateTrip}
-                  hardRolloutTime={timelineResult.hardDepartureTime}
-                />
-              </div>
-            </div>
-          )}
-        </div>
-      ) : (
-        /* Show All Cards: 2 independent vertical columns (3 left / 2 right) — zero row-height voids, zero over-stretched cards */
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-5 items-start min-w-0">
-          <div className="lg:col-span-3 flex flex-col gap-4 lg:gap-5 min-w-0">
-            <div id="bento-timeline" className="scroll-mt-36 min-w-0">
+      <div className="min-w-0">
+        {activeLayer2Tab === 'schedule' && (
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-5 items-start animate-apple-step-in">
+            <div id="bento-timeline" className="lg:col-span-3 scroll-mt-36 min-w-0">
               <ReverseTimelineBento
                 trip={trip}
                 timeline={timelineResult}
                 riderSpecs={effectiveSpecs}
               />
             </div>
-            <div id="bento-resupply" className="scroll-mt-36 min-w-0">
+            <div id="bento-checklist" className="lg:col-span-2 scroll-mt-36 min-w-0">
+              <PreFlightChecklistBento
+                trip={trip}
+                onUpdateTrip={onUpdateTrip}
+                riderSpecs={effectiveSpecs}
+              />
+            </div>
+          </div>
+        )}
+
+        {activeLayer2Tab === 'fuel' && (
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-5 items-start animate-apple-step-in">
+            <div id="bento-nutrition" className="lg:col-span-3 scroll-mt-36 min-w-0">
+              <NutritionBento
+                trip={trip}
+                hardDepartureTime={timelineResult.hardDepartureTime}
+                gateArrivalTime={timelineResult.gateArrivalTime}
+                physicsResult={physicsResult}
+                riderSpecs={effectiveSpecs}
+                onOpenSpecs={onOpenSpecs}
+                onUpdateTrip={onUpdateTrip}
+              />
+            </div>
+            <div id="bento-resupply" className="lg:col-span-2 scroll-mt-36 min-w-0">
               <ResupplyRadarOverlay
                 embedded
                 embeddedLayout="stacked"
@@ -1374,7 +1233,12 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
                 onJumpToMap={() => handleJumpToSection('bento-route')}
               />
             </div>
-            <div id="bento-physics" className="scroll-mt-36 min-w-0">
+          </div>
+        )}
+
+        {activeLayer2Tab === 'conditions' && (
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-5 items-start animate-apple-step-in">
+            <div id="bento-physics" className="lg:col-span-3 scroll-mt-36 min-w-0">
               <PhysicsEngineCard
                 trip={trip}
                 physicsResult={physicsResult}
@@ -1383,10 +1247,7 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
                 riderSpecs={effectiveSpecs}
               />
             </div>
-          </div>
-
-          <div className="lg:col-span-2 flex flex-col gap-4 lg:gap-5 min-w-0">
-            <div id="bento-weather" className="scroll-mt-36 min-w-0">
+            <div id="bento-weather" className="lg:col-span-2 scroll-mt-36 min-w-0">
               <AtmosphereCard
                 trip={trip}
                 physicsResult={physicsResult}
@@ -1394,27 +1255,9 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
                 hardRolloutTime={timelineResult.hardDepartureTime}
               />
             </div>
-            <div id="bento-checklist" className="scroll-mt-36 min-w-0">
-              <PreFlightChecklistBento
-                trip={trip}
-                onUpdateTrip={onUpdateTrip}
-                riderSpecs={effectiveSpecs}
-              />
-            </div>
-            <div id="bento-nutrition" className="scroll-mt-36 min-w-0">
-              <NutritionBento
-                trip={trip}
-                hardDepartureTime={timelineResult.hardDepartureTime}
-                gateArrivalTime={timelineResult.gateArrivalTime}
-                physicsResult={physicsResult}
-                riderSpecs={effectiveSpecs}
-                onOpenSpecs={onOpenSpecs}
-                onUpdateTrip={onUpdateTrip}
-              />
-            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* ── Cadence Bottom Telemetry / Feedback Dock Corner ── */}
       <div className="flex items-center justify-between pt-5 mt-5 text-xs text-ink-muted border-t border-dashed border-ink/20 dark:border-white/15">

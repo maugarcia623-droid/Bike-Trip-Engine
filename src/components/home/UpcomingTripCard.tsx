@@ -1,18 +1,7 @@
-import React, { useMemo, useState, useRef, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import {
-  Clock,
   ArrowUpRight,
-  Wind,
-  NavigationArrow,
-  ThermometerSimple,
-  CloudRain,
-  CheckCircle,
-  Warning,
-  Bike,
-  Zap,
   Calendar,
-  ChevronDown,
-  CaretDown,
   SlidersHorizontal,
 } from '@/components/icons';
 import { TripProfile } from '../../types/trip';
@@ -20,11 +9,9 @@ import { calculatePhysics } from '../../utils/physics';
 import { calculateReverseTimeline } from '../../utils/timeline';
 import { getChipsExtraBufferMinutes, getArchetypeFromTag } from '../../utils/archetypeChips';
 import { useTranslation, getLocalizedTripMeta } from '../../context/LanguageContext';
-import { degreesToCompassCardinal } from '../../services/weatherService';
-import { loadRiderBikeSpecs, getActiveBike, getEffectiveRiderSpecs } from '../../utils/specsStorage';
-import { calculateRideVisibility } from '../../utils/solarVisibility';
-import { calculateDynamicCarbTarget } from '../../utils/nutrition';
-import { Collapsible } from '../common/Collapsible';
+import { loadRiderBikeSpecs } from '../../utils/specsStorage';
+import { computeTripReadiness } from '../../utils/tripReadiness';
+import { ReadinessGauge } from '../dashboard/RideReadinessGauge';
 import { Badge } from '../common/Badge';
 import { Button } from "@/components/arc/button/button";
 import {
@@ -57,7 +44,6 @@ export function getTripDateDetails(trip: TripProfile, lang: 'en' | 'fr' = 'en') 
       targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 8, 0);
     }
   } else {
-    // Default to tomorrow 08:00 if no date is set
     targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 8, 0);
   }
 
@@ -106,95 +92,24 @@ export function getTripDateDetails(trip: TripProfile, lang: 'en' | 'fr' = 'en') 
 
 export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
   trip,
-  allTrips,
-  onSelectTrip,
+  allTrips: _allTrips,
+  onSelectTrip: _onSelectTrip,
   onLaunchDashboard,
   onEditTrip,
-  defaultExpanded = true,
+  defaultExpanded: _defaultExpanded = false,
 }) => {
   const { lang, t } = useTranslation();
-  const [isExpanded, setIsExpanded] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem('cadence_upcoming_trip_expanded');
-      return saved !== null ? saved === 'true' : defaultExpanded;
-    } catch {
-      return defaultExpanded;
-    }
-  });
-  const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
-  const switcherRef = useRef<HTMLDivElement>(null);
-
-  // Close switcher on click outside or Escape
-  useEffect(() => {
-    if (!isSwitcherOpen) return;
-
-    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
-      if (switcherRef.current && !switcherRef.current.contains(e.target as Node)) {
-        setIsSwitcherOpen(false);
-      }
-    };
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setIsSwitcherOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('touchstart', handleClickOutside);
-    document.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('touchstart', handleClickOutside);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isSwitcherOpen]);
-
-  const toggleExpanded = () => {
-    const nextState = !isExpanded;
-    setIsExpanded(nextState);
-    try {
-      localStorage.setItem('cadence_upcoming_trip_expanded', String(nextState));
-    } catch {
-      // ignore
-    }
-  };
-
+  const isFr = lang === 'fr';
   const meta = getLocalizedTripMeta(trip, lang);
   const archetype = getArchetypeFromTag(trip.tag, trip.name);
   const dateInfo = useMemo(() => getTripDateDetails(trip, lang), [trip, lang]);
-
-  // Active rider garage specs
   const specs = useMemo(() => loadRiderBikeSpecs(), []);
-  const effectiveSpecs = useMemo(() => getEffectiveRiderSpecs(specs), [specs]);
-  const activeBike = useMemo(() => getActiveBike(specs), [specs]);
 
-  // Solved physics calculations
   const physicsResult = useMemo(
     () => calculatePhysics(trip.physics, trip.route, trip.weather, lang, specs?.ftpWatts),
     [trip.physics, trip.route, trip.weather, lang, specs?.ftpWatts]
   );
 
-  const dynamicCarb = useMemo(() => {
-    return calculateDynamicCarbTarget(
-      physicsResult.movingTimeSeconds / 3600,
-      physicsResult.ftpPercent,
-      physicsResult.carbOxidationGramPerHour,
-      effectiveSpecs.carbTargetGPerHr ?? 60,
-      trip.stages?.length || 1,
-      trip.customChips || []
-    );
-  }, [
-    physicsResult.movingTimeSeconds,
-    physicsResult.ftpPercent,
-    physicsResult.carbOxidationGramPerHour,
-    effectiveSpecs.carbTargetGPerHr,
-    trip.stages?.length,
-    trip.customChips,
-  ]);
-
-  // Solved reverse timeline
   const extraBufferMinutes = useMemo(() => getChipsExtraBufferMinutes(trip), [trip]);
   const timelineResult = useMemo(
     () =>
@@ -219,31 +134,14 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
     [trip, physicsResult, extraBufferMinutes, lang]
   );
 
-  // Solar and visibility ephemeris
-  const visibility = useMemo(() => {
-    try {
-      return calculateRideVisibility(trip);
-    } catch {
-      return null;
-    }
-  }, [trip]);
+  const readiness = useMemo(
+    () => computeTripReadiness(trip, physicsResult, timelineResult, isFr ? 'fr' : 'en'),
+    [trip, physicsResult, timelineResult, isFr]
+  );
 
-  // Pre-flight M-Check status
   const checkedChecklistCount = (trip.checklist || []).filter((c) => c.checked).length;
   const totalChecklistCount = Math.max(1, (trip.checklist || []).length);
-  const activeCheckSegments = Math.round((checkedChecklistCount / totalChecklistCount) * 5);
 
-  // Atmospheric constants & calculations
-  const rhoNum = trip.weather.airDensityRho ?? trip.physics.rho ?? 1.225;
-  const windDeg = Math.round(trip.weather.windDirectionDegrees ?? 245);
-  const windCardinal = degreesToCompassCardinal(windDeg, lang);
-  const peakGust = trip.weather.estuaryGustKmH || Math.round(trip.weather.baseWindSpeedKmH * 1.4);
-  const aeroDeltaWatts = Math.max(1, Math.round(physicsResult.powerDeltaWatts));
-
-  const isHighWind = physicsResult.goStatus === 'NO-GO';
-  const isCaution = physicsResult.goStatus === 'CAUTION';
-
-  // Archetype color styling
   const archetypeBadgeVariant =
     archetype === 'COMMUTE'
       ? 'yellow-vest'
@@ -254,18 +152,12 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
       : 'purple';
 
   return (
-    <div
-      className={`rounded-card bg-card p-4 sm:p-5 shadow-xs border border-ink/5 dark:border-white/5 transition-all ${
-        isSwitcherOpen ? 'relative z-30' : 'relative z-10'
-      }`}
-    >
-      {/* ── Top Header: Day Countdown, Next Trip Title, Controls & Collapse Button ── */}
-      <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
-        <div className="space-y-2 flex-1 min-w-0">
-          <div className="flex items-center gap-2.5 flex-wrap">
-            {/* Prominent Day Countdown Badge (Uniform h-9 px-4 padding matching other chips) */}
+    <div className="rounded-card bg-card p-4 sm:p-5 shadow-xs border border-ink/5 dark:border-white/5 transition-all">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="space-y-1.5 flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
             <div
-              className={`h-9 px-4 rounded-full font-semibold text-xs tracking-wide tnum flex items-center gap-2 shadow-xs transition-all ${
+              className={`h-8 px-3 rounded-full font-semibold text-xs tracking-wide tnum flex items-center gap-1.5 ${
                 dateInfo.countdownVariant === 'yellow-vest'
                   ? `${CHIP_TOKENS['yellow-vest'].surface} ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_RING_BASE} ${CHIP_TOKENS['yellow-vest'].selectedRing}`
                   : dateInfo.countdownVariant === 'blue'
@@ -275,61 +167,42 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
                   : 'bg-pod text-ink-secondary'
               } ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
             >
-              <Calendar className="w-4 h-4 text-current shrink-0" />
+              <Calendar className="w-3.5 h-3.5 text-current shrink-0" />
               <span>{dateInfo.countdownText}</span>
             </div>
 
-            <Badge variant={archetypeBadgeVariant} size="md" className="h-9 px-3.5 py-1.5 text-xs font-semibold">
-              {trip.tag === 'VÉLOTAF' ? (lang === 'fr' ? 'Vélotaf' : 'Commute') : trip.tag}
-            </Badge>
-
-            {trip.stages && trip.stages.length > 1 && (
-              <Badge variant="yellow-vest" size="md" className="h-9 px-3.5 py-1.5 text-xs font-semibold">
-                {t('tourBadgeLabel', { count: trip.stages.length })}
-              </Badge>
-            )}
-
-            {trip.route?.waypoints && trip.route.waypoints.length > 0 && (
-              <Badge variant="sky" size="md" className="h-9 px-3.5 py-1.5 text-xs font-semibold">
-                +{trip.route.waypoints.length} via
-              </Badge>
-            )}
-
-            <Badge
-              variant={
-                physicsResult.goStatus === 'GO'
-                  ? 'emerald'
-                  : physicsResult.goStatus === 'CAUTION'
-                  ? 'amber'
-                  : 'rose'
-              }
-              size="sm"
-              dot
-              title={`${t('rideFeasibility')}: ${physicsResult.goStatus === 'GO' ? t('feasibilityOptimal') : physicsResult.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')} — ${physicsResult.goStatusReason}`}
-              className="h-9 px-3 text-xs font-semibold"
-            >
-              {physicsResult.goStatus === 'GO' ? t('feasibilityOptimal') : physicsResult.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')}
+            <Badge variant={archetypeBadgeVariant} size="md" className="h-8 px-3 text-xs font-semibold">
+              {trip.tag === 'VÉLOTAF' ? (isFr ? 'Vélotaf' : 'Commute') : trip.tag}
             </Badge>
           </div>
 
-          {/* Title & Route summary with full untruncated trip name */}
-          <div className="flex flex-col sm:flex-row sm:items-baseline gap-1.5 sm:gap-2.5 flex-wrap">
-            <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-ink leading-snug break-words">
-              <span className="text-ink-secondary font-medium">{t('upcomingTripTitle')}: </span>
-              <span className="font-semibold text-ink">{meta.name || t('defaultTripName')}</span>
-            </h2>
-            <span className="text-xs text-ink-muted leading-relaxed">
-              {dateInfo.formattedDate} &middot; <strong className="text-ink font-semibold tnum">{timelineResult.hardDepartureTime}</strong> &middot;{' '}
-              {trip.route.origin || (lang === 'fr' ? 'Départ' : 'Start')} &rarr;{' '}
-              {trip.route.destination || (lang === 'fr' ? 'Arrivée' : 'Finish')} &middot;{' '}
-              <strong className="text-ink font-semibold tnum">{trip.route.distanceKm} km</strong>
-              {trip.route.elevationGainM ? ` · +${trip.route.elevationGainM} m` : ''}
-            </span>
-          </div>
+          <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-ink leading-snug break-words">
+            <span className="text-ink-secondary font-medium">{t('upcomingTripTitle')}: </span>
+            <span className="font-semibold text-ink">{meta.name || t('defaultTripName')}</span>
+          </h2>
+          <p className="text-xs text-ink-muted tnum leading-relaxed">
+            {dateInfo.formattedDate} ·{' '}
+            <strong className="text-ink font-semibold">{t('hardRollout')}: {timelineResult.hardDepartureTime}</strong> ·{' '}
+            {trip.route.distanceKm} km
+            {trip.route.elevationGainM ? ` · +${trip.route.elevationGainM} m` : ''} ·{' '}
+            {checkedChecklistCount}/{totalChecklistCount} {isFr ? 'prêt' : 'ready'}
+          </p>
         </div>
 
-        {/* Ride Plan Launch CTA, Edit & Collapse Button */}
         <div className="flex items-center gap-2.5 flex-wrap shrink-0">
+          <span
+            className="inline-flex items-center shrink-0"
+            title={`${isFr ? 'Prêt à partir' : 'Ride readiness'}: ${readiness.score}/100 · ${readiness.label}`}
+          >
+            <ReadinessGauge
+              score={readiness.score}
+              level={readiness.level}
+              label={readiness.label}
+              size={40}
+              showIcon={false}
+            />
+          </span>
+
           <Button
             variant="primary"
             size="md"
@@ -345,271 +218,15 @@ export const UpcomingTripCard: React.FC<UpcomingTripCardProps> = ({
               variant="secondary"
               size="sm"
               onClick={() => onEditTrip(trip)}
-              aria-label={lang === 'fr' ? 'Modifier' : 'Edit'}
-              title={lang === 'fr' ? 'Modifier' : 'Edit'}
-              className="min-w-[44px] min-h-[44px] w-11 h-11 p-0 rounded-full bg-pod hover:bg-chip text-ink-secondary hover:text-ink flex items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer"
+              aria-label={isFr ? 'Modifier' : 'Edit'}
+              title={isFr ? 'Modifier' : 'Edit'}
+              className="min-w-[44px] min-h-[44px] w-10 h-10 p-0 rounded-full bg-pod hover:bg-chip text-ink-secondary hover:text-ink flex items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer"
             >
               <SlidersHorizontal className="w-4 h-4 text-current" />
             </Button>
           )}
-
-          {/* Collapsible Accordion Toggle */}
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={toggleExpanded}
-            aria-expanded={isExpanded}
-            aria-label={isExpanded ? t('collapseUpcomingCard') : t('expandUpcomingCard')}
-            title={isExpanded ? t('collapseUpcomingCard') : t('expandUpcomingCard')}
-            className="min-w-[44px] min-h-[44px] w-11 h-11 p-0 rounded-full bg-pod hover:bg-chip text-ink-secondary hover:text-ink flex items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer"
-          >
-            <ChevronDown
-              className={`w-4 h-4 text-current transition-transform duration-300 ease-out ${
-                isExpanded ? 'rotate-180' : ''
-              }`}
-            />
-          </Button>
         </div>
       </div>
-
-      {/* ── Collapsible Body: 4 Concentric Bento Pods ── */}
-      <Collapsible open={isExpanded} innerClassName="pt-4 mt-2">
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
-          {/* POD 1: Schedule & Reverse Timeline */}
-          <div className="bg-pod rounded-pod p-3.5 sm:p-4 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between text-xs font-medium text-ink-muted">
-                <span>
-                  {t(
-                    ({
-                      COMMUTE: 'timelineScheduleCommute',
-                      ESCAPADE: 'timelineScheduleEscapade',
-                      BIKEPACKING: 'timelineScheduleBikepacking',
-                      SPORT: 'timelineScheduleSport',
-                    } as const)[archetype]
-                  )}
-                </span>
-                <Clock className={`w-4 h-4 shrink-0 ${CHIP_TOKENS.amber.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
-              </div>
-
-              <div className="mt-2.5">
-                <span className="text-3xl font-semibold tracking-tight text-ink tnum leading-none block">
-                  {timelineResult.hardDepartureTime}
-                </span>
-                <span className="text-[11px] font-medium text-ink-muted tracking-tight block mt-1">
-                  {dateInfo.formattedDate} &middot; {t('hardRollout')}
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-4 pt-2 space-y-1 text-xs">
-              <div className="flex items-center justify-between text-ink-secondary tnum">
-                <span>{t('arrivalTimeLabel', { time: timelineResult.gateArrivalTime })}</span>
-                <span className="font-semibold text-ink">{timelineResult.pureMovingMinutes} min</span>
-              </div>
-              <div className="flex items-center justify-between text-[11px] text-ink-muted tnum">
-                <span>{t('bufferPlus', { min: timelineResult.bufferMinutes })}</span>
-                <span>{meta.gateName}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* POD 2: Pacing & Metabolic Fueling (Guided vs Power mode) */}
-          <div className="bg-pod rounded-pod p-3.5 sm:p-4 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between text-xs font-medium text-ink-muted">
-                <span>
-                  {effectiveSpecs.cockpitViewMode === 'pro'
-                    ? t('pacingAndWattsLabel')
-                    : (lang === 'fr' ? 'Allure & Énergie' : 'Pace & Fueling')}
-                </span>
-                <Zap className={`w-4 h-4 shrink-0 ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
-              </div>
-
-              {effectiveSpecs.cockpitViewMode === 'pro' ? (
-                <div className="mt-2.5 flex items-baseline gap-2">
-                  <span className="text-3xl font-semibold tracking-tight text-ink tnum leading-none">
-                    {Math.round(physicsResult.legWatts)}
-                  </span>
-                  <span className="text-xs font-medium text-ink-muted">W</span>
-                  <Badge variant="zinc" size="sm" className="ml-auto tnum">
-                    {effectiveSpecs.telemetryMode === 'quantitative'
-                      ? `${physicsResult.powerZone} · ${physicsResult.wattsPerKg} W/kg`
-                      : physicsResult.powerZone}
-                  </Badge>
-                </div>
-              ) : (
-                <div className="mt-2.5 flex items-baseline gap-2">
-                  <span className="text-3xl font-semibold tracking-tight text-ink tnum leading-none">
-                    {trip.route.targetSpeedKmH}
-                  </span>
-                  <span className="text-xs font-medium text-ink-muted">km/h</span>
-                  <Badge variant="zinc" size="sm" className="ml-auto tnum">
-                    ~{timelineResult.pureMovingMinutes} min
-                  </Badge>
-                </div>
-              )}
-            </div>
-
-            <div className="mt-4 pt-2 space-y-1 text-xs">
-              <div className="flex items-center justify-between text-ink-secondary tnum">
-                {effectiveSpecs.cockpitViewMode === 'pro' ? (
-                  <>
-                    <span>{t('cruisingPaceLabel')}</span>
-                    <span className="font-semibold text-ink">{trip.route.targetSpeedKmH} km/h</span>
-                  </>
-                ) : (
-                  <>
-                    <span>{lang === 'fr' ? 'Rythme prévu' : 'Effort feel'}</span>
-                    <span className="font-semibold text-ink">
-                      {physicsResult.powerZone === 'Z1' || physicsResult.powerZone === 'Z2'
-                        ? (lang === 'fr' ? 'Endurance fluide' : 'Steady endurance')
-                        : (lang === 'fr' ? 'Allure soutenue' : 'Brisk tempo')}
-                    </span>
-                  </>
-                )}
-              </div>
-              <div className="flex items-center justify-between text-[11px] text-ink-muted tnum">
-                {effectiveSpecs.cockpitViewMode === 'pro' && effectiveSpecs.telemetryMode === 'quantitative' ? (
-                  <>
-                    <span>{t('carbTargetBurn')}: ~{Math.round(physicsResult.carbOxidationGramPerHour)} g/h</span>
-                    <span>~{Math.round(physicsResult.totalKcalBurn)} kcal</span>
-                  </>
-                ) : effectiveSpecs.telemetryMode === 'fuel-first' ? (
-                  <>
-                    <span>
-                      {t('carbTargetBurn')}: ~{Math.max(1, Math.round(dynamicCarb.effectiveHourlyRateG / 20))}{' '}
-                      {lang === 'fr' ? 'portions/h' : 'portions/h'}
-                    </span>
-                    <span>{t('steadyFuelingRhythm')}</span>
-                  </>
-                ) : (
-                  <>
-                    <span>{t('guidancePhilosophyTitle')}</span>
-                    <span>{t('intuitiveRhythmBadge')}</span>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* POD 3: Atmosphere & Wind (Calm vs Pro aero detail) */}
-          <div className="bg-pod rounded-pod p-3.5 sm:p-4 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between text-xs font-medium text-ink-muted">
-                <span>{t('windAndAtmosphereLabel')}</span>
-                <div className="flex items-center gap-1.5">
-                  <NavigationArrow
-                    className={`w-4 h-4 shrink-0 transform transition-transform ${CHIP_DUOTONE_ISOLATION_CLASSES} ${
-                      trip.weather.isHeadwindActive ? CHIP_TOKENS.amber.primary : CHIP_TOKENS.emerald.primary
-                    }`}
-                    style={{ transform: `rotate(${windDeg - 45}deg)` }}
-                  />
-                  <Wind className={`w-4 h-4 shrink-0 ${CHIP_TOKENS.sky.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
-                </div>
-              </div>
-
-              <div className="mt-2.5 flex items-baseline gap-2 flex-wrap">
-                <span className="text-3xl font-semibold tracking-tight text-ink tnum leading-none">
-                  {trip.weather.baseWindSpeedKmH}
-                </span>
-                <span className="text-xs font-medium text-ink-muted">km/h</span>
-                <span className="text-xs text-ink-secondary ml-auto tnum">
-                  {windDeg}&deg; {windCardinal}
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-4 pt-2 space-y-1 text-xs">
-              <div className="flex items-center justify-between text-ink-secondary tnum">
-                <span>
-                  {effectiveSpecs.cockpitViewMode === 'pro'
-                    ? t('airTempDensityLabel')
-                    : (lang === 'fr' ? 'Température' : 'Temperature')}
-                </span>
-                <span className="font-semibold text-ink">
-                  {effectiveSpecs.cockpitViewMode === 'pro'
-                    ? `${trip.weather.temperatureC}°C · ${rhoNum.toFixed(3)} kg/m³`
-                    : `${trip.weather.temperatureC}°C`}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-[11px] text-ink-muted tnum">
-                <span>{trip.weather.precipitationRiskPercent}% {t('riskUnit')}</span>
-                <span className={trip.weather.isHeadwindActive ? 'text-amber-600 dark:text-amber-400 font-medium' : ''}>
-                  {effectiveSpecs.cockpitViewMode === 'pro'
-                    ? `+${aeroDeltaWatts} W ${lang === 'fr' ? 'aéro' : 'aero drag'}`
-                    : trip.weather.isHeadwindActive
-                    ? (lang === 'fr' ? 'Vent de face' : 'Headwind')
-                    : (lang === 'fr' ? 'Vent favorable' : 'Calm / tailwind')}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* POD 4: Bike & Safety Readiness */}
-          <div className="bg-pod rounded-pod p-3.5 sm:p-4 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between text-xs font-medium text-ink-muted">
-                <span>
-                  {effectiveSpecs.cockpitViewMode === 'pro'
-                    ? t('pilotRigLabel')
-                    : (lang === 'fr' ? 'Vélo & État' : 'Bike & Readiness')}
-                </span>
-                <Bike className={`w-4 h-4 shrink-0 ${CHIP_TOKENS.emerald.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
-              </div>
-
-              <div className="mt-2.5">
-                <span className="text-base sm:text-[17px] font-semibold tracking-tight text-ink break-words block leading-snug">
-                  {activeBike.name}
-                </span>
-                <div className="flex items-center gap-2 mt-1 text-xs text-ink-muted tnum flex-wrap">
-                  {effectiveSpecs.cockpitViewMode === 'pro' && (
-                    <>
-                      <span>{physicsResult.systemMassKg.toFixed(1)} kg {lang === 'fr' ? 'total' : 'total'}</span>
-                      <span>&middot;</span>
-                    </>
-                  )}
-                  <span className="text-ink-secondary">
-                    {activeBike.isTubeless
-                      ? (lang === 'fr' ? 'Pneus tubeless' : 'Tubeless tires')
-                      : (lang === 'fr' ? 'Pneus standard' : 'Standard tires')}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-          <div className="mt-4 pt-2 space-y-1 text-xs">
-            <div className="flex items-center justify-between text-ink-secondary">
-              <span>
-                {effectiveSpecs.cockpitViewMode === 'pro'
-                  ? t('mCheckReadinessLabel')
-                  : (lang === 'fr' ? 'Liste de contrôle' : 'Pre-ride checks')}
-              </span>
-              <div className="flex items-center gap-1">
-                {Array.from({ length: 5 }).map((_, idx) => (
-                  <span
-                    key={idx}
-                    className={`h-1.5 w-3 rounded-full ${
-                      idx < activeCheckSegments
-                        ? CHIP_TOKENS.emerald.dot
-                        : 'bg-chip'
-                    }`}
-                  />
-                ))}
-              </div>
-            </div>
-            <div className="flex items-center justify-between text-[11px] text-ink-muted tnum gap-2 flex-wrap">
-              <span>{t('readyCountLabel', { checked: checkedChecklistCount, total: totalChecklistCount })}</span>
-              <span className="break-words">
-                {visibility?.solar?.daylightHoursFormatted
-                  ? `${visibility.solar.daylightHoursFormatted} ${lang === 'fr' ? 'de jour' : 'daylight'}`
-                  : (lang === 'fr' ? 'Lumière favorable' : 'Good daylight')}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Collapsible>
-  </div>
-);
+    </div>
+  );
 };

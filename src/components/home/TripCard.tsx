@@ -11,7 +11,7 @@ import {
 import { TripProfile } from '../../types/trip';
 import { calculatePhysics } from '../../utils/physics';
 import { calculateReverseTimeline } from '../../utils/timeline';
-import { getChipsExtraBufferMinutes, findChipDef, CHIP_ICONS } from '../../utils/archetypeChips';
+import { getChipsExtraBufferMinutes } from '../../utils/archetypeChips';
 import { useTranslation, getLocalizedTripMeta } from '../../context/LanguageContext';
 import { computeTripReadiness } from '../../utils/tripReadiness';
 import { ReadinessGauge } from '../dashboard/RideReadinessGauge';
@@ -81,41 +81,26 @@ export const TripCard: React.FC<TripCardProps> = ({
     <div className="group relative rounded-card p-4 bg-card text-ink apple-card-hover flex flex-col justify-between h-full shadow-xs border border-ink/5 dark:border-white/5">
       {/* Top Section: Category, Actions, Title, Description, Preset Tags */}
       <div>
-        {/* Top Row: Category Pill & Circular Action Buttons */}
-        <div className="flex items-start justify-between gap-2 mb-3.5">
+        {/* Top Row: Max 2 Badges & Circular Action Buttons */}
+        <div className="flex items-start justify-between gap-2 mb-3">
           <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="zinc" size="md">
               {trip.tag === 'VÉLOTAF' ? (lang === 'fr' ? 'Vélotaf' : 'Commute') : trip.tag}
             </Badge>
-            {trip.stages && trip.stages.length > 1 && (
-              <Badge variant="yellow-vest" size="md">
-                {t('tourBadgeLabel', { count: trip.stages.length })}
+            {physicsResult.goStatus !== 'GO' ? (
+              <Badge
+                variant={physicsResult.goStatus === 'CAUTION' ? 'amber' : 'rose'}
+                size="md"
+                dot
+                title={`${t('rideFeasibility')}: ${physicsResult.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')} — ${physicsResult.goStatusReason}`}
+              >
+                {physicsResult.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')}
               </Badge>
-            )}
-            {trip.route?.waypoints && trip.route.waypoints.length > 0 && (
-              <Badge variant="sky" size="md">
-                +{trip.route.waypoints.length} via
-              </Badge>
-            )}
-            {isActive && (
+            ) : isActive ? (
               <Badge variant="yellow-vest" size="md" dot>
                 {t('activeBadge')}
               </Badge>
-            )}
-            <Badge
-              variant={
-                physicsResult.goStatus === 'GO'
-                  ? 'emerald'
-                  : physicsResult.goStatus === 'CAUTION'
-                  ? 'amber'
-                  : 'rose'
-              }
-              size="md"
-              dot
-              title={`${t('rideFeasibility')}: ${physicsResult.goStatus === 'GO' ? t('feasibilityOptimal') : physicsResult.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')} — ${physicsResult.goStatusReason}`}
-            >
-              {physicsResult.goStatus === 'GO' ? t('feasibilityOptimal') : physicsResult.goStatus === 'CAUTION' ? t('feasibilityCaution') : t('feasibilitySevere')}
-            </Badge>
+            ) : null}
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
@@ -176,13 +161,10 @@ export const TripCard: React.FC<TripCardProps> = ({
           </div>
         </div>
 
-        {/* Title & Description */}
-        <h3 className="text-lg font-semibold text-ink tracking-tight leading-snug break-words">
+        {/* Title */}
+        <h3 className="text-lg font-semibold text-ink tracking-tight leading-snug break-words mb-3">
           {meta.name || t('defaultTripName')}
         </h3>
-        <p className="text-[13px] text-ink-muted break-words mt-1 mb-2.5 leading-relaxed">
-          {meta.description}
-        </p>
 
         {/* Feasibility Alert Capsule when not GO */}
         {physicsResult.goStatus !== 'GO' && (
@@ -202,32 +184,6 @@ export const TripCard: React.FC<TripCardProps> = ({
               }`}
             />
             <span className="break-words font-medium leading-tight">{physicsResult.goStatusReason}</span>
-          </div>
-        )}
-
-        {/* Active Custom Preset Chips as Borderless Colored Pills */}
-        {(trip.customChips || []).length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mb-3.5">
-            {(trip.customChips || []).slice(0, 3).map((chipId) => {
-              const def = findChipDef(chipId);
-              if (!def) return null;
-              const Icon = CHIP_ICONS[def.iconName];
-              return (
-                <Badge
-                  key={chipId}
-                  variant={def.colorKey}
-                  size="sm"
-                  icon={Icon}
-                >
-                  {lang === 'fr' ? def.labelFr : def.labelEn}
-                </Badge>
-              );
-            })}
-            {(trip.customChips || []).length > 3 && (
-              <span className="text-[10px] font-rounded font-medium tnum px-2 py-0.5 rounded-full bg-pod text-ink-muted self-center">
-                +{(trip.customChips || []).length - 3}
-              </span>
-            )}
           </div>
         )}
       </div>
@@ -320,8 +276,8 @@ export const TripCard: React.FC<TripCardProps> = ({
           </div>
         </div>
 
-        {/* Compact Full-Radius Attribute Pills */}
-        <div className="flex flex-wrap items-center gap-2 mb-5 text-xs">
+        {/* Compact Single Telemetry Row (fixes duplicate wind pill) */}
+        <div className="flex flex-wrap items-center gap-2 mb-4 text-xs">
           <Badge
             variant="zinc"
             size="md"
@@ -339,7 +295,7 @@ export const TripCard: React.FC<TripCardProps> = ({
           <Badge variant="zinc" size="md" className="tnum">
             {riderSpecs?.cockpitViewMode === 'pro'
               ? t('rigMassPill', { mass: Number(physicsResult.systemMassKg.toFixed(1)) })
-              : `${trip.weather.temperatureC}°C · ${trip.weather.baseWindSpeedKmH} km/h ${lang === 'fr' ? 'vent' : 'wind'}`}
+              : `${trip.weather.temperatureC}°C`}
           </Badge>
           <Badge
             variant={trip.weather.isHeadwindActive ? 'amber' : 'zinc'}

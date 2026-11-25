@@ -33,7 +33,6 @@ import {
   Download,
   ShieldCheck,
   TriangleAlert,
-  RefreshCw,
   LoaderCircle,
   Printer,
   Send,
@@ -65,21 +64,18 @@ import {
   OfflineExpeditionPackMeta,
   saveExpeditionPack,
 } from '../../services/offlinePackService';
-import { TripProfile, PhysicsCalculationResult, SurfaceSegment, SurfaceType } from '../../types/trip';
+import { TripProfile, PhysicsCalculationResult, SurfaceType } from '../../types/trip';
 import { AmenityCategory, StageAmenity } from '../../types/amenities';
-import { ResupplyRadarOverlay } from './ResupplyRadarOverlay';
 import { RiderBikeSpecs, resolveBikeTireWidthMm } from '../../types/specs';
 import { getActiveBike, loadRiderBikeSpecs } from '../../utils/specsStorage';
 import { synthesizeRouteElevationProfile } from '../../utils/gpxParser';
 import { computeSurfaceBreakdown, SURFACE_VISUAL_META } from '../../utils/surfaceProfile';
-import { barToPsi } from '../../utils/tyrePressure';
 import { useOsmSurface } from '../../services/osmSurfaceService';
 import { ReverseTimelineCalculation } from '../../utils/timeline';
 import { useTranslation } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { calculateDynamicCarbTarget } from '../../utils/nutrition';
 import { Badge } from '../common/Badge';
-import { CadenceInsight } from '../common/CadenceInsight';
 import { IconBadge } from '../common/IconBadge';
 import {
   CHIP_DUOTONE_ISOLATION_CLASSES,
@@ -124,12 +120,10 @@ interface HeroRouteCardProps {
   onToggleShowMapDots?: () => void;
   onStartRideMode?: () => void;
   onOpenStageSlicer?: () => void;
+  onJumpToSection?: (sectionId: string) => void;
 }
 
-type ActiveHeroPopover = 'bike' | 'load' | 'tripType' | 'target' | 'route' | 'pace' | 'fuel' | 'elevation' | 'export' | null;
-
-const ELEV_MATRIX_COLS = 60; // 60 × 12 @ 8u pitch → 5:1 aspect, fills the popover width edge to edge
-const ELEV_MATRIX_ROWS = 12;
+type ActiveHeroPopover = 'bike' | 'load' | 'tripType' | 'target' | 'route' | 'pace' | 'export' | null;
 
 function shiftTimeHHMM(timeStr: string, deltaMinutes: number): string {
   const [hRaw, mRaw] = (timeStr || '08:30').split(':');
@@ -210,6 +204,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
   onToggleShowMapDots: propOnToggleShowMapDots,
   onStartRideMode,
   onOpenStageSlicer,
+  onJumpToSection,
 }) => {
   const { lang, t } = useTranslation();
   const isFr = lang === 'fr';
@@ -285,7 +280,6 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
   }>({});
 
   const [activePopover, setActivePopover] = useState<ActiveHeroPopover>(null);
-  const [isRadarOpen, setIsRadarOpen] = useState<boolean>(false);
   const [includeFitFuelCues, setIncludeFitFuelCues] = useState<boolean>(true);
   const [exportFeedback, setExportFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const exportToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -353,7 +347,6 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
     });
   };
 
-  const [hoveredElevCol, setHoveredElevCol] = useState<number | null>(null);
   const [activeSurfaceSegmentId, setActiveSurfaceSegmentId] = useState<string | null>(null);
   const surfaceHighlightLayerRef = useRef<L.Polyline | null>(null);
 
@@ -407,13 +400,11 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
     const handleMouseDown = (e: MouseEvent) => {
       if (heroRootRef.current && !heroRootRef.current.contains(e.target as Node)) {
         setActivePopover(null);
-        setHoveredElevCol(null);
       }
     };
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setActivePopover(null);
-        setHoveredElevCol(null);
       }
     };
     document.addEventListener('mousedown', handleMouseDown);
@@ -727,78 +718,6 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
     ]
   );
 
-  const elevationColumns = useMemo(() => {
-    const pts = elevationData.elevationProfile;
-    if (!pts || pts.length === 0) {
-      return Array.from({ length: ELEV_MATRIX_COLS }, (_, idx) => {
-        const pct = (idx / Math.max(1, ELEV_MATRIX_COLS - 1)) * 100;
-        const seg = surfaceBreakdown.segments.find(
-          (s) => pct >= s.startPct && pct <= s.endPct
-        );
-        return {
-          distKm: Number((((idx / (ELEV_MATRIX_COLS - 1)) * (trip.route.distanceKm || 30))).toFixed(1)),
-          eleM: 20,
-          gradePct: 0,
-          filledRows: 3,
-          surfaceType: (seg?.type ?? 'paved') as SurfaceType,
-          segmentId: seg?.id ?? null,
-        };
-      });
-    }
-
-    const totalDist = Math.max(0.5, pts[pts.length - 1].distKm || trip.route.distanceKm || 30);
-    const sampled: { distKm: number; eleM: number; gradePct: number; pct: number }[] = [];
-    let cursor = 0;
-
-    for (let c = 0; c < ELEV_MATRIX_COLS; c++) {
-      const pct = (c / Math.max(1, ELEV_MATRIX_COLS - 1)) * 100;
-      const targetDist = (pct / 100) * totalDist;
-      while (cursor < pts.length - 2 && pts[cursor + 1].distKm < targetDist) {
-        cursor++;
-      }
-      const p0 = pts[cursor];
-      const p1 = pts[Math.min(pts.length - 1, cursor + 1)];
-      const span = p1.distKm - p0.distKm;
-      const ratio = span > 0.0001 ? Math.max(0, Math.min(1, (targetDist - p0.distKm) / span)) : 0;
-      sampled.push({
-        distKm: targetDist,
-        eleM: p0.eleM + (p1.eleM - p0.eleM) * ratio,
-        gradePct: p0.gradePct + (p1.gradePct - p0.gradePct) * ratio,
-        pct,
-      });
-    }
-
-    let minEle = sampled[0].eleM;
-    let maxEle = sampled[0].eleM;
-    for (const s of sampled) {
-      if (s.eleM < minEle) minEle = s.eleM;
-      if (s.eleM > maxEle) maxEle = s.eleM;
-    }
-    const eleSpan = maxEle - minEle;
-
-    return sampled.map((s) => {
-      const filledRows =
-        eleSpan < 1.5
-          ? 3
-          : Math.max(
-              1,
-              Math.min(
-                ELEV_MATRIX_ROWS - 1,
-                Math.round(1 + ((s.eleM - minEle) / eleSpan) * (ELEV_MATRIX_ROWS - 2))
-              )
-            );
-      const seg = surfaceBreakdown.segments.find(
-        (segItem) => s.pct >= segItem.startPct && s.pct <= segItem.endPct
-      );
-      return {
-        ...s,
-        filledRows,
-        surfaceType: (seg?.type ?? 'paved') as SurfaceType,
-        segmentId: seg?.id ?? null,
-      };
-    });
-  }, [elevationData.elevationProfile, trip.route.distanceKm, surfaceBreakdown.segments]);
-
   const elevationGainM =
     trip.route.elevationGainM ?? (trip.route.distanceKm ? Math.round(trip.route.distanceKm * 6.6) : 145);
   const maxGradientPercent =
@@ -839,12 +758,6 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
       : isFr
       ? 'Facile & Roulant'
       : 'Easy & Smooth';
-
-  const showElevationOverlay = activePopover === 'elevation';
-  const hoveredElevPoint =
-    hoveredElevCol !== null && elevationColumns[hoveredElevCol]
-      ? elevationColumns[hoveredElevCol]
-      : null;
 
   const targetShortLabel = (() => {
     const raw = heroTargetLabel.toLowerCase();
@@ -1278,11 +1191,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
     }
 
     const poly = surfaceHighlightLayerRef.current;
-    const colSegId =
-      hoveredElevCol !== null && elevationColumns[hoveredElevCol]
-        ? elevationColumns[hoveredElevCol].segmentId
-        : null;
-    const targetSegId = activeSurfaceSegmentId ?? colSegId;
+    const targetSegId = activeSurfaceSegmentId;
 
     if (!targetSegId || isRadiusMode) {
       poly.setStyle({ opacity: 0 });
@@ -1305,7 +1214,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
     });
     poly.setLatLngs(seg.coordinates);
     poly.bringToFront();
-  }, [activeSurfaceSegmentId, hoveredElevCol, elevationColumns, surfaceBreakdown.segments, isDarkMode, isRadiusMode]);
+  }, [activeSurfaceSegmentId, surfaceBreakdown.segments, isDarkMode, isRadiusMode]);
 
   // 3. Update map tiles & layer styles when theme changes (no map recreation)
   useEffect(() => {
@@ -1678,7 +1587,6 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
               type="button"
               data-testid="hero-export-btn"
               onClick={() => {
-                setIsRadarOpen(false);
                 setActivePopover((prev) => (prev === 'export' ? null : 'export'));
               }}
               aria-expanded={activePopover === 'export'}
@@ -2532,7 +2440,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                   </div>
 
                   {onUploadGpxFile && (
-                    <div className="mt-2.5 pt-2.5 border-t border-ink/8 dark:border-white/8">
+                    <div className="mt-2.5 pt-2.5 border-t border-dashed border-ink/15 dark:border-white/15">
                       <input
                         ref={gpxInputRef}
                         type="file"
@@ -2777,7 +2685,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                             aria-label={isFr ? 'Puissance cible (Watts)' : 'Target power (Watts)'}
                             className="peloton-slider w-full cursor-pointer"
                           />
-                          <div className="space-y-1.5 pt-1 border-t border-ink/8 dark:border-white/8">
+                          <div className="space-y-1.5 pt-1 border-t border-dashed border-ink/15 dark:border-white/15">
                             <div className="flex items-center justify-between text-[11px] text-ink-secondary tnum">
                               <span className="font-semibold">
                                 {isFr ? 'Allure % FTP' : '% FTP Pacing'}
@@ -2973,19 +2881,11 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
               </div>
             </div>
 
-            {/* 4. Energy Burned / Fuel Units (Interactive Cadence Intelligence Popover) */}
+            {/* 4. Energy Burned / Fuel Units (Jumps to Fuel & Resupply Tab) */}
             {(() => {
               const totalFuelUnits = Math.max(1, Math.round(dynamicCarb.targetOnBikeCarbsG / 20));
               const fuelUnitsPerHr = Math.max(1, Math.round(dynamicCarb.effectiveHourlyRateG / 20));
-              const totalKcalNum = Math.round(physicsResult.totalKcalBurn || 0);
-              const croissantsEarned = Math.max(0.1, Number((totalKcalNum / 260).toFixed(1)));
               const isShortFuelRide = movingMinutes < 45;
-              const eatEveryMin =
-                dynamicCarb.effectiveHourlyRateG >= 65
-                  ? 20
-                  : dynamicCarb.effectiveHourlyRateG >= 45
-                  ? 25
-                  : 30;
               const unitWord = isFr
                 ? totalFuelUnits === 1
                   ? 'unité'
@@ -3002,511 +2902,121 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                 : 'units/h';
 
               return (
-                <div className="relative">
-                  {activePopover === 'fuel' && (
-                    <div className="absolute left-0 sm:left-auto sm:right-0 bottom-full mb-2.5 w-[min(22rem,calc(100vw-2.5rem))] z-40 rounded-card p-3.5 sm:p-4 bg-card dark:bg-[#161618] text-ink ring-1 ring-inset ring-ink/10 dark:ring-white/15 shadow-2xl animate-apple-popover space-y-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <h4 className="text-sm sm:text-[15px] font-bold font-rounded text-ink leading-snug">
-                            {isFr ? 'Carburant & énergie' : 'Fuel & energy insight'}
-                          </h4>
-                          <p className="text-[11px] text-ink-muted mt-0.5 leading-snug">
-                            {isFr
-                              ? '1 unité ≈ 20 g de glucides (1 banane, 2 dattes ou ½ barre)'
-                              : '1 unit ≈ 20 g easy carbs (1 banana, 2 dates, or ½ oat bar)'}
-                          </p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          type="button"
-                          onClick={() => setActivePopover(null)}
-                          aria-label={isFr ? 'Fermer' : 'Close'}
-                          className="w-8 h-8 p-0 rounded-full bg-pod hover:bg-chip text-ink-secondary shrink-0 cursor-pointer"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-
-                      <CadenceInsight
-                        compact
-                        tone="amber"
-                        headline={
-                          isShortFuelRide
-                            ? isFr
-                              ? 'Pas besoin de ravito en selle — de l’eau suffit largement.'
-                              : 'No need to pack snacks — water alone easily covers this ride.'
-                            : isFr
-                            ? `Vise ~${fuelUnitsPerHr} en-cas/h (${totalFuelUnits} au total) pour garder de l’énergie jusqu’au bout.`
-                            : `Aim for ~${fuelUnitsPerHr} snack${fuelUnitsPerHr > 1 ? 's' : ''}/hr (${totalFuelUnits} total) so your legs stay steady.`
-                        }
-                        detail={
-                          isShortFuelRide
-                            ? isFr
-                              ? `Environ ${totalKcal} kcal brûlées (≈ ${croissantsEarned} croissant${croissantsEarned >= 1.5 ? 's' : ''}) — tes repas habituels font tout le travail.`
-                              : `Around ${totalKcal} kcal burned (≈ ${croissantsEarned} croissant${croissantsEarned >= 1.5 ? 's' : ''}) — your regular meals cover it.`
-                            : isFr
-                            ? `Environ ${totalKcal} kcal brûlées (≈ ${croissantsEarned} croissant${croissantsEarned >= 1.5 ? 's' : ''} mérité${croissantsEarned >= 1.5 ? 's' : ''}). Grignote toutes les ${eatEveryMin} min avant d’avoir faim.`
-                            : `Around ${totalKcal} kcal burned (≈ ${croissantsEarned} croissant${croissantsEarned >= 1.5 ? 's' : ''} earned). Nibble every ${eatEveryMin} min before hunger hits.`
-                        }
-                      />
-
-                      <div className="grid grid-cols-3 gap-2 tnum">
-                        <div className="rounded-sub-pod bg-pod p-2.5">
-                          <div className="text-[10px] font-rounded font-semibold text-ink-muted">
-                            {isFr ? 'Dépense' : 'Total burn'}
-                          </div>
-                          <div className="text-sm font-bold font-rounded text-ink mt-0.5">
-                            ~{totalKcal}
-                          </div>
-                          <div className="text-[10px] text-ink-muted">kcal</div>
-                        </div>
-                        <div className="rounded-sub-pod bg-pod p-2.5">
-                          <div className="text-[10px] font-rounded font-semibold text-ink-muted">
-                            {isFr ? 'En croissants' : 'In croissants'}
-                          </div>
-                          <div className="text-sm font-bold font-rounded text-amber-600 dark:text-amber-400 mt-0.5">
-                            ≈ {croissantsEarned}
-                          </div>
-                          <div className="text-[10px] text-ink-muted">
-                            {isFr ? 'mérités' : 'earned'}
-                          </div>
-                        </div>
-                        <div className="rounded-sub-pod bg-pod p-2.5">
-                          <div className="text-[10px] font-rounded font-semibold text-ink-muted">
-                            {isFr ? 'Rythme' : 'Rhythm'}
-                          </div>
-                          <div className="text-sm font-bold font-rounded text-ink mt-0.5">
-                            {isShortFuelRide ? (isFr ? 'Eau' : 'Water') : `${eatEveryMin} min`}
-                          </div>
-                          <div className="text-[10px] text-ink-muted">
-                            {isShortFuelRide
-                              ? isFr
-                                ? 'seule'
-                                : 'only'
-                              : isFr
-                              ? 'par bouchée'
-                              : 'per bite'}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    aria-expanded={activePopover === 'fuel'}
-                    onClick={() => setActivePopover((prev) => (prev === 'fuel' ? null : 'fuel'))}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        setActivePopover((prev) => (prev === 'fuel' ? null : 'fuel'));
-                      }
-                    }}
-                    className={`h-full rounded-pod p-3 sm:p-3.5 bg-pod dark:bg-[#161618] text-ink flex flex-col justify-between min-h-[100px] sm:min-h-[112px] transition-all cursor-pointer select-none group ${
-                      activePopover === 'fuel'
-                        ? 'ring-2 ring-inset ring-ink/35 dark:ring-white/35'
-                        : 'hover:bg-chip/60'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-1.5 text-xs font-medium text-ink-muted shrink-0">
-                      <span className="break-words">
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    setActivePopover(null);
+                    onJumpToSection?.('bento-nutrition');
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setActivePopover(null);
+                      onJumpToSection?.('bento-nutrition');
+                    }
+                  }}
+                  title={isFr ? 'Ouvrir Nutrition & Ravito' : 'Open Fuel & Resupply'}
+                  className="h-full rounded-pod p-3 sm:p-3.5 bg-pod dark:bg-[#161618] hover:bg-chip/60 text-ink flex flex-col justify-between min-h-[100px] sm:min-h-[112px] transition-all cursor-pointer select-none group"
+                >
+                  <div className="flex items-center justify-between gap-1.5 text-xs font-medium text-ink-muted shrink-0">
+                    <span className="break-words">
+                      {effectiveSpecs.telemetryMode === 'quantitative'
+                        ? t('energyBurn')
+                        : effectiveSpecs.telemetryMode === 'fuel-first'
+                        ? isFr
+                          ? 'Unités Ravito'
+                          : 'Fuel Units'
+                        : isFr
+                        ? 'Rythme Ravito'
+                        : 'Fueling Rhythm'}
+                    </span>
+                    <Flame2 className={`w-4 h-4 shrink-0 ${CHIP_TOKENS.amber.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
+                  </div>
+                  <div className="mt-auto pt-2 flex flex-col items-start justify-between gap-1 min-w-0">
+                    <div className="flex items-baseline gap-1 flex-wrap min-w-0">
+                      <span className="text-lg sm:text-xl xl:text-[22px] font-bold tracking-tight tnum leading-none text-ink">
                         {effectiveSpecs.telemetryMode === 'quantitative'
-                          ? t('energyBurn')
+                          ? totalKcal
                           : effectiveSpecs.telemetryMode === 'fuel-first'
+                          ? totalFuelUnits
+                          : isFr
+                          ? 'Régulier'
+                          : 'Steady'}
+                      </span>
+                      {effectiveSpecs.telemetryMode === 'quantitative' ? (
+                        <span className="text-xs font-medium text-ink-muted">kcal</span>
+                      ) : effectiveSpecs.telemetryMode === 'fuel-first' ? (
+                        <span className="text-xs font-medium text-ink-muted">{unitWord}</span>
+                      ) : null}
+                    </div>
+                    <span className="text-[11px] font-medium text-ink-muted tnum break-words w-full text-left min-w-0 leading-tight">
+                      {effectiveSpecs.telemetryMode === 'quantitative'
+                        ? `${dynamicCarb.effectiveHourlyRateG} g/h ${isFr ? 'ravito' : 'carbs'}`
+                        : effectiveSpecs.telemetryMode === 'fuel-first'
+                        ? isShortFuelRide
                           ? isFr
-                            ? 'Unités Ravito'
-                            : 'Fuel Units'
-                          : isFr
-                          ? 'Rythme Ravito'
-                          : 'Fueling Rhythm'}
-                      </span>
-                      <span className="flex items-center gap-1.5 shrink-0">
-                        <CaretUp
-                          className={`w-3 h-3 opacity-55 group-hover:opacity-100 transition-transform ${
-                            activePopover === 'fuel' ? 'rotate-180 opacity-100 text-ink' : ''
-                          }`}
-                        />
-                        <Flame2 className={`w-4 h-4 shrink-0 ${CHIP_TOKENS.amber.primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
-                      </span>
-                    </div>
-                    <div className="mt-auto pt-2 flex flex-col items-start justify-between gap-1 min-w-0">
-                      <div className="flex items-baseline gap-1 flex-wrap min-w-0">
-                        <span className="text-lg sm:text-xl xl:text-[22px] font-bold tracking-tight tnum leading-none text-ink">
-                          {effectiveSpecs.telemetryMode === 'quantitative'
-                            ? totalKcal
-                            : effectiveSpecs.telemetryMode === 'fuel-first'
-                            ? totalFuelUnits
-                            : isFr
-                            ? 'Régulier'
-                            : 'Steady'}
-                        </span>
-                        {effectiveSpecs.telemetryMode === 'quantitative' ? (
-                          <span className="text-xs font-medium text-ink-muted">kcal</span>
-                        ) : effectiveSpecs.telemetryMode === 'fuel-first' ? (
-                          <span className="text-xs font-medium text-ink-muted">{unitWord}</span>
-                        ) : null}
-                      </div>
-                      <span className="text-[11px] font-medium text-ink-muted tnum break-words w-full text-left min-w-0 leading-tight">
-                        {effectiveSpecs.telemetryMode === 'quantitative'
-                          ? `${dynamicCarb.effectiveHourlyRateG} g/h ${isFr ? 'ravito' : 'carbs'}`
-                          : effectiveSpecs.telemetryMode === 'fuel-first'
-                          ? isShortFuelRide
-                            ? isFr
-                              ? 'Eau seule suffit'
-                              : 'Water only needed'
-                            : `${fuelUnitsPerHr} ${unitPerHrWord}`
-                          : isFr
-                          ? '1 gorgée / 20 min'
-                          : 'Sip every 20 min'}
-                      </span>
-                    </div>
+                            ? 'Eau seule suffit'
+                            : 'Water only needed'
+                          : `${fuelUnitsPerHr} ${unitPerHrWord}`
+                        : isFr
+                        ? '1 gorgée / 20 min'
+                        : 'Sip every 20 min'}
+                    </span>
                   </div>
                 </div>
               );
             })()}
 
-            {/* 5. Elevation Gain (Click Dot-Matrix Brand Overlay) */}
-            <div className="relative">
-              {showElevationOverlay && (() => {
-                /* ── Elevation & surface popover ──────────────────────────────
-                 * Yellow-vest card (rounded-card + p-4 → rounded-pod inside).
-                 * Solid backer (bg-card) keeps the translucent dark tint opaque
-                 * over the map. Layout: header → KPI → full-width dot matrix →
-                 * route-ordered surface track → 3-col split → tire pressure pod.
-                 * ─────────────────────────────────────────────────────────── */
-                const fmtKm = (v: number) => (isFr ? v.toFixed(1).replace('.', ',') : v.toFixed(1));
-                const fmtBar = (v: number) => (isFr ? String(v).replace('.', ',') : String(v));
-                const { suitability } = surfaceBreakdown;
-                const tireLabel = `${suitability.tireWidthMm}c ${
-                  suitability.isTubeless ? 'Tubeless' : isFr ? 'chambre' : 'tubes'
-                }`;
-                const pressureSeg =
-                  surfaceBreakdown.segments.find((s) => s.id === activeSurfaceSegmentId) ??
-                  surfaceBreakdown.segments.find((s) => s.suitability38c === 'caution') ??
-                  surfaceBreakdown.segments.find((s) => s.type !== 'paved');
-                const composition = [
-                  { type: 'paved' as const, pct: surfaceBreakdown.pavedPct, km: surfaceBreakdown.pavedKm },
-                  { type: 'gravel' as const, pct: surfaceBreakdown.gravelPct, km: surfaceBreakdown.gravelKm },
-                  {
-                    type: 'singletrack' as const,
-                    pct: surfaceBreakdown.singletrackPct,
-                    km: surfaceBreakdown.singletrackKm,
-                  },
-                ];
-                const pickElevCol = (e: React.MouseEvent<SVGSVGElement>) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  if (rect.width <= 0) return;
-                  const relX = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-                  const col = Math.min(ELEV_MATRIX_COLS - 1, Math.max(0, Math.floor(relX * ELEV_MATRIX_COLS)));
-                  if (col === hoveredElevCol) return;
-                  setHoveredElevCol(col);
-                  setActiveSurfaceSegmentId(elevationColumns[col]?.segmentId ?? null);
-                };
-
-                return (
-                  <div className="absolute right-0 bottom-full mb-2.5 w-[min(27.5rem,calc(100vw-2.5rem))] sm:w-[min(27.5rem,calc(100vw-3rem))] z-40 rounded-card p-3.5 sm:p-4 bg-card dark:bg-[#161618] text-ink ring-1 ring-inset ring-ink/10 dark:ring-white/15 shadow-2xl animate-apple-popover">
-                    {/* ── Header: title + data source · refresh action ── */}
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h4 className="text-base sm:text-[17px] font-semibold font-rounded tracking-tight leading-snug text-ink">
-                          {isFr ? 'Dénivelé & surfaces' : 'Elevation & surface'}
-                        </h4>
-                        <p className="mt-0.5 text-[11px] font-rounded font-semibold text-ink-muted tnum truncate">
-                          {surfaceBreakdown.isLoadingOsm
-                            ? isFr
-                              ? 'Analyse des surfaces…'
-                              : 'Checking road surfaces…'
-                            : surfaceBreakdown.dataSource === 'osm-overpass'
-                            ? isFr
-                              ? `Données carte · ${surfaceBreakdown.osmWayCount ?? 0} segments · ${surfaceBreakdown.osmCoveragePct ?? 100}% couverts`
-                              : `Map data · ${surfaceBreakdown.osmWayCount ?? 0} segments · ${surfaceBreakdown.osmCoveragePct ?? 100}% mapped`
-                            : isFr
-                            ? 'Estimé selon le type de parcours'
-                            : 'Estimated from route geometry'}
-                        </p>
-                      </div>
-                      {canQueryOsmSurface && (
-                        <Button
-                          variant="ghost"
-                          type="button"
-                          onClick={refreshOsmSurface}
-                          disabled={surfaceBreakdown.isLoadingOsm}
-                          aria-label={isFr ? 'Actualiser les surfaces' : 'Refresh road surfaces'}
-                          title={isFr ? 'Actualiser les surfaces' : 'Refresh road surfaces'}
-                          className="w-11 h-11 sm:w-9 sm:h-9 shrink-0 rounded-full flex items-center justify-center bg-pod hover:bg-chip text-ink-secondary hover:text-ink active:scale-[0.97] transition-all cursor-pointer disabled:cursor-wait"
-                        >
-                          <RefreshCw className={`w-4 h-4 ${surfaceBreakdown.isLoadingOsm ? 'animate-spin' : ''}`} />
-                        </Button>
-                      )}
-                    </div>
-
-                    {/* ── KPI row: total gain + live readout ── */}
-                    <div className="mt-3 flex items-end justify-between gap-3">
-                      <div className="flex items-start shrink-0">
-                        <span className="text-[34px] font-bold font-rounded tracking-tight tnum leading-none text-ink">
-                          +{elevationGainM}
-                        </span>
-                        <span className="self-end ml-1 mb-0.5 text-xs font-semibold font-rounded text-ink-muted">m</span>
-                        <span className="ml-1.5 text-[11px] font-bold font-rounded tnum leading-none text-ink-muted">
-                          ↑{maxGradientPercent}%
-                        </span>
-                      </div>
-                      <div className="min-w-0 text-right text-[11px] font-rounded font-semibold tnum leading-snug">
-                        {hoveredElevPoint ? (
-                          <>
-                            <p className="truncate text-ink">
-                              km {fmtKm(hoveredElevPoint.distKm)} ·{' '}
-                              {isFr
-                                ? SURFACE_VISUAL_META[hoveredElevPoint.surfaceType].shortLabelFr
-                                : SURFACE_VISUAL_META[hoveredElevPoint.surfaceType].shortLabelEn}
-                            </p>
-                            <p className="truncate text-ink-muted">
-                              {Math.round(hoveredElevPoint.eleM)} m ·{' '}
-                              {hoveredElevPoint.gradePct >= 0 ? '↑' : '↓'}
-                              {Math.abs(hoveredElevPoint.gradePct).toFixed(1)}%
-                            </p>
-                          </>
-                        ) : (
-                          <>
-                            <p className="text-ink">
-                              {Math.round(terrainSummary.minEleM)}–{Math.round(terrainSummary.maxEleM)} m
-                            </p>
-                            <p className="text-[10.5px] sm:text-[11px] leading-tight text-ink-muted">
-                              {isFr ? 'Plat' : 'Flat'} {terrainSummary.flatPct} ·{' '}
-                              {isFr ? 'Vallonné' : 'Rolling'} {terrainSummary.rollingPct} ·{' '}
-                              {isFr ? 'Bosses' : 'Climb'} {terrainSummary.climbPct}%
-                            </p>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* ── Full-width dot-matrix elevation silhouette ── */}
-                    <svg
-                      viewBox={`0 0 ${ELEV_MATRIX_COLS * 8} ${ELEV_MATRIX_ROWS * 8}`}
-                      className="mt-3 w-full h-auto block select-none cursor-crosshair"
-                      role="img"
-                      aria-label={isFr ? 'Profil du dénivelé' : 'Elevation profile'}
-                      onMouseMove={pickElevCol}
-                      onClick={pickElevCol}
-                      onMouseLeave={() => setHoveredElevCol(null)}
-                    >
-                      {elevationColumns.map((colData, colIdx) => {
-                        const isColHovered = hoveredElevCol === colIdx;
-                        const isInActiveSeg =
-                          activeSurfaceSegmentId !== null && colData.segmentId === activeSurfaceSegmentId;
-                        const filledFill =
-                          isColHovered || isInActiveSeg
-                            ? isDarkMode
-                              ? '#F5F5F7'
-                              : '#111111'
-                            : isDarkMode
-                            ? 'rgba(245, 245, 247, 0.45)'
-                            : 'rgba(17, 17, 17, 0.45)';
-                        const filledOpacity = isInActiveSeg && !isColHovered ? 0.75 : 1;
-                        return Array.from({ length: ELEV_MATRIX_ROWS }, (_, rowFromTop) => {
-                          const rowFromBottom = ELEV_MATRIX_ROWS - 1 - rowFromTop;
-                          const isFilled = rowFromBottom < colData.filledRows;
-                          return (
-                            <circle
-                              key={`${colIdx}-${rowFromTop}`}
-                              cx={colIdx * 8 + 4}
-                              cy={rowFromTop * 8 + 4}
-                              r={3.2}
-                              fill={
-                                isFilled
-                                  ? filledFill
-                                  : isDarkMode
-                                  ? 'rgba(255, 255, 255, 0.08)'
-                                  : 'rgba(17, 17, 17, 0.08)'
-                              }
-                              fillOpacity={isFilled ? filledOpacity : 1}
-                            />
-                          );
-                        });
-                      })}
-                    </svg>
-
-                    {/* ── Route-ordered surface track (aligned under the matrix) ── */}
-                    <div className="mt-2 h-6 w-full rounded-full bg-chip p-[3px] flex items-stretch gap-[2px]">
-                      {surfaceBreakdown.segments.map((seg) => {
-                        const meta = SURFACE_VISUAL_META[seg.type];
-                        const isActive = activeSurfaceSegmentId === seg.id;
-                        return (
-                          <Button
-                            variant="ghost"
-                            key={seg.id}
-                            type="button"
-                            style={{ flexGrow: Math.max(0.5, seg.endPct - seg.startPct), flexBasis: 0 }}
-                            onMouseEnter={() => {
-                              setHoveredElevCol(null);
-                              setActiveSurfaceSegmentId(seg.id);
-                            }}
-                            onClick={() => setActiveSurfaceSegmentId((prev) => (prev === seg.id ? null : seg.id))}
-                            title={`${isFr ? seg.nameFr : seg.nameEn} · km ${seg.startKm}–${seg.endKm}`}
-                            aria-label={`${isFr ? meta.shortLabelFr : meta.shortLabelEn} · km ${seg.startKm}–${seg.endKm}`}
-                            aria-pressed={isActive}
-                            className={`h-full min-w-[4px] rounded-full cursor-pointer ring-2 ring-inset transition-shadow ${
-                              meta.barBgClass
-                            } ${seg.type !== 'paved' ? 'paint-hatch' : ''} ${
-                              isActive ? 'ring-ink' : 'ring-transparent'
-                            }`}
-                          />
-                        );
-                      })}
-                    </div>
-
-                    {/* ── Surface split (how much) ── */}
-                    <dl className="mt-3 grid grid-cols-3 divide-x divide-ink/10">
-                      {composition.map((item, i) => {
-                        const meta = SURFACE_VISUAL_META[item.type];
-                        return (
-                          <div
-                            key={item.type}
-                            className={`${
-                              i === 0 ? 'pr-1.5 sm:pr-3' : i === 2 ? 'pl-1.5 sm:px-3' : 'px-1.5 sm:px-3'
-                            } min-w-0 ${item.km <= 0.05 ? 'opacity-50' : ''}`}
-                          >
-                            <dt className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-[11px] font-rounded font-bold text-ink-secondary">
-                              <span
-                                className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full shrink-0 ${meta.barBgClass} ${
-                                  item.type !== 'paved' ? 'paint-hatch' : ''
-                                }`}
-                              />
-                              <span className="whitespace-nowrap">{isFr ? meta.shortLabelFr : meta.shortLabelEn}</span>
-                            </dt>
-                            <dd className="mt-1 flex items-start font-rounded tnum whitespace-nowrap text-ink">
-                              <span className="text-[22px] font-bold leading-none tracking-tight">{item.pct}</span>
-                              <span className="self-end text-[11px] font-semibold text-ink-muted">%</span>
-                              <span className="ml-1 text-[10px] font-semibold leading-none text-ink-muted">
-                                {fmtKm(item.km)} km
-                              </span>
-                            </dd>
-                          </div>
-                        );
-                      })}
-                    </dl>
-
-                    {/* ── Tire pressure pod (rounded-pod = rounded-card − p-4) ── */}
-                    <div className="mt-3 rounded-pod p-3 bg-pod flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-[11px] font-rounded font-bold text-ink-muted truncate">
-                          {isFr ? 'Pression' : 'Tire pressure'} · {tireLabel}
-                        </p>
-                        <p className="mt-0.5 text-[13px] font-rounded font-bold leading-snug truncate tnum text-ink">
-                          {pressureSeg
-                            ? `${isFr ? pressureSeg.nameFr : pressureSeg.nameEn} · km ${pressureSeg.startKm}–${pressureSeg.endKm}`
-                            : isFr
-                            ? suitability.headlineFr
-                            : suitability.headlineEn}
-                        </p>
-                        <p className="mt-0.5 text-[11px] font-body leading-snug text-ink-secondary line-clamp-1">
-                          {pressureSeg
-                            ? isFr
-                              ? pressureSeg.riderNoteFr
-                              : pressureSeg.riderNoteEn
-                            : isFr
-                            ? suitability.summaryFr
-                            : suitability.summaryEn}
-                        </p>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <div className="flex items-start justify-end font-rounded tnum whitespace-nowrap text-ink">
-                          {effectiveSpecs?.pressureUnit === 'psi' ? (
-                            <>
-                              <span className="text-[22px] font-bold leading-none tracking-tight">
-                                {barToPsi(suitability.recommendedFrontBar)}/{barToPsi(suitability.recommendedRearBar)}
-                              </span>
-                              <span className="self-end ml-0.5 text-[11px] font-semibold text-ink-muted">PSI</span>
-                            </>
-                          ) : (
-                            <>
-                              <span className="text-[22px] font-bold leading-none tracking-tight">
-                                {fmtBar(suitability.recommendedFrontBar)}/{fmtBar(suitability.recommendedRearBar)}
-                              </span>
-                              <span className="self-end ml-0.5 text-[11px] font-semibold text-ink-muted">bar</span>
-                            </>
-                          )}
-                        </div>
-                        <p className="mt-1 text-[10px] font-rounded font-semibold text-ink-muted">
-                          {isFr ? 'Avant / arrière' : 'Front / rear'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              <div
-                role="button"
-                tabIndex={0}
-                aria-expanded={showElevationOverlay}
-                onClick={() => {
-                  if (activePopover === 'elevation') {
-                    setActivePopover(null);
-                    setHoveredElevCol(null);
-                  } else {
-                    setActivePopover('elevation');
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    if (activePopover === 'elevation') {
-                      setActivePopover(null);
-                      setHoveredElevCol(null);
-                    } else {
-                      setActivePopover('elevation');
-                    }
-                  }
-                }}
-                className={`h-full rounded-pod p-3 sm:p-3.5 bg-pod dark:bg-[#161618] text-ink flex flex-col justify-between min-h-[100px] sm:min-h-[112px] transition-all cursor-pointer select-none group ${
-                  showElevationOverlay
-                    ? 'ring-2 ring-inset ring-ink/35 dark:ring-white/35'
-                    : 'hover:bg-chip/60'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-1.5 text-xs font-medium text-ink-muted shrink-0">
-                  <span className="break-words">{t('elevationGain') || 'Elevation gain'}</span>
-                  <span className="flex items-center gap-1 shrink-0">
-                    <CaretUp
-                      className={`w-3 h-3 opacity-55 group-hover:opacity-100 transition-transform ${
-                        showElevationOverlay ? 'rotate-180 opacity-100 text-ink' : ''
-                      }`}
-                    />
-                    <Mountains className={`w-4 h-4 shrink-0 ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
+            {/* 5. Elevation & Surface (Jumps to Weather & Effort Tab) */}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => {
+                setActivePopover(null);
+                onJumpToSection?.('bento-physics');
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setActivePopover(null);
+                  onJumpToSection?.('bento-physics');
+                }
+              }}
+              title={isFr ? 'Ouvrir Météo & Effort' : 'Open Weather & Effort'}
+              className="h-full rounded-pod p-3 sm:p-3.5 bg-pod dark:bg-[#161618] hover:bg-chip/60 text-ink flex flex-col justify-between min-h-[100px] sm:min-h-[112px] transition-all cursor-pointer select-none group"
+            >
+              <div className="flex items-center justify-between gap-1.5 text-xs font-medium text-ink-muted shrink-0">
+                <span className="break-words">{t('elevationGain') || 'Elevation gain'}</span>
+                <Mountains className={`w-4 h-4 shrink-0 ${CHIP_TOKENS['yellow-vest'].primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`} />
+              </div>
+              <div className="mt-auto pt-2 flex flex-col items-start justify-between gap-1.5 min-w-0">
+                <div className="flex items-baseline gap-1 shrink-0">
+                  <span className="text-xl sm:text-2xl xl:text-[26px] font-bold tracking-tight tnum leading-none text-ink">
+                    +{elevationGainM}
                   </span>
+                  <span className="text-xs font-medium text-ink-muted">m</span>
                 </div>
-                <div className="mt-auto pt-2 flex flex-col items-start justify-between gap-1.5 min-w-0">
-                  <div className="flex items-baseline gap-1 shrink-0">
-                    <span className="text-xl sm:text-2xl xl:text-[26px] font-bold tracking-tight tnum leading-none text-ink">
-                      +{elevationGainM}
-                    </span>
-                    <span className="text-xs font-medium text-ink-muted">m</span>
+                <div className="w-full space-y-1">
+                  <div className="h-1.5 w-full rounded-full overflow-hidden flex bg-black/10 dark:bg-white/10">
+                    <div
+                      style={{ width: `${surfaceBreakdown.pavedPct}%` }}
+                      className="h-full bg-sky-500 dark:bg-sky-400"
+                    />
+                    <div
+                      style={{ width: `${surfaceBreakdown.gravelPct}%` }}
+                      className="h-full bg-amber-500 dark:bg-amber-400"
+                    />
+                    <div
+                      style={{ width: `${surfaceBreakdown.singletrackPct}%` }}
+                      className="h-full bg-rose-500 dark:bg-rose-400"
+                    />
                   </div>
-                  <div className="w-full space-y-1">
-                    <div className="h-1.5 w-full rounded-full overflow-hidden flex bg-black/10 dark:bg-white/10">
-                      <div
-                        style={{ width: `${surfaceBreakdown.pavedPct}%` }}
-                        className="h-full bg-sky-500 dark:bg-sky-400"
-                      />
-                      <div
-                        style={{ width: `${surfaceBreakdown.gravelPct}%` }}
-                        className="h-full bg-amber-500 dark:bg-amber-400"
-                      />
-                      <div
-                        style={{ width: `${surfaceBreakdown.singletrackPct}%` }}
-                        className="h-full bg-rose-500 dark:bg-rose-400"
-                      />
-                    </div>
-                    <span className="text-[10.5px] font-medium text-ink-muted tnum break-words w-full text-left min-w-0 leading-tight block">
-                      {surfaceBreakdown.pavedPct}% {isFr ? 'bitume' : 'paved'} ·{' '}
-                      {surfaceBreakdown.gravelPct + surfaceBreakdown.singletrackPct}%{' '}
-                      {isFr ? 'gravel/sentier' : 'unpaved'}
-                    </span>
-                  </div>
+                  <span className="text-[10.5px] font-medium text-ink-muted tnum break-words w-full text-left min-w-0 leading-tight block">
+                    {surfaceBreakdown.pavedPct}% {isFr ? 'bitume' : 'paved'} ·{' '}
+                    {surfaceBreakdown.gravelPct + surfaceBreakdown.singletrackPct}%{' '}
+                    {isFr ? 'gravel/sentier' : 'unpaved'}
+                  </span>
                 </div>
               </div>
             </div>
@@ -3557,24 +3067,6 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
           </div>
         )}
       </div>
-
-      {/* ── Corridor Resupply Radar Overlay Menu (Accessible via 1:1 button) ── */}
-      <ResupplyRadarOverlay
-        isOpen={isRadarOpen}
-        onClose={() => setIsRadarOpen(false)}
-        trip={trip}
-        hardDepartureTime={timelineResult.hardDepartureTime}
-        effectiveSpeedKmH={physicsResult.effectiveSpeedKmH}
-        legWatts={physicsResult.legWatts}
-        onUpdateTrip={onUpdateTrip || (() => {})}
-        selectedAmenity={selectedAmenity}
-        onSelectAmenity={onSelectAmenity}
-        onAmenitiesLoaded={onAmenitiesLoaded}
-        activeCategories={visibleAmenityCategories}
-        onActiveCategoriesChange={onVisibleAmenityCategoriesChange}
-        showMapDots={showMapDots}
-        onToggleShowMapDots={handleToggleShowMapDots}
-      />
     </div>
   );
 };

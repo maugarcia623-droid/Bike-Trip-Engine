@@ -21,6 +21,7 @@ import {
   Leaf,
   Shower,
   Plus,
+  Clock,
 } from '@/components/icons';
 import { Card } from '../common/Card';
 import { Badge, BadgeVariant } from '../common/Badge';
@@ -63,13 +64,7 @@ import {
   FRUIT_CHEW_PIECE,
   ENERGY_GEL_UNIT,
 } from '../../utils/nutrition';
-import {
-  calculateWaterGaps,
-  getRouteHashKey,
-  getCachedScan,
-  subscribeScanCache,
-} from '../../services/overpassCorridor';
-import { formatKm, formatCriticalGapAdvice, formatGapDetail } from '../../utils/waterGapCopy';
+import { computeClimbSplitsAndFueling } from '../../utils/climbSplits';
 import { getCafeSnackSuggestion, isLegacyRationDefault } from '../../utils/cafeSnack';
 
 interface NutritionBentoProps {
@@ -101,14 +96,6 @@ interface NutritionPhaseSpec {
   body: string;
   items?: NutritionItem[];
   liquidShiftPill?: string;
-}
-
-function splitIntoBullets(text: string): string[] {
-  const parts = text
-    .split(/(?<=[.!])\s+(?=[A-ZÀ-ÖØ-Ý0-9])/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-  return parts.length > 0 ? parts : [text];
 }
 
 export const NutritionBento: React.FC<NutritionBentoProps> = ({
@@ -308,20 +295,16 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
 
   const [showFullProtocol, setShowFullProtocol] = useState(false);
   const [showLogisticsForm, setShowLogisticsForm] = useState<boolean>(false);
-  const [openPhases, setOpenPhases] = useState<Record<string, boolean>>({});
   const [manifestOpen, setManifestOpen] = useState<boolean>(false);
+  const [showFuelCheckpoints, setShowFuelCheckpoints] = useState<boolean>(false);
   const toggleManifest = useCallback(() => setManifestOpen((prev) => !prev), []);
 
   useEffect(() => {
     setShowFullProtocol(false);
     setShowLogisticsForm(false);
-    setOpenPhases({});
     setManifestOpen(false);
+    setShowFuelCheckpoints(false);
   }, [trip.id]);
-
-  const togglePhase = useCallback((phaseId: string) => {
-    setOpenPhases((prev) => ({ ...prev, [phaseId]: !prev[phaseId] }));
-  }, []);
 
   // Fuel Delivery & Palate Strategy (Phase 9)
   const fuelSplit = resolveEffectiveFuelSplit({
@@ -334,62 +317,34 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
     isMultiDayTour: totalDays > 1,
   });
 
-
-  // Water desert radar sectional gap analysis (Phase 8)
-  const activeStage = trip.stages && trip.activeStageIndex !== undefined
-    ? trip.stages[trip.activeStageIndex]
-    : undefined;
-  const hasValidCorridorCoords = Boolean(
-    trip.route?.routeMode !== 'manual-radius' &&
-      trip.route?.coordinates &&
-      trip.route.coordinates.length >= 2
-  );
-  const currentCoords = useMemo(() => {
-    return hasValidCorridorCoords ? trip.route!.coordinates! : [];
-  }, [hasValidCorridorCoords, trip.route?.coordinates]);
-  const totalDistanceKm = trip.route?.distanceKm || 45;
-  const stageId = activeStage?.id || trip.id;
-  const routeCacheKey = useMemo(
-    () => (currentCoords.length >= 2 ? getRouteHashKey(currentCoords, stageId, totalDistanceKm) : ''),
-    [currentCoords, stageId, totalDistanceKm]
-  );
-  // Live scan results: refresh whenever a corridor scan lands anywhere in the UI (Phase 8)
-  const [cachedScanResult, setCachedScanResult] = useState<ReturnType<typeof getCachedScan>>(() =>
-    routeCacheKey ? getCachedScan(routeCacheKey) : undefined
-  );
-  useEffect(() => {
-    if (!routeCacheKey) {
-      setCachedScanResult(undefined);
-      return;
-    }
-    setCachedScanResult(getCachedScan(routeCacheKey));
-    return subscribeScanCache((key) => {
-      if (key === routeCacheKey || key === '*') {
-        setCachedScanResult(getCachedScan(routeCacheKey));
-      }
-    });
-  }, [routeCacheKey]);
-  const hasWaterScan = Array.isArray(cachedScanResult);
-  const cachedAmenities = cachedScanResult ?? [];
-
-  const waterGaps = useMemo(() => {
-    if (!hasWaterScan) return null;
-    const allWaterItems = [...cachedAmenities];
-    if (trip.pinnedAmenities) {
-      for (const pinned of trip.pinnedAmenities) {
-        if (!allWaterItems.some((a) => a.id === pinned.id)) {
-          allWaterItems.push(pinned);
-        }
-      }
-    }
-    const sectorSpeed = physicsResult?.effectiveSpeedKmH || trip.route?.targetSpeedKmH || 25;
-    return calculateWaterGaps(allWaterItems, totalDistanceKm, {
-      sectorSpeedKmH: sectorSpeed,
-      targetFluidMlPerHr: hydrationPlan.targetFluidMlPerHr,
+  const fuelingCheckpoints = useMemo(() => {
+    if (movingMinutes < 90 || !physicsResult) return [];
+    return computeClimbSplitsAndFueling(trip, physicsResult, lang, {
+      ftpWatts: riderSpecs.ftpWatts,
+      carbTargetGPerHr: riderSpecs.carbTargetGPerHr,
+      isLockedCarbTarget,
+      carbPacingMode: riderSpecs.carbPacingMode,
+      riderLevel: riderSpecs.riderLevel,
+      nutritionPreference: riderSpecs.nutritionPreference,
+      departureTimeHHMM: hardDepartureTime || trip.departureTime,
       bidonSizeMl,
       frameBottleSlots,
-    });
-  }, [hasWaterScan, cachedAmenities, trip.pinnedAmenities, totalDistanceKm, physicsResult?.effectiveSpeedKmH, trip.route?.targetSpeedKmH, hydrationPlan.targetFluidMlPerHr, bidonSizeMl, frameBottleSlots]);
+    }).checkpoints;
+  }, [
+    movingMinutes,
+    physicsResult,
+    trip,
+    lang,
+    riderSpecs.ftpWatts,
+    riderSpecs.carbTargetGPerHr,
+    isLockedCarbTarget,
+    riderSpecs.carbPacingMode,
+    riderSpecs.riderLevel,
+    riderSpecs.nutritionPreference,
+    hardDepartureTime,
+    bidonSizeMl,
+    frameBottleSlots,
+  ]);
 
   // Fetch structured nutrition plan items with quantitative & portion labels
   const planPhases = getRealFoodNutritionPlan(
@@ -999,8 +954,7 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
   const renderPhaseAccordion = (phases: NutritionPhaseSpec[]) => {
     const groupLabels: Record<string, TimelineGroupMeta> = {};
     const events: TimelineEvent[] = phases.map((phase, idx) => {
-      const bullets = splitIntoBullets(phase.body);
-      const MacroIcon = phase.macroIcon;
+      const hasItems = Boolean(phase.items && phase.items.length > 0);
       const groupKey = phase.stageLabel || `phase-${idx + 1}`;
       const isOnBike = idx === 1;
       const borderAccentClass =
@@ -1054,21 +1008,14 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
         ) : undefined,
         detail: (
           <div className={`space-y-2.5 pl-2.5 border-l-2 ${borderAccentClass}`}>
-            <ul className="space-y-1.5 text-xs sm:text-[13px] text-ink-secondary leading-relaxed">
-              {bullets.map((sentence, bIdx) => (
-                <li key={bIdx} className="flex items-start gap-2">
-                  <span
-                    aria-hidden="true"
-                    className={`w-1.5 h-1.5 rounded-full mt-2 shrink-0 ${CHIP_TOKENS[phase.theme].dot}`}
-                  />
-                  <span>{sentence}</span>
-                </li>
-              ))}
-            </ul>
+            {!hasItems && phase.body && (
+              <p className="text-xs sm:text-[13px] text-ink-secondary leading-relaxed">
+                {phase.body}
+              </p>
+            )}
 
-            {phase.items && phase.items.length > 0 && (
-              <div className="pt-1.5 space-y-2.5">
-                <div className="lane-divider mb-2" aria-hidden="true" />
+            {hasItems && phase.items && (
+              <div className="space-y-2.5">
                 {phase.items.some((i) => i.isSavoryReset) ? (
                   <>
                     {renderItemGroup(t('nutriGroupBottles'), Droplets, 'sky', phase.items.filter((i) => i.isLiquid))}
@@ -1090,25 +1037,13 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
                 )}
               </div>
             )}
-
-            <div className="px-3 py-2 rounded-sub-pod bg-pod flex flex-wrap items-center justify-between gap-1.5 text-xs">
-              <span className="text-[11px] font-rounded font-semibold text-ink-muted">
-                {phase.stageLabel}
-              </span>
-              <span
-                className={`font-bold text-xs tnum flex items-center gap-1 ${CHIP_TOKENS[phase.macroTheme].primary} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
-              >
-                {MacroIcon && <MacroIcon className="w-4 h-4 text-current shrink-0" />}
-                <span>{phase.macroHeadline}</span>
-              </span>
-            </div>
           </div>
         ),
       };
     });
 
     return (
-      <div className="mt-2">
+      <div className="mt-2 space-y-3">
         <Timeline
           key={`nutri-${trip.id}-${phases.map((p) => p.id).join('-')}`}
           events={events}
@@ -1121,61 +1056,47 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
           markerSize="md"
           scrollToNew={false}
         />
-      </div>
-    );
-  };
 
-  const renderWaterGapAlertBanner = () => {
-    // Without a corridor scan the whole route reads as one dry gap: never alert on that.
-    if (!hasWaterScan || !waterGaps || (waterGaps.status !== 'critical' && waterGaps.status !== 'caution')) {
-      return null;
-    }
-
-    const targetGap =
-      waterGaps.criticalGaps[0] ||
-      waterGaps.cautionGaps[0] ||
-      waterGaps.gaps.find((g) => g.distanceKm === waterGaps.maxGapKm) ||
-      waterGaps.gaps[0];
-
-    if (!targetGap) return null;
-
-    const isCritical = waterGaps.status === 'critical';
-    const startKm = formatKm(targetGap.startKm, lang);
-    const endKm = formatKm(targetGap.endKm, lang);
-
-    return (
-      <div
-        role="status"
-        className={`mb-3 p-3 rounded-pod flex items-start gap-2.5 ring-1 ring-inset ${
-          isCritical
-            ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-900 dark:text-rose-200 ring-rose-500/40 shadow-beacon-red'
-            : 'bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 ring-amber-500/40 shadow-beacon-amber'
-        }`}
-      >
-        <TriangleAlert
-          className={`w-4 h-4 mt-0.5 shrink-0 ${
-            isCritical ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'
-          }`}
-        />
-        <div className="min-w-0 flex-1 space-y-0.5 text-xs">
-          <div className="font-bold font-rounded">
-            {isCritical
-              ? t('hydrationCritical', {
-                  gap: formatKm(targetGap.distanceKm, lang),
-                  start: startKm,
-                  end: endKm,
-                  advice: formatCriticalGapAdvice(targetGap, lang),
-                })
-              : t('hydrationCaution', {
-                  gap: formatKm(targetGap.distanceKm, lang),
-                  start: startKm,
-                  end: endKm,
-                })}
+        {fuelingCheckpoints.length > 0 && (
+          <div className="rounded-pod bg-pod overflow-hidden">
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={() => setShowFuelCheckpoints((v) => !v)}
+              aria-expanded={showFuelCheckpoints}
+              className="w-full min-h-[44px] rounded-none px-3.5 py-2.5 flex items-center justify-between gap-2.5 hover:bg-chip/60 transition-colors cursor-pointer text-left"
+            >
+              <span className="inline-flex items-center gap-2 text-xs font-rounded font-bold text-ink">
+                <Droplets className="w-3.5 h-3.5 text-sky-500 shrink-0" />
+                <span>
+                  {isFr
+                    ? `Rappels ravito km par km (${fuelingCheckpoints.length})`
+                    : `Km-by-km fueling checkpoints (${fuelingCheckpoints.length})`}
+                </span>
+              </span>
+              <DisclosureChevron open={showFuelCheckpoints} />
+            </Button>
+            <Collapsible open={showFuelCheckpoints} innerClassName="px-3.5 pb-3.5 pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                {fuelingCheckpoints.map((cp) => (
+                  <div
+                    key={cp.id}
+                    className="rounded-sub-pod bg-card ring-1 ring-inset ring-ink/[0.06] dark:ring-white/[0.08] px-3 py-2 flex items-start justify-between gap-2"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-[11px] font-semibold text-ink tnum">{cp.label}</div>
+                      <div className="text-[10px] text-ink-muted leading-snug mt-0.5">{cp.detail}</div>
+                    </div>
+                    <span className="inline-flex items-center gap-1 shrink-0 text-[10px] text-ink-muted tnum whitespace-nowrap">
+                      <Clock className="w-3 h-3 shrink-0" />
+                      {cp.etaHHMM || `${cp.elapsedMinutes}m`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </Collapsible>
           </div>
-          <div className="text-[11px] font-rounded tnum opacity-90">
-            {formatGapDetail(targetGap, lang)}
-          </div>
-        </div>
+        )}
       </div>
     );
   };
@@ -1331,7 +1252,6 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       >
         {renderLogisticsControlBar()}
         {renderExpeditionManifest()}
-        {renderWaterGapAlertBanner()}
         {renderPhaseAccordion(intuitivePhases)}
       </Card>
     );
@@ -1402,7 +1322,6 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       >
         {renderLogisticsControlBar()}
         {renderExpeditionManifest()}
-        {renderWaterGapAlertBanner()}
         {renderPhaseAccordion(shortPhases)}
 
         <div className="mt-3 flex justify-end">
@@ -1517,13 +1436,9 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
     return (
       <Card
         title={t('nutriSportTitle')}
-        subtitle={t('nutriSportSub', { dist: distance })}
         badge={
           <div className="inline-flex items-center gap-2 flex-wrap">
             {compactReturnBtn}
-            <Badge variant="emerald" size="md" className="py-1.5 px-3 tnum">
-              {prefBadgeLabel}
-            </Badge>
             {renderPacingBadge('yellow-vest')}
             {isQuantitative ? (
               <Badge variant="amber" size="md" icon={Flame2} className="py-1.5 px-3 tnum">
@@ -1539,7 +1454,6 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       >
         {renderLogisticsControlBar()}
         {renderExpeditionManifest()}
-        {renderWaterGapAlertBanner()}
         {renderPhaseAccordion(sportPhases)}
       </Card>
     );
@@ -1670,7 +1584,6 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
     return (
       <Card
         title={t('nutriBpTitle')}
-        subtitle={t('nutriBpSub', { dist: distance })}
         badge={
           <div className="inline-flex items-center gap-2 flex-wrap">
             {compactReturnBtn}
@@ -1689,7 +1602,6 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       >
         {renderLogisticsControlBar()}
         {renderExpeditionManifest()}
-        {renderWaterGapAlertBanner()}
         {renderPhaseAccordion(bpPhases)}
       </Card>
     );
@@ -1844,7 +1756,6 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
     return (
       <Card
         title={t('nutriEscTitle')}
-        subtitle={t('nutriEscSub', { dest: trip.route?.destination || 'destination' })}
         badge={
           <div className="inline-flex items-center gap-2 flex-wrap">
             {compactReturnBtn}
@@ -1863,7 +1774,6 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
       >
         {renderLogisticsControlBar()}
         {renderExpeditionManifest()}
-        {renderWaterGapAlertBanner()}
         {renderPhaseAccordion(escPhases)}
       </Card>
     );
@@ -2013,21 +1923,10 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
   return (
     <Card
       title={t('nutriComTitle')}
-      subtitle={t('nutriComSub')}
       badge={
         <div className="inline-flex items-center gap-2 flex-wrap">
           {compactReturnBtn}
-          {isCoffee && (
-            <Badge variant="amber" size="md" dot className="py-1.5 px-3 tnum">
-              {isFr ? 'Pause café' : 'Coffee stop'}
-            </Badge>
-          )}
           {renderPacingBadge('yellow-vest')}
-          {isQuantitative && (
-            <Badge variant="amber" size="md" icon={Flame2} className="py-1.5 px-3 tnum">
-              {estimatedBurnKcal} kcal
-            </Badge>
-          )}
           <Badge variant="sky" size="md" icon={Droplets} className="py-1.5 px-3 tnum">
             {hydrationBadgeLabel}
           </Badge>
@@ -2036,7 +1935,6 @@ export const NutritionBento: React.FC<NutritionBentoProps> = ({
     >
       {renderLogisticsControlBar()}
       {renderExpeditionManifest()}
-      {renderWaterGapAlertBanner()}
       {renderPhaseAccordion(commutePhases)}
     </Card>
   );

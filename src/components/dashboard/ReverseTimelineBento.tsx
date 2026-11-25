@@ -239,29 +239,7 @@ export const ReverseTimelineBento: React.FC<ReverseTimelineBentoProps> = ({
       };
     }
 
-    if (bufferMin >= 15) {
-      return {
-        tone: 'cadence' as const,
-        icon: Clock,
-        headline: isFr
-          ? `${bufferMin} min de marge déjà calées avant ${timeline.gateArrivalTime}.`
-          : `${bufferMin} min of built-in cushion before ${timeline.gateArrivalTime}.`,
-        detail: isFr
-          ? `Pars à ${timeline.hardDepartureTime} pour tes ${durStr} de selle — pas besoin de griller un seul feu.`
-          : `Roll out by ${timeline.hardDepartureTime} for your ${durStr} spin — no need to rush a single red light.`,
-      };
-    }
-
-    return {
-      tone: 'cadence' as const,
-      icon: Clock,
-      headline: isFr
-        ? `Timing tranquille — pars à ${timeline.hardDepartureTime} pour ${durStr} de vélo.`
-        : `Clean, unhurried schedule — roll out by ${timeline.hardDepartureTime} for an easy ${durStr} ride.`,
-      detail: isFr
-        ? `Arrivée estimée autour de ${timeline.gateArrivalTime} avec de la marge pour souffler.`
-        : `Brings you in around ${timeline.gateArrivalTime} with breathing room.`,
-    };
+    return null;
   }, [timeline, isFr]);
 
   const cardTitle =
@@ -272,15 +250,6 @@ export const ReverseTimelineBento: React.FC<ReverseTimelineBentoProps> = ({
       : archetype === 'escapade'
       ? t('timelineTitleEscapade')
       : t('timelineTitleCommute');
-
-  const cardSubtitle =
-    archetype === 'sport'
-      ? t('timelineSubSport')
-      : archetype === 'bikepacking'
-      ? t('timelineSubBikepacking')
-      : archetype === 'escapade'
-      ? t('timelineSubEscapade')
-      : t('timelineSubCommute');
 
   const groupLabels = useMemo<Record<string, TimelineGroupMeta>>(() => {
     const phases: Array<{ key: TimelinePhase; label: string }> = [
@@ -380,7 +349,6 @@ export const ReverseTimelineBento: React.FC<ReverseTimelineBentoProps> = ({
   return (
     <Card
       title={cardTitle}
-      subtitle={cardSubtitle}
       badge={
         <div className="flex items-center gap-2 flex-wrap">
           {timeline.stationaryRecoveryRule?.isRestricted && (
@@ -442,7 +410,7 @@ export const ReverseTimelineBento: React.FC<ReverseTimelineBentoProps> = ({
       }
       className="w-full"
     >
-      {!timeline.severeHeadwindWarning && (
+      {!timeline.severeHeadwindWarning && timelineInsight && (
         <CadenceInsight
           compact
           tone={timelineInsight.tone}

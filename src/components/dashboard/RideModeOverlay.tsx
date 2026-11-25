@@ -686,50 +686,75 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
           </div>
         )}
 
-        {/* ── COMPACT HIGH-CONTRAST RIDE CONDITIONS STRIP ── */}
-        <div
-          data-testid="ride-mode-conditions-strip"
-          className="flex flex-wrap items-center gap-1.5 sm:gap-2 px-3 py-2 rounded-pod bg-card border border-ink/15 dark:border-white/15 shadow-xs shrink-0 text-xs font-rounded font-bold text-ink"
-        >
-          <span
-            data-testid="ride-mode-gusts-badge"
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-pod text-ink border border-ink/10 dark:border-white/10 tnum"
-          >
-            <Wind className="w-3.5 h-3.5 shrink-0 text-sky-600 dark:text-sky-400" />
-            <span>
-              {isFr ? `Rafales ${maxGust} km/h` : `Gusts ${maxGust} km/h`}
-            </span>
-          </span>
+        {/* ── HAZARD-DRIVEN RIDE CONDITIONS STRIP ── */}
+        {(() => {
+          const showGustHazard =
+            maxGust >= 25 || (trip.weather?.effectiveHeadwindKmH ?? 0) >= 18;
+          const showLightHazard =
+            (rideVisibility.nightPercent ?? 0) > 0 ||
+            (rideVisibility.twilightPercent ?? 0) > 0 ||
+            (trip.weather?.visibilityKm ?? 15) < 5;
+          const showColdHazard = isColdBatteryWarning || tempC <= 6;
+          const hasAnyHazard = showGustHazard || showLightHazard || showColdHazard;
 
-          <span
-            data-testid="ride-mode-lumens-badge"
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-pod text-ink border border-ink/10 dark:border-white/10 tnum"
-          >
-            <Flashlight className="w-3.5 h-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
-            <span>
-              {isFr ? 'Phare' : 'Light'} {rideVisibility.lightingGear.recommendedLumens}
-            </span>
-          </span>
-
-          {isColdBatteryWarning && (
-            <span
-              data-testid="ride-mode-cold-battery-badge"
-              title={
-                isFr
-                  ? rideVisibility.lightingGear.batteryNoticeFr
-                  : rideVisibility.lightingGear.batteryNoticeEn
-              }
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full tnum ${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.amber.selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+          return (
+            <div
+              data-testid="ride-mode-conditions-strip"
+              className="flex flex-wrap items-center gap-1.5 sm:gap-2 px-3 py-2 rounded-pod bg-card border border-ink/15 dark:border-white/15 shadow-xs shrink-0 text-xs font-rounded font-bold text-ink"
             >
-              <BatteryCharging className="w-3.5 h-3.5 shrink-0 text-current" />
-              <span>
-                {isFr
-                  ? `Batterie < 5°C (-30%) · ${Math.round(tempC)}°C`
-                  : `Sub-5°C battery (-30%) · ${Math.round(tempC)}°C`}
-              </span>
-            </span>
-          )}
-        </div>
+              {!hasAnyHazard ? (
+                <span className="text-xs font-rounded font-semibold text-ink-secondary">
+                  {isFr ? 'Conditions calmes · Plein jour' : 'Calm conditions · Daylight'}
+                </span>
+              ) : (
+                <>
+                  {showGustHazard && (
+                    <span
+                      data-testid="ride-mode-gusts-badge"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-pod text-ink border border-ink/10 dark:border-white/10 tnum"
+                    >
+                      <Wind className="w-3.5 h-3.5 shrink-0 text-sky-600 dark:text-sky-400" />
+                      <span>
+                        {isFr ? `Rafales ${maxGust} km/h` : `Gusts ${maxGust} km/h`}
+                      </span>
+                    </span>
+                  )}
+
+                  {showLightHazard && (
+                    <span
+                      data-testid="ride-mode-lumens-badge"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-pod text-ink border border-ink/10 dark:border-white/10 tnum"
+                    >
+                      <Flashlight className="w-3.5 h-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                      <span>
+                        {isFr ? 'Phare' : 'Light'} {rideVisibility.lightingGear.recommendedLumens}
+                      </span>
+                    </span>
+                  )}
+
+                  {showColdHazard && (
+                    <span
+                      data-testid="ride-mode-cold-battery-badge"
+                      title={
+                        isFr
+                          ? rideVisibility.lightingGear.batteryNoticeFr
+                          : rideVisibility.lightingGear.batteryNoticeEn
+                      }
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full tnum ${CHIP_TOKENS.amber.surface} ${CHIP_TOKENS.amber.primary} ${CHIP_RING_BASE} ${CHIP_TOKENS.amber.selectedRing} ${CHIP_DUOTONE_ISOLATION_CLASSES}`}
+                    >
+                      <BatteryCharging className="w-3.5 h-3.5 shrink-0 text-current" />
+                      <span>
+                        {isFr
+                          ? `Batterie < 5°C (-30%) · ${Math.round(tempC)}°C`
+                          : `Sub-5°C battery (-30%) · ${Math.round(tempC)}°C`}
+                      </span>
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
+          );
+        })()}
 
         {/* ── MAIN PROPORTIONAL STACK (FILLS VIEWPORT, SCROLLABLE ON COMPACT SCREENS) ── */}
         <div className="flex-1 flex flex-col gap-2 sm:gap-3">
@@ -838,24 +863,17 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
                     {nextStop.cmt}
                   </div>
                 )}
-                {nextStop?.amenity?.category === 'cemetery' && (
-                  <div
-                    data-testid="ride-mode-cemetery-shutoff-note"
-                    className={`mt-0.5 text-[11px] font-rounded font-semibold leading-snug ${
-                      rideVisibility.isWinterTrip || tempC <= 6
-                        ? 'text-amber-700 dark:text-amber-300'
-                        : 'text-ink-secondary'
-                    }`}
-                  >
-                    {rideVisibility.isWinterTrip || tempC <= 6
-                      ? isFr
+                {nextStop?.amenity?.category === 'cemetery' &&
+                  (rideVisibility.isWinterTrip || tempC <= 4) && (
+                    <div
+                      data-testid="ride-mode-cemetery-shutoff-note"
+                      className="mt-0.5 text-[11px] font-rounded font-semibold leading-snug text-amber-700 dark:text-amber-300"
+                    >
+                      {isFr
                         ? 'Risque coupure hivernale : robinet parfois fermé hors gel'
-                        : 'Winter shutoff risk: cemetery water may be turned off for frost'
-                      : isFr
-                      ? 'Note saisonnière : robinet parfois coupé en hiver'
-                      : 'Seasonal note: cemetery taps may be shut off in winter'}
-                  </div>
-                )}
+                        : 'Winter shutoff risk: cemetery water may be turned off for frost'}
+                    </div>
+                  )}
               </div>
             </div>
           </section>
@@ -914,49 +932,49 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
           </section>
         </div>
 
-        {/* ── LAST SPOKEN ALERT + SIMULATE / TEST ALERT CTA ── */}
-        <footer className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 shrink-0">
-          <div className="flex-1 min-w-0 bg-pod rounded-pod px-4 py-2.5 border border-ink/10 dark:border-white/10">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <span className="text-[10px] font-rounded font-bold uppercase tracking-wider text-ink-secondary">
-                {t('rideModeLastAlertLabel')}
-              </span>
-              {mutedSimulateNotice && isMuted && (
-                <span
-                  role="status"
-                  data-testid="ride-mode-muted-feedback"
-                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-rounded font-bold ${CHIP_TOKENS.rose.surface} ${CHIP_TOKENS.rose.primary}`}
-                >
-                  <VolumeX className="w-3 h-3 shrink-0 text-current" />
-                  <span>
-                    {isFr
-                      ? 'Son coupé : réactivez la voix pour entendre les alertes'
-                      : 'Voice muted: unmute above to hear spoken alerts'}
-                  </span>
+        {/* ── COMPACT ALERT FOOTER ── */}
+        <footer className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 shrink-0">
+          {(lastAlert || (mutedSimulateNotice && isMuted)) && (
+            <div className="flex-1 min-w-0 bg-pod rounded-pod px-4 py-2 border border-ink/10 dark:border-white/10">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <span className="text-[10px] font-rounded font-bold uppercase tracking-wider text-ink-secondary">
+                  {t('rideModeLastAlertLabel')}
                 </span>
+                {mutedSimulateNotice && isMuted && (
+                  <span
+                    role="status"
+                    data-testid="ride-mode-muted-feedback"
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-rounded font-bold ${CHIP_TOKENS.rose.surface} ${CHIP_TOKENS.rose.primary}`}
+                  >
+                    <VolumeX className="w-3 h-3 shrink-0 text-current" />
+                    <span>
+                      {isFr
+                        ? 'Son coupé : réactivez la voix pour entendre les alertes'
+                        : 'Voice muted: unmute above to hear spoken alerts'}
+                    </span>
+                  </span>
+                )}
+              </div>
+              {lastAlert && (
+                <div
+                  data-testid="ride-mode-last-alert"
+                  className="text-xs sm:text-sm font-rounded font-semibold text-ink line-clamp-2"
+                >
+                  {lastAlert.spokenText}
+                </div>
               )}
             </div>
-            <div
-              data-testid="ride-mode-last-alert"
-              className="text-xs sm:text-sm font-rounded font-semibold text-ink line-clamp-3"
-            >
-              {lastAlert
-                ? lastAlert.spokenText
-                : isFr
-                ? 'En attente du prochain repère vocal'
-                : 'Waiting for next stop, turn, or fuel cue'}
-            </div>
-          </div>
+          )}
 
           <Button
             type="button"
             variant="ghost"
-            size="lg"
+            size="sm"
             data-testid="ride-mode-test-alert-btn"
             onClick={handleSimulateAlert}
-            className={`min-h-[48px] sm:min-h-[52px] px-6 rounded-full text-sm font-rounded font-extrabold inline-flex items-center justify-center gap-2 shadow-sm cursor-pointer shrink-0 transition-all active:scale-[0.98] ${YELLOW_VEST_SOLID_CTA_CLASSES}`}
+            className="min-h-[40px] px-4 rounded-full bg-pod hover:bg-chip border border-ink/10 dark:border-white/10 text-xs font-rounded font-semibold text-ink-secondary hover:text-ink inline-flex items-center justify-center gap-1.5 cursor-pointer shrink-0 transition-all active:scale-[0.98]"
           >
-            <BellRing className="w-4 h-4 shrink-0 text-current" />
+            <BellRing className="w-3.5 h-3.5 shrink-0 text-current" />
             <span>{t('rideModeTestAlertBtn')}</span>
           </Button>
         </footer>

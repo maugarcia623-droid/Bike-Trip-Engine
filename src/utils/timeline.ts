@@ -668,11 +668,11 @@ export function calculateReverseTimeline(
         isCrucialCheckpoint: true,
         description: isQuant
           ? isFr
-            ? '500 ml de boisson électrolytes + 60 g de glucides à IG élevé. Vérifiez la charge du compteur GPS et de la ceinture cardio.'
-            : '500 ml electrolyte mix + 60 g high-glycemic carbs. Top off bike computer & heart rate monitor.'
+            ? '500 ml électrolytes + 60 g glucides rapides. Contrôle charge GPS/cardio.'
+            : '500 ml electrolytes + 60 g fast carbs. Check GPS/HR battery.'
           : isFr
-          ? `Un grand verre d’eau électrolytes + ${compliantPantry.preRide.nameFr.toLowerCase()}. Vérifiez la charge du compteur GPS.`
-          : `1 tall glass electrolyte water + ${compliantPantry.preRide.nameEn.toLowerCase()}. Top off bike computer.`,
+          ? `Grand verre électrolytes + ${compliantPantry.preRide.nameFr.toLowerCase()}.`
+          : `Tall glass electrolytes + ${compliantPantry.preRide.nameEn.toLowerCase()}.`,
         iconName: 'AlarmClock',
       },
       {
@@ -708,11 +708,11 @@ export function calculateReverseTimeline(
         isCrucialCheckpoint: false,
         description: isQuant
           ? isFr
-            ? `Prise énergétique en selle adaptée à votre profil (~${riderCarbs} g glucides/h). Contrôle de l’allure et de la dérive cardiaque.`
-            : `On-the-bike fueling scaled to your rider profile (~${riderCarbs} g carbs/h target). Smooth pacing & hydration check.`
+            ? `Ravito en selle : ~${riderCarbs} g glucides/h et hydratation régulière.`
+            : `On-bike fuel: ~${riderCarbs} g carbs/h with steady hydration.`
           : isFr
-          ? `Prise énergétique en selle adaptée à votre profil (${fuelRateText}). Gardez une allure fluide et régulière.`
-          : `On-the-bike fueling scaled to your rider profile (${fuelRateText}). Smooth pacing & hydration check.`,
+          ? `Ravito en selle (${fuelRateText}) — reste régulier.`
+          : `On-bike fuel (${fuelRateText}) — keep a steady rhythm.`,
         iconName: 'Wind',
       },
       {
@@ -736,11 +736,11 @@ export function calculateReverseTimeline(
         isCrucialCheckpoint: false,
         description: isQuant
           ? isFr
-            ? '25 g de protéines + 500 ml d’eau fraîche. Relâchement ischio-jambiers et fléchisseurs de hanche.'
-            : '25 g protein + 500 ml cold water. Hamstring & hip flexor stretch.'
+            ? '25 g protéines + 500 ml eau fraîche et étirements légers.'
+            : '25 g protein + 500 ml cold water and light stretch.'
           : isFr
-          ? `${compliantPantry.postRide.nameFr} + grand verre d’eau fraîche. Relâchement ischio-jambiers et fléchisseurs de hanche.`
-          : `${compliantPantry.postRide.nameEn} + tall glass of cold water. Gentle hamstring & hip flexor stretch.`,
+          ? `${compliantPantry.postRide.nameFr} + grand verre d’eau fraîche.`
+          : `${compliantPantry.postRide.nameEn} + tall glass of cold water.`,
         iconName: 'Coffee',
       },
     ];
@@ -837,8 +837,8 @@ export function calculateReverseTimeline(
         category: 'prep',
         isCrucialCheckpoint: true,
         description: isFr
-          ? 'Compression des sacs étanches, répartition du poids sacoches / sac de selle, contrôle du couchage et de la filtration d’eau.'
-          : 'Pack dry bags, balance pannier / saddlebag weight distribution, inspect sleeping kit and water filtration gear.',
+          ? 'Compression sacs étanches, équilibrage sacoches et filtre à eau.'
+          : 'Pack dry bags, balance panniers/saddlebag, check water filter.',
         iconName: 'AlarmClock',
       },
       {
@@ -897,8 +897,8 @@ export function calculateReverseTimeline(
         category: 'prep',
         isCrucialCheckpoint: false,
         description: isFr
-          ? 'Montage de la tente, recharge GPS/phares sur batterie externe, étirements et dîner chaud de récupération.'
-          : 'Pitch shelter, plug GPS/lights into power bank for evening charging, air kit and enjoy warm recovery meal.',
+          ? 'Montage tente, recharge GPS/feux sur batterie et dîner chaud.'
+          : 'Pitch shelter, charge GPS/lights on power bank, warm dinner.',
         iconName: 'Coffee',
       },
     ];
@@ -993,8 +993,8 @@ export function calculateReverseTimeline(
         category: 'prep',
         isCrucialCheckpoint: false,
         description: isFr
-          ? 'Boire 400 ml d’eau avec électrolytes. Contrôler la répartition du poids sacoches / sac de selle (chargeurs, tenue du soir).'
-          : 'Drink 400 ml water with electrolytes. Check pannier / saddlebag weight distribution (chargers, overnight kit).',
+          ? '400 ml eau + électrolytes ; contrôle équilibrage sacoches.'
+          : 'Drink 400 ml electrolytes; balance pannier/saddlebag load.',
         iconName: 'AlarmClock',
       },
       {
@@ -1083,8 +1083,8 @@ export function calculateReverseTimeline(
         category: 'prep',
         isCrucialCheckpoint: false,
         description: isFr
-          ? 'Mise en charge GPS, phares et batterie externe, douche chaude, réhydratation et tenue de soirée.'
-          : 'Plug GPS, lights & power bank for evening charging, hot shower, rehydrate, and slip into casual clothes.',
+          ? 'Recharge GPS/feux, douche chaude et tenue du soir.'
+          : 'Charge GPS/lights, hot shower, and casual evening kit.',
         iconName: 'ShowerHead',
       },
       {
