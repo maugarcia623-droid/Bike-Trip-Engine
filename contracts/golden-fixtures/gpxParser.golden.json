@@ -1,0 +1,2829 @@
+{
+  "schemaVersion": 1,
+  "engine": "gpxParser",
+  "sourceFiles": [
+    "src/utils/gpxParser.ts",
+    "src/utils/routeFileParser.ts"
+  ],
+  "determinism": {
+    "frozenUtc": "2026-11-26T12:00:00.000Z",
+    "timezone": "Europe/Paris"
+  },
+  "cases": [
+    {
+      "id": "gpx-point-to-point-arrow",
+      "description": "GPX point-to-point track with arrow-delimited name and elevation points",
+      "input": {
+        "fileNameHint": "nantes_ancenis.gpx",
+        "gpxText": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<gpx version=\"1.1\" creator=\"CadenceTest\">\n  <trk>\n    <name>Nantes -&gt; Ancenis</name>\n    <trkseg>\n      <trkpt lat=\"47.2184\" lon=\"-1.5536\"><ele>10</ele></trkpt>\n      <trkpt lat=\"47.2400\" lon=\"-1.4500\"><ele>120</ele></trkpt>\n      <trkpt lat=\"47.2600\" lon=\"-1.3500\"><ele>150</ele></trkpt>\n      <trkpt lat=\"47.2900\" lon=\"-1.2800\"><ele>40</ele></trkpt>\n      <trkpt lat=\"47.3200\" lon=\"-1.2200\"><ele>20</ele></trkpt>\n      <trkpt lat=\"47.3667\" lon=\"-1.1833\"><ele>90</ele></trkpt>\n    </trkseg>\n  </trk>\n</gpx>"
+      },
+      "expected": {
+        "trackName": "Nantes -&gt; Ancenis",
+        "originLabel": "Nantes -&gt; Ancenis (Start)",
+        "destLabel": "Nantes -&gt; Ancenis (Finish)",
+        "coordinates": [
+          [
+            47.2184,
+            -1.5536
+          ],
+          [
+            47.24,
+            -1.45
+          ],
+          [
+            47.26,
+            -1.35
+          ],
+          [
+            47.29,
+            -1.28
+          ],
+          [
+            47.32,
+            -1.22
+          ],
+          [
+            47.3667,
+            -1.1833
+          ]
+        ],
+        "distanceKm": 33.8,
+        "elevationGainM": 16,
+        "elevationLossM": 59,
+        "elevationProfile": [
+          {
+            "distKm": 0,
+            "eleM": 93.3,
+            "gradePct": 0,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 2.113,
+            "eleM": 89.9,
+            "gradePct": -0.2,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 4.225,
+            "eleM": 86.4,
+            "gradePct": -0.2,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 6.338,
+            "eleM": 83,
+            "gradePct": -0.2,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 8.451,
+            "eleM": 79.6,
+            "gradePct": -0.2,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 10.563,
+            "eleM": 76.4,
+            "gradePct": -0.2,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 12.676,
+            "eleM": 73.1,
+            "gradePct": -0.2,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 14.789,
+            "eleM": 69.9,
+            "gradePct": -0.2,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 16.901,
+            "eleM": 70.2,
+            "gradePct": 0,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 19.014,
+            "eleM": 75.6,
+            "gradePct": 0.3,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 21.126,
+            "eleM": 81,
+            "gradePct": 0.3,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 23.239,
+            "eleM": 82.5,
+            "gradePct": 0.1,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 25.352,
+            "eleM": 79.1,
+            "gradePct": -0.2,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 27.464,
+            "eleM": 75.7,
+            "gradePct": -0.2,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 29.577,
+            "eleM": 68,
+            "gradePct": -0.4,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 31.69,
+            "eleM": 59,
+            "gradePct": -0.4,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 33.802,
+            "eleM": 50,
+            "gradePct": -0.4,
+            "surfaceType": "paved"
+          }
+        ],
+        "terrainSummary": {
+          "flatPct": 100,
+          "rollingPct": 0,
+          "climbPct": 0,
+          "descentPct": 0,
+          "maxGradePct": 0.5,
+          "minEleM": 50,
+          "maxEleM": 93,
+          "surfaceLabel": "road",
+          "difficultyLevel": "easy",
+          "pavedPct": 100,
+          "gravelPct": 0,
+          "singletrackPct": 0,
+          "surfaceBreakdown": {
+            "pavedPct": 100,
+            "gravelPct": 0,
+            "singletrackPct": 0,
+            "pavedKm": 33.8,
+            "gravelKm": 0,
+            "singletrackKm": 0,
+            "weightedCrr": 0.0042,
+            "segments": [
+              {
+                "id": "surf-seg-1",
+                "type": "paved",
+                "startKm": 0,
+                "endKm": 33.8,
+                "distanceKm": 33.8,
+                "startPct": 0,
+                "endPct": 100,
+                "startCoordIdx": 0,
+                "endCoordIdx": 72,
+                "coordinates": [
+                  [
+                    47.2184,
+                    -1.5536
+                  ],
+                  [
+                    47.219671,
+                    -1.547506
+                  ],
+                  [
+                    47.220941,
+                    -1.541412
+                  ],
+                  [
+                    47.222212,
+                    -1.535318
+                  ],
+                  [
+                    47.223482,
+                    -1.529224
+                  ],
+                  [
+                    47.224753,
+                    -1.523129
+                  ],
+                  [
+                    47.226024,
+                    -1.517035
+                  ],
+                  [
+                    47.227294,
+                    -1.510941
+                  ],
+                  [
+                    47.228565,
+                    -1.504847
+                  ],
+                  [
+                    47.229835,
+                    -1.498753
+                  ],
+                  [
+                    47.231106,
+                    -1.492659
+                  ],
+                  [
+                    47.232376,
+                    -1.486565
+                  ],
+                  [
+                    47.233647,
+                    -1.480471
+                  ],
+                  [
+                    47.234918,
+                    -1.474376
+                  ],
+                  [
+                    47.236188,
+                    -1.468282
+                  ],
+                  [
+                    47.237459,
+                    -1.462188
+                  ],
+                  [
+                    47.238729,
+                    -1.456094
+                  ],
+                  [
+                    47.24,
+                    -1.45
+                  ],
+                  [
+                    47.241176,
+                    -1.444118
+                  ],
+                  [
+                    47.242353,
+                    -1.438235
+                  ],
+                  [
+                    47.243529,
+                    -1.432353
+                  ],
+                  [
+                    47.244706,
+                    -1.426471
+                  ],
+                  [
+                    47.245882,
+                    -1.420588
+                  ],
+                  [
+                    47.247059,
+                    -1.414706
+                  ],
+                  [
+                    47.248235,
+                    -1.408824
+                  ],
+                  [
+                    47.249412,
+                    -1.402941
+                  ],
+                  [
+                    47.250588,
+                    -1.397059
+                  ],
+                  [
+                    47.251765,
+                    -1.391176
+                  ],
+                  [
+                    47.252941,
+                    -1.385294
+                  ],
+                  [
+                    47.254118,
+                    -1.379412
+                  ],
+                  [
+                    47.255294,
+                    -1.373529
+                  ],
+                  [
+                    47.256471,
+                    -1.367647
+                  ],
+                  [
+                    47.257647,
+                    -1.361765
+                  ],
+                  [
+                    47.258824,
+                    -1.355882
+                  ],
+                  [
+                    47.26,
+                    -1.35
+                  ],
+                  [
+                    47.262308,
+                    -1.344615
+                  ],
+                  [
+                    47.264615,
+                    -1.339231
+                  ],
+                  [
+                    47.266923,
+                    -1.333846
+                  ],
+                  [
+                    47.269231,
+                    -1.328462
+                  ],
+                  [
+                    47.271538,
+                    -1.323077
+                  ],
+                  [
+                    47.273846,
+                    -1.317692
+                  ],
+                  [
+                    47.276154,
+                    -1.312308
+                  ],
+                  [
+                    47.278462,
+                    -1.306923
+                  ],
+                  [
+                    47.280769,
+                    -1.301538
+                  ],
+                  [
+                    47.283077,
+                    -1.296154
+                  ],
+                  [
+                    47.285385,
+                    -1.290769
+                  ],
+                  [
+                    47.287692,
+                    -1.285385
+                  ],
+                  [
+                    47.29,
+                    -1.28
+                  ],
+                  [
+                    47.2925,
+                    -1.275
+                  ],
+                  [
+                    47.295,
+                    -1.27
+                  ],
+                  [
+                    47.2975,
+                    -1.265
+                  ],
+                  [
+                    47.3,
+                    -1.26
+                  ],
+                  [
+                    47.3025,
+                    -1.255
+                  ],
+                  [
+                    47.305,
+                    -1.25
+                  ],
+                  [
+                    47.3075,
+                    -1.245
+                  ],
+                  [
+                    47.31,
+                    -1.24
+                  ],
+                  [
+                    47.3125,
+                    -1.235
+                  ],
+                  [
+                    47.315,
+                    -1.23
+                  ],
+                  [
+                    47.3175,
+                    -1.225
+                  ],
+                  [
+                    47.32,
+                    -1.22
+                  ],
+                  [
+                    47.323592,
+                    -1.217177
+                  ],
+                  [
+                    47.327185,
+                    -1.214354
+                  ],
+                  [
+                    47.330777,
+                    -1.211531
+                  ],
+                  [
+                    47.334369,
+                    -1.208708
+                  ],
+                  [
+                    47.337962,
+                    -1.205885
+                  ],
+                  [
+                    47.341554,
+                    -1.203062
+                  ],
+                  [
+                    47.345146,
+                    -1.200238
+                  ],
+                  [
+                    47.348738,
+                    -1.197415
+                  ],
+                  [
+                    47.352331,
+                    -1.194592
+                  ],
+                  [
+                    47.355923,
+                    -1.191769
+                  ],
+                  [
+                    47.359515,
+                    -1.188946
+                  ],
+                  [
+                    47.363108,
+                    -1.186123
+                  ],
+                  [
+                    47.3667,
+                    -1.1833
+                  ]
+                ],
+                "nameEn": "(Estimated) Paved Road Corridor",
+                "nameFr": "(Estimé) Parcours Routier Bitumé",
+                "surfaceDetailEn": "Estimated paved road — sync OSM surface data for exact sector breakdown",
+                "surfaceDetailFr": "Bitume estimé — chargez la surface OSM pour le détail exact par secteur",
+                "avgGradePct": 0.2,
+                "maxGradePct": 1.5,
+                "effectiveCrr": 0.0042,
+                "technicality": "smooth",
+                "suitability38c": "ideal",
+                "riderNoteEn": "Paved baseline assumed until live OpenStreetMap surface tags load.",
+                "riderNoteFr": "Hypothèse bitume retenue en attendant les données OpenStreetMap."
+              }
+            ],
+            "pointSurfaces": [
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved"
+            ],
+            "suitability": {
+              "overallLevel": "ideal",
+              "scorePct": 95,
+              "tireWidthMm": 38,
+              "isTubeless": true,
+              "recommendedFrontBar": 2.8,
+              "recommendedRearBar": 3.4,
+              "frontLoadPct": 44,
+              "rearLoadPct": 56,
+              "hooklessCapped": false,
+              "headlineEn": "Ideal for 38c Gravel Setup",
+              "headlineFr": "Idéal pour montage Gravel 38c",
+              "summaryEn": "100% paved route rolls fast and effortlessly on 38c tires (2.8/3.4 bar).",
+              "summaryFr": "Parcours 100 % bitumé très fluide en pneus 38c (2,8/3,4 bar).",
+              "unpavedCount": 0,
+              "technicalCount": 0,
+              "maxUnpavedStretchKm": 0
+            },
+            "dataSource": "heuristic-fallback"
+          }
+        }
+      }
+    },
+    {
+      "id": "gpx-loop-no-ele",
+      "description": "Closed loop GPX (>4 km) without <ele> tags triggering synthetic profile fallback",
+      "input": {
+        "gpxText": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<gpx version=\"1.1\">\n  <trk>\n    <name>Sunday Loop</name>\n    <trkseg>\n      <trkpt lat=\"47.2184\" lon=\"-1.5536\"></trkpt>\n      <trkpt lat=\"47.2550\" lon=\"-1.4950\"></trkpt>\n      <trkpt lat=\"47.2350\" lon=\"-1.4600\"></trkpt>\n      <trkpt lat=\"47.2190\" lon=\"-1.5530\"></trkpt>\n    </trkseg>\n  </trk>\n</gpx>"
+      },
+      "expected": {
+        "trackName": "Sunday Loop",
+        "originLabel": "Sunday Loop",
+        "destLabel": "Sunday Loop (Loop)",
+        "coordinates": [
+          [
+            47.2184,
+            -1.5536
+          ],
+          [
+            47.255,
+            -1.495
+          ],
+          [
+            47.235,
+            -1.46
+          ],
+          [
+            47.219,
+            -1.553
+          ]
+        ],
+        "distanceKm": 16.7,
+        "elevationGainM": 100,
+        "elevationLossM": 100,
+        "elevationProfile": [
+          {
+            "distKm": 0,
+            "eleM": 83.3,
+            "gradePct": 0,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 0.35,
+            "eleM": 74.1,
+            "gradePct": -2.6,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 0.7,
+            "eleM": 61.5,
+            "gradePct": -3.6,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 1.04,
+            "eleM": 47.4,
+            "gradePct": -4.1,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 1.39,
+            "eleM": 34.1,
+            "gradePct": -3.8,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 1.74,
+            "eleM": 24,
+            "gradePct": -2.9,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 2.09,
+            "eleM": 18.5,
+            "gradePct": -1.6,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 2.44,
+            "eleM": 18,
+            "gradePct": -0.1,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 2.78,
+            "eleM": 21.6,
+            "gradePct": 1.1,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 3.13,
+            "eleM": 27.6,
+            "gradePct": 1.7,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 3.48,
+            "eleM": 34.2,
+            "gradePct": 1.9,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 3.83,
+            "eleM": 39.5,
+            "gradePct": 1.5,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 4.17,
+            "eleM": 42.8,
+            "gradePct": 1,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 4.52,
+            "eleM": 44.1,
+            "gradePct": 0.4,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 4.87,
+            "eleM": 44,
+            "gradePct": 0,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 5.22,
+            "eleM": 43.9,
+            "gradePct": 0,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 5.57,
+            "eleM": 44.7,
+            "gradePct": 0.2,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 5.91,
+            "eleM": 46.9,
+            "gradePct": 0.6,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 6.26,
+            "eleM": 50.3,
+            "gradePct": 1,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 6.61,
+            "eleM": 53.9,
+            "gradePct": 1,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 6.96,
+            "eleM": 56.5,
+            "gradePct": 0.7,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 7.31,
+            "eleM": 57.2,
+            "gradePct": 0.2,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 7.65,
+            "eleM": 55.8,
+            "gradePct": -0.4,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 8,
+            "eleM": 52.8,
+            "gradePct": -0.9,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 8.35,
+            "eleM": 49.5,
+            "gradePct": -0.9,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 8.7,
+            "eleM": 47.9,
+            "gradePct": -0.5,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 9.05,
+            "eleM": 49.5,
+            "gradePct": 0.5,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 9.39,
+            "eleM": 55.2,
+            "gradePct": 1.7,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 9.74,
+            "eleM": 64.8,
+            "gradePct": 2.7,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 10.09,
+            "eleM": 77,
+            "gradePct": 3.5,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 10.44,
+            "eleM": 89.6,
+            "gradePct": 3.6,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 10.79,
+            "eleM": 100.2,
+            "gradePct": 3,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 11.13,
+            "eleM": 106.8,
+            "gradePct": 1.9,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 11.48,
+            "eleM": 108.3,
+            "gradePct": 0.4,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 11.83,
+            "eleM": 104.9,
+            "gradePct": -1,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 12.18,
+            "eleM": 97.8,
+            "gradePct": -2,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 12.52,
+            "eleM": 88.8,
+            "gradePct": -2.6,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 12.87,
+            "eleM": 79.9,
+            "gradePct": -2.5,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 13.22,
+            "eleM": 72.6,
+            "gradePct": -2.1,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 13.57,
+            "eleM": 67.6,
+            "gradePct": -1.4,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 13.92,
+            "eleM": 64.7,
+            "gradePct": -0.8,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 14.26,
+            "eleM": 62.8,
+            "gradePct": -0.6,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 14.61,
+            "eleM": 60.8,
+            "gradePct": -0.6,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 14.96,
+            "eleM": 58,
+            "gradePct": -0.8,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 15.31,
+            "eleM": 54.1,
+            "gradePct": -1.1,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 15.66,
+            "eleM": 49.7,
+            "gradePct": -1.3,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 16,
+            "eleM": 45.8,
+            "gradePct": -1.1,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 16.35,
+            "eleM": 43.5,
+            "gradePct": -0.7,
+            "surfaceType": "paved"
+          },
+          {
+            "distKm": 16.7,
+            "eleM": 43.8,
+            "gradePct": 0.1,
+            "surfaceType": "paved"
+          }
+        ],
+        "terrainSummary": {
+          "flatPct": 63,
+          "rollingPct": 17,
+          "climbPct": 0,
+          "descentPct": 20,
+          "maxGradePct": 3.6,
+          "minEleM": 18,
+          "maxEleM": 108,
+          "surfaceLabel": "road",
+          "difficultyLevel": "moderate",
+          "pavedPct": 100,
+          "gravelPct": 0,
+          "singletrackPct": 0,
+          "surfaceBreakdown": {
+            "pavedPct": 100,
+            "gravelPct": 0,
+            "singletrackPct": 0,
+            "pavedKm": 16.7,
+            "gravelKm": 0,
+            "singletrackKm": 0,
+            "weightedCrr": 0.0042,
+            "segments": [
+              {
+                "id": "surf-seg-1",
+                "type": "paved",
+                "startKm": 0,
+                "endKm": 16.7,
+                "distanceKm": 16.7,
+                "startPct": 0,
+                "endPct": 100,
+                "startCoordIdx": 0,
+                "endCoordIdx": 72,
+                "coordinates": [
+                  [
+                    47.2184,
+                    -1.5536
+                  ],
+                  [
+                    47.219808,
+                    -1.551346
+                  ],
+                  [
+                    47.221215,
+                    -1.549092
+                  ],
+                  [
+                    47.222623,
+                    -1.546838
+                  ],
+                  [
+                    47.224031,
+                    -1.544585
+                  ],
+                  [
+                    47.225438,
+                    -1.542331
+                  ],
+                  [
+                    47.226846,
+                    -1.540077
+                  ],
+                  [
+                    47.228254,
+                    -1.537823
+                  ],
+                  [
+                    47.229662,
+                    -1.535569
+                  ],
+                  [
+                    47.231069,
+                    -1.533315
+                  ],
+                  [
+                    47.232477,
+                    -1.531062
+                  ],
+                  [
+                    47.233885,
+                    -1.528808
+                  ],
+                  [
+                    47.235292,
+                    -1.526554
+                  ],
+                  [
+                    47.2367,
+                    -1.5243
+                  ],
+                  [
+                    47.238108,
+                    -1.522046
+                  ],
+                  [
+                    47.239515,
+                    -1.519792
+                  ],
+                  [
+                    47.240923,
+                    -1.517538
+                  ],
+                  [
+                    47.242331,
+                    -1.515285
+                  ],
+                  [
+                    47.243738,
+                    -1.513031
+                  ],
+                  [
+                    47.245146,
+                    -1.510777
+                  ],
+                  [
+                    47.246554,
+                    -1.508523
+                  ],
+                  [
+                    47.247962,
+                    -1.506269
+                  ],
+                  [
+                    47.249369,
+                    -1.504015
+                  ],
+                  [
+                    47.250777,
+                    -1.501762
+                  ],
+                  [
+                    47.252185,
+                    -1.499508
+                  ],
+                  [
+                    47.253592,
+                    -1.497254
+                  ],
+                  [
+                    47.255,
+                    -1.495
+                  ],
+                  [
+                    47.253667,
+                    -1.492667
+                  ],
+                  [
+                    47.252333,
+                    -1.490333
+                  ],
+                  [
+                    47.251,
+                    -1.488
+                  ],
+                  [
+                    47.249667,
+                    -1.485667
+                  ],
+                  [
+                    47.248333,
+                    -1.483333
+                  ],
+                  [
+                    47.247,
+                    -1.481
+                  ],
+                  [
+                    47.245667,
+                    -1.478667
+                  ],
+                  [
+                    47.244333,
+                    -1.476333
+                  ],
+                  [
+                    47.243,
+                    -1.474
+                  ],
+                  [
+                    47.241667,
+                    -1.471667
+                  ],
+                  [
+                    47.240333,
+                    -1.469333
+                  ],
+                  [
+                    47.239,
+                    -1.467
+                  ],
+                  [
+                    47.237667,
+                    -1.464667
+                  ],
+                  [
+                    47.236333,
+                    -1.462333
+                  ],
+                  [
+                    47.235,
+                    -1.46
+                  ],
+                  [
+                    47.234484,
+                    -1.463
+                  ],
+                  [
+                    47.233968,
+                    -1.466
+                  ],
+                  [
+                    47.233452,
+                    -1.469
+                  ],
+                  [
+                    47.232935,
+                    -1.472
+                  ],
+                  [
+                    47.232419,
+                    -1.475
+                  ],
+                  [
+                    47.231903,
+                    -1.478
+                  ],
+                  [
+                    47.231387,
+                    -1.481
+                  ],
+                  [
+                    47.230871,
+                    -1.484
+                  ],
+                  [
+                    47.230355,
+                    -1.487
+                  ],
+                  [
+                    47.229839,
+                    -1.49
+                  ],
+                  [
+                    47.229323,
+                    -1.493
+                  ],
+                  [
+                    47.228806,
+                    -1.496
+                  ],
+                  [
+                    47.22829,
+                    -1.499
+                  ],
+                  [
+                    47.227774,
+                    -1.502
+                  ],
+                  [
+                    47.227258,
+                    -1.505
+                  ],
+                  [
+                    47.226742,
+                    -1.508
+                  ],
+                  [
+                    47.226226,
+                    -1.511
+                  ],
+                  [
+                    47.22571,
+                    -1.514
+                  ],
+                  [
+                    47.225194,
+                    -1.517
+                  ],
+                  [
+                    47.224677,
+                    -1.52
+                  ],
+                  [
+                    47.224161,
+                    -1.523
+                  ],
+                  [
+                    47.223645,
+                    -1.526
+                  ],
+                  [
+                    47.223129,
+                    -1.529
+                  ],
+                  [
+                    47.222613,
+                    -1.532
+                  ],
+                  [
+                    47.222097,
+                    -1.535
+                  ],
+                  [
+                    47.221581,
+                    -1.538
+                  ],
+                  [
+                    47.221065,
+                    -1.541
+                  ],
+                  [
+                    47.220548,
+                    -1.544
+                  ],
+                  [
+                    47.220032,
+                    -1.547
+                  ],
+                  [
+                    47.219516,
+                    -1.55
+                  ],
+                  [
+                    47.219,
+                    -1.553
+                  ]
+                ],
+                "nameEn": "(Estimated) Paved Road Corridor",
+                "nameFr": "(Estimé) Parcours Routier Bitumé",
+                "surfaceDetailEn": "Estimated paved road — sync OSM surface data for exact sector breakdown",
+                "surfaceDetailFr": "Bitume estimé — chargez la surface OSM pour le détail exact par secteur",
+                "avgGradePct": 1.4,
+                "maxGradePct": 4.1,
+                "effectiveCrr": 0.0042,
+                "technicality": "smooth",
+                "suitability38c": "ideal",
+                "riderNoteEn": "Paved baseline assumed until live OpenStreetMap surface tags load.",
+                "riderNoteFr": "Hypothèse bitume retenue en attendant les données OpenStreetMap."
+              }
+            ],
+            "pointSurfaces": [
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved"
+            ],
+            "suitability": {
+              "overallLevel": "ideal",
+              "scorePct": 95,
+              "tireWidthMm": 38,
+              "isTubeless": true,
+              "recommendedFrontBar": 2.8,
+              "recommendedRearBar": 3.4,
+              "frontLoadPct": 44,
+              "rearLoadPct": 56,
+              "hooklessCapped": false,
+              "headlineEn": "Ideal for 38c Gravel Setup",
+              "headlineFr": "Idéal pour montage Gravel 38c",
+              "summaryEn": "100% paved route rolls fast and effortlessly on 38c tires (2.8/3.4 bar).",
+              "summaryFr": "Parcours 100 % bitumé très fluide en pneus 38c (2,8/3,4 bar).",
+              "unpavedCount": 0,
+              "technicalCount": 0,
+              "maxUnpavedStretchKm": 0
+            },
+            "dataSource": "heuristic-fallback"
+          }
+        }
+      }
+    },
+    {
+      "id": "synthesize-route-profile",
+      "description": "Synthetic elevation profile and terrain summary generation from RouteParams",
+      "input": {
+        "route": {
+          "origin": "Nantes",
+          "destination": "Clisson",
+          "distanceKm": 42,
+          "elevationGainM": 380,
+          "targetSpeedKmH": 24,
+          "urbanTrafficDelayMinutes": 5,
+          "gateSecurityDelayMinutes": 0
+        }
+      },
+      "expected": {
+        "synthesized": {
+          "elevationProfile": [
+            {
+              "distKm": 0,
+              "eleM": 270.5,
+              "gradePct": 0,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 0.88,
+              "eleM": 239.8,
+              "gradePct": -3.5,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 1.75,
+              "eleM": 194.6,
+              "gradePct": -5.2,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 2.63,
+              "eleM": 141.9,
+              "gradePct": -6,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 3.5,
+              "eleM": 90.8,
+              "gradePct": -5.9,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 4.38,
+              "eleM": 49.8,
+              "gradePct": -4.7,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 5.25,
+              "eleM": 25,
+              "gradePct": -2.9,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 6.13,
+              "eleM": 18,
+              "gradePct": -0.8,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 7,
+              "eleM": 26.5,
+              "gradePct": 1,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 7.88,
+              "eleM": 44.7,
+              "gradePct": 2.1,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 8.75,
+              "eleM": 65.9,
+              "gradePct": 2.4,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 9.63,
+              "eleM": 84,
+              "gradePct": 2.1,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 10.5,
+              "eleM": 95.9,
+              "gradePct": 1.4,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 11.38,
+              "eleM": 101.5,
+              "gradePct": 0.6,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 12.25,
+              "eleM": 103.7,
+              "gradePct": 0.3,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 13.13,
+              "eleM": 106.5,
+              "gradePct": 0.3,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 14,
+              "eleM": 113.3,
+              "gradePct": 0.8,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 14.88,
+              "eleM": 125.5,
+              "gradePct": 1.4,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 15.75,
+              "eleM": 141.6,
+              "gradePct": 1.9,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 16.63,
+              "eleM": 157.8,
+              "gradePct": 1.8,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 17.5,
+              "eleM": 169.2,
+              "gradePct": 1.3,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 18.38,
+              "eleM": 172.2,
+              "gradePct": 0.3,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 19.25,
+              "eleM": 165.5,
+              "gradePct": -0.8,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 20.13,
+              "eleM": 151.5,
+              "gradePct": -1.6,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 21,
+              "eleM": 135.7,
+              "gradePct": -1.8,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 21.88,
+              "eleM": 125.2,
+              "gradePct": -1.2,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 22.75,
+              "eleM": 126.7,
+              "gradePct": 0.2,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 23.63,
+              "eleM": 144,
+              "gradePct": 2,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 24.5,
+              "eleM": 177.2,
+              "gradePct": 3.8,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 25.38,
+              "eleM": 221.5,
+              "gradePct": 5,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 26.25,
+              "eleM": 269.2,
+              "gradePct": 5.5,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 27.13,
+              "eleM": 311.2,
+              "gradePct": 4.8,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 28,
+              "eleM": 339.7,
+              "gradePct": 3.3,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 28.88,
+              "eleM": 350.2,
+              "gradePct": 1.2,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 29.75,
+              "eleM": 342.6,
+              "gradePct": -0.9,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 30.63,
+              "eleM": 320.7,
+              "gradePct": -2.5,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 31.5,
+              "eleM": 291,
+              "gradePct": -3.4,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 32.38,
+              "eleM": 260.6,
+              "gradePct": -3.5,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 33.25,
+              "eleM": 234.8,
+              "gradePct": -3,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 34.13,
+              "eleM": 215.9,
+              "gradePct": -2.1,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 35,
+              "eleM": 203.2,
+              "gradePct": -1.5,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 35.88,
+              "eleM": 193.3,
+              "gradePct": -1.1,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 36.75,
+              "eleM": 182.4,
+              "gradePct": -1.3,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 37.63,
+              "eleM": 167.8,
+              "gradePct": -1.7,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 38.5,
+              "eleM": 149.1,
+              "gradePct": -2.1,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 39.38,
+              "eleM": 128.8,
+              "gradePct": -2.3,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 40.25,
+              "eleM": 111.4,
+              "gradePct": -2,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 41.13,
+              "eleM": 101.5,
+              "gradePct": -1.1,
+              "surfaceType": "paved"
+            },
+            {
+              "distKm": 42,
+              "eleM": 102.3,
+              "gradePct": 0.1,
+              "surfaceType": "paved"
+            }
+          ],
+          "terrainSummary": {
+            "flatPct": 42,
+            "rollingPct": 17,
+            "climbPct": 6,
+            "descentPct": 35,
+            "maxGradePct": 5.5,
+            "minEleM": 18,
+            "maxEleM": 350,
+            "surfaceLabel": "road",
+            "difficultyLevel": "moderate",
+            "pavedPct": 100,
+            "gravelPct": 0,
+            "singletrackPct": 0,
+            "surfaceBreakdown": {
+              "pavedPct": 100,
+              "gravelPct": 0,
+              "singletrackPct": 0,
+              "pavedKm": 42,
+              "gravelKm": 0,
+              "singletrackKm": 0,
+              "weightedCrr": 0.0042,
+              "segments": [
+                {
+                  "id": "surf-seg-1",
+                  "type": "paved",
+                  "startKm": 0,
+                  "endKm": 42,
+                  "distanceKm": 42,
+                  "startPct": 0,
+                  "endPct": 100,
+                  "startCoordIdx": 0,
+                  "endCoordIdx": 72,
+                  "coordinates": [
+                    [
+                      47.2184,
+                      -1.5536
+                    ],
+                    [
+                      47.21572,
+                      -1.56288
+                    ],
+                    [
+                      47.21304,
+                      -1.57216
+                    ],
+                    [
+                      47.21036,
+                      -1.58144
+                    ],
+                    [
+                      47.20768,
+                      -1.59072
+                    ],
+                    [
+                      47.205,
+                      -1.6
+                    ],
+                    [
+                      47.207143,
+                      -1.608571
+                    ],
+                    [
+                      47.209286,
+                      -1.617143
+                    ],
+                    [
+                      47.211429,
+                      -1.625714
+                    ],
+                    [
+                      47.213571,
+                      -1.634286
+                    ],
+                    [
+                      47.215714,
+                      -1.642857
+                    ],
+                    [
+                      47.217857,
+                      -1.651429
+                    ],
+                    [
+                      47.22,
+                      -1.66
+                    ],
+                    [
+                      47.222143,
+                      -1.668571
+                    ],
+                    [
+                      47.224286,
+                      -1.677143
+                    ],
+                    [
+                      47.226429,
+                      -1.685714
+                    ],
+                    [
+                      47.228571,
+                      -1.694286
+                    ],
+                    [
+                      47.230714,
+                      -1.702857
+                    ],
+                    [
+                      47.232857,
+                      -1.711429
+                    ],
+                    [
+                      47.235,
+                      -1.72
+                    ],
+                    [
+                      47.236,
+                      -1.729333
+                    ],
+                    [
+                      47.237,
+                      -1.738667
+                    ],
+                    [
+                      47.238,
+                      -1.748
+                    ],
+                    [
+                      47.239,
+                      -1.757333
+                    ],
+                    [
+                      47.24,
+                      -1.766667
+                    ],
+                    [
+                      47.241,
+                      -1.776
+                    ],
+                    [
+                      47.242,
+                      -1.785333
+                    ],
+                    [
+                      47.243,
+                      -1.794667
+                    ],
+                    [
+                      47.244,
+                      -1.804
+                    ],
+                    [
+                      47.245,
+                      -1.813333
+                    ],
+                    [
+                      47.246,
+                      -1.822667
+                    ],
+                    [
+                      47.247,
+                      -1.832
+                    ],
+                    [
+                      47.248,
+                      -1.841333
+                    ],
+                    [
+                      47.249,
+                      -1.850667
+                    ],
+                    [
+                      47.25,
+                      -1.86
+                    ],
+                    [
+                      47.251429,
+                      -1.869048
+                    ],
+                    [
+                      47.252857,
+                      -1.878095
+                    ],
+                    [
+                      47.254286,
+                      -1.887143
+                    ],
+                    [
+                      47.255714,
+                      -1.89619
+                    ],
+                    [
+                      47.257143,
+                      -1.905238
+                    ],
+                    [
+                      47.258571,
+                      -1.914286
+                    ],
+                    [
+                      47.26,
+                      -1.923333
+                    ],
+                    [
+                      47.261429,
+                      -1.932381
+                    ],
+                    [
+                      47.262857,
+                      -1.941429
+                    ],
+                    [
+                      47.264286,
+                      -1.950476
+                    ],
+                    [
+                      47.265714,
+                      -1.959524
+                    ],
+                    [
+                      47.267143,
+                      -1.968571
+                    ],
+                    [
+                      47.268571,
+                      -1.977619
+                    ],
+                    [
+                      47.27,
+                      -1.986667
+                    ],
+                    [
+                      47.271429,
+                      -1.995714
+                    ],
+                    [
+                      47.272857,
+                      -2.004762
+                    ],
+                    [
+                      47.274286,
+                      -2.01381
+                    ],
+                    [
+                      47.275714,
+                      -2.022857
+                    ],
+                    [
+                      47.277143,
+                      -2.031905
+                    ],
+                    [
+                      47.278571,
+                      -2.040952
+                    ],
+                    [
+                      47.28,
+                      -2.05
+                    ],
+                    [
+                      47.2795,
+                      -2.059286
+                    ],
+                    [
+                      47.279,
+                      -2.068571
+                    ],
+                    [
+                      47.2785,
+                      -2.077857
+                    ],
+                    [
+                      47.278,
+                      -2.087143
+                    ],
+                    [
+                      47.2775,
+                      -2.096429
+                    ],
+                    [
+                      47.277,
+                      -2.105714
+                    ],
+                    [
+                      47.2765,
+                      -2.115
+                    ],
+                    [
+                      47.276,
+                      -2.124286
+                    ],
+                    [
+                      47.2755,
+                      -2.133571
+                    ],
+                    [
+                      47.275,
+                      -2.142857
+                    ],
+                    [
+                      47.2745,
+                      -2.152143
+                    ],
+                    [
+                      47.274,
+                      -2.161429
+                    ],
+                    [
+                      47.2735,
+                      -2.170714
+                    ],
+                    [
+                      47.273,
+                      -2.18
+                    ],
+                    [
+                      47.276667,
+                      -2.189333
+                    ],
+                    [
+                      47.280333,
+                      -2.198667
+                    ],
+                    [
+                      47.284,
+                      -2.208
+                    ]
+                  ],
+                  "nameEn": "(Estimated) Paved Road Corridor",
+                  "nameFr": "(Estimé) Parcours Routier Bitumé",
+                  "surfaceDetailEn": "Estimated paved road — sync OSM surface data for exact sector breakdown",
+                  "surfaceDetailFr": "Bitume estimé — chargez la surface OSM pour le détail exact par secteur",
+                  "avgGradePct": 2.2,
+                  "maxGradePct": 6,
+                  "effectiveCrr": 0.0042,
+                  "technicality": "smooth",
+                  "suitability38c": "ideal",
+                  "riderNoteEn": "Paved baseline assumed until live OpenStreetMap surface tags load.",
+                  "riderNoteFr": "Hypothèse bitume retenue en attendant les données OpenStreetMap."
+                }
+              ],
+              "pointSurfaces": [
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved",
+                "paved"
+              ],
+              "suitability": {
+                "overallLevel": "ideal",
+                "scorePct": 95,
+                "tireWidthMm": 38,
+                "isTubeless": true,
+                "recommendedFrontBar": 2.8,
+                "recommendedRearBar": 3.4,
+                "frontLoadPct": 44,
+                "rearLoadPct": 56,
+                "hooklessCapped": false,
+                "headlineEn": "Ideal for 38c Gravel Setup",
+                "headlineFr": "Idéal pour montage Gravel 38c",
+                "summaryEn": "100% paved route rolls fast and effortlessly on 38c tires (2.8/3.4 bar).",
+                "summaryFr": "Parcours 100 % bitumé très fluide en pneus 38c (2,8/3,4 bar).",
+                "unpavedCount": 0,
+                "technicalCount": 0,
+                "maxUnpavedStretchKm": 0
+              },
+              "dataSource": "heuristic-fallback"
+            }
+          }
+        },
+        "terrainSummary": {
+          "flatPct": 42,
+          "rollingPct": 17,
+          "climbPct": 6,
+          "descentPct": 35,
+          "maxGradePct": 5.5,
+          "minEleM": 18,
+          "maxEleM": 350,
+          "surfaceLabel": "road",
+          "difficultyLevel": "moderate",
+          "pavedPct": 100,
+          "gravelPct": 0,
+          "singletrackPct": 0,
+          "surfaceBreakdown": {
+            "pavedPct": 100,
+            "gravelPct": 0,
+            "singletrackPct": 0,
+            "pavedKm": 42,
+            "gravelKm": 0,
+            "singletrackKm": 0,
+            "weightedCrr": 0.0042,
+            "segments": [
+              {
+                "id": "surf-seg-1",
+                "type": "paved",
+                "startKm": 0,
+                "endKm": 42,
+                "distanceKm": 42,
+                "startPct": 0,
+                "endPct": 100,
+                "startCoordIdx": 0,
+                "endCoordIdx": 72,
+                "coordinates": [
+                  [
+                    47.2184,
+                    -1.5536
+                  ],
+                  [
+                    47.21572,
+                    -1.56288
+                  ],
+                  [
+                    47.21304,
+                    -1.57216
+                  ],
+                  [
+                    47.21036,
+                    -1.58144
+                  ],
+                  [
+                    47.20768,
+                    -1.59072
+                  ],
+                  [
+                    47.205,
+                    -1.6
+                  ],
+                  [
+                    47.207143,
+                    -1.608571
+                  ],
+                  [
+                    47.209286,
+                    -1.617143
+                  ],
+                  [
+                    47.211429,
+                    -1.625714
+                  ],
+                  [
+                    47.213571,
+                    -1.634286
+                  ],
+                  [
+                    47.215714,
+                    -1.642857
+                  ],
+                  [
+                    47.217857,
+                    -1.651429
+                  ],
+                  [
+                    47.22,
+                    -1.66
+                  ],
+                  [
+                    47.222143,
+                    -1.668571
+                  ],
+                  [
+                    47.224286,
+                    -1.677143
+                  ],
+                  [
+                    47.226429,
+                    -1.685714
+                  ],
+                  [
+                    47.228571,
+                    -1.694286
+                  ],
+                  [
+                    47.230714,
+                    -1.702857
+                  ],
+                  [
+                    47.232857,
+                    -1.711429
+                  ],
+                  [
+                    47.235,
+                    -1.72
+                  ],
+                  [
+                    47.236,
+                    -1.729333
+                  ],
+                  [
+                    47.237,
+                    -1.738667
+                  ],
+                  [
+                    47.238,
+                    -1.748
+                  ],
+                  [
+                    47.239,
+                    -1.757333
+                  ],
+                  [
+                    47.24,
+                    -1.766667
+                  ],
+                  [
+                    47.241,
+                    -1.776
+                  ],
+                  [
+                    47.242,
+                    -1.785333
+                  ],
+                  [
+                    47.243,
+                    -1.794667
+                  ],
+                  [
+                    47.244,
+                    -1.804
+                  ],
+                  [
+                    47.245,
+                    -1.813333
+                  ],
+                  [
+                    47.246,
+                    -1.822667
+                  ],
+                  [
+                    47.247,
+                    -1.832
+                  ],
+                  [
+                    47.248,
+                    -1.841333
+                  ],
+                  [
+                    47.249,
+                    -1.850667
+                  ],
+                  [
+                    47.25,
+                    -1.86
+                  ],
+                  [
+                    47.251429,
+                    -1.869048
+                  ],
+                  [
+                    47.252857,
+                    -1.878095
+                  ],
+                  [
+                    47.254286,
+                    -1.887143
+                  ],
+                  [
+                    47.255714,
+                    -1.89619
+                  ],
+                  [
+                    47.257143,
+                    -1.905238
+                  ],
+                  [
+                    47.258571,
+                    -1.914286
+                  ],
+                  [
+                    47.26,
+                    -1.923333
+                  ],
+                  [
+                    47.261429,
+                    -1.932381
+                  ],
+                  [
+                    47.262857,
+                    -1.941429
+                  ],
+                  [
+                    47.264286,
+                    -1.950476
+                  ],
+                  [
+                    47.265714,
+                    -1.959524
+                  ],
+                  [
+                    47.267143,
+                    -1.968571
+                  ],
+                  [
+                    47.268571,
+                    -1.977619
+                  ],
+                  [
+                    47.27,
+                    -1.986667
+                  ],
+                  [
+                    47.271429,
+                    -1.995714
+                  ],
+                  [
+                    47.272857,
+                    -2.004762
+                  ],
+                  [
+                    47.274286,
+                    -2.01381
+                  ],
+                  [
+                    47.275714,
+                    -2.022857
+                  ],
+                  [
+                    47.277143,
+                    -2.031905
+                  ],
+                  [
+                    47.278571,
+                    -2.040952
+                  ],
+                  [
+                    47.28,
+                    -2.05
+                  ],
+                  [
+                    47.2795,
+                    -2.059286
+                  ],
+                  [
+                    47.279,
+                    -2.068571
+                  ],
+                  [
+                    47.2785,
+                    -2.077857
+                  ],
+                  [
+                    47.278,
+                    -2.087143
+                  ],
+                  [
+                    47.2775,
+                    -2.096429
+                  ],
+                  [
+                    47.277,
+                    -2.105714
+                  ],
+                  [
+                    47.2765,
+                    -2.115
+                  ],
+                  [
+                    47.276,
+                    -2.124286
+                  ],
+                  [
+                    47.2755,
+                    -2.133571
+                  ],
+                  [
+                    47.275,
+                    -2.142857
+                  ],
+                  [
+                    47.2745,
+                    -2.152143
+                  ],
+                  [
+                    47.274,
+                    -2.161429
+                  ],
+                  [
+                    47.2735,
+                    -2.170714
+                  ],
+                  [
+                    47.273,
+                    -2.18
+                  ],
+                  [
+                    47.276667,
+                    -2.189333
+                  ],
+                  [
+                    47.280333,
+                    -2.198667
+                  ],
+                  [
+                    47.284,
+                    -2.208
+                  ]
+                ],
+                "nameEn": "(Estimated) Paved Road Corridor",
+                "nameFr": "(Estimé) Parcours Routier Bitumé",
+                "surfaceDetailEn": "Estimated paved road — sync OSM surface data for exact sector breakdown",
+                "surfaceDetailFr": "Bitume estimé — chargez la surface OSM pour le détail exact par secteur",
+                "avgGradePct": 2.2,
+                "maxGradePct": 6,
+                "effectiveCrr": 0.0042,
+                "technicality": "smooth",
+                "suitability38c": "ideal",
+                "riderNoteEn": "Paved baseline assumed until live OpenStreetMap surface tags load.",
+                "riderNoteFr": "Hypothèse bitume retenue en attendant les données OpenStreetMap."
+              }
+            ],
+            "pointSurfaces": [
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved",
+              "paved"
+            ],
+            "suitability": {
+              "overallLevel": "ideal",
+              "scorePct": 95,
+              "tireWidthMm": 38,
+              "isTubeless": true,
+              "recommendedFrontBar": 2.8,
+              "recommendedRearBar": 3.4,
+              "frontLoadPct": 44,
+              "rearLoadPct": 56,
+              "hooklessCapped": false,
+              "headlineEn": "Ideal for 38c Gravel Setup",
+              "headlineFr": "Idéal pour montage Gravel 38c",
+              "summaryEn": "100% paved route rolls fast and effortlessly on 38c tires (2.8/3.4 bar).",
+              "summaryFr": "Parcours 100 % bitumé très fluide en pneus 38c (2,8/3,4 bar).",
+              "unpavedCount": 0,
+              "technicalCount": 0,
+              "maxUnpavedStretchKm": 0
+            },
+            "dataSource": "heuristic-fallback"
+          }
+        }
+      }
+    },
+    {
+      "id": "fit-roundtrip-decode",
+      "description": "Binary .FIT export round-trip decoded via parseFitFileBuffer",
+      "input": {
+        "sourceTripId": "alpine-loop",
+        "exportTimestampMs": 1795694400000,
+        "fileName": "alpine-loop.fit"
+      },
+      "expected": {
+        "trackName": "Col Loop",
+        "originLabel": "Col Loop",
+        "destLabel": "Col Loop",
+        "coordinates": [
+          [
+            45.04999998025596,
+            6.020000036805868
+          ],
+          [
+            45.09000001475215,
+            6.079999962821603
+          ],
+          [
+            45.13999999500811,
+            6.130000026896596
+          ]
+        ],
+        "distanceKm": 13.3,
+        "elevationGainM": 134,
+        "elevationLossM": 24,
+        "elevationProfile": [
+          {
+            "distKm": 0,
+            "eleM": 210,
+            "gradePct": 0
+          },
+          {
+            "distKm": 6.48,
+            "eleM": 344.1,
+            "gradePct": 2.1
+          },
+          {
+            "distKm": 13.28,
+            "eleM": 320,
+            "gradePct": -0.4
+          }
+        ],
+        "terrainSummary": {
+          "flatPct": 51,
+          "rollingPct": 49,
+          "climbPct": 0,
+          "descentPct": 0,
+          "maxGradePct": 2.1,
+          "minEleM": 210,
+          "maxEleM": 344,
+          "surfaceLabel": "road",
+          "difficultyLevel": "challenging",
+          "pavedPct": 100,
+          "gravelPct": 0,
+          "singletrackPct": 0,
+          "surfaceBreakdown": {
+            "pavedPct": 100,
+            "gravelPct": 0,
+            "singletrackPct": 0,
+            "pavedKm": 13.3,
+            "gravelKm": 0,
+            "singletrackKm": 0,
+            "weightedCrr": 0.0042,
+            "segments": [
+              {
+                "id": "surf-seg-1",
+                "type": "paved",
+                "startKm": 0,
+                "endKm": 13.3,
+                "distanceKm": 13.3,
+                "startPct": 0,
+                "endPct": 100,
+                "startCoordIdx": 0,
+                "endCoordIdx": 72,
+                "coordinates": [
+                  [
+                    45.05,
+                    6.02
+                  ],
+                  [
+                    45.051143,
+                    6.021714
+                  ],
+                  [
+                    45.052286,
+                    6.023429
+                  ],
+                  [
+                    45.053429,
+                    6.025143
+                  ],
+                  [
+                    45.054571,
+                    6.026857
+                  ],
+                  [
+                    45.055714,
+                    6.028571
+                  ],
+                  [
+                    45.056857,
+                    6.030286
+                  ],
+                  [
+                    45.058,
+                    6.032
+                  ],
+                  [
+                    45.059143,
+                    6.033714
+                  ],
+                  [
+                    45.060286,
+                    6.035429
+                  ],
+                  [
+                    45.061429,
+                    6.037143
+                  ],
+                  [
+                    45.062571,
+                    6.038857
+                  ],
+                  [
+                    45.063714,
+                    6.040571
+                  ],
+                  [
+                    45.064857,
+                    6.042286
+                  ],
+                  [
+                    45.066,
+                    6.044
+                  ],
+                  [
+                    45.067143,
+                    6.045714
+                  ],
+                  [
+                    45.068286,
+                    6.047429
+                  ],
+                  [
+                    45.069429,
+                    6.049143
+                  ],
+                  [
+                    45.070571,
+                    6.050857
+                  ],
+                  [
+                    45.071714,
+                    6.052571
+                  ],
+                  [
+                    45.072857,
+                    6.054286
+                  ],
+                  [
+                    45.074,
+                    6.056
+                  ],
+                  [
+                    45.075143,
+                    6.057714
+                  ],
+                  [
+                    45.076286,
+                    6.059429
+                  ],
+                  [
+                    45.077429,
+                    6.061143
+                  ],
+                  [
+                    45.078571,
+                    6.062857
+                  ],
+                  [
+                    45.079714,
+                    6.064571
+                  ],
+                  [
+                    45.080857,
+                    6.066286
+                  ],
+                  [
+                    45.082,
+                    6.068
+                  ],
+                  [
+                    45.083143,
+                    6.069714
+                  ],
+                  [
+                    45.084286,
+                    6.071429
+                  ],
+                  [
+                    45.085429,
+                    6.073143
+                  ],
+                  [
+                    45.086571,
+                    6.074857
+                  ],
+                  [
+                    45.087714,
+                    6.076571
+                  ],
+                  [
+                    45.088857,
+                    6.078286
+                  ],
+                  [
+                    45.09,
+                    6.08
+                  ],
+                  [
+                    45.091351,
+                    6.081351
+                  ],
+                  [
+                    45.092703,
+                    6.082703
+                  ],
+                  [
+                    45.094054,
+                    6.084054
+                  ],
+                  [
+                    45.095405,
+                    6.085405
+                  ],
+                  [
+                    45.096757,
+                    6.086757
+                  ],
+                  [
+                    45.098108,
+                    6.088108
+                  ],
+                  [
+                    45.099459,
+                    6.089459
+                  ],
+                  [
+                    45.100811,
+                    6.090811
+                  ],
+                  [
+                    45.102162,
+                    6.092162
+                  ],
+                  [
+                    45.103514,
+                    6.093513
+                  ],
+                  [
+                    45.104865,
+                    6.094865
+                  ],
+                  [
+                    45.106216,
+                    6.096216
+                  ],
+                  [
+                    45.107568,
+                    6.097568
+                  ],
+                  [
+                    45.108919,
+                    6.098919
+                  ],
+                  [
+                    45.11027,
+                    6.10027
+                  ],
+                  [
+                    45.111622,
+                    6.101622
+                  ],
+                  [
+                    45.112973,
+                    6.102973
+                  ],
+                  [
+                    45.114324,
+                    6.104324
+                  ],
+                  [
+                    45.115676,
+                    6.105676
+                  ],
+                  [
+                    45.117027,
+                    6.107027
+                  ],
+                  [
+                    45.118378,
+                    6.108378
+                  ],
+                  [
+                    45.11973,
+                    6.10973
+                  ],
+                  [
+                    45.121081,
+                    6.111081
+                  ],
+                  [
+                    45.122432,
+                    6.112432
+                  ],
+                  [
+                    45.123784,
+                    6.113784
+                  ],
+                  [
+                    45.125135,
+                    6.115135
+                  ],
+                  [
+                    45.126486,
+                    6.116486
+                  ],
+                  [
+                    45.127838,
+                    6.117838
+                  ],
+                  [
+                    45.129189,
+                    6.119189
+                  ],
+                  [
+                    45.130541,
+                    6.120541
+                  ],
+                  [
+                    45.131892,
+                    6.121892
+                  ],
+                  [
+                    45.133243,
+                    6.123243
+                  ],
+                  [
+                    45.134595,
+                    6.124595
+                  ],
+                  [
+                    45.135946,
+                    6.125946
+                  ],
+                  [
+                    45.137297,
+                    6.127297
+                  ],
+                  [
+                    45.138649,
+                    6.128649
+                  ],
+                  [
+                    45.13999999500811,
+                    6.130000026896596
+                  ]
+                ],
+                "nameEn": "(Estimated) Paved Road Corridor",
+                "nameFr": "(Estimé) Parcours Routier Bitumé",
+                "surfaceDetailEn": "Estimated paved road — sync OSM surface data for exact sector breakdown",
+                "surfaceDetailFr": "Bitume estimé — chargez la surface OSM pour le détail exact par secteur",
+                "avgGradePct": 0.8,
+                "maxGradePct": 2.1,
+                "effectiveCrr": 0.0042,
+                "technicality": "smooth",
+                "suitability38c": "ideal",
+                "riderNoteEn": "Paved baseline assumed until live OpenStreetMap surface tags load.",
+                "riderNoteFr": "Hypothèse bitume retenue en attendant les données OpenStreetMap."
+              }
+            ],
+            "pointSurfaces": [
+              "paved",
+              "paved",
+              "paved"
+            ],
+            "suitability": {
+              "overallLevel": "ideal",
+              "scorePct": 95,
+              "tireWidthMm": 38,
+              "isTubeless": true,
+              "recommendedFrontBar": 2.8,
+              "recommendedRearBar": 3.4,
+              "frontLoadPct": 44,
+              "rearLoadPct": 56,
+              "hooklessCapped": false,
+              "headlineEn": "Ideal for 38c Gravel Setup",
+              "headlineFr": "Idéal pour montage Gravel 38c",
+              "summaryEn": "100% paved route rolls fast and effortlessly on 38c tires (2.8/3.4 bar).",
+              "summaryFr": "Parcours 100 % bitumé très fluide en pneus 38c (2,8/3,4 bar).",
+              "unpavedCount": 0,
+              "technicalCount": 0,
+              "maxUnpavedStretchKm": 0
+            },
+            "dataSource": "heuristic-fallback"
+          }
+        }
+      }
+    }
+  ]
+}

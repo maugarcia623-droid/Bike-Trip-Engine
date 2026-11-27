@@ -1,0 +1,712 @@
+{
+  "schemaVersion": 1,
+  "engine": "solarVisibility",
+  "sourceFiles": [
+    "src/utils/solarVisibility.ts"
+  ],
+  "determinism": {
+    "frozenUtc": "2026-11-26T12:00:00.000Z",
+    "timezone": "Europe/Paris"
+  },
+  "cases": [
+    {
+      "id": "ephemeris-and-elevation-explicit-tz",
+      "description": "Nantes winter solstice (UTC+1) and summer solstice (UTC+2) ephemeris and solar elevation",
+      "input": {
+        "lat": 47.2184,
+        "lon": -1.5536,
+        "winterDate": "2026-12-21",
+        "summerDate": "2026-06-21"
+      },
+      "expected": {
+        "winterEphemeris": {
+          "solarNoon": "13:04",
+          "sunrise": "08:50",
+          "sunset": "17:18",
+          "civilDawn": "08:14",
+          "civilDusk": "17:54",
+          "nauticalDawn": "07:35",
+          "nauticalDusk": "18:33",
+          "daylightMinutes": 509,
+          "daylightHoursFormatted": "8h 29 min",
+          "maxSolarElevationDeg": 19.4,
+          "isWinterSolsticeWindow": true
+        },
+        "winterElev0715": -15.2,
+        "winterElev1230": 18.9,
+        "summerEphemeris": {
+          "solarNoon": "14:07",
+          "sunrise": "06:09",
+          "sunset": "22:05",
+          "civilDawn": "05:29",
+          "civilDusk": "22:45",
+          "nauticalDawn": "04:34",
+          "nauticalDusk": "23:41",
+          "daylightMinutes": 956,
+          "daylightHoursFormatted": "15h 56 min",
+          "maxSolarElevationDeg": 66.2,
+          "isWinterSolsticeWindow": false
+        },
+        "summerElev1300": 62.7
+      }
+    },
+    {
+      "id": "approx-tz-paris",
+      "description": "getApproxTimezoneOffset across CET winter, DST transition day, and CEST summer under TZ=Europe/Paris",
+      "input": {
+        "dates": [
+          "2026-12-21",
+          "2026-03-29",
+          "2026-06-21"
+        ],
+        "lon": -1.5536
+      },
+      "expected": [
+        {
+          "dateStr": "2026-12-21",
+          "tzOffsetHours": 1
+        },
+        {
+          "dateStr": "2026-03-29",
+          "tzOffsetHours": 1
+        },
+        {
+          "dateStr": "2026-06-21",
+          "tzOffsetHours": 2
+        }
+      ]
+    },
+    {
+      "id": "ride-visibility-winter-predawn-black-ice",
+      "description": "Pre-dawn winter ride visibility with fog and black-ice risk",
+      "input": {
+        "date": "2026-12-21",
+        "rollout": "06:45",
+        "temperatureC": 1.5,
+        "visibilityKm": 3,
+        "weatherCode": 45
+      },
+      "expected": {
+        "rolloutTime": "06:45",
+        "arrivalTime": "08:00",
+        "movingMinutes": 75,
+        "dateStr": "2026-12-21",
+        "isSimulatedWinterDate": true,
+        "solar": {
+          "solarNoon": "13:04",
+          "sunrise": "08:50",
+          "sunset": "17:18",
+          "civilDawn": "08:14",
+          "civilDusk": "17:54",
+          "nauticalDawn": "07:35",
+          "nauticalDusk": "18:33",
+          "daylightMinutes": 509,
+          "daylightHoursFormatted": "8h 29 min",
+          "maxSolarElevationDeg": 19.4,
+          "isWinterSolsticeWindow": true
+        },
+        "rolloutElevationDeg": -20.1,
+        "arrivalElevationDeg": -8.1,
+        "rolloutPhase": "deep-night",
+        "arrivalPhase": "nautical-twilight",
+        "nightPercent": 100,
+        "twilightPercent": 0,
+        "daylightPercent": 0,
+        "overallCondition": "pitch-dark",
+        "opticalHazardLevel": "critical",
+        "visibilityKm": 3,
+        "visibilityCategory": "mist-haze",
+        "weatherCode": 45,
+        "weatherDescEn": "Dense fog / Freezing mist",
+        "weatherDescFr": "Brouillard givrant",
+        "isWinterTrip": true,
+        "lightingGear": {
+          "recommendedLumens": "800 – 1000 lm",
+          "minLumens": 800,
+          "maxLumens": 1000,
+          "lumenSpectrumPosition": 82,
+          "beamModeEn": "High-intensity focused beam (StVZO cutoff recommended)",
+          "beamModeFr": "Faisceau longue portée focalisé (faisceau coupé StVZO recommandé)",
+          "rearBeaconEn": "Multi-LED pulse red beacon (≥ 50–100 lm) visible from 1 km",
+          "rearBeaconFr": "Feu rouge clignotant haute puissance (≥ 50–100 lm) visible à 1 km",
+          "batteryNoticeEn": "Sub-5°C winter cold cuts Lithium-ion runtime by 25–35%. Ensure 100% full charge prior to rollout.",
+          "batteryNoticeFr": "Le froid hivernal (< 5°C) ampute l’autonomie lithium de 25 à 35%. Départ impératif à 100% de charge."
+        },
+        "passiveGear": {
+          "reflectiveApparelEn": "EN ISO 20471 / EN 17353 certified reflective vest or sash + high-contrast Volt outer shell",
+          "reflectiveApparelFr": "Gilet ou harnais rétro-réfléchissant certifié EN 17353 + veste extérieure jaune Volt",
+          "ankleBandsEn": "Retro-reflective ankle bands: rotating pedal motion triggers motorist recognition 3× faster in headlights",
+          "ankleBandsFr": "Bandes réfléchissantes de chevilles : le mouvement de pédalage alerte les conducteurs 3× plus vite",
+          "eyewearEn": "Clear or yellow/amber contrast photochromic lenses (avoid dark tinted sunglasses in winter twilight)",
+          "eyewearFr": "Verres transparents ou photochromiques jaunes/ambre (proscrire les verres solaires foncés)"
+        },
+        "surfaceCaution": {
+          "isBlackIceRisk": true,
+          "messageEn": "Cold surface alert (1.5°C + wet fog): Watch for black ice on bridge expansion joints, riverbanks, and shaded turns.",
+          "messageFr": "Alerte verglas (1.5°C + brume humide) : Méfiance sur ponts métalliques, berges et virages ombragés."
+        },
+        "summaryRecommendationEn": "Departure is in deep darkness before dawn. Mount an 800 to 1,000 lumen headlight in high-beam mode to see the road ahead, wear reflective gear with rotating ankle bands to be seen, and ensure lights are fully charged (cold drops battery runtime by ~30%). Heads up: near-freezing surface (1.5°C) — watch for black ice on bridges and damp turns.",
+        "summaryRecommendationFr": "Départ en pleine nuit avant l'aube. Équipez un feu avant de 800 à 1 000 lumens en plein phare pour éclairer la route, portez un gilet et des bandes de cheville réfléchissantes pour être vu, et partez à 100% de charge (le froid réduit l'autonomie de ~30%). Attention : chaussée froide (1.5°C) — risque de verglas sur ponts et virages humides.",
+        "suggestions": [
+          {
+            "id": "vis-front-beam",
+            "category": "lighting",
+            "critical": true,
+            "badgeEn": "800–1000 Lumens",
+            "badgeFr": "800–1000 Lumens",
+            "titleEn": "High-Output 800 to 1,000 Lumen Headlight Recommended",
+            "titleFr": "Éclairage avant puissant 800 à 1 000 Lumens recommandé",
+            "detailEn": "With low winter ambient light or early morning darkness, an 800 to 1000 lumen headlight is essential to illuminate road obstacles, potholes, and wet asphalt 40–50 meters ahead at cruising pace.",
+            "detailFr": "En condition d’obscurité ou de faible luminosité hivernale, un feu avant de 800 à 1 000 lumens est indispensable pour éclairer la chaussée, les nids-de-poule et l’asphalte mouillé à 40–50 mètres à vive allure."
+          },
+          {
+            "id": "vis-reflective-gear",
+            "category": "reflective",
+            "critical": true,
+            "badgeEn": "EN 17353 / ISO 20471",
+            "badgeFr": "Norme EN 17353",
+            "titleEn": "Passive Reflective Gear & 360° Bio-Motion Ankle Bands",
+            "titleFr": "Gilet réfléchissant & bandes de chevilles bio-dynamiques",
+            "detailEn": "Wear an EN 17353 certified reflective vest or sash to be seen from 300m. Add retro-reflective ankle bands: rotating pedal motion triggers motorist human-reflex recognition 3× faster than static torso reflectors.",
+            "detailFr": "Portez un gilet ou baudrier réfléchissant certifié pour être vu à 300 m. Ajoutez des serre-pantalons réfléchissants : le mouvement rotatif du pédalage est détecté 3× plus vite par les automobilistes."
+          },
+          {
+            "id": "vis-battery-drain",
+            "category": "battery",
+            "critical": false,
+            "badgeEn": "Winter Battery -30%",
+            "badgeFr": "Batterie Froid -30%",
+            "titleEn": "Cold Ambient Battery Degradation Warning",
+            "titleFr": "Alerte autonomie batterie par temps froid (< 5°C)",
+            "detailEn": "Freezing temperatures drop Lithium-ion battery capacity by 25–35%. Top off all lights to 100% before rollout, and avoid high-power modes in illuminated urban zones to conserve runtime.",
+            "detailFr": "Le froid abaisse la capacité des cellules lithium de 25 à 35%. Rechargez à 100% avant le départ et basculez en mode éco sur les tronçons urbains éclairés pour préserver l’autonomie."
+          },
+          {
+            "id": "vis-eyewear",
+            "category": "eyewear",
+            "critical": false,
+            "badgeEn": "Yellow / Clear Lenses",
+            "badgeFr": "Verres Clairs / Jaunes",
+            "titleEn": "High-Contrast Yellow or Clear Eyewear",
+            "titleFr": "Lunettes à verres clairs ou contrastés jaune/ambre",
+            "detailEn": "Never wear dark sunglasses in winter dawn or dusk. Use clear or high-contrast yellow lenses to shield eyes from sub-zero headwind, grit, and tire spray without losing terrain definition.",
+            "detailFr": "Évitez les verres solaires foncés à l’aube et au crépuscule. Utilisez des verres transparents ou jaunes amplificateurs de contraste contre le vent glacial et les projections."
+          },
+          {
+            "id": "vis-black-ice",
+            "category": "surface",
+            "critical": true,
+            "badgeEn": "Black ice alert",
+            "badgeFr": "Danger Verglas",
+            "titleEn": "Morning Black Ice & Low-Contrast Surface Hazard",
+            "titleFr": "Risque de verglas matinal & chaussée glissante",
+            "detailEn": "Ambient temperature is 1.5°C with wet air. In darkness or low dawn light, thin transparent black ice is invisible. Drop tire pressure slightly (0.3 bar) and avoid aggressive braking on bridge joints and damp canal towpaths.",
+            "detailFr": "Température de 1.5°C avec air saturé. Dans l’obscurité, les plaques de verglas sont indétectables. Réduisez légèrement la pression des pneus (0,3 bar) et évitez tout freinage brusque sur les ponts."
+          }
+        ]
+      }
+    },
+    {
+      "id": "ride-visibility-dawn-dusk-daylight",
+      "description": "Twilight dawn, twilight dusk, and summer daylight visibility profiles",
+      "input": {
+        "dawn": {
+          "date": "2026-11-15",
+          "rollout": "07:30"
+        },
+        "dusk": {
+          "date": "2026-11-15",
+          "rollout": "16:45"
+        },
+        "daylight": {
+          "date": "2026-06-21",
+          "rollout": "11:00"
+        }
+      },
+      "expected": {
+        "dawn": {
+          "rolloutTime": "07:30",
+          "arrivalTime": "08:30",
+          "movingMinutes": 60,
+          "dateStr": "2026-11-15",
+          "isSimulatedWinterDate": false,
+          "solar": {
+            "solarNoon": "12:51",
+            "sunrise": "08:09",
+            "sunset": "17:33",
+            "civilDawn": "07:36",
+            "civilDusk": "18:06",
+            "nauticalDawn": "06:59",
+            "nauticalDusk": "18:43",
+            "daylightMinutes": 563,
+            "daylightHoursFormatted": "9h 23 min",
+            "maxSolarElevationDeg": 24.5,
+            "isWinterSolsticeWindow": true
+          },
+          "rolloutElevationDeg": -7,
+          "arrivalElevationDeg": 2.3,
+          "rolloutPhase": "nautical-twilight",
+          "arrivalPhase": "golden-hour",
+          "nightPercent": 14,
+          "twilightPercent": 57,
+          "daylightPercent": 29,
+          "overallCondition": "twilight-dawn",
+          "opticalHazardLevel": "elevated",
+          "visibilityKm": 18,
+          "visibilityCategory": "good",
+          "weatherCode": 1,
+          "weatherDescEn": "Partly cloudy",
+          "weatherDescFr": "Éclaircies",
+          "isWinterTrip": true,
+          "lightingGear": {
+            "recommendedLumens": "800 – 1000 lm",
+            "minLumens": 800,
+            "maxLumens": 1000,
+            "lumenSpectrumPosition": 82,
+            "beamModeEn": "High-intensity focused beam (StVZO cutoff recommended)",
+            "beamModeFr": "Faisceau longue portée focalisé (faisceau coupé StVZO recommandé)",
+            "rearBeaconEn": "Multi-LED pulse red beacon (≥ 50–100 lm) visible from 1 km",
+            "rearBeaconFr": "Feu rouge clignotant haute puissance (≥ 50–100 lm) visible à 1 km",
+            "batteryNoticeEn": "Sub-5°C winter cold cuts Lithium-ion runtime by 25–35%. Ensure 100% full charge prior to rollout.",
+            "batteryNoticeFr": "Le froid hivernal (< 5°C) ampute l’autonomie lithium de 25 à 35%. Départ impératif à 100% de charge."
+          },
+          "passiveGear": {
+            "reflectiveApparelEn": "EN ISO 20471 / EN 17353 certified reflective vest or sash + high-contrast Volt outer shell",
+            "reflectiveApparelFr": "Gilet ou harnais rétro-réfléchissant certifié EN 17353 + veste extérieure jaune Volt",
+            "ankleBandsEn": "Retro-reflective ankle bands: rotating pedal motion triggers motorist recognition 3× faster in headlights",
+            "ankleBandsFr": "Bandes réfléchissantes de chevilles : le mouvement de pédalage alerte les conducteurs 3× plus vite",
+            "eyewearEn": "Clear or yellow/amber contrast photochromic lenses (avoid dark tinted sunglasses in winter twilight)",
+            "eyewearFr": "Verres transparents ou photochromiques jaunes/ambre (proscrire les verres solaires foncés)"
+          },
+          "surfaceCaution": {
+            "isBlackIceRisk": false
+          },
+          "summaryRecommendationEn": "Departure is in deep darkness before dawn. Mount an 800 to 1,000 lumen headlight in high-beam mode to see the road ahead, wear reflective gear with rotating ankle bands to be seen, and ensure lights are fully charged (cold drops battery runtime by ~30%).",
+          "summaryRecommendationFr": "Départ en pleine nuit avant l'aube. Équipez un feu avant de 800 à 1 000 lumens en plein phare pour éclairer la route, portez un gilet et des bandes de cheville réfléchissantes pour être vu, et partez à 100% de charge (le froid réduit l'autonomie de ~30%).",
+          "suggestions": [
+            {
+              "id": "vis-front-beam",
+              "category": "lighting",
+              "critical": true,
+              "badgeEn": "800–1000 Lumens",
+              "badgeFr": "800–1000 Lumens",
+              "titleEn": "High-Output 800 to 1,000 Lumen Headlight Recommended",
+              "titleFr": "Éclairage avant puissant 800 à 1 000 Lumens recommandé",
+              "detailEn": "With low winter ambient light or early morning darkness, an 800 to 1000 lumen headlight is essential to illuminate road obstacles, potholes, and wet asphalt 40–50 meters ahead at cruising pace.",
+              "detailFr": "En condition d’obscurité ou de faible luminosité hivernale, un feu avant de 800 à 1 000 lumens est indispensable pour éclairer la chaussée, les nids-de-poule et l’asphalte mouillé à 40–50 mètres à vive allure."
+            },
+            {
+              "id": "vis-reflective-gear",
+              "category": "reflective",
+              "critical": true,
+              "badgeEn": "EN 17353 / ISO 20471",
+              "badgeFr": "Norme EN 17353",
+              "titleEn": "Passive Reflective Gear & 360° Bio-Motion Ankle Bands",
+              "titleFr": "Gilet réfléchissant & bandes de chevilles bio-dynamiques",
+              "detailEn": "Wear an EN 17353 certified reflective vest or sash to be seen from 300m. Add retro-reflective ankle bands: rotating pedal motion triggers motorist human-reflex recognition 3× faster than static torso reflectors.",
+              "detailFr": "Portez un gilet ou baudrier réfléchissant certifié pour être vu à 300 m. Ajoutez des serre-pantalons réfléchissants : le mouvement rotatif du pédalage est détecté 3× plus vite par les automobilistes."
+            },
+            {
+              "id": "vis-battery-drain",
+              "category": "battery",
+              "critical": false,
+              "badgeEn": "Winter Battery -30%",
+              "badgeFr": "Batterie Froid -30%",
+              "titleEn": "Cold Ambient Battery Degradation Warning",
+              "titleFr": "Alerte autonomie batterie par temps froid (< 5°C)",
+              "detailEn": "Freezing temperatures drop Lithium-ion battery capacity by 25–35%. Top off all lights to 100% before rollout, and avoid high-power modes in illuminated urban zones to conserve runtime.",
+              "detailFr": "Le froid abaisse la capacité des cellules lithium de 25 à 35%. Rechargez à 100% avant le départ et basculez en mode éco sur les tronçons urbains éclairés pour préserver l’autonomie."
+            },
+            {
+              "id": "vis-eyewear",
+              "category": "eyewear",
+              "critical": false,
+              "badgeEn": "Yellow / Clear Lenses",
+              "badgeFr": "Verres Clairs / Jaunes",
+              "titleEn": "High-Contrast Yellow or Clear Eyewear",
+              "titleFr": "Lunettes à verres clairs ou contrastés jaune/ambre",
+              "detailEn": "Never wear dark sunglasses in winter dawn or dusk. Use clear or high-contrast yellow lenses to shield eyes from sub-zero headwind, grit, and tire spray without losing terrain definition.",
+              "detailFr": "Évitez les verres solaires foncés à l’aube et au crépuscule. Utilisez des verres transparents ou jaunes amplificateurs de contraste contre le vent glacial et les projections."
+            }
+          ]
+        },
+        "dusk": {
+          "rolloutTime": "16:45",
+          "arrivalTime": "17:45",
+          "movingMinutes": 60,
+          "dateStr": "2026-11-15",
+          "isSimulatedWinterDate": false,
+          "solar": {
+            "solarNoon": "12:51",
+            "sunrise": "08:09",
+            "sunset": "17:33",
+            "civilDawn": "07:36",
+            "civilDusk": "18:06",
+            "nauticalDawn": "06:59",
+            "nauticalDusk": "18:43",
+            "daylightMinutes": 563,
+            "daylightHoursFormatted": "9h 23 min",
+            "maxSolarElevationDeg": 24.5,
+            "isWinterSolsticeWindow": true
+          },
+          "rolloutElevationDeg": 6.1,
+          "arrivalElevationDeg": -2.7,
+          "rolloutPhase": "golden-hour",
+          "arrivalPhase": "civil-twilight",
+          "nightPercent": 0,
+          "twilightPercent": 29,
+          "daylightPercent": 71,
+          "overallCondition": "winter-overcast",
+          "opticalHazardLevel": "moderate",
+          "visibilityKm": 18,
+          "visibilityCategory": "good",
+          "weatherCode": 1,
+          "weatherDescEn": "Partly cloudy",
+          "weatherDescFr": "Éclaircies",
+          "isWinterTrip": true,
+          "lightingGear": {
+            "recommendedLumens": "300 – 500 lm",
+            "minLumens": 300,
+            "maxLumens": 500,
+            "lumenSpectrumPosition": 35,
+            "beamModeEn": "Daytime hyper-flash / penetrating pulse mode",
+            "beamModeFr": "Mode flash pulsé haute visibilité diurne",
+            "rearBeaconEn": "Multi-LED pulse red beacon (≥ 50–100 lm) visible from 1 km",
+            "rearBeaconFr": "Feu rouge clignotant haute puissance (≥ 50–100 lm) visible à 1 km",
+            "batteryNoticeEn": "Sub-5°C winter cold cuts Lithium-ion runtime by 25–35%. Ensure 100% full charge prior to rollout.",
+            "batteryNoticeFr": "Le froid hivernal (< 5°C) ampute l’autonomie lithium de 25 à 35%. Départ impératif à 100% de charge."
+          },
+          "passiveGear": {
+            "reflectiveApparelEn": "EN ISO 20471 / EN 17353 certified reflective vest or sash + high-contrast Volt outer shell",
+            "reflectiveApparelFr": "Gilet ou harnais rétro-réfléchissant certifié EN 17353 + veste extérieure jaune Volt",
+            "ankleBandsEn": "Retro-reflective ankle bands: rotating pedal motion triggers motorist recognition 3× faster in headlights",
+            "ankleBandsFr": "Bandes réfléchissantes de chevilles : le mouvement de pédalage alerte les conducteurs 3× plus vite",
+            "eyewearEn": "Clear or yellow/amber contrast photochromic lenses (avoid dark tinted sunglasses in winter twilight)",
+            "eyewearFr": "Verres transparents ou photochromiques jaunes/ambre (proscrire les verres solaires foncés)"
+          },
+          "surfaceCaution": {
+            "isBlackIceRisk": false
+          },
+          "summaryRecommendationEn": "Favorable daylight visibility throughout the ride. Keep a daytime safety flasher active for traffic awareness, and wear clear or UV eyewear.",
+          "summaryRecommendationFr": "Visibilité optimale en plein jour. Conservez un feu clignotant diurne pour vous signaler aux automobilistes, et prévoyez des verres adaptés aux reflets.",
+          "suggestions": [
+            {
+              "id": "vis-front-daytime",
+              "category": "lighting",
+              "critical": false,
+              "badgeEn": "Daytime Pulse",
+              "badgeFr": "Flash Diurne",
+              "titleEn": "Daytime Penetrating Pulse Light",
+              "titleFr": "Feu flash diurne anti-brouillard",
+              "detailEn": "Run front and rear flashing beacons (200–400 lm) to stay visible through diffuse moisture and low winter sunlight glare.",
+              "detailFr": "Conservez un flash avant/arrière actif (200–400 lm) pour percer la brume et le contre-jour du soleil rasant."
+            },
+            {
+              "id": "vis-reflective-gear",
+              "category": "reflective",
+              "critical": false,
+              "badgeEn": "EN 17353 / ISO 20471",
+              "badgeFr": "Norme EN 17353",
+              "titleEn": "Passive Reflective Gear & 360° Bio-Motion Ankle Bands",
+              "titleFr": "Gilet réfléchissant & bandes de chevilles bio-dynamiques",
+              "detailEn": "Wear an EN 17353 certified reflective vest or sash to be seen from 300m. Add retro-reflective ankle bands: rotating pedal motion triggers motorist human-reflex recognition 3× faster than static torso reflectors.",
+              "detailFr": "Portez un gilet ou baudrier réfléchissant certifié pour être vu à 300 m. Ajoutez des serre-pantalons réfléchissants : le mouvement rotatif du pédalage est détecté 3× plus vite par les automobilistes."
+            },
+            {
+              "id": "vis-battery-drain",
+              "category": "battery",
+              "critical": false,
+              "badgeEn": "Winter Battery -30%",
+              "badgeFr": "Batterie Froid -30%",
+              "titleEn": "Cold Ambient Battery Degradation Warning",
+              "titleFr": "Alerte autonomie batterie par temps froid (< 5°C)",
+              "detailEn": "Freezing temperatures drop Lithium-ion battery capacity by 25–35%. Top off all lights to 100% before rollout, and avoid high-power modes in illuminated urban zones to conserve runtime.",
+              "detailFr": "Le froid abaisse la capacité des cellules lithium de 25 à 35%. Rechargez à 100% avant le départ et basculez en mode éco sur les tronçons urbains éclairés pour préserver l’autonomie."
+            },
+            {
+              "id": "vis-eyewear",
+              "category": "eyewear",
+              "critical": false,
+              "badgeEn": "Yellow / Clear Lenses",
+              "badgeFr": "Verres Clairs / Jaunes",
+              "titleEn": "High-Contrast Yellow or Clear Eyewear",
+              "titleFr": "Lunettes à verres clairs ou contrastés jaune/ambre",
+              "detailEn": "Never wear dark sunglasses in winter dawn or dusk. Use clear or high-contrast yellow lenses to shield eyes from sub-zero headwind, grit, and tire spray without losing terrain definition.",
+              "detailFr": "Évitez les verres solaires foncés à l’aube et au crépuscule. Utilisez des verres transparents ou jaunes amplificateurs de contraste contre le vent glacial et les projections."
+            }
+          ]
+        },
+        "daylight": {
+          "rolloutTime": "11:00",
+          "arrivalTime": "12:00",
+          "movingMinutes": 60,
+          "dateStr": "2026-06-21",
+          "isSimulatedWinterDate": false,
+          "solar": {
+            "solarNoon": "14:07",
+            "sunrise": "06:09",
+            "sunset": "22:05",
+            "civilDawn": "05:29",
+            "civilDusk": "22:45",
+            "nauticalDawn": "04:34",
+            "nauticalDusk": "23:41",
+            "daylightMinutes": 956,
+            "daylightHoursFormatted": "15h 56 min",
+            "maxSolarElevationDeg": 66.2,
+            "isWinterSolsticeWindow": false
+          },
+          "rolloutElevationDeg": 45.9,
+          "arrivalElevationDeg": 55.2,
+          "rolloutPhase": "daylight",
+          "arrivalPhase": "daylight",
+          "nightPercent": 0,
+          "twilightPercent": 0,
+          "daylightPercent": 100,
+          "overallCondition": "bright-daylight",
+          "opticalHazardLevel": "low",
+          "visibilityKm": 18,
+          "visibilityCategory": "good",
+          "weatherCode": 1,
+          "weatherDescEn": "Partly cloudy",
+          "weatherDescFr": "Éclaircies",
+          "isWinterTrip": false,
+          "lightingGear": {
+            "recommendedLumens": "200 – 400 lm (Daytime Pulse)",
+            "minLumens": 200,
+            "maxLumens": 400,
+            "lumenSpectrumPosition": 20,
+            "beamModeEn": "Daytime hyper-flash / penetrating pulse mode",
+            "beamModeFr": "Mode flash pulsé haute visibilité diurne",
+            "rearBeaconEn": "Multi-LED pulse red beacon (≥ 50–100 lm) visible from 1 km",
+            "rearBeaconFr": "Feu rouge clignotant haute puissance (≥ 50–100 lm) visible à 1 km",
+            "batteryNoticeEn": "Sub-5°C winter cold cuts Lithium-ion runtime by 25–35%. Ensure 100% full charge prior to rollout.",
+            "batteryNoticeFr": "Le froid hivernal (< 5°C) ampute l’autonomie lithium de 25 à 35%. Départ impératif à 100% de charge."
+          },
+          "passiveGear": {
+            "reflectiveApparelEn": "EN ISO 20471 / EN 17353 certified reflective vest or sash + high-contrast Volt outer shell",
+            "reflectiveApparelFr": "Gilet ou harnais rétro-réfléchissant certifié EN 17353 + veste extérieure jaune Volt",
+            "ankleBandsEn": "Retro-reflective ankle bands: rotating pedal motion triggers motorist recognition 3× faster in headlights",
+            "ankleBandsFr": "Bandes réfléchissantes de chevilles : le mouvement de pédalage alerte les conducteurs 3× plus vite",
+            "eyewearEn": "Clear or yellow/amber contrast photochromic lenses (avoid dark tinted sunglasses in winter twilight)",
+            "eyewearFr": "Verres transparents ou photochromiques jaunes/ambre (proscrire les verres solaires foncés)"
+          },
+          "surfaceCaution": {
+            "isBlackIceRisk": false
+          },
+          "summaryRecommendationEn": "Favorable daylight visibility throughout the ride. Keep a daytime safety flasher active for traffic awareness, and wear clear or UV eyewear.",
+          "summaryRecommendationFr": "Visibilité optimale en plein jour. Conservez un feu clignotant diurne pour vous signaler aux automobilistes, et prévoyez des verres adaptés aux reflets.",
+          "suggestions": [
+            {
+              "id": "vis-front-daytime",
+              "category": "lighting",
+              "critical": false,
+              "badgeEn": "Daytime Pulse",
+              "badgeFr": "Flash Diurne",
+              "titleEn": "Daytime Penetrating Pulse Light",
+              "titleFr": "Feu flash diurne anti-brouillard",
+              "detailEn": "Run front and rear flashing beacons (200–400 lm) to stay visible through diffuse moisture and low winter sunlight glare.",
+              "detailFr": "Conservez un flash avant/arrière actif (200–400 lm) pour percer la brume et le contre-jour du soleil rasant."
+            },
+            {
+              "id": "vis-reflective-gear",
+              "category": "reflective",
+              "critical": false,
+              "badgeEn": "EN 17353 / ISO 20471",
+              "badgeFr": "Norme EN 17353",
+              "titleEn": "Passive Reflective Gear & 360° Bio-Motion Ankle Bands",
+              "titleFr": "Gilet réfléchissant & bandes de chevilles bio-dynamiques",
+              "detailEn": "Wear an EN 17353 certified reflective vest or sash to be seen from 300m. Add retro-reflective ankle bands: rotating pedal motion triggers motorist human-reflex recognition 3× faster than static torso reflectors.",
+              "detailFr": "Portez un gilet ou baudrier réfléchissant certifié pour être vu à 300 m. Ajoutez des serre-pantalons réfléchissants : le mouvement rotatif du pédalage est détecté 3× plus vite par les automobilistes."
+            },
+            {
+              "id": "vis-eyewear",
+              "category": "eyewear",
+              "critical": false,
+              "badgeEn": "Yellow / Clear Lenses",
+              "badgeFr": "Verres Clairs / Jaunes",
+              "titleEn": "High-Contrast Yellow or Clear Eyewear",
+              "titleFr": "Lunettes à verres clairs ou contrastés jaune/ambre",
+              "detailEn": "Never wear dark sunglasses in winter dawn or dusk. Use clear or high-contrast yellow lenses to shield eyes from sub-zero headwind, grit, and tire spray without losing terrain definition.",
+              "detailFr": "Évitez les verres solaires foncés à l’aube et au crépuscule. Utilisez des verres transparents ou jaunes amplificateurs de contraste contre le vent glacial et les projections."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "classification-helpers",
+      "description": "Ambient light phase, visibility category, WMO descriptions, and HH:MM converters",
+      "input": {
+        "elevations": [
+          -15,
+          -9,
+          -3,
+          8,
+          30
+        ],
+        "visibilities": [
+          0.5,
+          2.5,
+          6,
+          15,
+          25
+        ],
+        "wmoCodes": [
+          0,
+          2,
+          3,
+          45,
+          53,
+          63,
+          73,
+          81,
+          99
+        ],
+        "minutes": [
+          -30,
+          435,
+          1455
+        ]
+      },
+      "expected": {
+        "lightPhases": [
+          {
+            "deg": -15,
+            "phase": "deep-night"
+          },
+          {
+            "deg": -9,
+            "phase": "nautical-twilight"
+          },
+          {
+            "deg": -3,
+            "phase": "civil-twilight"
+          },
+          {
+            "deg": 8,
+            "phase": "golden-hour"
+          },
+          {
+            "deg": 30,
+            "phase": "daylight"
+          }
+        ],
+        "visibilityCategories": [
+          {
+            "km": 0.5,
+            "cat": "dense-fog"
+          },
+          {
+            "km": 2.5,
+            "cat": "mist-haze"
+          },
+          {
+            "km": 6,
+            "cat": "reduced"
+          },
+          {
+            "km": 15,
+            "cat": "good"
+          },
+          {
+            "km": 25,
+            "cat": "crystal"
+          }
+        ],
+        "wmoDescriptions": [
+          {
+            "code": 0,
+            "desc": {
+              "en": "Clear sky",
+              "fr": "Ciel dégagé"
+            }
+          },
+          {
+            "code": 2,
+            "desc": {
+              "en": "Partly cloudy",
+              "fr": "Éclaircies"
+            }
+          },
+          {
+            "code": 3,
+            "desc": {
+              "en": "Overcast winter sky",
+              "fr": "Couvert hivernal"
+            }
+          },
+          {
+            "code": 45,
+            "desc": {
+              "en": "Dense fog / Freezing mist",
+              "fr": "Brouillard givrant"
+            }
+          },
+          {
+            "code": 53,
+            "desc": {
+              "en": "Fine drizzle",
+              "fr": "Bruine persistante"
+            }
+          },
+          {
+            "code": 63,
+            "desc": {
+              "en": "Cold rain",
+              "fr": "Pluie froide"
+            }
+          },
+          {
+            "code": 73,
+            "desc": {
+              "en": "Snow flurries / Ice pellets",
+              "fr": "Averses de neige / Grésil"
+            }
+          },
+          {
+            "code": 81,
+            "desc": {
+              "en": "Rain showers",
+              "fr": "Averses de pluie"
+            }
+          },
+          {
+            "code": 99,
+            "desc": {
+              "en": "Atmospheric murk",
+              "fr": "Brume atmosphérique"
+            }
+          }
+        ],
+        "minutesToHHMM": [
+          {
+            "min": -30,
+            "hhmm": "23:30"
+          },
+          {
+            "min": 435,
+            "hhmm": "07:15"
+          },
+          {
+            "min": 1455,
+            "hhmm": "00:15"
+          }
+        ],
+        "hhmmToMinutes": [
+          {
+            "hhmm": "00:00",
+            "min": 0
+          },
+          {
+            "hhmm": "07:15",
+            "min": 435
+          },
+          {
+            "hhmm": "23:45",
+            "min": 1425
+          }
+        ]
+      }
+    }
+  ]
+}

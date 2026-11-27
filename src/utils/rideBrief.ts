@@ -792,10 +792,11 @@ export function buildRideBrief(params: {
   const activeBike = getActiveBike(riderSpecs);
   const pinnedAmenities = trip.pinnedAmenities || [];
 
-  const activeStage =
-    trip.stages && trip.activeStageIndex !== undefined
-      ? trip.stages[trip.activeStageIndex]
-      : undefined;
+  const activeStageIdx =
+    trip.stages && trip.stages.length > 0
+      ? Math.max(0, Math.min(trip.activeStageIndex ?? 0, trip.stages.length - 1))
+      : -1;
+  const activeStage = activeStageIdx >= 0 ? trip.stages![activeStageIdx] : undefined;
   const stageId = activeStage?.id || trip.id;
   const coords = trip.route?.coordinates || [];
   const totalDistanceKm = trip.route?.distanceKm || 30;
@@ -840,6 +841,11 @@ export function buildRideBrief(params: {
   const movingHours = Math.max(0.25, (physics.movingTimeSeconds || 3600) / 3600);
   const carbTarget = riderSpecs.carbTargetGPerHr ?? 60;
   const pctFtp = physics.ftpPercent ?? 72;
+  const isLockedCarb =
+    riderSpecs?.carbPacingMode === 'locked' ||
+    (riderSpecs?.carbPacingMode !== 'auto' &&
+      riderSpecs?.riderLevel === 'pro' &&
+      carbTarget >= 60);
   const dynamicCarb = calculateIntensityModulatedCarbTarget({
     rideHours: movingHours,
     pctFtp,
@@ -848,16 +854,10 @@ export function buildRideBrief(params: {
     gutCeilingGPerHr: carbTarget,
     totalDays: trip.stages?.length || 1,
     activeChips: trip.customChips || [],
+    isLockedCarbTarget: isLockedCarb,
   });
-  const isLockedCarb =
-    riderSpecs?.carbPacingMode === 'locked' ||
-    (riderSpecs?.riderLevel === 'pro' && carbTarget >= 60);
-  const carbsPerHr = isLockedCarb
-    ? dynamicCarb.effectiveCeilingGPerHr
-    : dynamicCarb.recommendedGPerHr;
-  const totalCarbsG = isLockedCarb
-    ? Math.round(carbsPerHr * Math.max(0.5, movingHours))
-    : dynamicCarb.targetOnBikeCarbsG;
+  const carbsPerHr = dynamicCarb.recommendedGPerHr;
+  const totalCarbsG = dynamicCarb.targetOnBikeCarbsG;
 
   const bidonSizeMl = riderSpecs.bidonSizeMl ?? 650;
   const frameBottleSlots = riderSpecs.frameBottleSlots ?? 2;

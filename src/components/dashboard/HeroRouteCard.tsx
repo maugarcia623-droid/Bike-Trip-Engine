@@ -385,7 +385,7 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
     if (isSavingOffline) return;
     setIsSavingOffline(true);
     try {
-      const meta = await saveExpeditionPack(trip, lang);
+      const meta = await saveExpeditionPack(trip, lang, effectiveSpecs.ftpWatts);
       setOfflinePack(meta);
     } finally {
       setIsSavingOffline(false);
@@ -1752,6 +1752,8 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                         lang,
                         ftpWatts: fitSpecs.ftpWatts,
                         carbTargetGPerHr: fitSpecs.carbTargetGPerHr,
+                        carbPacingMode: fitSpecs.carbPacingMode,
+                        riderLevel: fitSpecs.riderLevel,
                         nutritionPreference: fitSpecs.nutritionPreference,
                       })
                     );
@@ -1766,14 +1768,18 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     ? `Trace GPS universelle & repères${stopSuffix}`
                     : `Universal GPS track & waypoints${stopSuffix}`,
                   badge: '.GPX',
-                  onSelect: () =>
+                  onSelect: () => {
+                    const gpxSpecs = riderSpecs ?? loadRiderBikeSpecs();
                     runFileExport('.GPX', () =>
                       downloadTripGpx(trip, {
-                        ftpWatts: riderSpecs?.ftpWatts,
-                        carbTargetGPerHr: riderSpecs?.carbTargetGPerHr,
-                        nutritionPreference: riderSpecs?.nutritionPreference,
+                        ftpWatts: gpxSpecs.ftpWatts,
+                        carbTargetGPerHr: gpxSpecs.carbTargetGPerHr,
+                        carbPacingMode: gpxSpecs.carbPacingMode,
+                        riderLevel: gpxSpecs.riderLevel,
+                        nutritionPreference: gpxSpecs.nutritionPreference,
                       })
-                    ),
+                    );
+                  },
                 },
                 {
                   id: 'tcx',
@@ -1784,14 +1790,18 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                     ? 'Parcours avec dénivelé, allure & watts'
                     : 'Course with elevation, pace & power',
                   badge: '.TCX',
-                  onSelect: () =>
+                  onSelect: () => {
+                    const tcxSpecs = riderSpecs ?? loadRiderBikeSpecs();
                     runFileExport('.TCX', () =>
                       downloadTripTcx(trip, {
-                        ftpWatts: riderSpecs?.ftpWatts,
-                        carbTargetGPerHr: riderSpecs?.carbTargetGPerHr,
-                        nutritionPreference: riderSpecs?.nutritionPreference,
+                        ftpWatts: tcxSpecs.ftpWatts,
+                        carbTargetGPerHr: tcxSpecs.carbTargetGPerHr,
+                        carbPacingMode: tcxSpecs.carbPacingMode,
+                        riderLevel: tcxSpecs.riderLevel,
+                        nutritionPreference: tcxSpecs.nutritionPreference,
                       })
-                    ),
+                    );
+                  },
                 },
                 ...(HEADUNIT_PUSH_ENABLED
                   ? (
@@ -1829,6 +1839,8 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                         lang,
                         ftpWatts: fitSpecs.ftpWatts,
                         carbTargetGPerHr: fitSpecs.carbTargetGPerHr,
+                        carbPacingMode: fitSpecs.carbPacingMode,
+                        riderLevel: fitSpecs.riderLevel,
                         nutritionPreference: fitSpecs.nutritionPreference,
                       }).then((res) => {
                         setExportFeedback(
@@ -2472,7 +2484,14 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                         <Button variant="primary"
                           type="button"
                           onClick={() => {
-                            downloadTripGpx(trip);
+                            const gpxSpecs = riderSpecs ?? loadRiderBikeSpecs();
+                            downloadTripGpx(trip, {
+                              ftpWatts: gpxSpecs.ftpWatts,
+                              carbTargetGPerHr: gpxSpecs.carbTargetGPerHr,
+                              carbPacingMode: gpxSpecs.carbPacingMode,
+                              riderLevel: gpxSpecs.riderLevel,
+                              nutritionPreference: gpxSpecs.nutritionPreference,
+                            });
                             setActivePopover(null);
                           }}
                           className={`flex-1 h-8 px-3 rounded-full bg-volt text-[#4d5200] ring-1 ring-inset ring-[#a3b300] text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer shadow-xs`}
@@ -2492,6 +2511,8 @@ export const HeroRouteCard: React.FC<HeroRouteCardProps> = ({
                               lang,
                               ftpWatts: fitSpecs.ftpWatts,
                               carbTargetGPerHr: fitSpecs.carbTargetGPerHr,
+                              carbPacingMode: fitSpecs.carbPacingMode,
+                              riderLevel: fitSpecs.riderLevel,
                               nutritionPreference: fitSpecs.nutritionPreference,
                             });
                             setActivePopover(null);

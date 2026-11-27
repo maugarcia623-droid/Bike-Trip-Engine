@@ -1,5 +1,6 @@
 import { TripProfile, RouteParams } from '../types/trip';
 import { StageAmenity } from '../types/amenities';
+import type { RiderLevel } from '../types/specs';
 import { synthesizeRouteElevationProfile } from './gpxParser';
 import { resolveLiveStages, getExpeditionTotals } from './stageManager';
 import { getCurrentLanguage } from '../context/LanguageContext';
@@ -23,6 +24,9 @@ import {
 export interface GpxExportOptions {
   ftpWatts?: number;
   carbTargetGPerHr?: number;
+  carbPacingMode?: 'auto' | 'locked';
+  isLockedCarbTarget?: boolean;
+  riderLevel?: RiderLevel;
   nutritionPreference?: 'real-food' | 'mixed' | 'sports-fuel';
 }
 
@@ -616,6 +620,9 @@ function buildClimbAndFuelGpxWaypointsXml(
     departureTimeHHMM: trip.departureTime,
     ftpWatts: options.ftpWatts,
     carbTargetGPerHr: options.carbTargetGPerHr,
+    isLockedCarbTarget: options.isLockedCarbTarget,
+    carbPacingMode: options.carbPacingMode,
+    riderLevel: options.riderLevel,
     nutritionPreference: options.nutritionPreference,
   });
 
@@ -732,6 +739,9 @@ export function exportTripToTcx(trip: TripProfile, options: GpxExportOptions = {
     departureTimeHHMM: trip.departureTime,
     ftpWatts: options.ftpWatts,
     carbTargetGPerHr: options.carbTargetGPerHr,
+    isLockedCarbTarget: options.isLockedCarbTarget,
+    carbPacingMode: options.carbPacingMode,
+    riderLevel: options.riderLevel,
     nutritionPreference: options.nutritionPreference,
   });
 

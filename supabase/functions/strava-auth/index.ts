@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import {
   CORS_HEADERS,
   UUID_REGEX,
+  buildOAuthRedirectUrl,
   deleteOwnedIntegrationRow,
   findOwnedIntegrationRow,
   getFallbackRedirectOrigin,
@@ -48,18 +49,24 @@ Deno.serve(async (req: Request) => {
     const stravaError = reqUrl.searchParams.get('error');
     if (stravaError) {
       return Response.redirect(
-        `${redirectOrigin}/?strava_error=${encodeURIComponent(stravaError)}`,
+        buildOAuthRedirectUrl(redirectOrigin, { strava_error: stravaError }),
         302
       );
     }
 
     const code = reqUrl.searchParams.get('code') || '';
     if (!code || !state || (state.provider && state.provider !== 'strava')) {
-      return Response.redirect(`${redirectOrigin}/?strava_error=invalid_callback_state`, 302);
+      return Response.redirect(
+        buildOAuthRedirectUrl(redirectOrigin, { strava_error: 'invalid_callback_state' }),
+        302
+      );
     }
 
     if (!stravaClientId || !stravaClientSecret || !supabaseUrl || !serviceRoleKey) {
-      return Response.redirect(`${redirectOrigin}/?strava_error=missing_strava_secrets`, 302);
+      return Response.redirect(
+        buildOAuthRedirectUrl(redirectOrigin, { strava_error: 'missing_strava_secrets' }),
+        302
+      );
     }
 
     try {
@@ -76,7 +83,10 @@ Deno.serve(async (req: Request) => {
       });
 
       if (!tokenRes.ok) {
-        return Response.redirect(`${redirectOrigin}/?strava_error=token_exchange_failed`, 302);
+        return Response.redirect(
+          buildOAuthRedirectUrl(redirectOrigin, { strava_error: 'token_exchange_failed' }),
+          302
+        );
       }
 
       const tokenJson = await tokenRes.json();
@@ -84,7 +94,10 @@ Deno.serve(async (req: Request) => {
       const refreshToken = String(tokenJson?.refresh_token || '');
       const expiresAtSec = Number(tokenJson?.expires_at || 0);
       if (!accessToken || !refreshToken || !expiresAtSec) {
-        return Response.redirect(`${redirectOrigin}/?strava_error=invalid_token_payload`, 302);
+        return Response.redirect(
+          buildOAuthRedirectUrl(redirectOrigin, { strava_error: 'invalid_token_payload' }),
+          302
+        );
       }
 
       const athlete = tokenJson?.athlete || {};
@@ -104,7 +117,10 @@ Deno.serve(async (req: Request) => {
         .maybeSingle();
 
       if (existing?.user_id && existing.user_id !== state.userId) {
-        return Response.redirect(`${redirectOrigin}/?strava_error=state_ownership_mismatch`, 302);
+        return Response.redirect(
+          buildOAuthRedirectUrl(redirectOrigin, { strava_error: 'state_ownership_mismatch' }),
+          302
+        );
       }
 
       const { error: dbErr } = await admin.from('user_integrations').upsert(
@@ -124,15 +140,24 @@ Deno.serve(async (req: Request) => {
       );
 
       if (dbErr) {
-        return Response.redirect(`${redirectOrigin}/?strava_error=storage_failed`, 302);
+        return Response.redirect(
+          buildOAuthRedirectUrl(redirectOrigin, { strava_error: 'storage_failed' }),
+          302
+        );
       }
 
       return Response.redirect(
-        `${redirectOrigin}/?strava_connected=1&strava_athlete=${encodeURIComponent(athleteName)}`,
+        buildOAuthRedirectUrl(redirectOrigin, {
+          strava_connected: 1,
+          strava_athlete: athleteName,
+        }),
         302
       );
     } catch {
-      return Response.redirect(`${redirectOrigin}/?strava_error=unexpected_oauth_error`, 302);
+      return Response.redirect(
+        buildOAuthRedirectUrl(redirectOrigin, { strava_error: 'unexpected_oauth_error' }),
+        302
+      );
     }
   }
 

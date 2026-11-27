@@ -1,0 +1,909 @@
+{
+  "schemaVersion": 1,
+  "engine": "weeklyWeatherSummary",
+  "sourceFiles": [
+    "src/utils/weeklyWeatherSummary.ts"
+  ],
+  "determinism": {
+    "frozenUtc": "2026-11-26T12:00:00.000Z",
+    "timezone": "Europe/Paris"
+  },
+  "cases": [
+    {
+      "id": "snow-freeze",
+      "description": "Sub-zero/snow forecast in EN and FR",
+      "input": {
+        "forecast": {
+          "latitude": 47.2184,
+          "longitude": -1.5536,
+          "fetchedAt": "2026-11-16T10:00:00Z",
+          "days": [
+            {
+              "date": "2026-11-16",
+              "weatherCode": 73,
+              "tempMaxC": 1,
+              "tempMinC": -3,
+              "precipitationSumMm": 4,
+              "precipitationProbMax": 80,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-17",
+              "weatherCode": 71,
+              "tempMaxC": 2,
+              "tempMinC": -2,
+              "precipitationSumMm": 2,
+              "precipitationProbMax": 65,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-18",
+              "weatherCode": 3,
+              "tempMaxC": 3,
+              "tempMinC": -1,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-19",
+              "weatherCode": 1,
+              "tempMaxC": 4,
+              "tempMinC": -1,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-20",
+              "weatherCode": 1,
+              "tempMaxC": 3,
+              "tempMinC": -2,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-21",
+              "weatherCode": 2,
+              "tempMaxC": 2,
+              "tempMinC": -2,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-22",
+              "weatherCode": 71,
+              "tempMaxC": 1,
+              "tempMinC": -3,
+              "precipitationSumMm": 3,
+              "precipitationProbMax": 70,
+              "windSpeedMaxKmH": 14
+            }
+          ]
+        }
+      },
+      "expected": {
+        "en": "Snow and freezing temps (around 2°C) in the mix this week. Take it easy on the corners—or keep it on the trainer.",
+        "fr": "Neige et gel (autour de 2°C) au programme cette semaine. Prudence dans les virages, ou session home-trainer."
+      }
+    },
+    {
+      "id": "all-rain-stormy",
+      "description": "All-week rain with high winds",
+      "input": {
+        "forecast": {
+          "latitude": 47.2184,
+          "longitude": -1.5536,
+          "fetchedAt": "2026-11-16T10:00:00Z",
+          "days": [
+            {
+              "date": "2026-11-16",
+              "weatherCode": 63,
+              "tempMaxC": 11,
+              "tempMinC": 7,
+              "precipitationSumMm": 8,
+              "precipitationProbMax": 85,
+              "windSpeedMaxKmH": 38
+            },
+            {
+              "date": "2026-11-17",
+              "weatherCode": 63,
+              "tempMaxC": 11,
+              "tempMinC": 7,
+              "precipitationSumMm": 8,
+              "precipitationProbMax": 85,
+              "windSpeedMaxKmH": 38
+            },
+            {
+              "date": "2026-11-18",
+              "weatherCode": 63,
+              "tempMaxC": 11,
+              "tempMinC": 7,
+              "precipitationSumMm": 8,
+              "precipitationProbMax": 85,
+              "windSpeedMaxKmH": 38
+            },
+            {
+              "date": "2026-11-19",
+              "weatherCode": 63,
+              "tempMaxC": 11,
+              "tempMinC": 7,
+              "precipitationSumMm": 8,
+              "precipitationProbMax": 85,
+              "windSpeedMaxKmH": 38
+            },
+            {
+              "date": "2026-11-20",
+              "weatherCode": 63,
+              "tempMaxC": 11,
+              "tempMinC": 7,
+              "precipitationSumMm": 8,
+              "precipitationProbMax": 85,
+              "windSpeedMaxKmH": 38
+            },
+            {
+              "date": "2026-11-21",
+              "weatherCode": 63,
+              "tempMaxC": 11,
+              "tempMinC": 7,
+              "precipitationSumMm": 8,
+              "precipitationProbMax": 85,
+              "windSpeedMaxKmH": 38
+            },
+            {
+              "date": "2026-11-22",
+              "weatherCode": 63,
+              "tempMaxC": 11,
+              "tempMinC": 7,
+              "precipitationSumMm": 8,
+              "precipitationProbMax": 85,
+              "windSpeedMaxKmH": 38
+            }
+          ]
+        }
+      },
+      "expected": {
+        "en": "Rain pretty much all week (around 11°C). You can do it, just cover yourself from head to toe.",
+        "fr": "De la pluie presque toute la semaine (autour de 11°C). Tu peux le faire, couvre-toi juste de la tête aux pieds."
+      }
+    },
+    {
+      "id": "all-rain-calm",
+      "description": "All-week rain with calm winds",
+      "input": {
+        "forecast": {
+          "latitude": 47.2184,
+          "longitude": -1.5536,
+          "fetchedAt": "2026-11-16T10:00:00Z",
+          "days": [
+            {
+              "date": "2026-11-16",
+              "weatherCode": 61,
+              "tempMaxC": 11,
+              "tempMinC": 7,
+              "precipitationSumMm": 6,
+              "precipitationProbMax": 80,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-17",
+              "weatherCode": 61,
+              "tempMaxC": 11,
+              "tempMinC": 7,
+              "precipitationSumMm": 6,
+              "precipitationProbMax": 80,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-18",
+              "weatherCode": 61,
+              "tempMaxC": 11,
+              "tempMinC": 7,
+              "precipitationSumMm": 6,
+              "precipitationProbMax": 80,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-19",
+              "weatherCode": 61,
+              "tempMaxC": 11,
+              "tempMinC": 7,
+              "precipitationSumMm": 6,
+              "precipitationProbMax": 80,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-20",
+              "weatherCode": 61,
+              "tempMaxC": 11,
+              "tempMinC": 7,
+              "precipitationSumMm": 6,
+              "precipitationProbMax": 80,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-21",
+              "weatherCode": 61,
+              "tempMaxC": 11,
+              "tempMinC": 7,
+              "precipitationSumMm": 6,
+              "precipitationProbMax": 80,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-22",
+              "weatherCode": 61,
+              "tempMaxC": 11,
+              "tempMinC": 7,
+              "precipitationSumMm": 6,
+              "precipitationProbMax": 80,
+              "windSpeedMaxKmH": 14
+            }
+          ]
+        }
+      },
+      "expected": {
+        "en": "Rain pretty much all week (around 11°C). You can do it, just cover yourself from head to toe.",
+        "fr": "De la pluie presque toute la semaine (autour de 11°C). Tu peux le faire, couvre-toi juste de la tête aux pieds."
+      }
+    },
+    {
+      "id": "very-rainy-driest-day",
+      "description": "Mostly rainy week calling out driest day (Friday)",
+      "input": {
+        "forecast": {
+          "latitude": 47.2184,
+          "longitude": -1.5536,
+          "fetchedAt": "2026-11-16T10:00:00Z",
+          "days": [
+            {
+              "date": "2026-11-16",
+              "weatherCode": 63,
+              "tempMaxC": 12,
+              "tempMinC": 8,
+              "precipitationSumMm": 8,
+              "precipitationProbMax": 85,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-17",
+              "weatherCode": 61,
+              "tempMaxC": 13,
+              "tempMinC": 8,
+              "precipitationSumMm": 5,
+              "precipitationProbMax": 75,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-18",
+              "weatherCode": 61,
+              "tempMaxC": 12,
+              "tempMinC": 8,
+              "precipitationSumMm": 4,
+              "precipitationProbMax": 70,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-19",
+              "weatherCode": 63,
+              "tempMaxC": 11,
+              "tempMinC": 8,
+              "precipitationSumMm": 9,
+              "precipitationProbMax": 90,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-20",
+              "weatherCode": 1,
+              "tempMaxC": 14,
+              "tempMinC": 8,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-21",
+              "weatherCode": 80,
+              "tempMaxC": 12,
+              "tempMinC": 8,
+              "precipitationSumMm": 4,
+              "precipitationProbMax": 65,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-22",
+              "weatherCode": 2,
+              "tempMaxC": 13,
+              "tempMinC": 8,
+              "precipitationSumMm": 0.2,
+              "precipitationProbMax": 25,
+              "windSpeedMaxKmH": 14
+            }
+          ]
+        }
+      },
+      "expected": {
+        "en": "Lots of rain this week (5 wet days, around 12°C)—Friday looks driest. You can do it, just cover yourself from head to toe.",
+        "fr": "Semaine bien humide (5 jours de pluie, autour de 12°C) — vendredi s'annonce le plus sec. Tu peux le faire, couvre-toi juste de la tête aux pieds."
+      }
+    },
+    {
+      "id": "mixed-2-rainy",
+      "description": "Mixed week with 2 rainy days (Tue & Thu)",
+      "input": {
+        "forecast": {
+          "latitude": 47.2184,
+          "longitude": -1.5536,
+          "fetchedAt": "2026-11-16T10:00:00Z",
+          "days": [
+            {
+              "date": "2026-11-16",
+              "weatherCode": 1,
+              "tempMaxC": 16,
+              "tempMinC": 8,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-17",
+              "weatherCode": 61,
+              "tempMaxC": 14,
+              "tempMinC": 8,
+              "precipitationSumMm": 3,
+              "precipitationProbMax": 70,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-18",
+              "weatherCode": 2,
+              "tempMaxC": 15,
+              "tempMinC": 8,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-19",
+              "weatherCode": 80,
+              "tempMaxC": 14,
+              "tempMinC": 8,
+              "precipitationSumMm": 2.5,
+              "precipitationProbMax": 65,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-20",
+              "weatherCode": 0,
+              "tempMaxC": 17,
+              "tempMinC": 8,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-21",
+              "weatherCode": 1,
+              "tempMaxC": 18,
+              "tempMinC": 8,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-22",
+              "weatherCode": 1,
+              "tempMaxC": 17,
+              "tempMinC": 8,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            }
+          ]
+        }
+      },
+      "expected": {
+        "en": "Mixed bag this week (highs 14–18°C)—mostly dry, with rain around Tue & Thu. Keep a shell handy.",
+        "fr": "Semaine mitigée (max 14–18°C) — plutôt sec dans l'ensemble, avec de la pluie mar et jeu. Garde un coupe-pluie sous la main."
+      }
+    },
+    {
+      "id": "single-shower-today-and-later",
+      "description": "Single rainy day tested both on day 0 (today) and day 3 (later)",
+      "input": {
+        "forecast": {
+          "latitude": 47.2184,
+          "longitude": -1.5536,
+          "fetchedAt": "2026-11-16T10:00:00Z",
+          "days": [
+            {
+              "date": "2026-11-16",
+              "weatherCode": 61,
+              "tempMaxC": 15,
+              "tempMinC": 8,
+              "precipitationSumMm": 3.5,
+              "precipitationProbMax": 75,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-17",
+              "weatherCode": 1,
+              "tempMaxC": 16,
+              "tempMinC": 8,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-18",
+              "weatherCode": 0,
+              "tempMaxC": 17,
+              "tempMinC": 8,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-19",
+              "weatherCode": 1,
+              "tempMaxC": 17,
+              "tempMinC": 8,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-20",
+              "weatherCode": 1,
+              "tempMaxC": 18,
+              "tempMinC": 8,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-21",
+              "weatherCode": 0,
+              "tempMaxC": 18,
+              "tempMinC": 8,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-22",
+              "weatherCode": 1,
+              "tempMaxC": 17,
+              "tempMinC": 8,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            }
+          ]
+        }
+      },
+      "expected": {
+        "en": "Mostly dry all week (around 17°C), with just a passing shower possible today. Easy riding ahead.",
+        "fr": "Semaine globalement sèche (autour de 17°C), juste une averse possible aujourd'hui. Roule tranquille."
+      }
+    },
+    {
+      "id": "windy-dry",
+      "description": "Mostly dry but windy week (44 km/h)",
+      "input": {
+        "forecast": {
+          "latitude": 47.2184,
+          "longitude": -1.5536,
+          "fetchedAt": "2026-11-16T10:00:00Z",
+          "days": [
+            {
+              "date": "2026-11-16",
+              "weatherCode": 2,
+              "tempMaxC": 14,
+              "tempMinC": 8,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 38
+            },
+            {
+              "date": "2026-11-17",
+              "weatherCode": 1,
+              "tempMaxC": 15,
+              "tempMinC": 8,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 44
+            },
+            {
+              "date": "2026-11-18",
+              "weatherCode": 2,
+              "tempMaxC": 14,
+              "tempMinC": 8,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 35
+            },
+            {
+              "date": "2026-11-19",
+              "weatherCode": 1,
+              "tempMaxC": 16,
+              "tempMinC": 8,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 22
+            },
+            {
+              "date": "2026-11-20",
+              "weatherCode": 0,
+              "tempMaxC": 16,
+              "tempMinC": 8,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 18
+            },
+            {
+              "date": "2026-11-21",
+              "weatherCode": 1,
+              "tempMaxC": 15,
+              "tempMinC": 8,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 20
+            },
+            {
+              "date": "2026-11-22",
+              "weatherCode": 2,
+              "tempMaxC": 15,
+              "tempMinC": 8,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 24
+            }
+          ]
+        }
+      },
+      "expected": {
+        "en": "Mostly dry this week (around 15°C), though it's looking breezy (up to 44 km/h). Free tailwinds if you plan it right.",
+        "fr": "Plutôt sec cette semaine (autour de 15°C), mais venteux (jusqu'à 44 km/h). De quoi chasser le vent de dos."
+      }
+    },
+    {
+      "id": "cold-dry",
+      "description": "Cold dry winter week (< 8°C)",
+      "input": {
+        "forecast": {
+          "latitude": 47.2184,
+          "longitude": -1.5536,
+          "fetchedAt": "2026-11-16T10:00:00Z",
+          "days": [
+            {
+              "date": "2026-11-16",
+              "weatherCode": 1,
+              "tempMaxC": 6,
+              "tempMinC": 0,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-17",
+              "weatherCode": 1,
+              "tempMaxC": 6,
+              "tempMinC": 0,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-18",
+              "weatherCode": 1,
+              "tempMaxC": 6,
+              "tempMinC": 0,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-19",
+              "weatherCode": 1,
+              "tempMaxC": 6,
+              "tempMinC": 0,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-20",
+              "weatherCode": 1,
+              "tempMaxC": 6,
+              "tempMinC": 0,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-21",
+              "weatherCode": 1,
+              "tempMaxC": 6,
+              "tempMinC": 0,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-22",
+              "weatherCode": 1,
+              "tempMaxC": 6,
+              "tempMinC": 0,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            }
+          ]
+        }
+      },
+      "expected": {
+        "en": "Dry and crisp all week (around 6°C, chilly mornings). Throw on warm layers and enjoy the quiet roads.",
+        "fr": "Sec et frais toute la semaine (autour de 6°C, matins frisquets). Une bonne couche thermique et profite des routes calmes."
+      }
+    },
+    {
+      "id": "hot-dry",
+      "description": "Hot dry summer week (>= 27°C)",
+      "input": {
+        "forecast": {
+          "latitude": 47.2184,
+          "longitude": -1.5536,
+          "fetchedAt": "2026-11-16T10:00:00Z",
+          "days": [
+            {
+              "date": "2026-11-16",
+              "weatherCode": 0,
+              "tempMaxC": 31,
+              "tempMinC": 18,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-17",
+              "weatherCode": 0,
+              "tempMaxC": 31,
+              "tempMinC": 18,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-18",
+              "weatherCode": 0,
+              "tempMaxC": 31,
+              "tempMinC": 18,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-19",
+              "weatherCode": 0,
+              "tempMaxC": 31,
+              "tempMinC": 18,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-20",
+              "weatherCode": 0,
+              "tempMaxC": 31,
+              "tempMinC": 18,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-21",
+              "weatherCode": 0,
+              "tempMaxC": 31,
+              "tempMinC": 18,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-22",
+              "weatherCode": 0,
+              "tempMaxC": 31,
+              "tempMinC": 18,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            }
+          ]
+        }
+      },
+      "expected": {
+        "en": "Warm, dry stretch all week (around 31°C). Roll out early if you can and pack an extra bottle.",
+        "fr": "Semaine chaude et sèche (autour de 31°C). Pars tôt si possible et prends un bidon de plus."
+      }
+    },
+    {
+      "id": "clear-sunny-mild",
+      "description": "Clear mild week (~18°C)",
+      "input": {
+        "forecast": {
+          "latitude": 47.2184,
+          "longitude": -1.5536,
+          "fetchedAt": "2026-11-16T10:00:00Z",
+          "days": [
+            {
+              "date": "2026-11-16",
+              "weatherCode": 0,
+              "tempMaxC": 17,
+              "tempMinC": 9,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-17",
+              "weatherCode": 1,
+              "tempMaxC": 18,
+              "tempMinC": 10,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-18",
+              "weatherCode": 0,
+              "tempMaxC": 19,
+              "tempMinC": 10,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-19",
+              "weatherCode": 1,
+              "tempMaxC": 18,
+              "tempMinC": 9,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-20",
+              "weatherCode": 0,
+              "tempMaxC": 20,
+              "tempMinC": 11,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-21",
+              "weatherCode": 1,
+              "tempMaxC": 19,
+              "tempMinC": 10,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-22",
+              "weatherCode": 0,
+              "tempMaxC": 18,
+              "tempMinC": 9,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            }
+          ]
+        }
+      },
+      "expected": {
+        "en": "Clear, dry skies all week (around 18°C)—basically an open invitation to take the long way.",
+        "fr": "Temps sec et lumineux toute la semaine (autour de 18°C) — l'excuse parfaite pour rallonger le parcours."
+      }
+    },
+    {
+      "id": "empty-days",
+      "description": "Empty days array returns empty string",
+      "input": {
+        "forecast": {
+          "latitude": 47.2184,
+          "longitude": -1.5536,
+          "fetchedAt": "2026-11-16T10:00:00Z",
+          "days": []
+        }
+      },
+      "expected": {
+        "en": "",
+        "fr": ""
+      }
+    },
+    {
+      "id": "single-shower-later",
+      "description": "Single rainy day later in week (Thursday)",
+      "input": {
+        "forecast": {
+          "latitude": 47.2184,
+          "longitude": -1.5536,
+          "fetchedAt": "2026-11-16T10:00:00Z",
+          "days": [
+            {
+              "date": "2026-11-16",
+              "weatherCode": 1,
+              "tempMaxC": 16,
+              "tempMinC": 8,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-17",
+              "weatherCode": 1,
+              "tempMaxC": 16,
+              "tempMinC": 8,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-18",
+              "weatherCode": 0,
+              "tempMaxC": 17,
+              "tempMinC": 8,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-19",
+              "weatherCode": 61,
+              "tempMaxC": 15,
+              "tempMinC": 8,
+              "precipitationSumMm": 3.5,
+              "precipitationProbMax": 75,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-20",
+              "weatherCode": 1,
+              "tempMaxC": 18,
+              "tempMinC": 8,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-21",
+              "weatherCode": 0,
+              "tempMaxC": 18,
+              "tempMinC": 8,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            },
+            {
+              "date": "2026-11-22",
+              "weatherCode": 1,
+              "tempMaxC": 17,
+              "tempMinC": 8,
+              "precipitationSumMm": 0,
+              "precipitationProbMax": 10,
+              "windSpeedMaxKmH": 14
+            }
+          ]
+        }
+      },
+      "expected": {
+        "en": "Mostly dry all week (around 17°C), with just a passing shower possible on Thursday. Easy riding ahead.",
+        "fr": "Semaine globalement sèche (autour de 17°C), juste une averse possible jeudi. Roule tranquille."
+      }
+    }
+  ]
+}

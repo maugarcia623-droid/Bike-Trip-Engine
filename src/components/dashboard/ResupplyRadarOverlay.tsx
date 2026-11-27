@@ -234,10 +234,11 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
     };
   }, [isOpen, embedded, onClose]);
 
-  const activeStage =
-    trip.stages && trip.activeStageIndex !== undefined
-      ? trip.stages[trip.activeStageIndex]
-      : undefined;
+  const activeStageIdx =
+    trip.stages && trip.stages.length > 0
+      ? Math.max(0, Math.min(trip.activeStageIndex ?? 0, trip.stages.length - 1))
+      : -1;
+  const activeStage = activeStageIdx >= 0 ? trip.stages![activeStageIdx] : undefined;
   const activeDateStr = activeStage?.departureDate || trip.departureDate;
 
   const hasValidCorridorCoords = Boolean(
@@ -1367,7 +1368,16 @@ export const ResupplyRadarOverlay: React.FC<ResupplyRadarOverlayProps> = ({
                 </Button>
                 <Button variant="ghost"
                   type="button"
-                  onClick={() => downloadTripFit(trip)}
+                  onClick={() =>
+                    downloadTripFit(trip, {
+                      lang,
+                      ftpWatts: radarSpecs.ftpWatts,
+                      carbTargetGPerHr: radarSpecs.carbTargetGPerHr,
+                      carbPacingMode: radarSpecs.carbPacingMode,
+                      riderLevel: radarSpecs.riderLevel,
+                      nutritionPreference: radarSpecs.nutritionPreference,
+                    })
+                  }
                   className="inline-flex items-center gap-1 min-h-[44px] sm:min-h-[34px] px-3 py-1.5 rounded-full bg-ink/10 dark:bg-white/10 text-ink font-rounded font-bold text-xs shrink-0 cursor-pointer hover:bg-ink/15 dark:hover:bg-white/15 active:scale-[0.98] transition-all"
                   title={isFr ? 'Parcours .FIT avec arrêts épinglés pour Garmin Up Ahead' : 'Garmin .FIT course with pinned stops for Up Ahead'}
                 >

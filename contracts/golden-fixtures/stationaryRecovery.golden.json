@@ -1,0 +1,190 @@
+{
+  "schemaVersion": 1,
+  "engine": "stationaryRecovery",
+  "sourceFiles": [
+    "src/utils/stationaryRecovery.ts"
+  ],
+  "determinism": {
+    "frozenUtc": "2026-11-26T12:00:00.000Z",
+    "timezone": "Europe/Paris"
+  },
+  "cases": [
+    {
+      "id": "winter-predawn-vs-postdawn-vs-summer",
+      "description": "Pre-dawn winter restriction vs winter post-dawn vs summer early morning",
+      "input": {
+        "constants": {
+          "PRE_DAWN_WINTER_MAX_REST_MIN": 5,
+          "LUNCH_BREAK_MIN_DURATION": 30
+        },
+        "probes": [
+          {
+            "rolloutTimeHHMM": "06:30",
+            "departureDate": "2026-12-15"
+          },
+          {
+            "rolloutTimeHHMM": "07:15",
+            "departureDate": "2026-12-21"
+          },
+          {
+            "rolloutTimeHHMM": "09:30",
+            "departureDate": "2026-12-15"
+          },
+          {
+            "rolloutTimeHHMM": "06:30",
+            "departureDate": "2026-06-21"
+          }
+        ]
+      },
+      "expected": {
+        "winterPreDawn0630": {
+          "isRestricted": true,
+          "maxRestMinutes": 5,
+          "disableLunchBreak": true,
+          "isWinter": true,
+          "isBeforeDawn": true,
+          "civilDawnHHMM": "08:10",
+          "rolloutHHMM": "06:30"
+        },
+        "winterPreDawn0715": {
+          "isRestricted": true,
+          "maxRestMinutes": 5,
+          "disableLunchBreak": true,
+          "isWinter": true,
+          "isBeforeDawn": true,
+          "civilDawnHHMM": "08:14",
+          "rolloutHHMM": "07:15"
+        },
+        "winterPostDawn0930": {
+          "isRestricted": false,
+          "maxRestMinutes": null,
+          "disableLunchBreak": false,
+          "isWinter": true,
+          "isBeforeDawn": false,
+          "civilDawnHHMM": "08:10",
+          "rolloutHHMM": "09:30"
+        },
+        "summerEarly0630": {
+          "isRestricted": false,
+          "maxRestMinutes": null,
+          "disableLunchBreak": false,
+          "isWinter": false,
+          "isBeforeDawn": true,
+          "civilDawnHHMM": "05:29",
+          "rolloutHHMM": "06:30"
+        }
+      }
+    },
+    {
+      "id": "resolve-rest-stop-caps",
+      "description": "Rest stop cap (<=5m) and >=30m lunch break disabling under restricted vs unrestricted rules",
+      "input": {
+        "durations": [
+          3,
+          5,
+          15,
+          29,
+          30,
+          45,
+          60
+        ]
+      },
+      "expected": {
+        "restricted": [
+          {
+            "requested": 3,
+            "effective": 3
+          },
+          {
+            "requested": 5,
+            "effective": 5
+          },
+          {
+            "requested": 15,
+            "effective": 5
+          },
+          {
+            "requested": 29,
+            "effective": 5
+          },
+          {
+            "requested": 30,
+            "effective": 0
+          },
+          {
+            "requested": 45,
+            "effective": 0
+          },
+          {
+            "requested": 60,
+            "effective": 0
+          }
+        ],
+        "unrestricted": [
+          {
+            "requested": 3,
+            "effective": 3
+          },
+          {
+            "requested": 5,
+            "effective": 5
+          },
+          {
+            "requested": 15,
+            "effective": 15
+          },
+          {
+            "requested": 29,
+            "effective": 29
+          },
+          {
+            "requested": 30,
+            "effective": 30
+          },
+          {
+            "requested": 45,
+            "effective": 45
+          },
+          {
+            "requested": 60,
+            "effective": 60
+          }
+        ]
+      }
+    },
+    {
+      "id": "trip-rollout-and-rule",
+      "description": "estimateTripRolloutTimeHHMM and getStationaryRecoveryRuleForTrip for depart-at vs arrive-by",
+      "input": {
+        "departTripId": "golden-base-trip",
+        "arriveTripId": "golden-base-trip"
+      },
+      "expected": {
+        "departMode": {
+          "rolloutHHMM": "06:30",
+          "rule": {
+            "isRestricted": true,
+            "maxRestMinutes": 5,
+            "disableLunchBreak": true,
+            "isWinter": true,
+            "isBeforeDawn": true,
+            "civilDawnHHMM": "08:10",
+            "rolloutHHMM": "06:30"
+          }
+        },
+        "arriveMode": {
+          "rolloutHHMM": "06:35",
+          "rule": {
+            "isRestricted": true,
+            "maxRestMinutes": 5,
+            "disableLunchBreak": true,
+            "isWinter": true,
+            "isBeforeDawn": true,
+            "civilDawnHHMM": "08:10",
+            "rolloutHHMM": "06:35"
+          }
+        }
+      }
+    }
+  ]
+}

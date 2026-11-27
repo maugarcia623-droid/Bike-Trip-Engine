@@ -115,6 +115,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
     onMenuOpenChange?.(nextVal);
   };
 
+  const headerRef = useRef<HTMLElement>(null);
   const menuContainerRef = useRef<HTMLDivElement>(null);
   const mobileMenuContainerRef = useRef<HTMLDivElement>(null);
   const mobileSheetRef = useRef<HTMLDivElement>(null);
@@ -135,6 +136,26 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // Keep --cadence-nav-h exact so sticky subnavs sit flush with zero gap
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el || typeof window === 'undefined') return;
+    const syncNavHeight = () => {
+      const h = Math.floor(el.getBoundingClientRect().height);
+      if (h > 0) {
+        document.documentElement.style.setProperty('--cadence-nav-h', `${h}px`);
+      }
+    };
+    syncNavHeight();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(syncNavHeight) : null;
+    ro?.observe(el);
+    window.addEventListener('resize', syncNavHeight);
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener('resize', syncNavHeight);
+    };
   }, []);
 
   useEffect(() => {
@@ -652,6 +673,8 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
                                 lang,
                                 ftpWatts: riderSpecs?.ftpWatts,
                                 carbTargetGPerHr: riderSpecs?.carbTargetGPerHr,
+                                carbPacingMode: riderSpecs?.carbPacingMode,
+                                riderLevel: riderSpecs?.riderLevel,
                                 nutritionPreference: riderSpecs?.nutritionPreference,
                               })
                             ),
@@ -664,7 +687,13 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
                           iconCls: 'text-sky-600 dark:text-sky-400',
                           onExport: () =>
                             void import('../../utils/gpxExporter').then(({ downloadTripGpx }) =>
-                              downloadTripGpx(activeTrip)
+                              downloadTripGpx(activeTrip, {
+                                ftpWatts: riderSpecs?.ftpWatts,
+                                carbTargetGPerHr: riderSpecs?.carbTargetGPerHr,
+                                carbPacingMode: riderSpecs?.carbPacingMode,
+                                riderLevel: riderSpecs?.riderLevel,
+                                nutritionPreference: riderSpecs?.nutritionPreference,
+                              })
                             ),
                         },
                         {
@@ -675,7 +704,13 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
                           iconCls: 'text-emerald-600 dark:text-emerald-400',
                           onExport: () =>
                             void import('../../utils/gpxExporter').then(({ downloadTripTcx }) =>
-                              downloadTripTcx(activeTrip)
+                              downloadTripTcx(activeTrip, {
+                                ftpWatts: riderSpecs?.ftpWatts,
+                                carbTargetGPerHr: riderSpecs?.carbTargetGPerHr,
+                                carbPacingMode: riderSpecs?.carbPacingMode,
+                                riderLevel: riderSpecs?.riderLevel,
+                                nutritionPreference: riderSpecs?.nutritionPreference,
+                              })
                             ),
                         },
                       ] as const
@@ -937,6 +972,7 @@ export const TopTelemetryBar: React.FC<TopTelemetryBarProps> = ({
 
   return (
     <header
+      ref={headerRef}
       className={`cadence-top-nav sticky top-0 z-40 w-full select-none no-print transition-[background-color,border-color,box-shadow] duration-150 bg-canvas/90 backdrop-blur-md ${
         isScrolled
           ? 'border-b border-ink/[0.07] dark:border-white/[0.08] shadow-[0_1px_12px_rgba(0,0,0,0.04)] dark:shadow-[0_1px_14px_rgba(0,0,0,0.35)]'

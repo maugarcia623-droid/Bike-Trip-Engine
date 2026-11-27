@@ -431,7 +431,7 @@ export function computeClimbSplitsAndFueling(
   const storedSpecs = loadRiderBikeSpecs();
   const ftpWatts = Math.max(80, Math.round(options.ftpWatts ?? physicsResult.ftpWatts ?? 210));
   const rideHours = Math.max(0.25, physicsResult.movingTimeSeconds / 3600);
-  const gutCeiling = Math.max(30, Math.min(120, options.carbTargetGPerHr ?? storedSpecs.carbTargetGPerHr ?? 60));
+  const gutCeiling = Math.max(25, Math.min(120, options.carbTargetGPerHr ?? storedSpecs.carbTargetGPerHr ?? 60));
   const resolvedRiderLevel = options.riderLevel ?? storedSpecs.riderLevel;
   const resolvedCarbPacingMode = options.carbPacingMode ?? storedSpecs.carbPacingMode;
   const isLockedCarbTarget =

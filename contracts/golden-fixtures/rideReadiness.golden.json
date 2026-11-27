@@ -1,0 +1,1445 @@
+{
+  "schemaVersion": 1,
+  "engine": "rideReadiness",
+  "sourceFiles": [
+    "src/utils/rideReadiness.ts"
+  ],
+  "determinism": {
+    "frozenUtc": "2026-11-26T12:00:00.000Z",
+    "timezone": "Europe/Paris"
+  },
+  "cases": [
+    {
+      "id": "readiness-bands",
+      "description": "READINESS_BANDS constants and boundary score level mapping",
+      "input": {
+        "scores": [
+          0,
+          44,
+          45,
+          74,
+          75,
+          100
+        ]
+      },
+      "expected": {
+        "bands": {
+          "needs-change": {
+            "min": 0,
+            "max": 44
+          },
+          "worth-tweak": {
+            "min": 45,
+            "max": 74
+          },
+          "good-to-go": {
+            "min": 75,
+            "max": 100
+          }
+        },
+        "levels": [
+          {
+            "score": 0,
+            "level": "needs-change"
+          },
+          {
+            "score": 44,
+            "level": "needs-change"
+          },
+          {
+            "score": 45,
+            "level": "worth-tweak"
+          },
+          {
+            "score": 74,
+            "level": "worth-tweak"
+          },
+          {
+            "score": 75,
+            "level": "good-to-go"
+          },
+          {
+            "score": 100,
+            "level": "good-to-go"
+          }
+        ]
+      }
+    },
+    {
+      "id": "perfect-en-and-fr",
+      "description": "Perfect 100/100 setup in English and French",
+      "input": {
+        "en": {
+          "lang": "en",
+          "weather": {
+            "rainRiskPct": 5,
+            "baseWindKmH": 8,
+            "gustKmH": 14,
+            "headwindKmH": 0,
+            "feelsLikeC": 17
+          },
+          "bike": {
+            "name": "Road",
+            "category": "road",
+            "tireWidthMm": 28,
+            "isTubeless": true
+          },
+          "terrain": {
+            "hasSurfaceData": true,
+            "gravelPct": 0,
+            "singletrackPct": 0
+          },
+          "effort": {
+            "ftpPercent": 65,
+            "movingHours": 1.5,
+            "powerZone": "Z2",
+            "riderLevel": "regular"
+          },
+          "checklist": {
+            "total": 10,
+            "checked": 10,
+            "criticalTotal": 4,
+            "criticalChecked": 4
+          },
+          "light": {
+            "nightPercent": 0,
+            "twilightPercent": 0
+          },
+          "route": {
+            "worstSeverity": "clear",
+            "issueCount": 0
+          },
+          "goStatus": "GO"
+        },
+        "fr": {
+          "lang": "fr",
+          "weather": {
+            "rainRiskPct": 5,
+            "baseWindKmH": 8,
+            "gustKmH": 14,
+            "headwindKmH": 0,
+            "feelsLikeC": 17
+          },
+          "bike": {
+            "name": "Road",
+            "category": "road",
+            "tireWidthMm": 28,
+            "isTubeless": true
+          },
+          "terrain": {
+            "hasSurfaceData": true,
+            "gravelPct": 0,
+            "singletrackPct": 0
+          },
+          "effort": {
+            "ftpPercent": 65,
+            "movingHours": 1.5,
+            "powerZone": "Z2",
+            "riderLevel": "regular"
+          },
+          "checklist": {
+            "total": 10,
+            "checked": 10,
+            "criticalTotal": 4,
+            "criticalChecked": 4
+          },
+          "light": {
+            "nightPercent": 0,
+            "twilightPercent": 0
+          },
+          "route": {
+            "worstSeverity": "clear",
+            "issueCount": 0
+          },
+          "goStatus": "GO"
+        }
+      },
+      "expected": {
+        "en": {
+          "score": 100,
+          "level": "good-to-go",
+          "label": "Good to go",
+          "summary": "Conditions line up. Good to go.",
+          "factors": [
+            {
+              "id": "weather",
+              "label": "Weather",
+              "applicable": true,
+              "score": 100,
+              "note": "Rain 5% · gusts 14 km/h · feels 17°C",
+              "weight": 0.25,
+              "pointsLost": 0
+            },
+            {
+              "id": "terrain",
+              "label": "Bike & terrain",
+              "applicable": true,
+              "score": 100,
+              "note": "Road 28 mm · 100% paved",
+              "weight": 0.2,
+              "pointsLost": 0
+            },
+            {
+              "id": "effort",
+              "label": "Effort",
+              "applicable": true,
+              "score": 100,
+              "note": "Z2 · 1h 30 · 65% FTP",
+              "weight": 0.2,
+              "pointsLost": 0
+            },
+            {
+              "id": "checklist",
+              "label": "Checklist",
+              "score": 100,
+              "applicable": true,
+              "note": "10 of 10 checked",
+              "weight": 0.15,
+              "pointsLost": 0
+            },
+            {
+              "id": "light",
+              "label": "Daylight",
+              "applicable": true,
+              "score": 100,
+              "note": "100% daylight",
+              "weight": 0.1,
+              "pointsLost": 0
+            },
+            {
+              "id": "route",
+              "label": "Route & stops",
+              "applicable": true,
+              "score": 100,
+              "note": "No blockers",
+              "weight": 0.1,
+              "pointsLost": 0
+            }
+          ]
+        },
+        "fr": {
+          "score": 100,
+          "level": "good-to-go",
+          "label": "Prêt à rouler",
+          "summary": "Les conditions sont alignées — tu peux y aller.",
+          "factors": [
+            {
+              "id": "weather",
+              "label": "Météo",
+              "applicable": true,
+              "score": 100,
+              "note": "Pluie 5% · rafales 14 km/h · ressenti 17°C",
+              "weight": 0.25,
+              "pointsLost": 0
+            },
+            {
+              "id": "terrain",
+              "label": "Vélo & terrain",
+              "applicable": true,
+              "score": 100,
+              "note": "Route 28 mm · 100% goudron",
+              "weight": 0.2,
+              "pointsLost": 0
+            },
+            {
+              "id": "effort",
+              "label": "Effort",
+              "applicable": true,
+              "score": 100,
+              "note": "Z2 · 1h 30 · 65% FTP",
+              "weight": 0.2,
+              "pointsLost": 0
+            },
+            {
+              "id": "checklist",
+              "label": "Check-list",
+              "score": 100,
+              "applicable": true,
+              "note": "10 sur 10 cochés",
+              "weight": 0.15,
+              "pointsLost": 0
+            },
+            {
+              "id": "light",
+              "label": "Lumière",
+              "applicable": true,
+              "score": 100,
+              "note": "100% de jour",
+              "weight": 0.1,
+              "pointsLost": 0
+            },
+            {
+              "id": "route",
+              "label": "Trace & arrêts",
+              "applicable": true,
+              "score": 100,
+              "note": "Aucun point bloquant",
+              "weight": 0.1,
+              "pointsLost": 0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "terrain-mismatch-vs-gravel",
+      "description": "28mm road tire mismatch vs 42mm tubeless gravel bike on 55% gravel",
+      "input": {
+        "roadOnGravel": {
+          "lang": "en",
+          "weather": {
+            "rainRiskPct": 5,
+            "baseWindKmH": 8,
+            "gustKmH": 14,
+            "headwindKmH": 0,
+            "feelsLikeC": 17
+          },
+          "bike": {
+            "name": "Road",
+            "category": "road",
+            "tireWidthMm": 28,
+            "isTubeless": true
+          },
+          "terrain": {
+            "hasSurfaceData": true,
+            "gravelPct": 55,
+            "singletrackPct": 5
+          },
+          "effort": {
+            "ftpPercent": 65,
+            "movingHours": 1.5,
+            "powerZone": "Z2",
+            "riderLevel": "regular"
+          },
+          "checklist": {
+            "total": 10,
+            "checked": 10,
+            "criticalTotal": 4,
+            "criticalChecked": 4
+          },
+          "light": {
+            "nightPercent": 0,
+            "twilightPercent": 0
+          },
+          "route": {
+            "worstSeverity": "clear",
+            "issueCount": 0
+          },
+          "goStatus": "GO"
+        },
+        "gravelOnGravel": {
+          "lang": "en",
+          "weather": {
+            "rainRiskPct": 5,
+            "baseWindKmH": 8,
+            "gustKmH": 14,
+            "headwindKmH": 0,
+            "feelsLikeC": 17
+          },
+          "bike": {
+            "name": "Road",
+            "category": "gravel",
+            "tireWidthMm": 42,
+            "isTubeless": true
+          },
+          "terrain": {
+            "hasSurfaceData": true,
+            "gravelPct": 55,
+            "singletrackPct": 5
+          },
+          "effort": {
+            "ftpPercent": 65,
+            "movingHours": 1.5,
+            "powerZone": "Z2",
+            "riderLevel": "regular"
+          },
+          "checklist": {
+            "total": 10,
+            "checked": 10,
+            "criticalTotal": 4,
+            "criticalChecked": 4
+          },
+          "light": {
+            "nightPercent": 0,
+            "twilightPercent": 0
+          },
+          "route": {
+            "worstSeverity": "clear",
+            "issueCount": 0
+          },
+          "goStatus": "GO"
+        }
+      },
+      "expected": {
+        "roadOnGravel": {
+          "score": 61,
+          "level": "worth-tweak",
+          "label": "Worth a tweak",
+          "summary": "Rideable. A tweak or two will make it better.",
+          "factors": [
+            {
+              "id": "weather",
+              "label": "Weather",
+              "applicable": true,
+              "score": 100,
+              "note": "Rain 5% · gusts 14 km/h · feels 17°C",
+              "weight": 0.25,
+              "pointsLost": 0
+            },
+            {
+              "id": "terrain",
+              "label": "Bike & terrain",
+              "applicable": true,
+              "score": 6,
+              "note": "Road 28 mm · 60% unpaved",
+              "tip": "Take an MTB or ≥ 45 mm tyres",
+              "action": "bike-terrain",
+              "ctaLabel": "Switch bike",
+              "weight": 0.2,
+              "pointsLost": 18.8
+            },
+            {
+              "id": "effort",
+              "label": "Effort",
+              "applicable": true,
+              "score": 100,
+              "note": "Z2 · 1h 30 · 65% FTP",
+              "weight": 0.2,
+              "pointsLost": 0
+            },
+            {
+              "id": "checklist",
+              "label": "Checklist",
+              "score": 100,
+              "applicable": true,
+              "note": "10 of 10 checked",
+              "weight": 0.15,
+              "pointsLost": 0
+            },
+            {
+              "id": "light",
+              "label": "Daylight",
+              "applicable": true,
+              "score": 100,
+              "note": "100% daylight",
+              "weight": 0.1,
+              "pointsLost": 0
+            },
+            {
+              "id": "route",
+              "label": "Route & stops",
+              "applicable": true,
+              "score": 100,
+              "note": "No blockers",
+              "weight": 0.1,
+              "pointsLost": 0
+            }
+          ],
+          "topLift": {
+            "factorId": "terrain",
+            "tip": "Take an MTB or ≥ 45 mm tyres",
+            "gain": 19,
+            "action": "bike-terrain",
+            "ctaLabel": "Switch bike"
+          },
+          "capReason": "Pulled down by bike & terrain (6/100)"
+        },
+        "gravelOnGravel": {
+          "score": 100,
+          "level": "good-to-go",
+          "label": "Good to go",
+          "summary": "Conditions line up. Good to go.",
+          "factors": [
+            {
+              "id": "weather",
+              "label": "Weather",
+              "applicable": true,
+              "score": 100,
+              "note": "Rain 5% · gusts 14 km/h · feels 17°C",
+              "weight": 0.25,
+              "pointsLost": 0
+            },
+            {
+              "id": "terrain",
+              "label": "Bike & terrain",
+              "applicable": true,
+              "score": 100,
+              "note": "Gravel 42 mm · 60% unpaved",
+              "weight": 0.2,
+              "pointsLost": 0
+            },
+            {
+              "id": "effort",
+              "label": "Effort",
+              "applicable": true,
+              "score": 100,
+              "note": "Z2 · 1h 30 · 65% FTP",
+              "weight": 0.2,
+              "pointsLost": 0
+            },
+            {
+              "id": "checklist",
+              "label": "Checklist",
+              "score": 100,
+              "applicable": true,
+              "note": "10 of 10 checked",
+              "weight": 0.15,
+              "pointsLost": 0
+            },
+            {
+              "id": "light",
+              "label": "Daylight",
+              "applicable": true,
+              "score": 100,
+              "note": "100% daylight",
+              "weight": 0.1,
+              "pointsLost": 0
+            },
+            {
+              "id": "route",
+              "label": "Route & stops",
+              "applicable": true,
+              "score": 100,
+              "note": "No blockers",
+              "weight": 0.1,
+              "pointsLost": 0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "checklist-critical-and-empty",
+      "description": "Critical vs optional unticked items and non-applicable empty checklist",
+      "input": {
+        "critMissing": {
+          "lang": "en",
+          "weather": {
+            "rainRiskPct": 5,
+            "baseWindKmH": 8,
+            "gustKmH": 14,
+            "headwindKmH": 0,
+            "feelsLikeC": 17
+          },
+          "bike": {
+            "name": "Road",
+            "category": "road",
+            "tireWidthMm": 28,
+            "isTubeless": true
+          },
+          "terrain": {
+            "hasSurfaceData": true,
+            "gravelPct": 0,
+            "singletrackPct": 0
+          },
+          "effort": {
+            "ftpPercent": 65,
+            "movingHours": 1.5,
+            "powerZone": "Z2",
+            "riderLevel": "regular"
+          },
+          "checklist": {
+            "total": 10,
+            "checked": 7,
+            "criticalTotal": 4,
+            "criticalChecked": 1
+          },
+          "light": {
+            "nightPercent": 0,
+            "twilightPercent": 0
+          },
+          "route": {
+            "worstSeverity": "clear",
+            "issueCount": 0
+          },
+          "goStatus": "GO"
+        },
+        "optMissing": {
+          "lang": "en",
+          "weather": {
+            "rainRiskPct": 5,
+            "baseWindKmH": 8,
+            "gustKmH": 14,
+            "headwindKmH": 0,
+            "feelsLikeC": 17
+          },
+          "bike": {
+            "name": "Road",
+            "category": "road",
+            "tireWidthMm": 28,
+            "isTubeless": true
+          },
+          "terrain": {
+            "hasSurfaceData": true,
+            "gravelPct": 0,
+            "singletrackPct": 0
+          },
+          "effort": {
+            "ftpPercent": 65,
+            "movingHours": 1.5,
+            "powerZone": "Z2",
+            "riderLevel": "regular"
+          },
+          "checklist": {
+            "total": 10,
+            "checked": 7,
+            "criticalTotal": 4,
+            "criticalChecked": 4
+          },
+          "light": {
+            "nightPercent": 0,
+            "twilightPercent": 0
+          },
+          "route": {
+            "worstSeverity": "clear",
+            "issueCount": 0
+          },
+          "goStatus": "GO"
+        },
+        "emptyChecklist": {
+          "lang": "en",
+          "weather": {
+            "rainRiskPct": 5,
+            "baseWindKmH": 8,
+            "gustKmH": 14,
+            "headwindKmH": 0,
+            "feelsLikeC": 17
+          },
+          "bike": {
+            "name": "Road",
+            "category": "road",
+            "tireWidthMm": 28,
+            "isTubeless": true
+          },
+          "terrain": {
+            "hasSurfaceData": true,
+            "gravelPct": 0,
+            "singletrackPct": 0
+          },
+          "effort": {
+            "ftpPercent": 65,
+            "movingHours": 1.5,
+            "powerZone": "Z2",
+            "riderLevel": "regular"
+          },
+          "checklist": {
+            "total": 0,
+            "checked": 0,
+            "criticalTotal": 0,
+            "criticalChecked": 0
+          },
+          "light": {
+            "nightPercent": 0,
+            "twilightPercent": 0
+          },
+          "route": {
+            "worstSeverity": "clear",
+            "issueCount": 0
+          },
+          "goStatus": "GO"
+        }
+      },
+      "expected": {
+        "critMissing": {
+          "score": 92,
+          "level": "good-to-go",
+          "label": "Good to go",
+          "summary": "Conditions line up. Good to go.",
+          "factors": [
+            {
+              "id": "weather",
+              "label": "Weather",
+              "applicable": true,
+              "score": 100,
+              "note": "Rain 5% · gusts 14 km/h · feels 17°C",
+              "weight": 0.25,
+              "pointsLost": 0
+            },
+            {
+              "id": "terrain",
+              "label": "Bike & terrain",
+              "applicable": true,
+              "score": 100,
+              "note": "Road 28 mm · 100% paved",
+              "weight": 0.2,
+              "pointsLost": 0
+            },
+            {
+              "id": "effort",
+              "label": "Effort",
+              "applicable": true,
+              "score": 100,
+              "note": "Z2 · 1h 30 · 65% FTP",
+              "weight": 0.2,
+              "pointsLost": 0
+            },
+            {
+              "id": "checklist",
+              "label": "Checklist",
+              "score": 48,
+              "applicable": true,
+              "note": "7 of 10 checked · 3 essential left",
+              "tip": "Tick 3 essential items",
+              "action": "checklist",
+              "ctaLabel": "Review checklist",
+              "weight": 0.15,
+              "pointsLost": 7.8
+            },
+            {
+              "id": "light",
+              "label": "Daylight",
+              "applicable": true,
+              "score": 100,
+              "note": "100% daylight",
+              "weight": 0.1,
+              "pointsLost": 0
+            },
+            {
+              "id": "route",
+              "label": "Route & stops",
+              "applicable": true,
+              "score": 100,
+              "note": "No blockers",
+              "weight": 0.1,
+              "pointsLost": 0
+            }
+          ],
+          "topLift": {
+            "factorId": "checklist",
+            "tip": "Tick 3 essential items",
+            "gain": 8,
+            "action": "checklist",
+            "ctaLabel": "Review checklist"
+          }
+        },
+        "optMissing": {
+          "score": 98,
+          "level": "good-to-go",
+          "label": "Good to go",
+          "summary": "Conditions line up. Good to go.",
+          "factors": [
+            {
+              "id": "weather",
+              "label": "Weather",
+              "applicable": true,
+              "score": 100,
+              "note": "Rain 5% · gusts 14 km/h · feels 17°C",
+              "weight": 0.25,
+              "pointsLost": 0
+            },
+            {
+              "id": "terrain",
+              "label": "Bike & terrain",
+              "applicable": true,
+              "score": 100,
+              "note": "Road 28 mm · 100% paved",
+              "weight": 0.2,
+              "pointsLost": 0
+            },
+            {
+              "id": "effort",
+              "label": "Effort",
+              "applicable": true,
+              "score": 100,
+              "note": "Z2 · 1h 30 · 65% FTP",
+              "weight": 0.2,
+              "pointsLost": 0
+            },
+            {
+              "id": "checklist",
+              "label": "Checklist",
+              "score": 85,
+              "applicable": true,
+              "note": "7 of 10 checked",
+              "tip": "Finish your checklist (3 left)",
+              "action": "checklist",
+              "ctaLabel": "Review checklist",
+              "weight": 0.15,
+              "pointsLost": 2.25
+            },
+            {
+              "id": "light",
+              "label": "Daylight",
+              "applicable": true,
+              "score": 100,
+              "note": "100% daylight",
+              "weight": 0.1,
+              "pointsLost": 0
+            },
+            {
+              "id": "route",
+              "label": "Route & stops",
+              "applicable": true,
+              "score": 100,
+              "note": "No blockers",
+              "weight": 0.1,
+              "pointsLost": 0
+            }
+          ],
+          "topLift": {
+            "factorId": "checklist",
+            "tip": "Finish your checklist (3 left)",
+            "gain": 2,
+            "action": "checklist",
+            "ctaLabel": "Review checklist"
+          }
+        },
+        "emptyChecklist": {
+          "score": 100,
+          "level": "good-to-go",
+          "label": "Good to go",
+          "summary": "Conditions line up. Good to go.",
+          "factors": [
+            {
+              "id": "weather",
+              "label": "Weather",
+              "applicable": true,
+              "score": 100,
+              "note": "Rain 5% · gusts 14 km/h · feels 17°C",
+              "weight": 0.29411764705882354,
+              "pointsLost": 0
+            },
+            {
+              "id": "terrain",
+              "label": "Bike & terrain",
+              "applicable": true,
+              "score": 100,
+              "note": "Road 28 mm · 100% paved",
+              "weight": 0.23529411764705882,
+              "pointsLost": 0
+            },
+            {
+              "id": "effort",
+              "label": "Effort",
+              "applicable": true,
+              "score": 100,
+              "note": "Z2 · 1h 30 · 65% FTP",
+              "weight": 0.23529411764705882,
+              "pointsLost": 0
+            },
+            {
+              "id": "checklist",
+              "label": "Checklist",
+              "score": 100,
+              "applicable": false,
+              "note": "No checklist",
+              "weight": 0,
+              "pointsLost": 0
+            },
+            {
+              "id": "light",
+              "label": "Daylight",
+              "applicable": true,
+              "score": 100,
+              "note": "100% daylight",
+              "weight": 0.11764705882352941,
+              "pointsLost": 0
+            },
+            {
+              "id": "route",
+              "label": "Route & stops",
+              "applicable": true,
+              "score": 100,
+              "note": "No blockers",
+              "weight": 0.11764705882352941,
+              "pointsLost": 0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "effort-stop-relief-and-predawn",
+      "description": "Planned 45-min stop effort relief and pre-dawn winter factor",
+      "input": {
+        "longWithoutStop": {
+          "lang": "en",
+          "weather": {
+            "rainRiskPct": 5,
+            "baseWindKmH": 8,
+            "gustKmH": 14,
+            "headwindKmH": 0,
+            "feelsLikeC": 17
+          },
+          "bike": {
+            "name": "Road",
+            "category": "road",
+            "tireWidthMm": 28,
+            "isTubeless": true
+          },
+          "terrain": {
+            "hasSurfaceData": true,
+            "gravelPct": 0,
+            "singletrackPct": 0
+          },
+          "effort": {
+            "ftpPercent": 72,
+            "movingHours": 5,
+            "powerZone": "Z2",
+            "riderLevel": "regular"
+          },
+          "checklist": {
+            "total": 10,
+            "checked": 10,
+            "criticalTotal": 4,
+            "criticalChecked": 4
+          },
+          "light": {
+            "nightPercent": 0,
+            "twilightPercent": 0
+          },
+          "route": {
+            "worstSeverity": "clear",
+            "issueCount": 0
+          },
+          "goStatus": "GO"
+        },
+        "longWithStop": {
+          "lang": "en",
+          "weather": {
+            "rainRiskPct": 5,
+            "baseWindKmH": 8,
+            "gustKmH": 14,
+            "headwindKmH": 0,
+            "feelsLikeC": 17
+          },
+          "bike": {
+            "name": "Road",
+            "category": "road",
+            "tireWidthMm": 28,
+            "isTubeless": true
+          },
+          "terrain": {
+            "hasSurfaceData": true,
+            "gravelPct": 0,
+            "singletrackPct": 0
+          },
+          "effort": {
+            "ftpPercent": 72,
+            "movingHours": 5,
+            "powerZone": "Z2",
+            "riderLevel": "regular",
+            "plannedStopMinutes": 45
+          },
+          "checklist": {
+            "total": 10,
+            "checked": 10,
+            "criticalTotal": 4,
+            "criticalChecked": 4
+          },
+          "light": {
+            "nightPercent": 0,
+            "twilightPercent": 0
+          },
+          "route": {
+            "worstSeverity": "clear",
+            "issueCount": 0
+          },
+          "goStatus": "GO"
+        },
+        "preDawnWinter": {
+          "lang": "en",
+          "weather": {
+            "rainRiskPct": 5,
+            "baseWindKmH": 8,
+            "gustKmH": 14,
+            "headwindKmH": 0,
+            "feelsLikeC": 17
+          },
+          "bike": {
+            "name": "Road",
+            "category": "road",
+            "tireWidthMm": 28,
+            "isTubeless": true
+          },
+          "terrain": {
+            "hasSurfaceData": true,
+            "gravelPct": 0,
+            "singletrackPct": 0
+          },
+          "effort": {
+            "ftpPercent": 72,
+            "movingHours": 2.5,
+            "powerZone": "Z2",
+            "riderLevel": "regular",
+            "isPreDawnWinter": true
+          },
+          "checklist": {
+            "total": 10,
+            "checked": 10,
+            "criticalTotal": 4,
+            "criticalChecked": 4
+          },
+          "light": {
+            "nightPercent": 60,
+            "twilightPercent": 25
+          },
+          "route": {
+            "worstSeverity": "clear",
+            "issueCount": 0
+          },
+          "goStatus": "GO"
+        }
+      },
+      "expected": {
+        "longWithoutStop": {
+          "score": 90,
+          "level": "good-to-go",
+          "label": "Good to go",
+          "summary": "Conditions line up. Good to go.",
+          "factors": [
+            {
+              "id": "weather",
+              "label": "Weather",
+              "applicable": true,
+              "score": 100,
+              "note": "Rain 5% · gusts 14 km/h · feels 17°C",
+              "weight": 0.25,
+              "pointsLost": 0
+            },
+            {
+              "id": "terrain",
+              "label": "Bike & terrain",
+              "applicable": true,
+              "score": 100,
+              "note": "Road 28 mm · 100% paved",
+              "weight": 0.2,
+              "pointsLost": 0
+            },
+            {
+              "id": "effort",
+              "label": "Effort",
+              "applicable": true,
+              "score": 51,
+              "note": "Z2 · 5h 00 · 72% FTP",
+              "tip": "Shorten the route or plan a long stop",
+              "action": "effort-load",
+              "ctaLabel": "Add stop / shorten",
+              "weight": 0.2,
+              "pointsLost": 9.8
+            },
+            {
+              "id": "checklist",
+              "label": "Checklist",
+              "score": 100,
+              "applicable": true,
+              "note": "10 of 10 checked",
+              "weight": 0.15,
+              "pointsLost": 0
+            },
+            {
+              "id": "light",
+              "label": "Daylight",
+              "applicable": true,
+              "score": 100,
+              "note": "100% daylight",
+              "weight": 0.1,
+              "pointsLost": 0
+            },
+            {
+              "id": "route",
+              "label": "Route & stops",
+              "applicable": true,
+              "score": 100,
+              "note": "No blockers",
+              "weight": 0.1,
+              "pointsLost": 0
+            }
+          ],
+          "topLift": {
+            "factorId": "effort",
+            "tip": "Shorten the route or plan a long stop",
+            "gain": 10,
+            "action": "effort-load",
+            "ctaLabel": "Add stop / shorten"
+          }
+        },
+        "longWithStop": {
+          "score": 94,
+          "level": "good-to-go",
+          "label": "Good to go",
+          "summary": "Conditions line up. Good to go.",
+          "factors": [
+            {
+              "id": "weather",
+              "label": "Weather",
+              "applicable": true,
+              "score": 100,
+              "note": "Rain 5% · gusts 14 km/h · feels 17°C",
+              "weight": 0.25,
+              "pointsLost": 0
+            },
+            {
+              "id": "terrain",
+              "label": "Bike & terrain",
+              "applicable": true,
+              "score": 100,
+              "note": "Road 28 mm · 100% paved",
+              "weight": 0.2,
+              "pointsLost": 0
+            },
+            {
+              "id": "effort",
+              "label": "Effort",
+              "applicable": true,
+              "score": 72,
+              "note": "Z2 · 5h 00 · 72% FTP · 45 min stop",
+              "tip": "Shorten the route or extend your stop",
+              "action": "effort-load",
+              "ctaLabel": "Adjust route / stop",
+              "weight": 0.2,
+              "pointsLost": 5.6000000000000005
+            },
+            {
+              "id": "checklist",
+              "label": "Checklist",
+              "score": 100,
+              "applicable": true,
+              "note": "10 of 10 checked",
+              "weight": 0.15,
+              "pointsLost": 0
+            },
+            {
+              "id": "light",
+              "label": "Daylight",
+              "applicable": true,
+              "score": 100,
+              "note": "100% daylight",
+              "weight": 0.1,
+              "pointsLost": 0
+            },
+            {
+              "id": "route",
+              "label": "Route & stops",
+              "applicable": true,
+              "score": 100,
+              "note": "No blockers",
+              "weight": 0.1,
+              "pointsLost": 0
+            }
+          ],
+          "topLift": {
+            "factorId": "effort",
+            "tip": "Shorten the route or extend your stop",
+            "gain": 6,
+            "action": "effort-load",
+            "ctaLabel": "Adjust route / stop"
+          }
+        },
+        "preDawnWinter": {
+          "score": 93,
+          "level": "good-to-go",
+          "label": "Good to go",
+          "summary": "Conditions line up. Good to go.",
+          "factors": [
+            {
+              "id": "weather",
+              "label": "Weather",
+              "applicable": true,
+              "score": 100,
+              "note": "Rain 5% · gusts 14 km/h · feels 17°C",
+              "weight": 0.25,
+              "pointsLost": 0
+            },
+            {
+              "id": "terrain",
+              "label": "Bike & terrain",
+              "applicable": true,
+              "score": 100,
+              "note": "Road 28 mm · 100% paved",
+              "weight": 0.2,
+              "pointsLost": 0
+            },
+            {
+              "id": "effort",
+              "label": "Effort",
+              "applicable": true,
+              "score": 82,
+              "note": "Z2 · 2h 30 · 72% FTP",
+              "tip": "Shorten the route (stops capped at 5 min pre-dawn in winter)",
+              "action": "effort-load",
+              "ctaLabel": "Shorten route",
+              "weight": 0.2,
+              "pointsLost": 3.6
+            },
+            {
+              "id": "checklist",
+              "label": "Checklist",
+              "score": 100,
+              "applicable": true,
+              "note": "10 of 10 checked",
+              "weight": 0.15,
+              "pointsLost": 0
+            },
+            {
+              "id": "light",
+              "label": "Daylight",
+              "applicable": true,
+              "score": 62,
+              "note": "60% in the dark",
+              "tip": "Leave earlier or charge your lights",
+              "action": "daylight-window",
+              "ctaLabel": "Shift departure",
+              "weight": 0.1,
+              "pointsLost": 3.8000000000000003
+            },
+            {
+              "id": "route",
+              "label": "Route & stops",
+              "applicable": true,
+              "score": 100,
+              "note": "No blockers",
+              "weight": 0.1,
+              "pointsLost": 0
+            }
+          ],
+          "topLift": {
+            "factorId": "light",
+            "tip": "Leave earlier or charge your lights",
+            "gain": 4,
+            "action": "daylight-window",
+            "ctaLabel": "Shift departure"
+          }
+        }
+      }
+    },
+    {
+      "id": "weakest-link-drag-and-nogo-cap",
+      "description": "Weakest-link critical route drag and NO-GO storm cap (<=40)",
+      "input": {
+        "criticalRoute": {
+          "lang": "en",
+          "weather": {
+            "rainRiskPct": 5,
+            "baseWindKmH": 8,
+            "gustKmH": 14,
+            "headwindKmH": 0,
+            "feelsLikeC": 17
+          },
+          "bike": {
+            "name": "Road",
+            "category": "road",
+            "tireWidthMm": 28,
+            "isTubeless": true
+          },
+          "terrain": {
+            "hasSurfaceData": true,
+            "gravelPct": 0,
+            "singletrackPct": 0
+          },
+          "effort": {
+            "ftpPercent": 65,
+            "movingHours": 1.5,
+            "powerZone": "Z2",
+            "riderLevel": "regular"
+          },
+          "checklist": {
+            "total": 10,
+            "checked": 10,
+            "criticalTotal": 4,
+            "criticalChecked": 4
+          },
+          "light": {
+            "nightPercent": 0,
+            "twilightPercent": 0
+          },
+          "route": {
+            "worstSeverity": "critical",
+            "issueCount": 3
+          },
+          "goStatus": "GO"
+        },
+        "stormNoGo": {
+          "lang": "en",
+          "weather": {
+            "rainRiskPct": 90,
+            "baseWindKmH": 34,
+            "gustKmH": 58,
+            "headwindKmH": 30,
+            "feelsLikeC": 4
+          },
+          "bike": {
+            "name": "Road",
+            "category": "road",
+            "tireWidthMm": 28,
+            "isTubeless": true
+          },
+          "terrain": {
+            "hasSurfaceData": true,
+            "gravelPct": 0,
+            "singletrackPct": 0
+          },
+          "effort": {
+            "ftpPercent": 65,
+            "movingHours": 1.5,
+            "powerZone": "Z2",
+            "riderLevel": "regular"
+          },
+          "checklist": {
+            "total": 10,
+            "checked": 10,
+            "criticalTotal": 4,
+            "criticalChecked": 4
+          },
+          "light": {
+            "nightPercent": 0,
+            "twilightPercent": 0
+          },
+          "route": {
+            "worstSeverity": "clear",
+            "issueCount": 0
+          },
+          "goStatus": "NO-GO"
+        }
+      },
+      "expected": {
+        "criticalRoute": {
+          "score": 78,
+          "level": "good-to-go",
+          "label": "Good to go",
+          "summary": "Conditions line up. Good to go.",
+          "factors": [
+            {
+              "id": "weather",
+              "label": "Weather",
+              "applicable": true,
+              "score": 100,
+              "note": "Rain 5% · gusts 14 km/h · feels 17°C",
+              "weight": 0.25,
+              "pointsLost": 0
+            },
+            {
+              "id": "terrain",
+              "label": "Bike & terrain",
+              "applicable": true,
+              "score": 100,
+              "note": "Road 28 mm · 100% paved",
+              "weight": 0.2,
+              "pointsLost": 0
+            },
+            {
+              "id": "effort",
+              "label": "Effort",
+              "applicable": true,
+              "score": 100,
+              "note": "Z2 · 1h 30 · 65% FTP",
+              "weight": 0.2,
+              "pointsLost": 0
+            },
+            {
+              "id": "checklist",
+              "label": "Checklist",
+              "score": 100,
+              "applicable": true,
+              "note": "10 of 10 checked",
+              "weight": 0.15,
+              "pointsLost": 0
+            },
+            {
+              "id": "light",
+              "label": "Daylight",
+              "applicable": true,
+              "score": 100,
+              "note": "100% daylight",
+              "weight": 0.1,
+              "pointsLost": 0
+            },
+            {
+              "id": "route",
+              "label": "Route & stops",
+              "applicable": true,
+              "score": 18,
+              "note": "3 issues flagged",
+              "tip": "Sort the flagged stop or water gap",
+              "action": "route-stops",
+              "ctaLabel": "Review stops",
+              "weight": 0.1,
+              "pointsLost": 8.200000000000001
+            }
+          ],
+          "topLift": {
+            "factorId": "route",
+            "tip": "Sort the flagged stop or water gap",
+            "gain": 8,
+            "action": "route-stops",
+            "ctaLabel": "Review stops"
+          },
+          "capReason": "Pulled down by route & stops (18/100)"
+        },
+        "stormNoGo": {
+          "score": 40,
+          "level": "needs-change",
+          "label": "Needs a change",
+          "summary": "A few things are off — worth adjusting before you roll.",
+          "factors": [
+            {
+              "id": "weather",
+              "label": "Weather",
+              "applicable": true,
+              "score": 0,
+              "note": "Rain 90% · gusts 58 km/h · feels 4°C",
+              "tip": "Pick a calmer window",
+              "action": "weather-window",
+              "ctaLabel": "Adjust window",
+              "weight": 0.25,
+              "pointsLost": 25
+            },
+            {
+              "id": "terrain",
+              "label": "Bike & terrain",
+              "applicable": true,
+              "score": 100,
+              "note": "Road 28 mm · 100% paved",
+              "weight": 0.2,
+              "pointsLost": 0
+            },
+            {
+              "id": "effort",
+              "label": "Effort",
+              "applicable": true,
+              "score": 100,
+              "note": "Z2 · 1h 30 · 65% FTP",
+              "weight": 0.2,
+              "pointsLost": 0
+            },
+            {
+              "id": "checklist",
+              "label": "Checklist",
+              "score": 100,
+              "applicable": true,
+              "note": "10 of 10 checked",
+              "weight": 0.15,
+              "pointsLost": 0
+            },
+            {
+              "id": "light",
+              "label": "Daylight",
+              "applicable": true,
+              "score": 100,
+              "note": "100% daylight",
+              "weight": 0.1,
+              "pointsLost": 0
+            },
+            {
+              "id": "route",
+              "label": "Route & stops",
+              "applicable": true,
+              "score": 100,
+              "note": "No blockers",
+              "weight": 0.1,
+              "pointsLost": 0
+            }
+          ],
+          "topLift": {
+            "factorId": "weather",
+            "tip": "Pick a calmer window",
+            "gain": 25,
+            "action": "weather-window",
+            "ctaLabel": "Adjust window"
+          },
+          "capReason": "Severe wind conditions"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,1128 @@
+{
+  "schemaVersion": 1,
+  "engine": "timeline",
+  "sourceFiles": [
+    "src/utils/timeline.ts",
+    "src/utils/stationaryRecovery.ts"
+  ],
+  "determinism": {
+    "frozenUtc": "2026-11-26T12:00:00.000Z",
+    "timezone": "Europe/Paris"
+  },
+  "cases": [
+    {
+      "id": "parse-and-format-hhmm",
+      "description": "HH:MM parser, formatter, off-hours commercial check, and dwell minutes",
+      "input": {
+        "times": [
+          "00:00",
+          "06:59",
+          "07:00",
+          "18:59",
+          "19:00",
+          "23:45"
+        ],
+        "minutes": [
+          0,
+          450,
+          1439,
+          1500,
+          -15
+        ],
+        "dwellChips": [
+          "coffee-stop",
+          "picnic-outing"
+        ]
+      },
+      "expected": {
+        "parsed": [
+          {
+            "time": "00:00",
+            "minutes": 0,
+            "isOffHours": true
+          },
+          {
+            "time": "06:59",
+            "minutes": 419,
+            "isOffHours": true
+          },
+          {
+            "time": "07:00",
+            "minutes": 420,
+            "isOffHours": false
+          },
+          {
+            "time": "18:59",
+            "minutes": 1139,
+            "isOffHours": false
+          },
+          {
+            "time": "19:00",
+            "minutes": 1140,
+            "isOffHours": true
+          },
+          {
+            "time": "23:45",
+            "minutes": 1425,
+            "isOffHours": true
+          }
+        ],
+        "formatted": [
+          {
+            "min": 0,
+            "hhmm": "00:00"
+          },
+          {
+            "min": 450,
+            "hhmm": "07:30"
+          },
+          {
+            "min": 1439,
+            "hhmm": "23:59"
+          },
+          {
+            "min": 1500,
+            "hhmm": "01:00"
+          },
+          {
+            "min": -15,
+            "hhmm": "23:45"
+          }
+        ],
+        "dwellMinutes": 60
+      }
+    },
+    {
+      "id": "solve-arrive-by-coffee",
+      "description": "solveTripTimeline arrive-by mode with coffee stop in summer",
+      "input": {
+        "movingSeconds": 3600,
+        "chips": [
+          "coffee-stop"
+        ],
+        "logistics": {
+          "timelineAnchorMode": "arrive-by",
+          "anchorTimeHHMM": "08:30",
+          "preRideStyle": "full-breakfast",
+          "coffeeDurationMin": 15
+        },
+        "context": {
+          "departureDate": "2026-07-10",
+          "coordinates": [
+            47.2184,
+            -1.5536
+          ]
+        }
+      },
+      "expected": {
+        "departureTimeHHMM": "07:15",
+        "arrivalTimeHHMM": "08:30",
+        "totalTransitMin": 75,
+        "movingMin": 60,
+        "dwellMin": 15,
+        "preRideWindow": "06:30 – 07:15",
+        "preRideMealTimeHHMM": "06:30",
+        "postRideConsolidatedWindow": "08:40 – 09:00",
+        "resolvedDepartureMin": 435,
+        "resolvedArrivalMin": 510
+      }
+    },
+    {
+      "id": "solve-predawn-winter-cap",
+      "description": "solveTripTimeline pre-dawn winter stationary recovery 5-min cap",
+      "input": {
+        "movingSeconds": 3600,
+        "chips": [
+          "coffee-stop",
+          "picnic-outing"
+        ],
+        "logistics": {
+          "timelineAnchorMode": "depart-at",
+          "anchorTimeHHMM": "06:30",
+          "preRideStyle": "fasted-rollout",
+          "splitPostRideRecovery": true,
+          "plannedLongStopMin": 30
+        },
+        "context": {
+          "departureDate": "2026-12-15",
+          "coordinates": [
+            47.2184,
+            -1.5536
+          ]
+        }
+      },
+      "expected": {
+        "departureTimeHHMM": "06:30",
+        "arrivalTimeHHMM": "07:35",
+        "totalTransitMin": 65,
+        "movingMin": 60,
+        "dwellMin": 5,
+        "preRideWindow": "06:15 – 06:30",
+        "preRideMealTimeHHMM": "06:15",
+        "postRideImmediateWindow": "07:35 – 07:45",
+        "postRideMealWindow": "07:57 – 08:12",
+        "resolvedDepartureMin": 390,
+        "resolvedArrivalMin": 455
+      }
+    },
+    {
+      "id": "reverse-commute-offhours-coffee",
+      "description": "Commute reverse timeline off-hours (19:15) vs daytime (08:00) coffee stop",
+      "input": {
+        "route": {
+          "origin": "Start",
+          "destination": "Finish",
+          "distanceKm": 30,
+          "targetSpeedKmH": 30,
+          "elevationGainM": 100,
+          "urbanTrafficDelayMinutes": 5,
+          "gateSecurityDelayMinutes": 5
+        },
+        "departureDate": "2026-07-10",
+        "eveningDeparture": "19:15",
+        "morningDeparture": "08:00"
+      },
+      "expected": {
+        "evening": {
+          "shiftStartTime": "20:55",
+          "gateArrivalTime": "20:25",
+          "hardDepartureTime": "19:15",
+          "preRideMealTime": "18:30",
+          "wakeUpTime": "18:15",
+          "totalDoorToDeskMinutes": 160,
+          "pureMovingMinutes": 60,
+          "bufferMinutes": 10,
+          "steps": [
+            {
+              "id": "wake-prep",
+              "time": "18:15",
+              "title": "Wake up and drink water",
+              "location": "Home Base",
+              "category": "prep",
+              "isCrucialCheckpoint": false,
+              "description": "Drink 300 ml fresh water with pinch of salt. Wake up and get ready.",
+              "iconName": "AlarmClock"
+            },
+            {
+              "id": "pre-ride-fuel",
+              "time": "18:30",
+              "title": "Breakfast",
+              "location": "Kitchen Counter",
+              "category": "nutrition",
+              "isCrucialCheckpoint": true,
+              "description": "Toasted Baguette with Wildflower Honey (2 thick slices toasted bread & honey) + coffee or tea. Easy morning digestion.",
+              "iconName": "Utensils"
+            },
+            {
+              "id": "garage-rollout",
+              "time": "19:00",
+              "title": "Quick bike check",
+              "location": "By the door",
+              "category": "prep",
+              "isCrucialCheckpoint": false,
+              "description": "Verify tire pressure, battery status, bottles mounted, badge secured.",
+              "iconName": "CheckCircle2"
+            },
+            {
+              "id": "hard-departure",
+              "time": "19:15",
+              "title": "Time to go: 19:15",
+              "location": "Start",
+              "category": "ride",
+              "isCrucialCheckpoint": true,
+              "description": "Roll out at target pace (30 km/h). Headwind buffer: +0 min.",
+              "iconName": "Navigation"
+            },
+            {
+              "id": "commute-coffee-pause",
+              "time": "19:36",
+              "title": "Self-Supported Fuel Stop",
+              "location": "On-route self-supported",
+              "category": "nutrition",
+              "isCrucialCheckpoint": true,
+              "description": "Calculated arrival at 19:36 (19:00–07:00) — Cafe / Roastery closed. Rely on onboard self-supported fuel.",
+              "iconName": "Zap"
+            },
+            {
+              "id": "estuary-transit",
+              "time": "19:42",
+              "title": "Mid-Ride Pacing Sector",
+              "location": "Open Road Sector",
+              "category": "ride",
+              "isCrucialCheckpoint": false,
+              "description": "Calm road conditions. Cruise at a steady cadence (88–92 RPM).",
+              "iconName": "Wind"
+            },
+            {
+              "id": "carb-intake-45",
+              "time": "20:00",
+              "title": "Carb Intake (T + 45 min)",
+              "location": "On-bike",
+              "category": "nutrition",
+              "isCrucialCheckpoint": false,
+              "description": "Carb intake reminder: take a carbohydrate serving + sip of water",
+              "iconName": "Zap"
+            },
+            {
+              "id": "gate-security",
+              "time": "20:20",
+              "title": "Arrival & Bike Lockup (Main Gate)",
+              "location": "Main Gate",
+              "category": "transit",
+              "isCrucialCheckpoint": true,
+              "description": "Arrive at Main Gate and lock your bike.",
+              "iconName": "ShieldCheck"
+            },
+            {
+              "id": "locker-refuel",
+              "time": "20:25",
+              "title": "Arrival snack",
+              "location": "At work",
+              "category": "nutrition",
+              "isCrucialCheckpoint": true,
+              "description": "Quick snack before showering.",
+              "iconName": "Zap"
+            },
+            {
+              "id": "shower-groom",
+              "time": "20:35",
+              "formattedDuration": "10 min",
+              "title": "Shower & Clean Kit Change",
+              "location": "Showers",
+              "category": "office",
+              "isCrucialCheckpoint": true,
+              "description": "Shower and swap into work attire (10 min, ready by 20:55).",
+              "iconName": "ShowerHead"
+            },
+            {
+              "id": "shift-start",
+              "time": "20:55",
+              "title": "At work / Shift start",
+              "location": "Work Desk",
+              "category": "office",
+              "isCrucialCheckpoint": true,
+              "description": "Arrive composed, fully fueled, and ready for work.",
+              "iconName": "Briefcase"
+            }
+          ],
+          "weatherHeadwindImpactMinutes": 0,
+          "severeHeadwindWarning": false,
+          "stationaryRecoveryRule": {
+            "isRestricted": false,
+            "maxRestMinutes": null,
+            "disableLunchBreak": false,
+            "isWinter": false,
+            "isBeforeDawn": false,
+            "civilDawnHHMM": "05:40",
+            "rolloutHHMM": "19:15"
+          }
+        },
+        "daytime": {
+          "shiftStartTime": "09:40",
+          "gateArrivalTime": "09:10",
+          "hardDepartureTime": "08:00",
+          "preRideMealTime": "07:15",
+          "wakeUpTime": "07:00",
+          "totalDoorToDeskMinutes": 160,
+          "pureMovingMinutes": 60,
+          "bufferMinutes": 10,
+          "steps": [
+            {
+              "id": "wake-prep",
+              "time": "07:00",
+              "title": "Wake up and drink water",
+              "location": "Home Base",
+              "category": "prep",
+              "isCrucialCheckpoint": false,
+              "description": "Drink 300 ml fresh water with pinch of salt. Wake up and get ready.",
+              "iconName": "AlarmClock"
+            },
+            {
+              "id": "pre-ride-fuel",
+              "time": "07:15",
+              "title": "Breakfast",
+              "location": "Kitchen Counter",
+              "category": "nutrition",
+              "isCrucialCheckpoint": true,
+              "description": "Toasted Baguette with Wildflower Honey (2 thick slices toasted bread & honey) + coffee or tea. Easy morning digestion.",
+              "iconName": "Utensils"
+            },
+            {
+              "id": "garage-rollout",
+              "time": "07:45",
+              "title": "Quick bike check",
+              "location": "By the door",
+              "category": "prep",
+              "isCrucialCheckpoint": false,
+              "description": "Verify tire pressure, battery status, bottles mounted, badge secured.",
+              "iconName": "CheckCircle2"
+            },
+            {
+              "id": "hard-departure",
+              "time": "08:00",
+              "title": "Time to go: 08:00",
+              "location": "Start",
+              "category": "ride",
+              "isCrucialCheckpoint": true,
+              "description": "Roll out at target pace (30 km/h). Headwind buffer: +0 min.",
+              "iconName": "Navigation"
+            },
+            {
+              "id": "commute-coffee-pause",
+              "time": "08:21",
+              "title": "Cafe Waypoint & Espresso Pause",
+              "location": "Roastery Waypoint",
+              "category": "nutrition",
+              "isCrucialCheckpoint": true,
+              "description": "Scheduled 15-min morning coffee stop. Double espresso & artisanal bakery pastry or banana before rolling again.",
+              "iconName": "Coffee"
+            },
+            {
+              "id": "estuary-transit",
+              "time": "08:27",
+              "title": "Mid-Ride Pacing Sector",
+              "location": "Open Road Sector",
+              "category": "ride",
+              "isCrucialCheckpoint": false,
+              "description": "Calm road conditions. Cruise at a steady cadence (88–92 RPM).",
+              "iconName": "Wind"
+            },
+            {
+              "id": "carb-intake-45",
+              "time": "08:45",
+              "title": "Carb Intake (T + 45 min)",
+              "location": "On-bike",
+              "category": "nutrition",
+              "isCrucialCheckpoint": false,
+              "description": "Carb intake reminder: take a carbohydrate serving + sip of water",
+              "iconName": "Zap"
+            },
+            {
+              "id": "gate-security",
+              "time": "09:05",
+              "title": "Arrival & Bike Lockup (Main Gate)",
+              "location": "Main Gate",
+              "category": "transit",
+              "isCrucialCheckpoint": true,
+              "description": "Arrive at Main Gate and lock your bike.",
+              "iconName": "ShieldCheck"
+            },
+            {
+              "id": "locker-refuel",
+              "time": "09:10",
+              "title": "Arrival snack",
+              "location": "At work",
+              "category": "nutrition",
+              "isCrucialCheckpoint": true,
+              "description": "Quick snack before showering.",
+              "iconName": "Zap"
+            },
+            {
+              "id": "shower-groom",
+              "time": "09:20",
+              "formattedDuration": "10 min",
+              "title": "Shower & Clean Kit Change",
+              "location": "Showers",
+              "category": "office",
+              "isCrucialCheckpoint": true,
+              "description": "Shower and swap into work attire (10 min, ready by 09:40).",
+              "iconName": "ShowerHead"
+            },
+            {
+              "id": "shift-start",
+              "time": "09:40",
+              "title": "At work / Shift start",
+              "location": "Work Desk",
+              "category": "office",
+              "isCrucialCheckpoint": true,
+              "description": "Arrive composed, fully fueled, and ready for work.",
+              "iconName": "Briefcase"
+            }
+          ],
+          "weatherHeadwindImpactMinutes": 0,
+          "severeHeadwindWarning": false,
+          "stationaryRecoveryRule": {
+            "isRestricted": false,
+            "maxRestMinutes": null,
+            "disableLunchBreak": false,
+            "isWinter": false,
+            "isBeforeDawn": false,
+            "civilDawnHHMM": "05:40",
+            "rolloutHHMM": "08:00"
+          }
+        }
+      }
+    },
+    {
+      "id": "reverse-commute-severe-headwind-fr",
+      "description": "French commute reverse timeline triggering severeHeadwindWarning (>45 min penalty on <100 km)",
+      "input": {
+        "route": {
+          "origin": "Start",
+          "destination": "Finish",
+          "distanceKm": 80,
+          "targetSpeedKmH": 25,
+          "elevationGainM": 100,
+          "urbanTrafficDelayMinutes": 5,
+          "gateSecurityDelayMinutes": 5
+        },
+        "weather": {
+          "isHeadwindActive": true,
+          "baseWindSpeedKmH": 45,
+          "windDirection": "headwind",
+          "windDirectionDegrees": 0,
+          "temperatureC": 18,
+          "precipitationRiskPercent": 0,
+          "estuaryGustKmH": 0,
+          "visibilityKm": 20
+        },
+        "lang": "fr",
+        "calmSpeedKmH": 25,
+        "effectiveSpeedKmH": 18,
+        "departureDate": "2026-07-10"
+      },
+      "expected": {
+        "shiftStartTime": "09:00",
+        "gateArrivalTime": "08:30",
+        "hardDepartureTime": "03:53",
+        "preRideMealTime": "03:08",
+        "wakeUpTime": "02:53",
+        "totalDoorToDeskMinutes": 367,
+        "pureMovingMinutes": 267,
+        "bufferMinutes": 10,
+        "steps": [
+          {
+            "id": "wake-prep",
+            "time": "02:53",
+            "title": "Réveil & hydratation",
+            "location": "Domicile",
+            "category": "prep",
+            "isCrucialCheckpoint": false,
+            "description": "Boire 300 ml d’eau fraîche avec une pincée de sel. Mise en route.",
+            "iconName": "AlarmClock"
+          },
+          {
+            "id": "pre-ride-fuel",
+            "time": "03:08",
+            "title": "Petit-déjeuner",
+            "location": "Cuisine",
+            "category": "nutrition",
+            "isCrucialCheckpoint": true,
+            "description": "Baguette blanche grillée au miel de fleurs (2 tranches de pain grillé & miel) + café ou thé. Digestion matinale légère.",
+            "iconName": "Utensils"
+          },
+          {
+            "id": "garage-rollout",
+            "time": "03:38",
+            "title": "Contrôle rapide du vélo",
+            "location": "Départ",
+            "category": "prep",
+            "isCrucialCheckpoint": false,
+            "description": "Vérifier pression des pneus, batteries feux/radar, bidons montés et badge d’accès.",
+            "iconName": "CheckCircle2"
+          },
+          {
+            "id": "hard-departure",
+            "time": "03:53",
+            "title": "Heure de départ : 03:53",
+            "location": "Départ",
+            "category": "ride",
+            "isCrucialCheckpoint": true,
+            "description": "Départ à l'allure cible (25 km/h). Marge vent de face : +75 min.",
+            "iconName": "Navigation"
+          },
+          {
+            "id": "carb-intake-45",
+            "time": "04:38",
+            "title": "Apport glucides (T + 45 min)",
+            "location": "En selle",
+            "category": "nutrition",
+            "isCrucialCheckpoint": false,
+            "description": "Rappel ravitaillement : prenez une portion de glucides + gorgée d’eau",
+            "iconName": "Zap"
+          },
+          {
+            "id": "carb-intake-90",
+            "time": "05:23",
+            "title": "Apport glucides (T + 90 min)",
+            "location": "En selle",
+            "category": "nutrition",
+            "isCrucialCheckpoint": false,
+            "description": "Rappel ravitaillement : prenez une portion de glucides + gorgée d’eau",
+            "iconName": "Zap"
+          },
+          {
+            "id": "estuary-transit",
+            "time": "05:53",
+            "title": "Alerte vent de face sévère",
+            "location": "Route Ouverte",
+            "category": "ride",
+            "isCrucialCheckpoint": true,
+            "description": "Vent de face sévère (+75 min de pénalité sur 80 km). Envisagez de revoir votre itinéraire ou de prendre le train.",
+            "iconName": "AlertTriangle"
+          },
+          {
+            "id": "carb-intake-135",
+            "time": "06:08",
+            "title": "Apport glucides (T + 135 min)",
+            "location": "En selle",
+            "category": "nutrition",
+            "isCrucialCheckpoint": false,
+            "description": "Rappel ravitaillement : prenez une portion de glucides + gorgée d’eau",
+            "iconName": "Zap"
+          },
+          {
+            "id": "carb-intake-180",
+            "time": "06:53",
+            "title": "Apport glucides (T + 180 min)",
+            "location": "En selle",
+            "category": "nutrition",
+            "isCrucialCheckpoint": false,
+            "description": "Rappel ravitaillement : prenez une portion de glucides + gorgée d’eau",
+            "iconName": "Zap"
+          },
+          {
+            "id": "carb-intake-225",
+            "time": "07:38",
+            "title": "Apport glucides (T + 225 min)",
+            "location": "En selle",
+            "category": "nutrition",
+            "isCrucialCheckpoint": false,
+            "description": "Rappel ravitaillement : prenez une portion de glucides + gorgée d’eau",
+            "iconName": "Zap"
+          },
+          {
+            "id": "gate-security",
+            "time": "08:25",
+            "title": "Arrivée & stationnement vélo (Main Gate)",
+            "location": "Main Gate",
+            "category": "transit",
+            "isCrucialCheckpoint": true,
+            "description": "Arrivée à Main Gate et stationnement du vélo.",
+            "iconName": "ShieldCheck"
+          },
+          {
+            "id": "locker-refuel",
+            "time": "08:30",
+            "title": "Collation à l’arrivée",
+            "location": "À l’arrivée",
+            "category": "nutrition",
+            "isCrucialCheckpoint": true,
+            "description": "Collation rapide avant la douche.",
+            "iconName": "Zap"
+          },
+          {
+            "id": "shower-groom",
+            "time": "08:40",
+            "formattedDuration": "10 min",
+            "title": "Douche & Tenue de Travail",
+            "location": "Douches",
+            "category": "office",
+            "isCrucialCheckpoint": true,
+            "description": "Douche et passage en tenue de bureau propre (10 min, prêt pour 09:00).",
+            "iconName": "ShowerHead"
+          },
+          {
+            "id": "shift-start",
+            "time": "09:00",
+            "title": "Au bureau / Prise de poste",
+            "location": "Poste de Travail",
+            "category": "office",
+            "isCrucialCheckpoint": true,
+            "description": "Installation au poste à l’heure, ravitaillé et prêt pour la journée.",
+            "iconName": "Briefcase"
+          }
+        ],
+        "weatherHeadwindImpactMinutes": 75,
+        "severeHeadwindWarning": true,
+        "stationaryRecoveryRule": {
+          "isRestricted": false,
+          "maxRestMinutes": null,
+          "disableLunchBreak": false,
+          "isWinter": false,
+          "isBeforeDawn": true,
+          "civilDawnHHMM": "05:40",
+          "rolloutHHMM": "03:53"
+        }
+      }
+    },
+    {
+      "id": "reverse-escapade-waypoints-and-opening-hours",
+      "description": "Escapade reverse timeline with waypoints and pinned amenities evaluated at arrival ETA",
+      "input": {
+        "route": {
+          "origin": "Start",
+          "destination": "Finish",
+          "distanceKm": 30,
+          "targetSpeedKmH": 30,
+          "elevationGainM": 100,
+          "urbanTrafficDelayMinutes": 5,
+          "gateSecurityDelayMinutes": 5,
+          "waypoints": [
+            {
+              "id": "wp-roastery",
+              "name": "Blue Bottle Roastery",
+              "distanceFromStartKm": 10
+            }
+          ]
+        },
+        "pinnedAmenities": [
+          {
+            "id": "node/bakery-1",
+            "category": "food",
+            "subType": "bakery",
+            "name": "Boulangerie du Port",
+            "lat": 47.2,
+            "lon": -1.5,
+            "routeKm": 15,
+            "detourMeters": 50,
+            "openingHours": "Apr-Oct Mo-Su 08:00-19:00",
+            "isPinned": true
+          },
+          {
+            "id": "node/water-1",
+            "category": "water",
+            "subType": "drinking_water",
+            "name": "Village Fountain",
+            "lat": 47.21,
+            "lon": -1.51,
+            "routeKm": 20,
+            "detourMeters": 10,
+            "isPinned": true
+          },
+          {
+            "id": "node/bike-shop-1",
+            "category": "mechanix",
+            "subType": "bicycle",
+            "name": "Cycles du Centre",
+            "lat": 47.22,
+            "lon": -1.52,
+            "routeKm": 25,
+            "detourMeters": 80,
+            "isPinned": true
+          }
+        ],
+        "departureTime": "10:00",
+        "departureDate": "2026-07-15"
+      },
+      "expected": {
+        "shiftStartTime": "11:25",
+        "gateArrivalTime": "11:25",
+        "hardDepartureTime": "10:00",
+        "preRideMealTime": "09:15",
+        "wakeUpTime": "09:00",
+        "totalDoorToDeskMinutes": 175,
+        "pureMovingMinutes": 60,
+        "bufferMinutes": 25,
+        "steps": [
+          {
+            "id": "prep-hydration",
+            "time": "09:00",
+            "title": "Pannier balance & hydration primer",
+            "location": "Home / Start",
+            "category": "prep",
+            "isCrucialCheckpoint": false,
+            "description": "Drink 400 ml electrolytes; balance pannier/saddlebag load.",
+            "iconName": "AlarmClock"
+          },
+          {
+            "id": "pre-ride-fuel",
+            "time": "09:15",
+            "title": "Pre-Ride Energy Breakfast",
+            "location": "Kitchen Counter",
+            "category": "nutrition",
+            "isCrucialCheckpoint": true,
+            "description": "Toasted Baguette with Wildflower Honey + espresso. Fill 2× water bottles for the road.",
+            "iconName": "Utensils"
+          },
+          {
+            "id": "garage-rollout",
+            "time": "09:45",
+            "title": "Quick bike check",
+            "location": "Start",
+            "category": "prep",
+            "isCrucialCheckpoint": false,
+            "description": "Tire pressures at touring spec, panniers strapped, GPS route locked.",
+            "iconName": "CheckCircle2"
+          },
+          {
+            "id": "hard-departure",
+            "time": "10:00",
+            "title": "Rollout toward Hotel",
+            "location": "Origin",
+            "category": "ride",
+            "isCrucialCheckpoint": true,
+            "description": "Steady touring pace (~30 km/h). Target arrival by 11:25.",
+            "iconName": "Navigation"
+          },
+          {
+            "id": "intermediate-stop-wp-wp-roastery",
+            "time": "10:20",
+            "title": "Blue Bottle Roastery",
+            "location": "KM 10.0",
+            "category": "ride",
+            "isCrucialCheckpoint": true,
+            "description": "Intermediate stop along the route",
+            "iconName": "MapPin"
+          },
+          {
+            "id": "mid-ride-transit",
+            "time": "10:30",
+            "title": "Scenic Mid-Route Transition",
+            "location": "Midway Sector",
+            "category": "ride",
+            "isCrucialCheckpoint": false,
+            "description": "Hydration check & energy bar. Maintain smooth, sustainable cadence.",
+            "iconName": "Wind"
+          },
+          {
+            "id": "intermediate-stop-poi-node/bakery-1",
+            "time": "10:30",
+            "title": "Boulangerie du Port",
+            "location": "KM 15.0",
+            "category": "nutrition",
+            "isCrucialCheckpoint": true,
+            "description": "Resupply stop · Radar pin · +0.1 km · Open at 10:30 (Apr-Oct Mo-Su 08:00-19:00)",
+            "iconName": "Baguette"
+          },
+          {
+            "id": "intermediate-stop-poi-node/water-1",
+            "time": "10:40",
+            "title": "Village Fountain",
+            "location": "KM 20.0",
+            "category": "nutrition",
+            "isCrucialCheckpoint": true,
+            "description": "Water stop · Radar pin",
+            "iconName": "Droplets"
+          },
+          {
+            "id": "carb-intake-45",
+            "time": "10:45",
+            "title": "Carb Intake (T + 45 min)",
+            "location": "On-bike",
+            "category": "nutrition",
+            "isCrucialCheckpoint": false,
+            "description": "Carb intake reminder: take a carbohydrate serving + sip of water",
+            "iconName": "Zap"
+          },
+          {
+            "id": "intermediate-stop-poi-node/bike-shop-1",
+            "time": "10:50",
+            "title": "Cycles du Centre",
+            "location": "KM 25.0",
+            "category": "ride",
+            "isCrucialCheckpoint": true,
+            "description": "Repair / Shelter · Radar pin · +0.2 km",
+            "iconName": "Wrench"
+          },
+          {
+            "id": "destination-arrival",
+            "time": "11:20",
+            "title": "Arrival in Hotel",
+            "location": "Hotel",
+            "category": "transit",
+            "isCrucialCheckpoint": true,
+            "description": "Roll into Hotel. Navigate to accommodation entrance.",
+            "iconName": "ShieldCheck"
+          },
+          {
+            "id": "hotel-checkin",
+            "time": "11:25",
+            "title": "Hotel Check-In & Secure Bike Storage",
+            "location": "Hotel Reception",
+            "category": "office",
+            "isCrucialCheckpoint": true,
+            "description": "Hotel Check-in at reception, secure bike in dedicated storage/room, and unload panniers.",
+            "iconName": "Briefcase"
+          },
+          {
+            "id": "freshen-up",
+            "time": "11:50",
+            "title": "Evening Charging, Shower & Recovery",
+            "location": "Hotel Room",
+            "category": "prep",
+            "isCrucialCheckpoint": false,
+            "description": "Charge GPS/lights, hot shower, and casual evening kit.",
+            "iconName": "ShowerHead"
+          },
+          {
+            "id": "town-explore",
+            "time": "12:20",
+            "title": "Explore Hotel & Evening Dining",
+            "location": "Hotel Center",
+            "category": "nutrition",
+            "isCrucialCheckpoint": false,
+            "description": "Stroll town center, visit local sights, relaxed dinner without timeline stress.",
+            "iconName": "Coffee"
+          }
+        ],
+        "weatherHeadwindImpactMinutes": 0,
+        "severeHeadwindWarning": false,
+        "stationaryRecoveryRule": {
+          "isRestricted": false,
+          "maxRestMinutes": null,
+          "disableLunchBreak": false,
+          "isWinter": false,
+          "isBeforeDawn": false,
+          "civilDawnHHMM": "05:45",
+          "rolloutHHMM": "10:00"
+        }
+      }
+    },
+    {
+      "id": "reverse-sport-singleday-vs-bikepacking-multiday",
+      "description": "Single-day carb-intake-45/90/135 reminders vs multi-day savory-palate-reset-90 alert",
+      "input": {
+        "route": {
+          "origin": "Start",
+          "destination": "Finish",
+          "distanceKm": 90,
+          "targetSpeedKmH": 30,
+          "elevationGainM": 100,
+          "urbanTrafficDelayMinutes": 0,
+          "gateSecurityDelayMinutes": 0
+        },
+        "departureDate": "2026-07-15",
+        "departureTime": "08:00"
+      },
+      "expected": {
+        "singleDay": {
+          "shiftStartTime": "11:10",
+          "gateArrivalTime": "11:10",
+          "hardDepartureTime": "08:00",
+          "preRideMealTime": "07:15",
+          "wakeUpTime": "07:00",
+          "totalDoorToDeskMinutes": 280,
+          "pureMovingMinutes": 180,
+          "bufferMinutes": 10,
+          "steps": [
+            {
+              "id": "sport-fuel-primer",
+              "time": "07:00",
+              "title": "Hydration & Fast Carbs Primer",
+              "location": "Home Base",
+              "category": "nutrition",
+              "isCrucialCheckpoint": true,
+              "description": "Tall glass electrolytes + toasted baguette with wildflower honey.",
+              "iconName": "AlarmClock"
+            },
+            {
+              "id": "sport-cockpit-check",
+              "time": "07:45",
+              "title": "Tire pressure & bike check",
+              "location": "Roll-Out Point",
+              "category": "prep",
+              "isCrucialCheckpoint": false,
+              "description": "Tire pressures dialed for smooth rolling. Lube check and 2× 650 ml water bottles.",
+              "iconName": "CheckCircle2"
+            },
+            {
+              "id": "sport-rollout",
+              "time": "08:00",
+              "title": "Start ride & gentle warmup",
+              "location": "Origin",
+              "category": "ride",
+              "isCrucialCheckpoint": true,
+              "description": "15-min progressive spin before settling into target pace (~30 km/h).",
+              "iconName": "Navigation"
+            },
+            {
+              "id": "carb-intake-45",
+              "time": "08:45",
+              "title": "Carb Intake (T + 45 min)",
+              "location": "On-bike",
+              "category": "nutrition",
+              "isCrucialCheckpoint": false,
+              "description": "Carb intake reminder: take a carbohydrate serving + sip of water",
+              "iconName": "Zap"
+            },
+            {
+              "id": "sport-mid-fuel",
+              "time": "09:30",
+              "title": "Mid-Ride Carb & Electrolyte Window",
+              "location": "Pacing Sector",
+              "category": "nutrition",
+              "isCrucialCheckpoint": false,
+              "description": "On-bike fuel (3 fuel units) — keep a steady rhythm.",
+              "iconName": "Wind"
+            },
+            {
+              "id": "carb-intake-90",
+              "time": "09:30",
+              "title": "Carb Intake (T + 90 min)",
+              "location": "On-bike",
+              "category": "nutrition",
+              "isCrucialCheckpoint": false,
+              "description": "Carb intake reminder: take a carbohydrate serving + sip of water",
+              "iconName": "Zap"
+            },
+            {
+              "id": "carb-intake-135",
+              "time": "10:15",
+              "title": "Carb Intake (T + 135 min)",
+              "location": "On-bike",
+              "category": "nutrition",
+              "isCrucialCheckpoint": false,
+              "description": "Carb intake reminder: take a carbohydrate serving + sip of water",
+              "iconName": "Zap"
+            },
+            {
+              "id": "sport-session-finish",
+              "time": "11:10",
+              "title": "Stage Finish: Finish",
+              "location": "Finish",
+              "category": "transit",
+              "isCrucialCheckpoint": true,
+              "description": "Cross route finish marker. 5-min easy spin down below 120 bpm.",
+              "iconName": "ShieldCheck"
+            },
+            {
+              "id": "sport-post-recovery",
+              "time": "11:25",
+              "title": "Post-Ride Recovery & Stretch",
+              "location": "Post-ride",
+              "category": "prep",
+              "isCrucialCheckpoint": false,
+              "description": "Plain Greek Yogurt with Pure Grape Juice + tall glass of cold water.",
+              "iconName": "Coffee"
+            }
+          ],
+          "weatherHeadwindImpactMinutes": 0,
+          "severeHeadwindWarning": false,
+          "stationaryRecoveryRule": {
+            "isRestricted": false,
+            "maxRestMinutes": null,
+            "disableLunchBreak": false,
+            "isWinter": false,
+            "isBeforeDawn": false,
+            "civilDawnHHMM": "05:45",
+            "rolloutHHMM": "08:00"
+          }
+        },
+        "multiDay": {
+          "shiftStartTime": "11:25",
+          "gateArrivalTime": "11:25",
+          "hardDepartureTime": "08:00",
+          "preRideMealTime": "07:15",
+          "wakeUpTime": "07:00",
+          "totalDoorToDeskMinutes": 295,
+          "pureMovingMinutes": 180,
+          "bufferMinutes": 25,
+          "steps": [
+            {
+              "id": "prep-hydration",
+              "time": "07:00",
+              "title": "Pannier balance & hydration primer",
+              "location": "Home / Start",
+              "category": "prep",
+              "isCrucialCheckpoint": false,
+              "description": "Drink 400 ml electrolytes; balance pannier/saddlebag load.",
+              "iconName": "AlarmClock"
+            },
+            {
+              "id": "pre-ride-fuel",
+              "time": "07:15",
+              "title": "Pre-Ride Energy Breakfast",
+              "location": "Kitchen Counter",
+              "category": "nutrition",
+              "isCrucialCheckpoint": true,
+              "description": "Toasted Baguette with Wildflower Honey + espresso. Fill 2× water bottles for the road.",
+              "iconName": "Utensils"
+            },
+            {
+              "id": "garage-rollout",
+              "time": "07:45",
+              "title": "Quick bike check",
+              "location": "Start",
+              "category": "prep",
+              "isCrucialCheckpoint": false,
+              "description": "Tire pressures at touring spec, panniers strapped, GPS route locked.",
+              "iconName": "CheckCircle2"
+            },
+            {
+              "id": "hard-departure",
+              "time": "08:00",
+              "title": "Rollout toward Stage 1 Finish",
+              "location": "Origin",
+              "category": "ride",
+              "isCrucialCheckpoint": true,
+              "description": "Steady touring pace (~30 km/h). Target arrival by 11:25.",
+              "iconName": "Navigation"
+            },
+            {
+              "id": "mid-ride-transit",
+              "time": "09:30",
+              "title": "Scenic Mid-Route Transition",
+              "location": "Midway Sector",
+              "category": "ride",
+              "isCrucialCheckpoint": false,
+              "description": "Hydration check & energy bar. Maintain smooth, sustainable cadence.",
+              "iconName": "Wind"
+            },
+            {
+              "id": "savory-palate-reset-90",
+              "time": "09:30",
+              "title": "Savory palate reset (T + 90 min)",
+              "location": "On-bike",
+              "category": "nutrition",
+              "isCrucialCheckpoint": false,
+              "description": "Savory palate reset: Swap sweet fuel for salted snack + plain water sip",
+              "iconName": "Utensils"
+            },
+            {
+              "id": "destination-arrival",
+              "time": "11:20",
+              "title": "Arrival in Stage 1 Finish",
+              "location": "Stage 1 Finish",
+              "category": "transit",
+              "isCrucialCheckpoint": true,
+              "description": "Roll into Stage 1 Finish. Navigate to accommodation entrance.",
+              "iconName": "ShieldCheck"
+            },
+            {
+              "id": "hotel-checkin",
+              "time": "11:25",
+              "title": "Hotel Check-In & Secure Bike Storage",
+              "location": "Hotel Reception",
+              "category": "office",
+              "isCrucialCheckpoint": true,
+              "description": "Hotel Check-in at reception, secure bike in dedicated storage/room, and unload panniers.",
+              "iconName": "Briefcase"
+            },
+            {
+              "id": "freshen-up",
+              "time": "11:50",
+              "title": "Evening Charging, Shower & Recovery",
+              "location": "Hotel Room",
+              "category": "prep",
+              "isCrucialCheckpoint": false,
+              "description": "Charge GPS/lights, hot shower, and casual evening kit.",
+              "iconName": "ShowerHead"
+            },
+            {
+              "id": "town-explore",
+              "time": "12:20",
+              "title": "Explore Stage 1 Finish & Evening Dining",
+              "location": "Stage 1 Finish Center",
+              "category": "nutrition",
+              "isCrucialCheckpoint": false,
+              "description": "Stroll town center, visit local sights, relaxed dinner without timeline stress.",
+              "iconName": "Coffee"
+            }
+          ],
+          "weatherHeadwindImpactMinutes": 0,
+          "severeHeadwindWarning": false,
+          "stationaryRecoveryRule": {
+            "isRestricted": false,
+            "maxRestMinutes": null,
+            "disableLunchBreak": false,
+            "isWinter": false,
+            "isBeforeDawn": false,
+            "civilDawnHHMM": "05:45",
+            "rolloutHHMM": "08:00"
+          }
+        }
+      }
+    }
+  ]
+}

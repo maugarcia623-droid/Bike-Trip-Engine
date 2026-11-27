@@ -249,4 +249,101 @@ describe('fitExporter.ts', () => {
     const decoded = new TextDecoder('utf-8', { fatal: true }).decode(trimmed);
     assert.equal(decoded, 'Stop 1234567 ');
   });
+
+  it('produces byte-for-byte deterministic .FIT output when exportTimestampMs is supplied', () => {
+    const trip = makeBaseTrip();
+    trip.route.distanceKm = 50;
+    trip.route.targetSpeedKmH = 22;
+
+    const bytesA = exportTripToFit(trip, {
+      exportTimestampMs: 1_795_694_400_000,
+      ftpWatts: 250,
+      carbTargetGPerHr: 80,
+      carbPacingMode: 'locked',
+      riderLevel: 'regular',
+    });
+    const bytesB = exportTripToFit(trip, {
+      exportTimestampMs: 1_795_694_400_000,
+      ftpWatts: 250,
+      carbTargetGPerHr: 80,
+      carbPacingMode: 'locked',
+      riderLevel: 'regular',
+    });
+    assert.deepEqual(bytesA, bytesB);
+
+    const bytesShifted = exportTripToFit(trip, {
+      exportTimestampMs: 1_795_698_000_000,
+      ftpWatts: 250,
+      carbTargetGPerHr: 80,
+      carbPacingMode: 'locked',
+      riderLevel: 'regular',
+    });
+    const hasDiffByte =
+      bytesA.length !== bytesShifted.length ||
+      bytesA.some((b, idx) => b !== bytesShifted[idx]);
+    assert.equal(hasDiffByte, true);
+
+    const view = new DataView(
+      bytesShifted.buffer,
+      bytesShifted.byteOffset,
+      bytesShifted.byteLength
+    );
+    const dataSize = view.getUint32(4, true);
+    assert.equal(
+      view.getUint16(14 + dataSize, true),
+      computeCrc16(bytesShifted, 0, 14 + dataSize)
+    );
+  });
+
+  it('propagates carbPacingMode locked vs auto into .FIT fueling course_point cues', () => {
+    const trip = makeBaseTrip();
+    trip.route.distanceKm = 50;
+    trip.route.targetSpeedKmH = 20; // low intensity against 300W FTP
+
+    const autoFit = exportTripToFit(trip, {
+      exportTimestampMs: 1_795_694_400_000,
+      includeFuelingCues: true,
+      includeClimbCues: false,
+      fuelIntervalMinutes: 35,
+      lang: 'en',
+      ftpWatts: 300,
+      carbTargetGPerHr: 80,
+      carbPacingMode: 'auto',
+      riderLevel: 'regular',
+      nutritionPreference: 'sports-fuel',
+    });
+    const lockedFit = exportTripToFit(trip, {
+      exportTimestampMs: 1_795_694_400_000,
+      includeFuelingCues: true,
+      includeClimbCues: false,
+      fuelIntervalMinutes: 35,
+      lang: 'en',
+      ftpWatts: 300,
+      carbTargetGPerHr: 80,
+      carbPacingMode: 'locked',
+      riderLevel: 'regular',
+      nutritionPreference: 'sports-fuel',
+    });
+
+    const autoText = new TextDecoder('latin1').decode(autoFit);
+    const lockedText = new TextDecoder('latin1').decode(lockedFit);
+
+    assert.match(lockedText, /Fuel 4\dg\+H2O/);
+    assert.equal(/Fuel 4\dg\+H2O/.test(autoText), false);
+
+    // pro + carbPacingMode: 'auto' must NOT auto-lock
+    const proAutoFit = exportTripToFit(trip, {
+      exportTimestampMs: 1_795_694_400_000,
+      includeFuelingCues: true,
+      includeClimbCues: false,
+      fuelIntervalMinutes: 35,
+      lang: 'en',
+      ftpWatts: 300,
+      carbTargetGPerHr: 80,
+      carbPacingMode: 'auto',
+      riderLevel: 'pro',
+      nutritionPreference: 'sports-fuel',
+    });
+    assert.deepEqual(proAutoFit, autoFit);
+  });
 });

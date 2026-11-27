@@ -1,0 +1,240 @@
+{
+  "schemaVersion": 1,
+  "engine": "windInsights",
+  "sourceFiles": [
+    "src/utils/windInsights.ts"
+  ],
+  "determinism": {
+    "frozenUtc": "2026-11-26T12:00:00.000Z",
+    "timezone": "Europe/Paris"
+  },
+  "cases": [
+    {
+      "id": "human-wind-headwind-crosswind-tailwind",
+      "description": "Human wind impact at 0°, 90°, and 180° relative angles in EN and FR",
+      "input": {
+        "baseWindInput": {
+          "distanceKm": 40,
+          "targetSpeedKmH": 25,
+          "riderWeightKg": 74,
+          "bikeWeightKg": 10,
+          "cda": 0.38,
+          "crr": 0.006,
+          "windSpeedKmH": 22,
+          "windFromDegrees": 245
+        },
+        "anglesDeg": [
+          0,
+          90,
+          180
+        ]
+      },
+      "expected": {
+        "headwindEn": {
+          "effectiveHeadwindKmH": 22,
+          "equivalentGradePct": 3.4,
+          "ghostElevationM": 1360,
+          "sameEffortSpeedKmH": 14.2,
+          "speedDeltaKmH": -10.8,
+          "calmTimeMin": 96,
+          "sameEffortTimeMin": 169,
+          "timeDeltaMin": 73,
+          "totalRideKcal": 1857,
+          "calmRideKcal": 677,
+          "extraWindKcal": 1180,
+          "extraCroissants": 4.5,
+          "extraBananas": 12.4,
+          "windyWatts": 324,
+          "calmWatts": 118,
+          "deltaWatts": 206,
+          "airResistanceWatts": 275,
+          "airResistanceSharePct": 85,
+          "outboundIntoWindDeg": 245,
+          "outboundIntoWindCardinal": "WSW",
+          "returnTailwindCardinal": "ENE",
+          "iconicClimbComparison": "≈ 1.3× Alpe d’Huez"
+        },
+        "crosswindEn": {
+          "effectiveHeadwindKmH": 0,
+          "equivalentGradePct": 0,
+          "ghostElevationM": 0,
+          "sameEffortSpeedKmH": 25,
+          "speedDeltaKmH": 0,
+          "calmTimeMin": 96,
+          "sameEffortTimeMin": 96,
+          "timeDeltaMin": 0,
+          "totalRideKcal": 677,
+          "calmRideKcal": 677,
+          "extraWindKcal": 0,
+          "extraCroissants": 0,
+          "extraBananas": 0,
+          "windyWatts": 118,
+          "calmWatts": 118,
+          "deltaWatts": 0,
+          "airResistanceWatts": 78,
+          "airResistanceSharePct": 66,
+          "outboundIntoWindDeg": 245,
+          "outboundIntoWindCardinal": "WSW",
+          "returnTailwindCardinal": "ENE",
+          "iconicClimbComparison": null
+        },
+        "tailwindEn": {
+          "effectiveHeadwindKmH": -22,
+          "equivalentGradePct": -1.3,
+          "ghostElevationM": -520,
+          "sameEffortSpeedKmH": 39.2,
+          "speedDeltaKmH": 14.2,
+          "calmTimeMin": 96,
+          "sameEffortTimeMin": 61,
+          "timeDeltaMin": -35,
+          "totalRideKcal": 218,
+          "calmRideKcal": 677,
+          "extraWindKcal": -459,
+          "extraCroissants": 1.8,
+          "extraBananas": 4.8,
+          "windyWatts": 38,
+          "calmWatts": 118,
+          "deltaWatts": -80,
+          "airResistanceWatts": 1,
+          "airResistanceSharePct": 3,
+          "outboundIntoWindDeg": 245,
+          "outboundIntoWindCardinal": "WSW",
+          "returnTailwindCardinal": "ENE",
+          "iconicClimbComparison": null
+        },
+        "headwindFr": {
+          "effectiveHeadwindKmH": 22,
+          "equivalentGradePct": 3.4,
+          "ghostElevationM": 1360,
+          "sameEffortSpeedKmH": 14.2,
+          "speedDeltaKmH": -10.8,
+          "calmTimeMin": 96,
+          "sameEffortTimeMin": 169,
+          "timeDeltaMin": 73,
+          "totalRideKcal": 1857,
+          "calmRideKcal": 677,
+          "extraWindKcal": 1180,
+          "extraCroissants": 4.5,
+          "extraBananas": 12.4,
+          "windyWatts": 324,
+          "calmWatts": 118,
+          "deltaWatts": 206,
+          "airResistanceWatts": 275,
+          "airResistanceSharePct": 85,
+          "outboundIntoWindDeg": 245,
+          "outboundIntoWindCardinal": "OSO",
+          "returnTailwindCardinal": "ENE",
+          "iconicClimbComparison": "≈ 1.3× l’Alpe d’Huez"
+        }
+      }
+    },
+    {
+      "id": "trip-wind-insight-fr",
+      "description": "calculateTripWindInsight ghost climbing and French compass direction",
+      "input": {
+        "distanceKm": 50,
+        "targetSpeedKmH": 25,
+        "windSpeedKmH": 24,
+        "effectiveHeadwindKmH": 22,
+        "windDirection": "headwind",
+        "windFromDegrees": 270,
+        "temperatureC": 14,
+        "lang": "fr"
+      },
+      "expected": {
+        "effectiveHeadwindKmH": 21.9,
+        "equivalentGradePct": 3.2,
+        "ghostElevationM": 1600,
+        "sameEffortSpeedKmH": 14.2,
+        "speedDeltaKmH": -10.8,
+        "calmTimeMin": 120,
+        "sameEffortTimeMin": 211,
+        "timeDeltaMin": 91,
+        "totalRideKcal": 2191,
+        "calmRideKcal": 797,
+        "extraWindKcal": 1394,
+        "extraCroissants": 5.4,
+        "extraBananas": 14.7,
+        "windyWatts": 306,
+        "calmWatts": 111,
+        "deltaWatts": 195,
+        "airResistanceWatts": 261,
+        "airResistanceSharePct": 85,
+        "outboundIntoWindDeg": 270,
+        "outboundIntoWindCardinal": "O",
+        "returnTailwindCardinal": "E",
+        "iconicClimbComparison": "≈ 1.0× le Mont Ventoux"
+      }
+    },
+    {
+      "id": "elevation-scale-thresholds",
+      "description": "Real-world elevation landmark metaphors across all height thresholds in EN and FR",
+      "input": {
+        "elevations": [
+          5,
+          27,
+          50,
+          75,
+          95,
+          135,
+          210,
+          310,
+          1071,
+          1610
+        ]
+      },
+      "expected": [
+        {
+          "meters": 5,
+          "en": null,
+          "fr": null
+        },
+        {
+          "meters": 27,
+          "en": "≈ 9 flights of stairs",
+          "fr": "≈ 9 étages d’escaliers"
+        },
+        {
+          "meters": 50,
+          "en": "≈ the Arc de Triomphe",
+          "fr": "≈ l’Arc de Triomphe"
+        },
+        {
+          "meters": 75,
+          "en": "≈ a 25-story building",
+          "fr": "≈ un immeuble de 25 étages"
+        },
+        {
+          "meters": 95,
+          "en": "≈ the Statue of Liberty",
+          "fr": "≈ la Statue de la Liberté"
+        },
+        {
+          "meters": 135,
+          "en": "≈ climbing Montmartre",
+          "fr": "≈ la butte Montmartre"
+        },
+        {
+          "meters": 210,
+          "en": "≈ 70% of the Eiffel Tower",
+          "fr": "≈ 70 % de la Tour Eiffel"
+        },
+        {
+          "meters": 310,
+          "en": "≈ 1.0× the Eiffel Tower",
+          "fr": "≈ 1.0× la Tour Eiffel"
+        },
+        {
+          "meters": 1071,
+          "en": "≈ 1.0× Alpe d’Huez",
+          "fr": "≈ 1.0× l’Alpe d’Huez"
+        },
+        {
+          "meters": 1610,
+          "en": "≈ 1.0× Mont Ventoux",
+          "fr": "≈ 1.0× le Mont Ventoux"
+        }
+      ]
+    }
+  ]
+}

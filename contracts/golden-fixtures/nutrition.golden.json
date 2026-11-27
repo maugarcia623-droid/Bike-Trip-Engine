@@ -1,0 +1,1066 @@
+{
+  "schemaVersion": 1,
+  "engine": "nutrition",
+  "sourceFiles": [
+    "src/utils/nutrition.ts",
+    "src/data/pantryCatalog.ts"
+  ],
+  "determinism": {
+    "frozenUtc": "2026-11-26T12:00:00.000Z",
+    "timezone": "Europe/Paris"
+  },
+  "cases": [
+    {
+      "id": "short-hydration-only",
+      "description": "Single-day ride <45 min defaults to short-hydration-only with 0g carbs",
+      "input": {
+        "rideHours": 0.5,
+        "pctFtp": 75,
+        "carbOxidationGramPerHour": 120,
+        "gutCeilingGPerHr": 90,
+        "totalDays": 1
+      },
+      "expected": {
+        "recommendedGPerHr": 0,
+        "effectiveCeilingGPerHr": 90,
+        "targetOnBikeCarbsG": 0,
+        "pacingTier": "short-hydration-only",
+        "effectiveHourlyRateG": 0,
+        "durationFactor": 0.55,
+        "exoShare": 0.35,
+        "rawDemandGPerHr": 0
+      }
+    },
+    {
+      "id": "multiday-short-segment",
+      "description": "Multi-day tour keeps carbs active even on <45 min stage",
+      "input": {
+        "rideHours": 0.5,
+        "pctFtp": 75,
+        "carbOxidationGramPerHour": 120,
+        "gutCeilingGPerHr": 90,
+        "totalDays": 2
+      },
+      "expected": {
+        "recommendedGPerHr": 39,
+        "effectiveCeilingGPerHr": 90,
+        "targetOnBikeCarbsG": 25,
+        "pacingTier": "light-cruising",
+        "effectiveHourlyRateG": 39,
+        "durationFactor": 0.55,
+        "exoShare": 0.5875,
+        "rawDemandGPerHr": 39
+      }
+    },
+    {
+      "id": "endurance-auto-modulated",
+      "description": "3h Z2 endurance ride modulated by intensity + dynamic helper + portion counts",
+      "input": {
+        "rideHours": 3,
+        "pctFtp": 62,
+        "carbOxidationGramPerHour": 110,
+        "gutCeilingGPerHr": 80,
+        "totalDays": 1
+      },
+      "expected": {
+        "modulated": {
+          "recommendedGPerHr": 58,
+          "effectiveCeilingGPerHr": 80,
+          "targetOnBikeCarbsG": 174,
+          "pacingTier": "steady-endurance",
+          "effectiveHourlyRateG": 58,
+          "durationFactor": 0.99,
+          "exoShare": 0.529,
+          "rawDemandGPerHr": 58
+        },
+        "dynamicCarbTarget": {
+          "recommendedGPerHr": 58,
+          "effectiveCeilingGPerHr": 80,
+          "targetOnBikeCarbsG": 174,
+          "pacingTier": "steady-endurance",
+          "effectiveHourlyRateG": 58,
+          "durationFactor": 0.99,
+          "exoShare": 0.529,
+          "rawDemandGPerHr": 58
+        },
+        "portionsRealFood": {
+          "juiceBidons": 2,
+          "datesCount": 3,
+          "chewsCount": 4,
+          "gelsCount": 0,
+          "isoBidons": 0,
+          "totalCarbsG": 171,
+          "totalKcal": 686
+        },
+        "portionsSportsFuel": {
+          "juiceBidons": 0,
+          "datesCount": 0,
+          "chewsCount": 0,
+          "gelsCount": 3,
+          "isoBidons": 3,
+          "totalCarbsG": 183,
+          "totalKcal": 732
+        }
+      }
+    },
+    {
+      "id": "emergency-surge",
+      "description": "Over-threshold (>105% FTP) expands effective ceiling by +20 g/h",
+      "input": {
+        "rideHours": 2,
+        "pctFtp": 110,
+        "carbOxidationGramPerHour": 220,
+        "gutCeilingGPerHr": 80
+      },
+      "expected": {
+        "recommendedGPerHr": 100,
+        "effectiveCeilingGPerHr": 100,
+        "targetOnBikeCarbsG": 200,
+        "pacingTier": "emergency-surge",
+        "effectiveHourlyRateG": 100,
+        "durationFactor": 0.81,
+        "exoShare": 0.7450000000000001,
+        "rawDemandGPerHr": 133
+      }
+    },
+    {
+      "id": "locked-low-intensity",
+      "description": "carbPacingMode locked holds exact gutCeilingGPerHr on low-intensity and <45m rides",
+      "input": {
+        "lockedLow": {
+          "rideHours": 2,
+          "pctFtp": 58,
+          "carbOxidationGramPerHour": 110,
+          "gutCeilingGPerHr": 80,
+          "totalDays": 1,
+          "isLockedCarbTarget": true
+        },
+        "lockedShort": {
+          "rideHours": 0.5,
+          "pctFtp": 65,
+          "carbOxidationGramPerHour": 110,
+          "gutCeilingGPerHr": 70,
+          "totalDays": 1,
+          "isLockedCarbTarget": true
+        }
+      },
+      "expected": {
+        "lockedLow": {
+          "recommendedGPerHr": 80,
+          "effectiveCeilingGPerHr": 80,
+          "targetOnBikeCarbsG": 160,
+          "pacingTier": "high-output",
+          "effectiveHourlyRateG": 80,
+          "durationFactor": 0.81,
+          "exoShare": 0.511,
+          "rawDemandGPerHr": 46
+        },
+        "lockedShort": {
+          "recommendedGPerHr": 70,
+          "effectiveCeilingGPerHr": 70,
+          "targetOnBikeCarbsG": 35,
+          "pacingTier": "steady-endurance",
+          "effectiveHourlyRateG": 70,
+          "durationFactor": 0.55,
+          "exoShare": 0.5425,
+          "rawDemandGPerHr": 33
+        }
+      }
+    },
+    {
+      "id": "hydration-hot-vs-cool",
+      "description": "Hydration plan across hot 4h, cool 1.5h, and <45m baseline rides",
+      "input": {
+        "hotParams": {
+          "rideHours": 4,
+          "tempC": 28,
+          "legWatts": 200,
+          "bidonSizeMl": 650,
+          "frameBottleSlots": 2
+        },
+        "coolParams": {
+          "rideHours": 1.5,
+          "tempC": 12,
+          "legWatts": 120,
+          "bidonSizeMl": 650,
+          "frameBottleSlots": 2
+        },
+        "shortHydrationParams": {
+          "rideHours": 0.5,
+          "tempC": 20,
+          "legWatts": 180,
+          "bidonSizeMl": 650,
+          "frameBottleSlots": 2
+        }
+      },
+      "expected": {
+        "hot": {
+          "sweatRateMlPerHr": 954,
+          "targetFluidMlPerHr": 763,
+          "totalFluidNeedMl": 3052,
+          "totalBidonsNeeded": 5,
+          "carriedOnFrameBidons": 2,
+          "plannedRefillBidons": 3,
+          "sodiumMgPerL": 750,
+          "bidonSizeMl": 650
+        },
+        "cool": {
+          "sweatRateMlPerHr": 574,
+          "targetFluidMlPerHr": 459,
+          "totalFluidNeedMl": 689,
+          "totalBidonsNeeded": 2,
+          "carriedOnFrameBidons": 2,
+          "plannedRefillBidons": 0,
+          "sodiumMgPerL": 500,
+          "bidonSizeMl": 650
+        },
+        "short": {
+          "sweatRateMlPerHr": 0,
+          "targetFluidMlPerHr": 0,
+          "totalFluidNeedMl": 450,
+          "totalBidonsNeeded": 1,
+          "carriedOnFrameBidons": 1,
+          "plannedRefillBidons": 0,
+          "sodiumMgPerL": 0,
+          "bidonSizeMl": 650
+        }
+      }
+    },
+    {
+      "id": "fuel-split-single-vs-multiday",
+      "description": "Liquid/solid split heat modulation and single-day vs multi-day savory palate resets",
+      "input": {
+        "splitSingle": {
+          "rideHours": 4,
+          "pctFtp": 88,
+          "tempC": 28,
+          "liquidCarbRatio": 0.35,
+          "autoModulateLiquidInHeatOrEffort": true,
+          "enableSavoryPalateResets": true,
+          "isMultiDayTour": false
+        },
+        "splitMulti": {
+          "rideHours": 4,
+          "pctFtp": 88,
+          "tempC": 28,
+          "liquidCarbRatio": 0.35,
+          "autoModulateLiquidInHeatOrEffort": true,
+          "enableSavoryPalateResets": true,
+          "isMultiDayTour": true
+        }
+      },
+      "expected": {
+        "singleDay": {
+          "baselineLiquidRatio": 0.35,
+          "effectiveLiquidRatio": 0.65,
+          "intensityShift": 0.2,
+          "heatShift": 0.1,
+          "isLiquidShifted": true,
+          "liquidShiftPct": 30,
+          "savoryResetCount": 0
+        },
+        "multiDay": {
+          "baselineLiquidRatio": 0.35,
+          "effectiveLiquidRatio": 0.65,
+          "intensityShift": 0.2,
+          "heatShift": 0.1,
+          "isLiquidShifted": true,
+          "liquidShiftPct": 30,
+          "savoryResetCount": 2
+        },
+        "phase2Items": [
+          {
+            "name": "50/50 Water & 100% Pressed Apple/Grape Juice",
+            "quantity": "2× Carbohydrate Bottle (650 ml) + 3× Pure/Electrolyte Water Bottles (650 ml)",
+            "carbsGrams": 72,
+            "proteinGrams": 0,
+            "fatsGrams": 0,
+            "kcals": 290,
+            "quantitativeLabel": "50/50 water & 100% pressed juice (72 g C)",
+            "portionLabel": "2× Carbohydrate Bottle + 3× Water Bottles",
+            "notes": "Juice cut with water, easy on the stomach.",
+            "isRealFoodVerified": true,
+            "isLiquid": true
+          },
+          {
+            "name": "Medjool Dates (Pitted)",
+            "quantity": "4 plump dates",
+            "carbsGrams": 68,
+            "proteinGrams": 1,
+            "fatsGrams": 0,
+            "kcals": 272,
+            "quantitativeLabel": "Medjool dates (68 g C)",
+            "portionLabel": "4 plump dates or dried fruit",
+            "notes": "Rich in natural potassium, melt-in-mouth chewability.",
+            "isRealFoodVerified": true
+          },
+          {
+            "name": "Fast Energy Gel (Climb Backup)",
+            "quantity": "4× gel (25 g)",
+            "carbsGrams": 100,
+            "proteinGrams": 0,
+            "fatsGrams": 0,
+            "kcals": 400,
+            "quantitativeLabel": "4× energy gel (100 g C)",
+            "portionLabel": "4 quick pocket snacks",
+            "notes": "Take ahead of climbs or exposed headwind sections.",
+            "isRealFoodVerified": false
+          },
+          {
+            "name": "Boiled Baby Potatoes with Sea Salt",
+            "quantity": "2 savory servings",
+            "carbsGrams": 40,
+            "proteinGrams": 4,
+            "fatsGrams": 0,
+            "kcals": 184,
+            "quantitativeLabel": "Boiled Baby Potatoes with Sea Salt (40g carbs)",
+            "portionLabel": "4 salted baby potatoes",
+            "notes": "Salty break, about every 90 min.",
+            "isRealFoodVerified": true,
+            "isSavoryReset": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-locked-vs-auto-pro",
+      "description": "getRealFoodNutritionPlan honors carbPacingMode locked (80g/h & 25g/h floor) and auto over riderLevel pro",
+      "input": {
+        "arrival": "09:30",
+        "breakRoom": "09:50",
+        "departure": "07:30",
+        "locked80": {
+          "carbTargetGPerHr": 80,
+          "carbPacingMode": "locked",
+          "riderLevel": "regular",
+          "preRideStyle": "light-liquid"
+        },
+        "autoPro90": {
+          "carbTargetGPerHr": 90,
+          "carbPacingMode": "auto",
+          "riderLevel": "pro"
+        },
+        "lockedFloor25": {
+          "carbTargetGPerHr": 25,
+          "carbPacingMode": "locked",
+          "riderLevel": "regular"
+        }
+      },
+      "expected": {
+        "locked80Plan": [
+          {
+            "phaseId": "pre-ride",
+            "title": "Quick drink before you leave (20 min before)",
+            "timeWindow": "07:10 – 07:30",
+            "location": "Home",
+            "rules": "A light drink 20 min before you leave, easy on the stomach.",
+            "items": [
+              {
+                "name": "Light carb drink (pure juice or salted maple water)",
+                "quantity": "250 ml",
+                "carbsGrams": 28,
+                "proteinGrams": 0,
+                "fatsGrams": 0,
+                "kcals": 115,
+                "quantitativeLabel": "Light carb drink (250 ml, 28 g carbs)",
+                "portionLabel": "1 small glass of juice or light drink",
+                "notes": "Light drink, easy on the stomach 20 min before you leave.",
+                "isRealFoodVerified": true
+              },
+              {
+                "name": "Double espresso",
+                "quantity": "60 ml (2 shots)",
+                "carbsGrams": 0,
+                "proteinGrams": 0,
+                "fatsGrams": 0,
+                "kcals": 5,
+                "quantitativeLabel": "Double espresso (60 ml, ~140 mg caffeine)",
+                "portionLabel": "1 coffee or espresso",
+                "notes": "A quick pick-me-up before you leave.",
+                "isRealFoodVerified": true
+              },
+              {
+                "name": "Water with a pinch of salt",
+                "quantity": "300 ml",
+                "carbsGrams": 0,
+                "proteinGrams": 0,
+                "fatsGrams": 0,
+                "kcals": 0,
+                "quantitativeLabel": "Water with a pinch of salt (300 ml)",
+                "portionLabel": "1 tall glass of salted water",
+                "notes": "Pre-ride water with a pinch of salt.",
+                "isRealFoodVerified": true
+              }
+            ]
+          },
+          {
+            "phaseId": "on-bike",
+            "title": "On-bike sports fueling (80 g/h)",
+            "timeWindow": "Rollout to arrival (sip every 15–20 min)",
+            "location": "On the road",
+            "rules": "Tuned to your digestion comfort (80 g/h): drink mix and pocket gels.",
+            "items": [
+              {
+                "name": "50/50 Water & 100% Pressed Apple/Grape Juice",
+                "quantity": "2 bottles of diluted fruit juice (650 ml)",
+                "carbsGrams": 72,
+                "proteinGrams": 0,
+                "fatsGrams": 0,
+                "kcals": 290,
+                "quantitativeLabel": "50/50 Water & 100% Pressed Apple/Grape Juice (72g carbs · 2 × 650 ml · ~500 mg sodium/L)",
+                "portionLabel": "2 bottles of diluted fruit juice",
+                "notes": "Sip little and often, with electrolytes.",
+                "isRealFoodVerified": true,
+                "isLiquid": true,
+                "unitCount": 2
+              },
+              {
+                "name": "Medjool Dates (Pitted)",
+                "quantity": "3 servings",
+                "carbsGrams": 51,
+                "proteinGrams": 3,
+                "fatsGrams": 0,
+                "kcals": 204,
+                "quantitativeLabel": "Medjool Dates (Pitted) (51g carbs)",
+                "portionLabel": "plump date or dried fruit × 3",
+                "notes": "Easy-to-digest energy.",
+                "isRealFoodVerified": true,
+                "isSavoryReset": false,
+                "unitCount": 3
+              },
+              {
+                "name": "Artisanal Fruit Chews & Dried Figs",
+                "quantity": "3 servings",
+                "carbsGrams": 36,
+                "proteinGrams": 0,
+                "fatsGrams": 0,
+                "kcals": 144,
+                "quantitativeLabel": "Artisanal Fruit Chews & Dried Figs (36g carbs)",
+                "portionLabel": "fruit chew or dried fig × 3",
+                "notes": "Easy-to-digest energy.",
+                "isRealFoodVerified": true,
+                "isSavoryReset": false,
+                "unitCount": 3
+              }
+            ]
+          },
+          {
+            "phaseId": "arrival-recovery",
+            "title": "Arrival Recovery Meal (On arrival)",
+            "timeWindow": "09:40 – 10:00",
+            "location": "On arrival",
+            "rules": "Consolidated recovery meal at destination (glycogen resynthesis + complete protein).",
+            "items": [
+              {
+                "name": "Plain Greek Yogurt with Pure Grape Juice",
+                "quantity": "1 recovery portion",
+                "carbsGrams": 46,
+                "proteinGrams": 22,
+                "fatsGrams": 0,
+                "kcals": 275,
+                "quantitativeLabel": "Plain Greek Yogurt with Pure Grape Juice (46g carbs, 22g protein)",
+                "portionLabel": "1 bowl yogurt & fruit juice",
+                "notes": "Carbs and protein to help you recover.",
+                "isRealFoodVerified": true
+              },
+              {
+                "name": "Toasted Baguette with Wildflower Honey",
+                "quantity": "Breakfast portion moved to recovery",
+                "carbsGrams": 34,
+                "proteinGrams": 3,
+                "fatsGrams": 0,
+                "kcals": 165,
+                "quantitativeLabel": "Toasted Baguette with Wildflower Honey (34g carbs)",
+                "portionLabel": "Half portion: 2 thick slices toasted bread & honey",
+                "notes": "The breakfast you kept light, enjoyed now instead.",
+                "isRealFoodVerified": true
+              },
+              {
+                "name": "1/2 fresh baguette sandwich (turkey or avocado)",
+                "quantity": "100 g half sandwich",
+                "carbsGrams": 36,
+                "proteinGrams": 14,
+                "fatsGrams": 5,
+                "kcals": 245,
+                "quantitativeLabel": "1/2 fresh baguette sandwich (100 g, 36 g carbs, 14 g protein)",
+                "portionLabel": "1 half fresh sandwich",
+                "notes": "Something savory to keep you going through the morning.",
+                "isRealFoodVerified": true
+              },
+              {
+                "name": "1 crisp seasonal apple",
+                "quantity": "140 g",
+                "carbsGrams": 19,
+                "proteinGrams": 0,
+                "fatsGrams": 0,
+                "kcals": 75,
+                "quantitativeLabel": "1 crisp apple (140 g, 19 g carbs)",
+                "portionLabel": "1 crisp fresh apple",
+                "notes": "Fresh and crisp.",
+                "isRealFoodVerified": true
+              },
+              {
+                "name": "Raw walnuts",
+                "quantity": "20 g",
+                "carbsGrams": 3,
+                "proteinGrams": 3,
+                "fatsGrams": 13,
+                "kcals": 130,
+                "quantitativeLabel": "Walnuts (20 g, 13 g fats)",
+                "portionLabel": "1 small handful of walnuts",
+                "notes": "A small handful alongside your meal.",
+                "isRealFoodVerified": true
+              },
+              {
+                "name": "Filter coffee or hot tea",
+                "quantity": "200 ml mug",
+                "carbsGrams": 0,
+                "proteinGrams": 0,
+                "fatsGrams": 0,
+                "kcals": 2,
+                "quantitativeLabel": "Filter coffee or tea (200 ml mug)",
+                "portionLabel": "1 mug of coffee or tea",
+                "notes": "A warm drink as you ease into the day.",
+                "isRealFoodVerified": true
+              }
+            ]
+          }
+        ],
+        "autoProPlan": [
+          {
+            "phaseId": "pre-ride",
+            "title": "Breakfast before you ride",
+            "timeWindow": "06:45 – 07:30",
+            "location": "Home",
+            "rules": "A simple, easy-to-digest meal before you head out.",
+            "items": [
+              {
+                "name": "Toasted Baguette with Wildflower Honey",
+                "quantity": "1 portion",
+                "carbsGrams": 62,
+                "proteinGrams": 6,
+                "fatsGrams": 1,
+                "kcals": 300,
+                "quantitativeLabel": "Toasted Baguette with Wildflower Honey (62 g carbs, 6 g protein)",
+                "portionLabel": "2 thick slices toasted bread & honey",
+                "notes": "Easy to digest before you head out.",
+                "isRealFoodVerified": true
+              },
+              {
+                "name": "Double espresso",
+                "quantity": "60 ml (2 shots)",
+                "carbsGrams": 0,
+                "proteinGrams": 0,
+                "fatsGrams": 0,
+                "kcals": 5,
+                "quantitativeLabel": "Double espresso (60 ml, ~140 mg caffeine)",
+                "portionLabel": "1 coffee or espresso",
+                "notes": "A quick pick-me-up before you leave.",
+                "isRealFoodVerified": true
+              },
+              {
+                "name": "Water with a pinch of salt",
+                "quantity": "300 ml",
+                "carbsGrams": 0,
+                "proteinGrams": 0,
+                "fatsGrams": 0,
+                "kcals": 0,
+                "quantitativeLabel": "Water with a pinch of salt (300 ml)",
+                "portionLabel": "1 tall glass of salted water",
+                "notes": "Pre-ride water with a pinch of salt.",
+                "isRealFoodVerified": true
+              }
+            ]
+          },
+          {
+            "phaseId": "on-bike",
+            "title": "On-bike sports fueling (38 g/h)",
+            "timeWindow": "Rollout to arrival (sip every 15–20 min)",
+            "location": "On the road",
+            "rules": "Tuned to your digestion comfort (38 g/h): drink mix and pocket gels.",
+            "items": [
+              {
+                "name": "50/50 Water & 100% Pressed Apple/Grape Juice",
+                "quantity": "1 bottle of diluted fruit juice + 1 bottle of water (650 ml)",
+                "carbsGrams": 36,
+                "proteinGrams": 0,
+                "fatsGrams": 0,
+                "kcals": 145,
+                "quantitativeLabel": "50/50 Water & 100% Pressed Apple/Grape Juice (36g carbs · 2 × 650 ml · ~500 mg sodium/L)",
+                "portionLabel": "1 bottle of diluted fruit juice + 1 bottle of water",
+                "notes": "Sip little and often, with electrolytes.",
+                "isRealFoodVerified": true,
+                "isLiquid": true,
+                "unitCount": 1
+              },
+              {
+                "name": "Medjool Dates (Pitted)",
+                "quantity": "1 serving",
+                "carbsGrams": 17,
+                "proteinGrams": 1,
+                "fatsGrams": 0,
+                "kcals": 68,
+                "quantitativeLabel": "Medjool Dates (Pitted) (17g carbs)",
+                "portionLabel": "1 plump date or dried fruit",
+                "notes": "Easy-to-digest energy.",
+                "isRealFoodVerified": true,
+                "isSavoryReset": false,
+                "unitCount": 1
+              },
+              {
+                "name": "Artisanal Fruit Chews & Dried Figs",
+                "quantity": "2 servings",
+                "carbsGrams": 24,
+                "proteinGrams": 0,
+                "fatsGrams": 0,
+                "kcals": 96,
+                "quantitativeLabel": "Artisanal Fruit Chews & Dried Figs (24g carbs)",
+                "portionLabel": "fruit chew or dried fig × 2",
+                "notes": "Easy-to-digest energy.",
+                "isRealFoodVerified": true,
+                "isSavoryReset": false,
+                "unitCount": 2
+              }
+            ]
+          },
+          {
+            "phaseId": "arrival-recovery",
+            "title": "Arrival Recovery Meal (On arrival)",
+            "timeWindow": "09:40 – 10:00",
+            "location": "On arrival",
+            "rules": "Consolidated recovery meal at destination (glycogen resynthesis + complete protein).",
+            "items": [
+              {
+                "name": "Plain Greek Yogurt with Pure Grape Juice",
+                "quantity": "1 recovery portion",
+                "carbsGrams": 46,
+                "proteinGrams": 22,
+                "fatsGrams": 0,
+                "kcals": 275,
+                "quantitativeLabel": "Plain Greek Yogurt with Pure Grape Juice (46g carbs, 22g protein)",
+                "portionLabel": "1 bowl yogurt & fruit juice",
+                "notes": "Carbs and protein to help you recover.",
+                "isRealFoodVerified": true
+              },
+              {
+                "name": "1/2 fresh baguette sandwich (turkey or avocado)",
+                "quantity": "100 g half sandwich",
+                "carbsGrams": 36,
+                "proteinGrams": 14,
+                "fatsGrams": 5,
+                "kcals": 245,
+                "quantitativeLabel": "1/2 fresh baguette sandwich (100 g, 36 g carbs, 14 g protein)",
+                "portionLabel": "1 half fresh sandwich",
+                "notes": "Something savory to keep you going through the morning.",
+                "isRealFoodVerified": true
+              },
+              {
+                "name": "1 crisp seasonal apple",
+                "quantity": "140 g",
+                "carbsGrams": 19,
+                "proteinGrams": 0,
+                "fatsGrams": 0,
+                "kcals": 75,
+                "quantitativeLabel": "1 crisp apple (140 g, 19 g carbs)",
+                "portionLabel": "1 crisp fresh apple",
+                "notes": "Fresh and crisp.",
+                "isRealFoodVerified": true
+              },
+              {
+                "name": "Raw walnuts",
+                "quantity": "20 g",
+                "carbsGrams": 3,
+                "proteinGrams": 3,
+                "fatsGrams": 13,
+                "kcals": 130,
+                "quantitativeLabel": "Walnuts (20 g, 13 g fats)",
+                "portionLabel": "1 small handful of walnuts",
+                "notes": "A small handful alongside your meal.",
+                "isRealFoodVerified": true
+              },
+              {
+                "name": "Filter coffee or hot tea",
+                "quantity": "200 ml mug",
+                "carbsGrams": 0,
+                "proteinGrams": 0,
+                "fatsGrams": 0,
+                "kcals": 2,
+                "quantitativeLabel": "Filter coffee or tea (200 ml mug)",
+                "portionLabel": "1 mug of coffee or tea",
+                "notes": "A warm drink as you ease into the day.",
+                "isRealFoodVerified": true
+              }
+            ]
+          }
+        ],
+        "lockedFloor25Plan": [
+          {
+            "phaseId": "pre-ride",
+            "title": "Breakfast before you ride",
+            "timeWindow": "06:45 – 07:30",
+            "location": "Home",
+            "rules": "A simple, easy-to-digest meal before you head out.",
+            "items": [
+              {
+                "name": "Toasted Baguette with Wildflower Honey",
+                "quantity": "1 portion",
+                "carbsGrams": 62,
+                "proteinGrams": 6,
+                "fatsGrams": 1,
+                "kcals": 300,
+                "quantitativeLabel": "Toasted Baguette with Wildflower Honey (62 g carbs, 6 g protein)",
+                "portionLabel": "2 thick slices toasted bread & honey",
+                "notes": "Easy to digest before you head out.",
+                "isRealFoodVerified": true
+              },
+              {
+                "name": "Double espresso",
+                "quantity": "60 ml (2 shots)",
+                "carbsGrams": 0,
+                "proteinGrams": 0,
+                "fatsGrams": 0,
+                "kcals": 5,
+                "quantitativeLabel": "Double espresso (60 ml, ~140 mg caffeine)",
+                "portionLabel": "1 coffee or espresso",
+                "notes": "A quick pick-me-up before you leave.",
+                "isRealFoodVerified": true
+              },
+              {
+                "name": "Water with a pinch of salt",
+                "quantity": "300 ml",
+                "carbsGrams": 0,
+                "proteinGrams": 0,
+                "fatsGrams": 0,
+                "kcals": 0,
+                "quantitativeLabel": "Water with a pinch of salt (300 ml)",
+                "portionLabel": "1 tall glass of salted water",
+                "notes": "Pre-ride water with a pinch of salt.",
+                "isRealFoodVerified": true
+              }
+            ]
+          },
+          {
+            "phaseId": "on-bike",
+            "title": "On-bike sports fueling (25 g/h)",
+            "timeWindow": "Rollout to arrival (sip every 15–20 min)",
+            "location": "On the road",
+            "rules": "Tuned to your digestion comfort (25 g/h): drink mix and pocket gels.",
+            "items": [
+              {
+                "name": "50/50 Water & 100% Pressed Apple/Grape Juice",
+                "quantity": "1 bottle of diluted fruit juice + 1 bottle of water (650 ml)",
+                "carbsGrams": 36,
+                "proteinGrams": 0,
+                "fatsGrams": 0,
+                "kcals": 145,
+                "quantitativeLabel": "50/50 Water & 100% Pressed Apple/Grape Juice (36g carbs · 2 × 650 ml · ~500 mg sodium/L)",
+                "portionLabel": "1 bottle of diluted fruit juice + 1 bottle of water",
+                "notes": "Sip little and often, with electrolytes.",
+                "isRealFoodVerified": true,
+                "isLiquid": true,
+                "unitCount": 1
+              },
+              {
+                "name": "Artisanal Fruit Chews & Dried Figs",
+                "quantity": "1 serving",
+                "carbsGrams": 12,
+                "proteinGrams": 0,
+                "fatsGrams": 0,
+                "kcals": 48,
+                "quantitativeLabel": "Artisanal Fruit Chews & Dried Figs (12g carbs)",
+                "portionLabel": "1 fruit chew or dried fig",
+                "notes": "Easy-to-digest energy.",
+                "isRealFoodVerified": true,
+                "isSavoryReset": false,
+                "unitCount": 1
+              }
+            ]
+          },
+          {
+            "phaseId": "arrival-recovery",
+            "title": "Arrival Recovery Meal (On arrival)",
+            "timeWindow": "09:40 – 10:00",
+            "location": "On arrival",
+            "rules": "Consolidated recovery meal at destination (glycogen resynthesis + complete protein).",
+            "items": [
+              {
+                "name": "Plain Greek Yogurt with Pure Grape Juice",
+                "quantity": "1 recovery portion",
+                "carbsGrams": 46,
+                "proteinGrams": 22,
+                "fatsGrams": 0,
+                "kcals": 275,
+                "quantitativeLabel": "Plain Greek Yogurt with Pure Grape Juice (46g carbs, 22g protein)",
+                "portionLabel": "1 bowl yogurt & fruit juice",
+                "notes": "Carbs and protein to help you recover.",
+                "isRealFoodVerified": true
+              },
+              {
+                "name": "1/2 fresh baguette sandwich (turkey or avocado)",
+                "quantity": "100 g half sandwich",
+                "carbsGrams": 36,
+                "proteinGrams": 14,
+                "fatsGrams": 5,
+                "kcals": 245,
+                "quantitativeLabel": "1/2 fresh baguette sandwich (100 g, 36 g carbs, 14 g protein)",
+                "portionLabel": "1 half fresh sandwich",
+                "notes": "Something savory to keep you going through the morning.",
+                "isRealFoodVerified": true
+              },
+              {
+                "name": "1 crisp seasonal apple",
+                "quantity": "140 g",
+                "carbsGrams": 19,
+                "proteinGrams": 0,
+                "fatsGrams": 0,
+                "kcals": 75,
+                "quantitativeLabel": "1 crisp apple (140 g, 19 g carbs)",
+                "portionLabel": "1 crisp fresh apple",
+                "notes": "Fresh and crisp.",
+                "isRealFoodVerified": true
+              },
+              {
+                "name": "Raw walnuts",
+                "quantity": "20 g",
+                "carbsGrams": 3,
+                "proteinGrams": 3,
+                "fatsGrams": 13,
+                "kcals": 130,
+                "quantitativeLabel": "Walnuts (20 g, 13 g fats)",
+                "portionLabel": "1 small handful of walnuts",
+                "notes": "A small handful alongside your meal.",
+                "isRealFoodVerified": true
+              },
+              {
+                "name": "Filter coffee or hot tea",
+                "quantity": "200 ml mug",
+                "carbsGrams": 0,
+                "proteinGrams": 0,
+                "fatsGrams": 0,
+                "kcals": 2,
+                "quantitativeLabel": "Filter coffee or tea (200 ml mug)",
+                "portionLabel": "1 mug of coffee or tea",
+                "notes": "A warm drink as you ease into the day.",
+                "isRealFoodVerified": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-dietary-vegan-gf-nofridge-fr",
+      "description": "French dietary-filtered plan (vegan, gluten-free, nut-free, no fridge, split recovery)",
+      "input": {
+        "dietaryFilters": [
+          "vegan",
+          "gluten-free",
+          "nut-free"
+        ],
+        "lang": "fr",
+        "catalogCount": 24,
+        "logistics": {
+          "preRideStyle": "fasted-rollout",
+          "hasDestinationFridge": false,
+          "splitPostRideRecovery": true
+        }
+      },
+      "expected": {
+        "compliantLiquidId": "liq-pressed-apple-grape",
+        "compliantSolidIds": [
+          "sol-medjool-date",
+          "sol-fruit-chew-fig"
+        ],
+        "compliantPostRideId": "rec-pea-rice-shake-banana",
+        "phases": [
+          {
+            "phaseId": "pre-ride",
+            "title": "Départ léger & hydratation",
+            "timeWindow": "07:20 – 07:35",
+            "location": "Domicile",
+            "rules": "Un café et un grand verre d’eau avant de partir, puis vous mangerez en route.",
+            "items": [
+              {
+                "name": "Double expresso",
+                "quantity": "60 ml (2 doses)",
+                "carbsGrams": 0,
+                "proteinGrams": 0,
+                "fatsGrams": 0,
+                "kcals": 5,
+                "quantitativeLabel": "Double expresso (60 ml, ~140 mg caféine, 0 g glucides)",
+                "portionLabel": "1 café ou expresso",
+                "notes": "Un café court pour démarrer léger.",
+                "isRealFoodVerified": true
+              },
+              {
+                "name": "Eau fraîche + pincée de sel",
+                "quantity": "350 ml",
+                "carbsGrams": 0,
+                "proteinGrams": 0,
+                "fatsGrams": 0,
+                "kcals": 0,
+                "quantitativeLabel": "Eau fraîche + sel (350 ml)",
+                "portionLabel": "1 grand verre d’eau salée",
+                "notes": "Un grand verre d’eau avec une pincée de sel avant de rouler.",
+                "isRealFoodVerified": true
+              }
+            ]
+          },
+          {
+            "phaseId": "on-bike",
+            "title": "Ravito naturel en selle (57 g/h)",
+            "timeWindow": "Du départ à l’arrivée (boire toutes les 15–20 min)",
+            "location": "Sur la route",
+            "rules": "Calibré sur 57 g/h avec des aliments simples et faciles à emporter.",
+            "items": [
+              {
+                "name": "50/50 eau & pur jus pressé pomme/raisin",
+                "quantity": "1 bidon de jus naturel dilué + 2 bidons d’eau (650 ml)",
+                "carbsGrams": 36,
+                "proteinGrams": 0,
+                "fatsGrams": 0,
+                "kcals": 145,
+                "quantitativeLabel": "50/50 eau & pur jus pressé pomme/raisin (36 g glucides · 3 × 650 ml · ~500 mg sodium/L)",
+                "portionLabel": "1 bidon de jus naturel dilué + 2 bidons d’eau",
+                "notes": "Buvez par petites gorgées régulières, avec des électrolytes.",
+                "isRealFoodVerified": true,
+                "isLiquid": true,
+                "unitCount": 1
+              },
+              {
+                "name": "Dattes Medjool dénoyautées",
+                "quantity": "3 portions",
+                "carbsGrams": 51,
+                "proteinGrams": 3,
+                "fatsGrams": 0,
+                "kcals": 204,
+                "quantitativeLabel": "Dattes Medjool dénoyautées (51 g glucides)",
+                "portionLabel": "datte ou fruit sec × 3",
+                "notes": "Énergie facile à digérer.",
+                "isRealFoodVerified": true,
+                "isSavoryReset": false,
+                "unitCount": 3
+              },
+              {
+                "name": "Pâtes de fruits artisanales & figues séchées",
+                "quantity": "5 portions",
+                "carbsGrams": 60,
+                "proteinGrams": 0,
+                "fatsGrams": 0,
+                "kcals": 240,
+                "quantitativeLabel": "Pâtes de fruits artisanales & figues séchées (60 g glucides)",
+                "portionLabel": "pâte de fruits ou figue × 5",
+                "notes": "Énergie facile à digérer.",
+                "isRealFoodVerified": true,
+                "isSavoryReset": false,
+                "unitCount": 5
+              }
+            ]
+          },
+          {
+            "phaseId": "locker-refuel",
+            "title": "Phase 1 : À l’arrivée",
+            "timeWindow": "08:30 – 08:40",
+            "location": "À l’arrivée",
+            "rules": "Recharge immédiate post-effort. Consommation rapide avant la douche.",
+            "items": [
+              {
+                "name": "Shake protéines végétales (pois/riz) & banane",
+                "quantity": "1 portion de récupération",
+                "carbsGrams": 52,
+                "proteinGrams": 24,
+                "fatsGrams": 0,
+                "kcals": 315,
+                "quantitativeLabel": "Shake protéines végétales (pois/riz) & banane (52 g glucides, 24 g protéines)",
+                "portionLabel": "1 shake protéiné & fruit frais",
+                "notes": "Glucides et protéines pour bien récupérer.",
+                "isRealFoodVerified": false
+              }
+            ]
+          },
+          {
+            "phaseId": "break-room",
+            "title": "Phase 2 : Salle de Pause / Bureau",
+            "timeWindow": "08:50 – 09:05",
+            "location": "Salle de Pause / Bureau",
+            "rules": "Petit-déjeuner ou collation partagée à l’espace de travail.",
+            "items": [
+              {
+                "name": "Galette d’avoine sans gluten ou flocons minute",
+                "quantity": "1 portion (65 g)",
+                "carbsGrams": 42,
+                "proteinGrams": 8,
+                "fatsGrams": 6,
+                "kcals": 255,
+                "quantitativeLabel": "Galette d’avoine sans gluten (65 g, 42 g glucides, 8 g protéines)",
+                "portionLabel": "1 galette ou bol d’avoine",
+                "notes": "Se transporte dans le sac, sans frigo.",
+                "isRealFoodVerified": true
+              },
+              {
+                "name": "1 pomme croquante de saison",
+                "quantity": "140 g",
+                "carbsGrams": 19,
+                "proteinGrams": 0,
+                "fatsGrams": 0,
+                "kcals": 75,
+                "quantitativeLabel": "1 pomme croquante (140 g, 19 g glucides)",
+                "portionLabel": "1 pomme croquante fraîche",
+                "notes": "Fruits frais et croquants.",
+                "isRealFoodVerified": true
+              },
+              {
+                "name": "Graines de courge & tournesol grillées",
+                "quantity": "20 g",
+                "carbsGrams": 4,
+                "proteinGrams": 6,
+                "fatsGrams": 10,
+                "kcals": 125,
+                "quantitativeLabel": "Graines de courge & tournesol (20 g, 10 g lipides)",
+                "portionLabel": "1 poignée de graines",
+                "notes": "Croquant salé, garanti sans fruits à coque.",
+                "isRealFoodVerified": true
+              },
+              {
+                "name": "1/2 pain sans gluten artisanal (purée de graines de tournesol & concombre)",
+                "quantity": "100 g (demi-sandwich)",
+                "carbsGrams": 36,
+                "proteinGrams": 10,
+                "fatsGrams": 5,
+                "kcals": 245,
+                "quantitativeLabel": "1/2 pain sans gluten artisanal (100 g, 36 g glucides, 10 g protéines)",
+                "portionLabel": "1 demi-sandwich frais",
+                "notes": "Une part salée pour tenir toute la matinée.",
+                "isRealFoodVerified": true
+              },
+              {
+                "name": "Café filtre ou thé chaud",
+                "quantity": "Tasse 200 ml",
+                "carbsGrams": 0,
+                "proteinGrams": 0,
+                "fatsGrams": 0,
+                "kcals": 2,
+                "quantitativeLabel": "Café filtre ou thé (200 ml)",
+                "portionLabel": "1 tasse de café ou thé",
+                "notes": "Une boisson chaude pour bien démarrer la journée.",
+                "isRealFoodVerified": true
+              },
+              {
+                "name": "Flocons d’avoine au sirop d’érable & banane",
+                "quantity": "Portion du petit-déjeuner reportée",
+                "carbsGrams": 61,
+                "proteinGrams": 7,
+                "fatsGrams": 0,
+                "kcals": 305,
+                "quantitativeLabel": "Flocons d’avoine au sirop d’érable & banane (61 g glucides)",
+                "portionLabel": "1 bol de flocons d’avoine aux fruits",
+                "notes": "Le petit-déjeuner que vous avez allégé, à rattraper ici.",
+                "isRealFoodVerified": true
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

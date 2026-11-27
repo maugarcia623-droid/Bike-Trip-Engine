@@ -1,0 +1,638 @@
+{
+  "schemaVersion": 1,
+  "engine": "overpassWaterGaps",
+  "sourceFiles": [
+    "src/services/overpassCorridor.ts"
+  ],
+  "determinism": {
+    "frozenUtc": "2026-11-26T12:00:00.000Z",
+    "timezone": "Europe/Paris"
+  },
+  "cases": [
+    {
+      "id": "haversine-and-cumulative",
+      "description": "Haversine point-to-point distance and cumulative polyline distances",
+      "input": {
+        "coords": [
+          [
+            47.2184,
+            -1.5536
+          ],
+          [
+            47.25,
+            -1.45
+          ],
+          [
+            47.28,
+            -1.35
+          ],
+          [
+            47.31,
+            -1.25
+          ]
+        ]
+      },
+      "expected": {
+        "firstLegMeters": 8574.95321525066,
+        "cumulativeMeters": [
+          0,
+          8574.95321525066,
+          16825.207308638914,
+          25071.549415686903
+        ]
+      }
+    },
+    {
+      "id": "snap-and-resnap",
+      "description": "snapToPolyline with elevation matching and resnapAmenitiesToRoute sorting by routeKm",
+      "input": {
+        "queryLat": 47.2505,
+        "queryLon": -1.45,
+        "coords": [
+          [
+            47.2184,
+            -1.5536
+          ],
+          [
+            47.25,
+            -1.45
+          ],
+          [
+            47.28,
+            -1.35
+          ],
+          [
+            47.31,
+            -1.25
+          ]
+        ],
+        "elev": [
+          {
+            "distKm": 0,
+            "eleM": 12
+          },
+          {
+            "distKm": 8.6,
+            "eleM": 48
+          },
+          {
+            "distKm": 16.8,
+            "eleM": 22
+          },
+          {
+            "distKm": 25.1,
+            "eleM": 35
+          }
+        ],
+        "amenities": [
+          {
+            "id": "w-far",
+            "name": "Far Tap",
+            "category": "water",
+            "subType": "drinking_water",
+            "lat": 47.309,
+            "lon": -1.251,
+            "routeKm": 0,
+            "detourMeters": 0
+          },
+          {
+            "id": "w-near",
+            "name": "Mid Fountain",
+            "category": "water",
+            "subType": "drinking_water",
+            "lat": 47.2505,
+            "lon": -1.45,
+            "routeKm": 0,
+            "detourMeters": 0
+          }
+        ]
+      },
+      "expected": {
+        "snapped": {
+          "routeKm": 8.6,
+          "detourMeters": 56,
+          "elevationMeters": 48,
+          "nearestIdx": 1
+        },
+        "resnapped": [
+          {
+            "id": "w-near",
+            "name": "Mid Fountain",
+            "category": "water",
+            "subType": "drinking_water",
+            "lat": 47.2505,
+            "lon": -1.45,
+            "routeKm": 8.6,
+            "detourMeters": 56,
+            "elevationMeters": 48
+          },
+          {
+            "id": "w-far",
+            "name": "Far Tap",
+            "category": "water",
+            "subType": "drinking_water",
+            "lat": 47.309,
+            "lon": -1.251,
+            "routeKm": 25.1,
+            "detourMeters": 134,
+            "elevationMeters": 35
+          }
+        ]
+      }
+    },
+    {
+      "id": "water-gaps-clear-caution-critical",
+      "description": "Water gap classification across clear, caution, critical, and legacy positional args",
+      "input": {
+        "totalDistanceKm": 90,
+        "waterStops": [
+          {
+            "id": "w1",
+            "name": "Town Fountain",
+            "category": "water",
+            "subType": "drinking_water",
+            "lat": 47.25,
+            "lon": -1.45,
+            "routeKm": 30,
+            "detourMeters": 10
+          },
+          {
+            "id": "w2",
+            "name": "Cemetery Tap",
+            "category": "cemetery",
+            "subType": "cemetery",
+            "lat": 47.28,
+            "lon": -1.35,
+            "routeKm": 60,
+            "detourMeters": 10
+          }
+        ],
+        "cafeOnly": [
+          {
+            "id": "cafe-1",
+            "name": "Midway Cafe",
+            "category": "food",
+            "subType": "cafe",
+            "lat": 47.25,
+            "lon": -1.45,
+            "routeKm": 40,
+            "detourMeters": 20
+          }
+        ]
+      },
+      "expected": {
+        "clear": {
+          "status": "clear",
+          "maxGapKm": 30,
+          "gaps": [
+            {
+              "startKm": 0,
+              "endKm": 30,
+              "distanceKm": 30,
+              "severity": "clear",
+              "recommendedBidons": 1,
+              "recommendedMl": 480,
+              "gapHours": 1.2,
+              "gapFluidNeedMl": 480,
+              "onboardCapacityMl": 1300,
+              "depletionPct": 37,
+              "recommendedBidonsForGap": 1,
+              "extraPackableBidons": 0
+            },
+            {
+              "startKm": 30,
+              "endKm": 60,
+              "distanceKm": 30,
+              "severity": "clear",
+              "recommendedBidons": 1,
+              "recommendedMl": 480,
+              "gapHours": 1.2,
+              "gapFluidNeedMl": 480,
+              "onboardCapacityMl": 1300,
+              "depletionPct": 37,
+              "recommendedBidonsForGap": 1,
+              "extraPackableBidons": 0
+            },
+            {
+              "startKm": 60,
+              "endKm": 90,
+              "distanceKm": 30,
+              "severity": "clear",
+              "recommendedBidons": 1,
+              "recommendedMl": 480,
+              "gapHours": 1.2,
+              "gapFluidNeedMl": 480,
+              "onboardCapacityMl": 1300,
+              "depletionPct": 37,
+              "recommendedBidonsForGap": 1,
+              "extraPackableBidons": 0
+            }
+          ],
+          "cautionGaps": [],
+          "criticalGaps": [],
+          "totalWaterPoints": 2
+        },
+        "caution": {
+          "status": "caution",
+          "maxGapKm": 30,
+          "gaps": [
+            {
+              "startKm": 0,
+              "endKm": 30,
+              "distanceKm": 30,
+              "severity": "caution",
+              "recommendedBidons": 2,
+              "recommendedMl": 840,
+              "gapHours": 1.2,
+              "gapFluidNeedMl": 840,
+              "onboardCapacityMl": 1300,
+              "depletionPct": 65,
+              "recommendedBidonsForGap": 2,
+              "extraPackableBidons": 0
+            },
+            {
+              "startKm": 30,
+              "endKm": 60,
+              "distanceKm": 30,
+              "severity": "caution",
+              "recommendedBidons": 2,
+              "recommendedMl": 840,
+              "gapHours": 1.2,
+              "gapFluidNeedMl": 840,
+              "onboardCapacityMl": 1300,
+              "depletionPct": 65,
+              "recommendedBidonsForGap": 2,
+              "extraPackableBidons": 0
+            },
+            {
+              "startKm": 60,
+              "endKm": 90,
+              "distanceKm": 30,
+              "severity": "caution",
+              "recommendedBidons": 2,
+              "recommendedMl": 840,
+              "gapHours": 1.2,
+              "gapFluidNeedMl": 840,
+              "onboardCapacityMl": 1300,
+              "depletionPct": 65,
+              "recommendedBidonsForGap": 2,
+              "extraPackableBidons": 0
+            }
+          ],
+          "cautionGaps": [
+            {
+              "startKm": 0,
+              "endKm": 30,
+              "distanceKm": 30,
+              "severity": "caution",
+              "recommendedBidons": 2,
+              "recommendedMl": 840,
+              "gapHours": 1.2,
+              "gapFluidNeedMl": 840,
+              "onboardCapacityMl": 1300,
+              "depletionPct": 65,
+              "recommendedBidonsForGap": 2,
+              "extraPackableBidons": 0
+            },
+            {
+              "startKm": 30,
+              "endKm": 60,
+              "distanceKm": 30,
+              "severity": "caution",
+              "recommendedBidons": 2,
+              "recommendedMl": 840,
+              "gapHours": 1.2,
+              "gapFluidNeedMl": 840,
+              "onboardCapacityMl": 1300,
+              "depletionPct": 65,
+              "recommendedBidonsForGap": 2,
+              "extraPackableBidons": 0
+            },
+            {
+              "startKm": 60,
+              "endKm": 90,
+              "distanceKm": 30,
+              "severity": "caution",
+              "recommendedBidons": 2,
+              "recommendedMl": 840,
+              "gapHours": 1.2,
+              "gapFluidNeedMl": 840,
+              "onboardCapacityMl": 1300,
+              "depletionPct": 65,
+              "recommendedBidonsForGap": 2,
+              "extraPackableBidons": 0
+            }
+          ],
+          "criticalGaps": [],
+          "totalWaterPoints": 2
+        },
+        "criticalNoWater": {
+          "status": "critical",
+          "maxGapKm": 80,
+          "gaps": [
+            {
+              "startKm": 0,
+              "endKm": 80,
+              "distanceKm": 80,
+              "severity": "critical",
+              "recommendedBidons": 3,
+              "recommendedMl": 1600,
+              "gapHours": 3.2,
+              "gapFluidNeedMl": 1600,
+              "onboardCapacityMl": 1300,
+              "depletionPct": 123,
+              "recommendedBidonsForGap": 3,
+              "extraPackableBidons": 1
+            }
+          ],
+          "cautionGaps": [],
+          "criticalGaps": [
+            {
+              "startKm": 0,
+              "endKm": 80,
+              "distanceKm": 80,
+              "severity": "critical",
+              "recommendedBidons": 3,
+              "recommendedMl": 1600,
+              "gapHours": 3.2,
+              "gapFluidNeedMl": 1600,
+              "onboardCapacityMl": 1300,
+              "depletionPct": 123,
+              "recommendedBidonsForGap": 3,
+              "extraPackableBidons": 1
+            }
+          ],
+          "totalWaterPoints": 0
+        },
+        "legacyPositional": {
+          "status": "caution",
+          "maxGapKm": 30,
+          "gaps": [
+            {
+              "startKm": 0,
+              "endKm": 30,
+              "distanceKm": 30,
+              "severity": "caution",
+              "recommendedBidons": 1,
+              "recommendedMl": 600,
+              "gapHours": 1.2,
+              "gapFluidNeedMl": 600,
+              "onboardCapacityMl": 1300,
+              "depletionPct": 46,
+              "recommendedBidonsForGap": 1,
+              "extraPackableBidons": 0
+            },
+            {
+              "startKm": 30,
+              "endKm": 60,
+              "distanceKm": 30,
+              "severity": "caution",
+              "recommendedBidons": 1,
+              "recommendedMl": 600,
+              "gapHours": 1.2,
+              "gapFluidNeedMl": 600,
+              "onboardCapacityMl": 1300,
+              "depletionPct": 46,
+              "recommendedBidonsForGap": 1,
+              "extraPackableBidons": 0
+            },
+            {
+              "startKm": 60,
+              "endKm": 90,
+              "distanceKm": 30,
+              "severity": "caution",
+              "recommendedBidons": 1,
+              "recommendedMl": 600,
+              "gapHours": 1.2,
+              "gapFluidNeedMl": 600,
+              "onboardCapacityMl": 1300,
+              "depletionPct": 46,
+              "recommendedBidonsForGap": 1,
+              "extraPackableBidons": 0
+            }
+          ],
+          "cautionGaps": [
+            {
+              "startKm": 0,
+              "endKm": 30,
+              "distanceKm": 30,
+              "severity": "caution",
+              "recommendedBidons": 1,
+              "recommendedMl": 600,
+              "gapHours": 1.2,
+              "gapFluidNeedMl": 600,
+              "onboardCapacityMl": 1300,
+              "depletionPct": 46,
+              "recommendedBidonsForGap": 1,
+              "extraPackableBidons": 0
+            },
+            {
+              "startKm": 30,
+              "endKm": 60,
+              "distanceKm": 30,
+              "severity": "caution",
+              "recommendedBidons": 1,
+              "recommendedMl": 600,
+              "gapHours": 1.2,
+              "gapFluidNeedMl": 600,
+              "onboardCapacityMl": 1300,
+              "depletionPct": 46,
+              "recommendedBidonsForGap": 1,
+              "extraPackableBidons": 0
+            },
+            {
+              "startKm": 60,
+              "endKm": 90,
+              "distanceKm": 30,
+              "severity": "caution",
+              "recommendedBidons": 1,
+              "recommendedMl": 600,
+              "gapHours": 1.2,
+              "gapFluidNeedMl": 600,
+              "onboardCapacityMl": 1300,
+              "depletionPct": 46,
+              "recommendedBidonsForGap": 1,
+              "extraPackableBidons": 0
+            }
+          ],
+          "criticalGaps": [],
+          "totalWaterPoints": 2
+        }
+      }
+    },
+    {
+      "id": "amenity-eta-midnight-and-pacing",
+      "description": "Amenity ETA formatting across 00:15 start, 23:00 rollover dayOffset=1, and pacing curve",
+      "input": {
+        "pacingCurve": [
+          {
+            "distKm": 0,
+            "elapsedSec": 0
+          },
+          {
+            "distKm": 20,
+            "elapsedSec": 3600
+          },
+          {
+            "distKm": 40,
+            "elapsedSec": 8400
+          }
+        ]
+      },
+      "expected": {
+        "midnightStart": {
+          "etaHHMM": "00:45",
+          "dayOffset": 0
+        },
+        "midnightEtaString": "00:45",
+        "rollover": {
+          "etaHHMM": "01:00",
+          "dayOffset": 1
+        },
+        "curved": {
+          "etaHHMM": "09:40",
+          "dayOffset": 0
+        }
+      }
+    },
+    {
+      "id": "auto-mark-resupply-open-hours",
+      "description": "autoMarkResupplyStops filtering closed bakeries by arrival ETA on 2026-07-15",
+      "input": {
+        "totalDistanceKm": 75,
+        "departureTime": "08:00",
+        "targetDate": "2026-07-15",
+        "effectiveSpeedKmH": 25,
+        "intervalKm": 25,
+        "amenities": [
+          {
+            "id": "w-24km",
+            "name": "Fontaine Place",
+            "category": "water",
+            "subType": "drinking_water",
+            "lat": 47.24,
+            "lon": -1.46,
+            "routeKm": 24,
+            "detourMeters": 25
+          },
+          {
+            "id": "cem-26km",
+            "name": "Cimetière Nord",
+            "category": "cemetery",
+            "subType": "cemetery",
+            "lat": 47.245,
+            "lon": -1.45,
+            "routeKm": 26,
+            "detourMeters": 10
+          },
+          {
+            "id": "bak-closed-30km",
+            "name": "Boulangerie Fermée Mercredi",
+            "category": "food",
+            "subType": "bakery",
+            "lat": 47.25,
+            "lon": -1.44,
+            "routeKm": 30,
+            "detourMeters": 15,
+            "openingHours": "Mo-Tu 07:00-13:00"
+          },
+          {
+            "id": "bak-open-32km",
+            "name": "Boulangerie Ouverte",
+            "category": "food",
+            "subType": "bakery",
+            "lat": 47.255,
+            "lon": -1.43,
+            "routeKm": 32,
+            "detourMeters": 30,
+            "openingHours": "Mo-Su 07:00-19:00"
+          },
+          {
+            "id": "w-52km",
+            "name": "Source du Parc",
+            "category": "water",
+            "subType": "drinking_water",
+            "lat": 47.29,
+            "lon": -1.32,
+            "routeKm": 52,
+            "detourMeters": 15
+          }
+        ]
+      },
+      "expected": {
+        "selectedStops": [
+          {
+            "id": "w-24km",
+            "name": "Fontaine Place",
+            "category": "water",
+            "subType": "drinking_water",
+            "lat": 47.24,
+            "lon": -1.46,
+            "routeKm": 24,
+            "detourMeters": 25,
+            "isPinned": true
+          },
+          {
+            "id": "bak-open-32km",
+            "name": "Boulangerie Ouverte",
+            "category": "food",
+            "subType": "bakery",
+            "lat": 47.255,
+            "lon": -1.43,
+            "routeKm": 32,
+            "detourMeters": 30,
+            "openingHours": "Mo-Su 07:00-19:00",
+            "isPinned": true
+          },
+          {
+            "id": "w-52km",
+            "name": "Source du Parc",
+            "category": "water",
+            "subType": "drinking_water",
+            "lat": 47.29,
+            "lon": -1.32,
+            "routeKm": 52,
+            "detourMeters": 15,
+            "isPinned": true
+          }
+        ],
+        "addedStops": [
+          {
+            "id": "w-24km",
+            "name": "Fontaine Place",
+            "category": "water",
+            "subType": "drinking_water",
+            "lat": 47.24,
+            "lon": -1.46,
+            "routeKm": 24,
+            "detourMeters": 25,
+            "isPinned": true
+          },
+          {
+            "id": "w-52km",
+            "name": "Source du Parc",
+            "category": "water",
+            "subType": "drinking_water",
+            "lat": 47.29,
+            "lon": -1.32,
+            "routeKm": 52,
+            "detourMeters": 15,
+            "isPinned": true
+          },
+          {
+            "id": "bak-open-32km",
+            "name": "Boulangerie Ouverte",
+            "category": "food",
+            "subType": "bakery",
+            "lat": 47.255,
+            "lon": -1.43,
+            "routeKm": 32,
+            "detourMeters": 30,
+            "openingHours": "Mo-Su 07:00-19:00",
+            "isPinned": true
+          }
+        ]
+      }
+    }
+  ]
+}

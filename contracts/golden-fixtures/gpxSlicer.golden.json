@@ -1,0 +1,210 @@
+{
+  "schemaVersion": 1,
+  "engine": "gpxSlicer",
+  "sourceFiles": [
+    "src/utils/gpxSlicer.ts"
+  ],
+  "determinism": {
+    "frozenUtc": "2026-11-26T12:00:00.000Z",
+    "timezone": "Europe/Paris"
+  },
+  "cases": [
+    {
+      "id": "suggest-day-counts",
+      "description": "Recommended stage counts and min-stage distance across tour lengths/gains",
+      "input": {
+        "pairs": [
+          {
+            "totalDistanceKm": 130,
+            "totalElevationGainM": 600
+          },
+          {
+            "totalDistanceKm": 400,
+            "totalElevationGainM": 1800
+          },
+          {
+            "totalDistanceKm": 410,
+            "totalElevationGainM": 5200
+          },
+          {
+            "totalDistanceKm": 950,
+            "totalElevationGainM": 8000
+          }
+        ]
+      },
+      "expected": {
+        "stageColors": [
+          "#10B981",
+          "#3B82F6",
+          "#F59E0B",
+          "#8B5CF6",
+          "#EC4899",
+          "#06B6D4",
+          "#EF4444",
+          "#84CC16",
+          "#F97316",
+          "#6366F1"
+        ],
+        "day2Color": "#3B82F6",
+        "suggestions": [
+          {
+            "km": 130,
+            "gain": 600,
+            "days": 2,
+            "minStageKm": 10
+          },
+          {
+            "km": 400,
+            "gain": 1800,
+            "days": 3,
+            "minStageKm": 10
+          },
+          {
+            "km": 410,
+            "gain": 5200,
+            "days": 4,
+            "minStageKm": 10
+          },
+          {
+            "km": 950,
+            "gain": 8000,
+            "days": 9,
+            "minStageKm": 10
+          }
+        ]
+      }
+    },
+    {
+      "id": "hilly-400km-effort-vs-distance",
+      "description": "400 km hilly tour equal-distance cuts vs effort-balanced cuts and boundary clamping",
+      "input": {
+        "totalDistanceKm": 400,
+        "dayCount": 3
+      },
+      "expected": {
+        "distanceCutsKm": [
+          133.3,
+          266.7
+        ],
+        "effortCutsKm": [
+          157.1,
+          235.9
+        ],
+        "movedCut0To310": [
+          255,
+          265
+        ],
+        "clampedCuts": [
+          10,
+          200,
+          390
+        ],
+        "midCoord200Km": [
+          47.79266,
+          -2.96921
+        ],
+        "midEle200Km": {
+          "eleM": 395.2,
+          "gradePct": -5.5
+        },
+        "nearestToMidOffset": {
+          "distKm": 200.8,
+          "offRouteKm": 0.96,
+          "coord": [
+            47.795,
+            -2.975
+          ]
+        }
+      }
+    },
+    {
+      "id": "slice-and-commit-and-remerge",
+      "description": "3-stage slicing, commit within/beyond 14-day forecast horizon, spine reconstruction, and re-merge",
+      "input": {
+        "withinHorizonStart": "2026-12-01",
+        "beyondHorizonStart": "2026-07-10",
+        "cuts": [
+          133.3,
+          266.7
+        ]
+      },
+      "expected": {
+        "withinHorizonStages": [
+          {
+            "id": "stage-1-1795694400000-0",
+            "dayNumber": 1,
+            "departureDate": "2026-12-01",
+            "distanceKm": 133.3,
+            "origin": "Nantes",
+            "destination": "Redon",
+            "weatherSource": "live"
+          },
+          {
+            "id": "stage-2-1795694400000-1",
+            "dayNumber": 2,
+            "departureDate": "2026-12-02",
+            "distanceKm": 133.4,
+            "origin": "Redon",
+            "destination": "Pontivy",
+            "weatherSource": "simulated",
+            "isBeyondForecastWindow": false
+          },
+          {
+            "id": "stage-3-1795694400000-2",
+            "dayNumber": 3,
+            "departureDate": "2026-12-03",
+            "distanceKm": 133.3,
+            "origin": "Pontivy",
+            "destination": "Brest",
+            "weatherSource": "simulated",
+            "isBeyondForecastWindow": false
+          }
+        ],
+        "beyondHorizonStages": [
+          {
+            "id": "stage-1-1795694400000-0",
+            "dayNumber": 1,
+            "departureDate": "2026-07-10",
+            "distanceKm": 133.3,
+            "weatherSource": "live"
+          },
+          {
+            "id": "stage-2-1795694400000-1",
+            "dayNumber": 2,
+            "departureDate": "2026-07-11",
+            "distanceKm": 133.4,
+            "weatherSource": "simulated",
+            "isBeyondForecastWindow": true
+          },
+          {
+            "id": "stage-3-1795694400000-2",
+            "dayNumber": 3,
+            "departureDate": "2026-07-12",
+            "distanceKm": 133.3,
+            "weatherSource": "simulated",
+            "isBeyondForecastWindow": true
+          }
+        ],
+        "reconstructedMeta": {
+          "totalDistanceKm": 400,
+          "initialCutDistancesKm": [
+            133.3,
+            266.7
+          ],
+          "initialCutLabels": [
+            "Redon",
+            "Pontivy"
+          ],
+          "originLabel": "Nantes",
+          "destLabel": "Brest"
+        },
+        "remergedMeta": {
+          "stagesDefined": false,
+          "distanceKm": 400,
+          "origin": "Nantes",
+          "destination": "Brest"
+        }
+      }
+    }
+  ]
+}

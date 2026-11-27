@@ -13,7 +13,10 @@ import {
   calculateWaterGaps,
 } from '../services/overpassCorridor';
 import { evaluateOpeningHoursAtArrival } from './openingHours';
-import { calculateHydrationPlan } from './nutrition';
+import {
+  calculateHydrationPlan,
+  calculateIntensityModulatedCarbTarget,
+} from './nutrition';
 import { barToPsi, calculateTyrePressure } from './tyrePressure';
 import { computeSurfaceBreakdown } from './surfaceProfile';
 
@@ -193,10 +196,30 @@ export function buildStemStickerData(params: {
     frameBottleSlots: slots,
   });
   const carbGPerHr = riderSpecs?.carbTargetGPerHr ?? 60;
+  const isLockedCarbTarget =
+    riderSpecs?.carbPacingMode === 'locked' ||
+    (riderSpecs?.carbPacingMode !== 'auto' &&
+      riderSpecs?.riderLevel === 'pro' &&
+      carbGPerHr >= 60);
+  const dynamicCarb = calculateIntensityModulatedCarbTarget({
+    rideHours,
+    pctFtp: phys.ftpPercent ?? 72,
+    carbOxidationGramPerHour:
+      phys.carbOxidationGramPerHour ?? Math.round(carbGPerHr * 1.8),
+    gutCeilingGPerHr: carbGPerHr,
+    totalDays: trip.stages?.length || 1,
+    activeChips: trip.customChips || [],
+    isLockedCarbTarget,
+  });
+  const effectiveCarbGPerHr = dynamicCarb.recommendedGPerHr;
   const sipMin = (trip.weather?.temperatureC ?? 16) >= 24 ? 12 : 15;
-  const eatMin = carbGPerHr >= 65 ? 20 : 25;
+  const eatMin = effectiveCarbGPerHr >= 65 ? 20 : 25;
+  const isShortWaterOnly =
+    phys.movingTimeSeconds / 3600 < 0.75 &&
+    (trip.stages?.length || 1) === 1 &&
+    !isLockedCarbTarget;
   const fuelCueLine =
-    rideHours < 0.75
+    isShortWaterOnly
       ? isFr
         ? `1×${bidonSizeMl} ml · Eau seule`
         : `1×${bidonSizeMl} ml · Water only`
@@ -221,6 +244,9 @@ export function buildStemStickerData(params: {
     const splits = computeClimbSplitsAndFueling(trip, phys, lang, {
       ftpWatts: riderSpecs?.ftpWatts ?? 220,
       carbTargetGPerHr: carbGPerHr,
+      carbPacingMode: riderSpecs?.carbPacingMode,
+      riderLevel: riderSpecs?.riderLevel,
+      nutritionPreference: riderSpecs?.nutritionPreference,
       departureTimeHHMM: startTime,
     });
 

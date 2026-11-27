@@ -2,6 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   assertSafePublicUrl,
+  buildOAuthRedirectUrl,
   isAllowedRedirectOrigin,
   isPrivateOrReservedIp,
   parseStrictFitBase64,
@@ -14,6 +15,8 @@ describe('supabase/functions/_shared/security.ts', () => {
   it('enforces explicit ALLOWED_REDIRECT_ORIGINS and rejects arbitrary https origins', () => {
     assert.equal(isAllowedRedirectOrigin('http://localhost:5173'), 'http://localhost:5173');
     assert.equal(isAllowedRedirectOrigin('https://cadence.app'), 'https://cadence.app');
+    assert.equal(isAllowedRedirectOrigin('https://ridecadence.cc'), 'https://ridecadence.cc');
+    assert.equal(isAllowedRedirectOrigin('https://www.ridecadence.cc'), 'https://www.ridecadence.cc');
     assert.equal(
       isAllowedRedirectOrigin('https://preview.cadence.app', 'https://preview.cadence.app'),
       'https://preview.cadence.app'
@@ -22,6 +25,62 @@ describe('supabase/functions/_shared/security.ts', () => {
     assert.equal(isAllowedRedirectOrigin('https://evil.example'), null);
     assert.equal(isAllowedRedirectOrigin('https://cadence.app.attacker.com'), null);
     assert.equal(isAllowedRedirectOrigin('javascript:alert(1)'), null);
+  });
+
+  it('permits exact iOS Universal Link /oauth/callback and cadence://oauth-callback while rejecting forged schemes/paths', () => {
+    assert.equal(
+      isAllowedRedirectOrigin('https://ridecadence.cc/oauth/callback'),
+      'https://ridecadence.cc/oauth/callback'
+    );
+    assert.equal(
+      isAllowedRedirectOrigin('https://www.ridecadence.cc/oauth/callback'),
+      'https://www.ridecadence.cc/oauth/callback'
+    );
+    assert.equal(
+      isAllowedRedirectOrigin('cadence://oauth-callback'),
+      'cadence://oauth-callback'
+    );
+    assert.equal(
+      isAllowedRedirectOrigin('cadence://oauth-callback/'),
+      'cadence://oauth-callback'
+    );
+
+    // Reject forged schemes, hosts, paths, credentials, query, and fragments
+    assert.equal(isAllowedRedirectOrigin('cadence://evil'), null);
+    assert.equal(isAllowedRedirectOrigin('cadence://oauth-callback.evil.com'), null);
+    assert.equal(isAllowedRedirectOrigin('cadence://oauth-callback/evil'), null);
+    assert.equal(isAllowedRedirectOrigin('cadence://user@oauth-callback'), null);
+    assert.equal(isAllowedRedirectOrigin('cadence://oauth-callback?next=https://evil.example'), null);
+    assert.equal(isAllowedRedirectOrigin('https://ridecadence.cc/evil'), null);
+    assert.equal(isAllowedRedirectOrigin('https://ridecadence.cc/oauth/callback/evil'), null);
+    assert.equal(isAllowedRedirectOrigin('https://ridecadence.cc/oauth/callback?next=https://evil.example'), null);
+    assert.equal(isAllowedRedirectOrigin('https://ridecadence.cc/oauth/callback#frag'), null);
+    assert.equal(isAllowedRedirectOrigin('https://evil.example/oauth/callback'), null);
+    assert.equal(isAllowedRedirectOrigin('https://ridecadence.cc.attacker.com/oauth/callback'), null);
+  });
+
+  it('builds OAuth redirect URLs cleanly for web origins, Universal Link callbacks, and custom schemes', () => {
+    assert.equal(
+      buildOAuthRedirectUrl('https://cadence.app', {
+        strava_connected: 1,
+        strava_athlete: 'Jean Luc',
+      }),
+      'https://cadence.app/?strava_connected=1&strava_athlete=Jean%20Luc'
+    );
+    assert.equal(
+      buildOAuthRedirectUrl('https://ridecadence.cc/oauth/callback', {
+        strava_connected: 1,
+        strava_athlete: 'Jean Luc',
+      }),
+      'https://ridecadence.cc/oauth/callback?strava_connected=1&strava_athlete=Jean%20Luc'
+    );
+    assert.equal(
+      buildOAuthRedirectUrl('cadence://oauth-callback', {
+        headunit_connected: 'wahoo',
+        unused: undefined,
+      }),
+      'cadence://oauth-callback?headunit_connected=wahoo'
+    );
   });
 
   it('signs and verifies HMAC-SHA256 OAuth state with nonce, TTL, and ownership checks', async () => {
@@ -70,6 +129,28 @@ describe('supabase/functions/_shared/security.ts', () => {
       }),
       null
     );
+
+    // Round-trips preserve Universal Link /oauth/callback and cadence://oauth-callback targets
+    for (const target of [
+      'https://ridecadence.cc/oauth/callback',
+      'cadence://oauth-callback',
+    ]) {
+      const signedNative = await signOAuthState(
+        {
+          provider: 'wahoo',
+          connectionKey,
+          redirectOrigin: target,
+          userId,
+          iat: 1_700_000_000_000,
+        },
+        secret
+      );
+      const verifiedNative = await verifyOAuthState(signedNative!, {
+        explicitSecret: secret,
+        nowMs: 1_700_000_060_000,
+      });
+      assert.equal(verifiedNative?.redirectOrigin, target);
+    }
   });
 
   it('blocks private/metadata IPs, nip.io rebinding, and unsafe redirects (SSRF defense)', async () => {

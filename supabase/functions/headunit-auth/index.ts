@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import {
   CORS_HEADERS,
   UUID_REGEX,
+  buildOAuthRedirectUrl,
   deleteOwnedIntegrationRow,
   findOwnedIntegrationRow,
   getFallbackRedirectOrigin,
@@ -82,7 +83,10 @@ Deno.serve(async (req: Request) => {
     const oauthError = reqUrl.searchParams.get('error');
     if (oauthError) {
       return Response.redirect(
-        `${redirectOrigin}/?headunit_error=${encodeURIComponent(oauthError)}&headunit_provider=${provider}`,
+        buildOAuthRedirectUrl(redirectOrigin, {
+          headunit_error: oauthError,
+          headunit_provider: provider,
+        }),
         302
       );
     }
@@ -90,7 +94,10 @@ Deno.serve(async (req: Request) => {
     const code = reqUrl.searchParams.get('code') || '';
     if (!code || !state || !isProvider(state.provider)) {
       return Response.redirect(
-        `${redirectOrigin}/?headunit_error=invalid_callback_state&headunit_provider=${provider}`,
+        buildOAuthRedirectUrl(redirectOrigin, {
+          headunit_error: 'invalid_callback_state',
+          headunit_provider: provider,
+        }),
         302
       );
     }
@@ -100,7 +107,10 @@ Deno.serve(async (req: Request) => {
     const clientSecret = Deno.env.get(cfg.clientSecretEnv) || '';
     if (!clientId || !clientSecret || !supabaseUrl || !serviceRoleKey) {
       return Response.redirect(
-        `${redirectOrigin}/?headunit_error=missing_secrets&headunit_provider=${state.provider}`,
+        buildOAuthRedirectUrl(redirectOrigin, {
+          headunit_error: 'missing_secrets',
+          headunit_provider: state.provider,
+        }),
         302
       );
     }
@@ -124,7 +134,10 @@ Deno.serve(async (req: Request) => {
 
       if (!tokenRes.ok) {
         return Response.redirect(
-          `${redirectOrigin}/?headunit_error=token_exchange_failed&headunit_provider=${state.provider}`,
+          buildOAuthRedirectUrl(redirectOrigin, {
+            headunit_error: 'token_exchange_failed',
+            headunit_provider: state.provider,
+          }),
           302
         );
       }
@@ -135,7 +148,10 @@ Deno.serve(async (req: Request) => {
       const expiresInSec = Number(tokenJson?.expires_in || 7200);
       if (!accessToken) {
         return Response.redirect(
-          `${redirectOrigin}/?headunit_error=invalid_token_payload&headunit_provider=${state.provider}`,
+          buildOAuthRedirectUrl(redirectOrigin, {
+            headunit_error: 'invalid_token_payload',
+            headunit_provider: state.provider,
+          }),
           302
         );
       }
@@ -151,7 +167,10 @@ Deno.serve(async (req: Request) => {
 
       if (existing?.user_id && existing.user_id !== state.userId) {
         return Response.redirect(
-          `${redirectOrigin}/?headunit_error=state_ownership_mismatch&headunit_provider=${state.provider}`,
+          buildOAuthRedirectUrl(redirectOrigin, {
+            headunit_error: 'state_ownership_mismatch',
+            headunit_provider: state.provider,
+          }),
           302
         );
       }
@@ -173,18 +192,26 @@ Deno.serve(async (req: Request) => {
 
       if (dbErr) {
         return Response.redirect(
-          `${redirectOrigin}/?headunit_error=storage_failed&headunit_provider=${state.provider}`,
+          buildOAuthRedirectUrl(redirectOrigin, {
+            headunit_error: 'storage_failed',
+            headunit_provider: state.provider,
+          }),
           302
         );
       }
 
       return Response.redirect(
-        `${redirectOrigin}/?headunit_connected=${state.provider}`,
+        buildOAuthRedirectUrl(redirectOrigin, {
+          headunit_connected: state.provider,
+        }),
         302
       );
     } catch {
       return Response.redirect(
-        `${redirectOrigin}/?headunit_error=unexpected_oauth_error&headunit_provider=${state.provider}`,
+        buildOAuthRedirectUrl(redirectOrigin, {
+          headunit_error: 'unexpected_oauth_error',
+          headunit_provider: state.provider,
+        }),
         302
       );
     }

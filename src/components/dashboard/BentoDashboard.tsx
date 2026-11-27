@@ -610,11 +610,17 @@ export const BentoDashboard: React.FC<BentoDashboardProps> = ({
   const expeditionTotals = React.useMemo(() => getExpeditionTotals(trip), [trip]);
 
   const briefDate =
-    trip.stages?.[trip.activeStageIndex ?? 0]?.departureDate ||
+    activeStage?.departureDate ||
     trip.departureDate ||
     getLocalTodayIso();
   const briefRollout = timelineResult.hardDepartureTime || trip.departureTime || '08:00';
-  const briefSectorCache = getCachedRouteSectorForecast(trip, briefDate, briefRollout, lang);
+  const briefSectorCache = getCachedRouteSectorForecast(
+    trip,
+    briefDate,
+    briefRollout,
+    lang,
+    effectiveSpecs.ftpWatts
+  );
   const quickBrief = React.useMemo(
     () =>
       buildRideBrief({

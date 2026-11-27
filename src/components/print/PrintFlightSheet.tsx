@@ -44,7 +44,11 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
   const arch = getArchetypeFromTag(trip.tag, trip.name);
   const hasMultipleStages = Boolean(trip.stages && trip.stages.length > 1);
   const expeditionTotals = getExpeditionTotals(trip);
-  const activeStage = trip.stages?.[trip.activeStageIndex ?? 0];
+  const activeStageIdx =
+    trip.stages && trip.stages.length > 0
+      ? Math.max(0, Math.min(trip.activeStageIndex ?? 0, trip.stages.length - 1))
+      : -1;
+  const activeStage = activeStageIdx >= 0 ? trip.stages![activeStageIdx] : undefined;
   const activeAccommodationNote = activeStage?.accommodationNote;
 
   const surfaceBreakdown =
@@ -112,6 +116,8 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
     lang,
     {
       carbTargetGPerHr: effectiveSpecs.carbTargetGPerHr,
+      carbPacingMode: effectiveSpecs.carbPacingMode,
+      riderLevel: effectiveSpecs.riderLevel,
       rideHours: Math.max(0.6, physicsResult.movingTimeSeconds / 3600),
       nutritionPreference: effectiveSpecs.nutritionPreference,
       pctFtp: physicsResult.ftpPercent,
@@ -137,6 +143,8 @@ export const PrintFlightSheet: React.FC<PrintFlightSheetProps> = ({ trip, riderS
   const climbSplitsSummary = computeClimbSplitsAndFueling(trip, physicsResult, lang, {
     ftpWatts: effectiveSpecs.ftpWatts,
     carbTargetGPerHr: effectiveSpecs.carbTargetGPerHr,
+    carbPacingMode: effectiveSpecs.carbPacingMode,
+    riderLevel: effectiveSpecs.riderLevel,
     nutritionPreference: effectiveSpecs.nutritionPreference,
     departureTimeHHMM: solvedTimeline.departureTimeHHMM,
     bidonSizeMl: effectiveSpecs.bidonSizeMl,

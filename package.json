@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test": "rm -rf .test-dist && ./node_modules/.bin/esbuild src/utils/__tests__/*.test.ts --bundle --platform=node --format=cjs --out-extension:.js=.cjs --outdir=.test-dist && node --test .test-dist/*.test.cjs; status=$?; rm -rf .test-dist; exit $status"
+    "test": "rm -rf .test-dist && ./node_modules/.bin/esbuild src/utils/__tests__/*.test.ts --bundle --platform=node --format=cjs --out-extension:.js=.cjs --outdir=.test-dist && node --test .test-dist/*.test.cjs; status=$?; rm -rf .test-dist; exit $status",
+    "export:golden": "TZ=Europe/Paris ./node_modules/.bin/esbuild scripts/exportGoldenFixtures.ts --bundle --platform=node --format=cjs --outfile=.export-golden.cjs && TZ=Europe/Paris node .export-golden.cjs; status=$?; rm -f .export-golden.cjs; exit $status",
+    "export:i18n": "./node_modules/.bin/esbuild scripts/exportLocalizationCatalog.ts --bundle --platform=node --format=cjs --external:typescript --outfile=.export-i18n.cjs && node .export-i18n.cjs; status=$?; rm -f .export-i18n.cjs; exit $status"
   },
   "dependencies": {
     "@keyline-icons/react": "^3.1.0",

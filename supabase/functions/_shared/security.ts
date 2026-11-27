@@ -12,6 +12,8 @@ export const CORS_HEADERS: Record<string, string> = {
 const DEFAULT_REDIRECT_ORIGINS = [
   'https://cadence.app',
   'https://www.cadence.app',
+  'https://ridecadence.cc',
+  'https://www.ridecadence.cc',
 ];
 
 const OAUTH_STATE_TTL_MS = 15 * 60 * 1000;
@@ -53,31 +55,90 @@ export function getAllowedRedirectOrigins(extraConfigured?: string): string[] {
   return Array.from(out);
 }
 
+const ALLOWED_CALLBACK_PATHS = new Set<string>(['/', '/oauth/callback']);
+
 /**
- * Validates an OAuth redirect_origin strictly against ALLOWED_REDIRECT_ORIGINS
- * (plus http://localhost:* and http://127.0.0.1:* for local development).
- * Never accepts arbitrary https:// domains.
+ * Validates an OAuth redirect target strictly against ALLOWED_REDIRECT_ORIGINS
+ * (plus http://localhost:* and http://127.0.0.1:* for local development),
+ * permitting only root `/` or exact `/oauth/callback` paths, plus the exact
+ * iOS ASWebAuthenticationSession custom scheme `cadence://oauth-callback`.
+ * Never accepts arbitrary https:// domains, paths, or custom schemes.
  */
 export function isAllowedRedirectOrigin(
   raw: string,
   extraConfigured?: string
 ): string | null {
   try {
-    const parsed = new URL(raw.trim());
-    if (
-      parsed.protocol === 'http:' &&
-      (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1')
-    ) {
-      return parsed.origin;
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
+    const parsed = new URL(trimmed);
+
+    if (parsed.username || parsed.password || parsed.search || parsed.hash) {
+      return null;
     }
+
+    if (parsed.protocol === 'cadence:') {
+      if (
+        !parsed.port &&
+        parsed.hostname === 'oauth-callback' &&
+        (parsed.pathname === '' || parsed.pathname === '/')
+      ) {
+        return 'cadence://oauth-callback';
+      }
+      return null;
+    }
+
     if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
       return null;
     }
-    const allowed = getAllowedRedirectOrigins(extraConfigured);
-    return allowed.includes(parsed.origin) ? parsed.origin : null;
+
+    const isLocalhost =
+      parsed.protocol === 'http:' &&
+      (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1');
+
+    if (!isLocalhost) {
+      const allowed = getAllowedRedirectOrigins(extraConfigured);
+      if (!allowed.includes(parsed.origin)) {
+        return null;
+      }
+    }
+
+    if (!ALLOWED_CALLBACK_PATHS.has(parsed.pathname)) {
+      return null;
+    }
+
+    return parsed.pathname === '/'
+      ? parsed.origin
+      : `${parsed.origin}${parsed.pathname}`;
   } catch {
     return null;
   }
+}
+
+/**
+ * Appends OAuth query parameters cleanly to a validated redirect target:
+ * - Origin-only web targets (`https://cadence.app`) -> `https://cadence.app/?...`
+ * - Path targets (`https://ridecadence.cc/oauth/callback`) -> `https://ridecadence.cc/oauth/callback?...`
+ * - Custom-scheme targets (`cadence://oauth-callback`) -> `cadence://oauth-callback?...`
+ * Uses encodeURIComponent (%20 for spaces) so both Web URLSearchParams and iOS Swift URLComponents decode identically.
+ */
+export function buildOAuthRedirectUrl(
+  target: string,
+  params: Record<string, string | number | boolean | undefined>
+): string {
+  const url = new URL(target.trim());
+  const baseWithoutHash = url.toString().split('#')[0];
+  const qs = Object.entries(params)
+    .filter(
+      (entry): entry is [string, string | number | boolean] =>
+        entry[1] !== undefined
+    )
+    .map(
+      ([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`
+    )
+    .join('&');
+  if (!qs) return baseWithoutHash;
+  return `${baseWithoutHash}${url.search ? '&' : '?'}${qs}`;
 }
 
 export function getFallbackRedirectOrigin(extraConfigured?: string): string {

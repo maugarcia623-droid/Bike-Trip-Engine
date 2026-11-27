@@ -128,7 +128,12 @@ export const AtmosphereCard: React.FC<AtmosphereCardProps> = ({
     return () => observer.disconnect();
   }, []);
 
-  const currentDateStr = trip.departureDate || getLocalTodayIso();
+  const activeStageIdx =
+    trip.stages && trip.stages.length > 0
+      ? Math.max(0, Math.min(trip.activeStageIndex ?? 0, trip.stages.length - 1))
+      : -1;
+  const activeStage = activeStageIdx >= 0 ? trip.stages![activeStageIdx] : undefined;
+  const currentDateStr = activeStage?.departureDate || trip.departureDate || getLocalTodayIso();
   const currentTimeStr = hardRolloutTime || trip.departureTime || trip.office.targetGateArrivalTime || '07:30';
   const horizon = checkForecastHorizon(currentDateStr);
   const isBeyondHorizon = !horizon.isAvailable;

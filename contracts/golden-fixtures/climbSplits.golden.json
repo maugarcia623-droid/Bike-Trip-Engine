@@ -1,0 +1,782 @@
+{
+  "schemaVersion": 1,
+  "engine": "climbSplits",
+  "sourceFiles": [
+    "src/utils/climbSplits.ts"
+  ],
+  "determinism": {
+    "frozenUtc": "2026-11-26T12:00:00.000Z",
+    "timezone": "Europe/Paris"
+  },
+  "cases": [
+    {
+      "id": "alpine-loop-auto-en",
+      "description": "Climb detection and climb splits/checkpoints on 62 km alpine loop (auto EN)",
+      "input": {
+        "tripId": "alpine-loop",
+        "ftpWatts": 260,
+        "carbTargetGPerHr": 60,
+        "carbPacingMode": "auto",
+        "nutritionPreference": "sports-fuel",
+        "departureTimeHHMM": "08:00",
+        "checkpointIntervalMinutes": 35
+      },
+      "expected": {
+        "detectedClimbs": [
+          {
+            "index": 1,
+            "category": "2",
+            "name": "Climb 1 (Cat 2)",
+            "startKm": 10,
+            "endKm": 18,
+            "lengthKm": 8,
+            "elevationGainM": 540,
+            "avgGradePct": 6.8,
+            "maxGradePct": 7,
+            "startEleM": 225,
+            "summitEleM": 765
+          },
+          {
+            "index": 2,
+            "category": "3",
+            "name": "Climb 2 (Cat 3)",
+            "startKm": 35,
+            "endKm": 39,
+            "lengthKm": 4,
+            "elevationGainM": 220,
+            "avgGradePct": 5.5,
+            "maxGradePct": 5.5,
+            "startEleM": 430,
+            "summitEleM": 650
+          }
+        ],
+        "categoryLabels": {
+          "hcEn": "HC",
+          "hcFr": "HC",
+          "cat1En": "Cat 1",
+          "cat2Fr": "Cat. 2"
+        },
+        "summary": {
+          "climbs": [
+            {
+              "index": 1,
+              "category": "2",
+              "name": "Climb 1 (Cat 2)",
+              "startKm": 10,
+              "endKm": 18,
+              "lengthKm": 8,
+              "elevationGainM": 540,
+              "avgGradePct": 6.8,
+              "maxGradePct": 7,
+              "startEleM": 225,
+              "summitEleM": 765,
+              "targetWatts": 208,
+              "wattsPerKg": 2.97,
+              "ftpPercent": 80,
+              "powerZone": "Z3",
+              "climbSpeedKmH": 12.1,
+              "durationMinutes": 40,
+              "durationFormatted": "40 min",
+              "vamMetersPerHour": 819,
+              "etaStartHHMM": "08:26",
+              "fuelingCue": "Km 8.5: 1 gel + 1/2 bottle before 6.8% climb"
+            },
+            {
+              "index": 2,
+              "category": "3",
+              "name": "Climb 2 (Cat 3)",
+              "startKm": 35,
+              "endKm": 39,
+              "lengthKm": 4,
+              "elevationGainM": 220,
+              "avgGradePct": 5.5,
+              "maxGradePct": 5.5,
+              "startEleM": 430,
+              "summitEleM": 650,
+              "targetWatts": 200,
+              "wattsPerKg": 2.86,
+              "ftpPercent": 77,
+              "powerZone": "Z3",
+              "climbSpeedKmH": 13.9,
+              "durationMinutes": 17,
+              "durationFormatted": "17 min",
+              "vamMetersPerHour": 764,
+              "etaStartHHMM": "10:33",
+              "fuelingCue": "Km 33.5: 1 gel + 1/2 bottle before 5.5% climb"
+            }
+          ],
+          "checkpoints": [
+            {
+              "id": "cp-35",
+              "distKm": 10.9,
+              "elapsedMinutes": 35,
+              "etaHHMM": "08:35",
+              "kind": "fuel-and-hydration",
+              "carbsGrams": 35,
+              "fluidMl": 400,
+              "label": "Km 10.9: 1 gel + 1/2 bottle",
+              "shortFitCue": "Fuel 35g+H2O",
+              "detail": "35 g carbs · 400 ml · 35 min"
+            },
+            {
+              "id": "cp-70",
+              "distKm": 14.2,
+              "elapsedMinutes": 70,
+              "etaHHMM": "09:10",
+              "kind": "fuel-and-hydration",
+              "carbsGrams": 35,
+              "fluidMl": 400,
+              "label": "Km 14.2: 1 gel + 1/2 bottle",
+              "shortFitCue": "Fuel 35g+H2O",
+              "detail": "35 g carbs · 400 ml · 1 h 10"
+            },
+            {
+              "id": "cp-105",
+              "distKm": 17.3,
+              "elapsedMinutes": 105,
+              "etaHHMM": "09:45",
+              "kind": "fuel-and-hydration",
+              "carbsGrams": 35,
+              "fluidMl": 400,
+              "label": "Km 17.3: 1 gel + 1/2 bottle",
+              "shortFitCue": "Fuel 35g+H2O",
+              "detail": "35 g carbs · 400 ml · 1 h 45"
+            },
+            {
+              "id": "cp-140",
+              "distKm": 30.2,
+              "elapsedMinutes": 140,
+              "etaHHMM": "10:20",
+              "kind": "fuel-and-hydration",
+              "carbsGrams": 35,
+              "fluidMl": 400,
+              "label": "Km 30.2: 1 gel + 1/2 bottle",
+              "shortFitCue": "Fuel 35g+H2O",
+              "detail": "35 g carbs · 400 ml · 2 h 20"
+            },
+            {
+              "id": "cp-175",
+              "distKm": 37.4,
+              "elapsedMinutes": 175,
+              "etaHHMM": "10:55",
+              "kind": "fuel-and-hydration",
+              "carbsGrams": 35,
+              "fluidMl": 400,
+              "label": "Km 37.4: 1 gel + 1/2 bottle",
+              "shortFitCue": "Fuel 35g+H2O",
+              "detail": "35 g carbs · 400 ml · 2 h 55"
+            },
+            {
+              "id": "cp-210",
+              "distKm": 47.8,
+              "elapsedMinutes": 210,
+              "etaHHMM": "11:30",
+              "kind": "fuel-and-hydration",
+              "carbsGrams": 35,
+              "fluidMl": 400,
+              "label": "Km 47.8: 1 gel + 1/2 bottle",
+              "shortFitCue": "Fuel 35g+H2O",
+              "detail": "35 g carbs · 400 ml · 3 h 30"
+            }
+          ],
+          "totalClimbKm": 12,
+          "totalClimbGainM": 760,
+          "recommendedCarbsGPerHr": 58,
+          "targetFluidMlPerHr": 682,
+          "isSynthesizedProfile": false
+        }
+      }
+    },
+    {
+      "id": "alpine-loop-locked-80-en",
+      "description": "carbPacingMode locked preserves exact 80 g/h and 25 g/h floor at low intensity",
+      "input": {
+        "targetSpeedKmH": 18,
+        "ftpWatts": 300,
+        "locked80": {
+          "carbTargetGPerHr": 80,
+          "carbPacingMode": "locked",
+          "riderLevel": "regular"
+        },
+        "lockedFloor25": {
+          "carbTargetGPerHr": 25,
+          "carbPacingMode": "locked",
+          "riderLevel": "regular"
+        }
+      },
+      "expected": {
+        "locked80Summary": {
+          "climbs": [
+            {
+              "index": 1,
+              "category": "2",
+              "name": "Climb 1 (Cat 2)",
+              "startKm": 10,
+              "endKm": 18,
+              "lengthKm": 8,
+              "elevationGainM": 540,
+              "avgGradePct": 6.8,
+              "maxGradePct": 7,
+              "startEleM": 225,
+              "summitEleM": 765,
+              "targetWatts": 233,
+              "wattsPerKg": 3.33,
+              "ftpPercent": 78,
+              "powerZone": "Z3",
+              "climbSpeedKmH": 13.5,
+              "durationMinutes": 36,
+              "durationFormatted": "36 min",
+              "vamMetersPerHour": 909,
+              "etaStartHHMM": "08:33",
+              "fuelingCue": "Km 8.5: 1 gel + 1/2 bottle before 6.8% climb"
+            },
+            {
+              "index": 2,
+              "category": "3",
+              "name": "Climb 2 (Cat 3)",
+              "startKm": 35,
+              "endKm": 39,
+              "lengthKm": 4,
+              "elevationGainM": 220,
+              "avgGradePct": 5.5,
+              "maxGradePct": 5.5,
+              "startEleM": 430,
+              "summitEleM": 650,
+              "targetWatts": 224,
+              "wattsPerKg": 3.2,
+              "ftpPercent": 75,
+              "powerZone": "Z2",
+              "climbSpeedKmH": 15.3,
+              "durationMinutes": 16,
+              "durationFormatted": "16 min",
+              "vamMetersPerHour": 844,
+              "etaStartHHMM": "11:07",
+              "fuelingCue": "Km 33.5: 1 gel + 1/2 bottle before 5.5% climb"
+            }
+          ],
+          "checkpoints": [
+            {
+              "id": "cp-35",
+              "distKm": 10.1,
+              "elapsedMinutes": 35,
+              "etaHHMM": "08:35",
+              "kind": "fuel-and-hydration",
+              "carbsGrams": 45,
+              "fluidMl": 350,
+              "label": "Km 10.1: 2 gels + 1/2 bottle",
+              "shortFitCue": "Fuel 45g+H2O",
+              "detail": "45 g carbs · 350 ml · 35 min"
+            },
+            {
+              "id": "cp-70",
+              "distKm": 12.9,
+              "elapsedMinutes": 70,
+              "etaHHMM": "09:10",
+              "kind": "fuel-and-hydration",
+              "carbsGrams": 45,
+              "fluidMl": 350,
+              "label": "Km 12.9: 2 gels + 1/2 bottle",
+              "shortFitCue": "Fuel 45g+H2O",
+              "detail": "45 g carbs · 350 ml · 1 h 10"
+            },
+            {
+              "id": "cp-105",
+              "distKm": 15.6,
+              "elapsedMinutes": 105,
+              "etaHHMM": "09:45",
+              "kind": "fuel-and-hydration",
+              "carbsGrams": 45,
+              "fluidMl": 350,
+              "label": "Km 15.6: 2 gels + 1/2 bottle",
+              "shortFitCue": "Fuel 45g+H2O",
+              "detail": "45 g carbs · 350 ml · 1 h 45"
+            },
+            {
+              "id": "cp-140",
+              "distKm": 19.5,
+              "elapsedMinutes": 140,
+              "etaHHMM": "10:20",
+              "kind": "fuel-and-hydration",
+              "carbsGrams": 45,
+              "fluidMl": 350,
+              "label": "Km 19.5: 2 gels + 1/2 bottle",
+              "shortFitCue": "Fuel 45g+H2O",
+              "detail": "45 g carbs · 350 ml · 2 h 20"
+            },
+            {
+              "id": "cp-175",
+              "distKm": 31.3,
+              "elapsedMinutes": 175,
+              "etaHHMM": "10:55",
+              "kind": "fuel-and-hydration",
+              "carbsGrams": 45,
+              "fluidMl": 350,
+              "label": "Km 31.3: 2 gels + 1/2 bottle",
+              "shortFitCue": "Fuel 45g+H2O",
+              "detail": "45 g carbs · 350 ml · 2 h 55"
+            },
+            {
+              "id": "cp-210",
+              "distKm": 36.8,
+              "elapsedMinutes": 210,
+              "etaHHMM": "11:30",
+              "kind": "fuel-and-hydration",
+              "carbsGrams": 45,
+              "fluidMl": 350,
+              "label": "Km 36.8: 2 gels + 1/2 bottle",
+              "shortFitCue": "Fuel 45g+H2O",
+              "detail": "45 g carbs · 350 ml · 3 h 30"
+            },
+            {
+              "id": "cp-245",
+              "distKm": 41.2,
+              "elapsedMinutes": 245,
+              "etaHHMM": "12:05",
+              "kind": "fuel-and-hydration",
+              "carbsGrams": 45,
+              "fluidMl": 350,
+              "label": "Km 41.2: 2 gels + 1/2 bottle",
+              "shortFitCue": "Fuel 45g+H2O",
+              "detail": "45 g carbs · 350 ml · 4 h 05"
+            },
+            {
+              "id": "cp-280",
+              "distKm": 52.9,
+              "elapsedMinutes": 280,
+              "etaHHMM": "12:40",
+              "kind": "fuel-and-hydration",
+              "carbsGrams": 45,
+              "fluidMl": 350,
+              "label": "Km 52.9: 2 gels + 1/2 bottle",
+              "shortFitCue": "Fuel 45g+H2O",
+              "detail": "45 g carbs · 350 ml · 4 h 40"
+            }
+          ],
+          "totalClimbKm": 12,
+          "totalClimbGainM": 760,
+          "recommendedCarbsGPerHr": 80,
+          "targetFluidMlPerHr": 631,
+          "isSynthesizedProfile": false
+        },
+        "locked25FloorSummary": {
+          "climbs": [
+            {
+              "index": 1,
+              "category": "2",
+              "name": "Climb 1 (Cat 2)",
+              "startKm": 10,
+              "endKm": 18,
+              "lengthKm": 8,
+              "elevationGainM": 540,
+              "avgGradePct": 6.8,
+              "maxGradePct": 7,
+              "startEleM": 225,
+              "summitEleM": 765,
+              "targetWatts": 233,
+              "wattsPerKg": 3.33,
+              "ftpPercent": 78,
+              "powerZone": "Z3",
+              "climbSpeedKmH": 13.5,
+              "durationMinutes": 36,
+              "durationFormatted": "36 min",
+              "vamMetersPerHour": 909,
+              "etaStartHHMM": "08:33",
+              "fuelingCue": "Km 8.5: 1/2 bottle before 6.8% climb"
+            },
+            {
+              "index": 2,
+              "category": "3",
+              "name": "Climb 2 (Cat 3)",
+              "startKm": 35,
+              "endKm": 39,
+              "lengthKm": 4,
+              "elevationGainM": 220,
+              "avgGradePct": 5.5,
+              "maxGradePct": 5.5,
+              "startEleM": 430,
+              "summitEleM": 650,
+              "targetWatts": 224,
+              "wattsPerKg": 3.2,
+              "ftpPercent": 75,
+              "powerZone": "Z2",
+              "climbSpeedKmH": 15.3,
+              "durationMinutes": 16,
+              "durationFormatted": "16 min",
+              "vamMetersPerHour": 844,
+              "etaStartHHMM": "11:07",
+              "fuelingCue": "Km 33.5: 1/2 bottle before 5.5% climb"
+            }
+          ],
+          "checkpoints": [
+            {
+              "id": "cp-35",
+              "distKm": 10.1,
+              "elapsedMinutes": 35,
+              "etaHHMM": "08:35",
+              "kind": "fuel-and-hydration",
+              "carbsGrams": 15,
+              "fluidMl": 350,
+              "label": "Km 10.1: 1 gel + 1/2 bottle",
+              "shortFitCue": "Fuel 15g+H2O",
+              "detail": "15 g carbs · 350 ml · 35 min"
+            },
+            {
+              "id": "cp-70",
+              "distKm": 12.9,
+              "elapsedMinutes": 70,
+              "etaHHMM": "09:10",
+              "kind": "fuel-and-hydration",
+              "carbsGrams": 15,
+              "fluidMl": 350,
+              "label": "Km 12.9: 1 gel + 1/2 bottle",
+              "shortFitCue": "Fuel 15g+H2O",
+              "detail": "15 g carbs · 350 ml · 1 h 10"
+            },
+            {
+              "id": "cp-105",
+              "distKm": 15.6,
+              "elapsedMinutes": 105,
+              "etaHHMM": "09:45",
+              "kind": "fuel-and-hydration",
+              "carbsGrams": 15,
+              "fluidMl": 350,
+              "label": "Km 15.6: 1 gel + 1/2 bottle",
+              "shortFitCue": "Fuel 15g+H2O",
+              "detail": "15 g carbs · 350 ml · 1 h 45"
+            },
+            {
+              "id": "cp-140",
+              "distKm": 19.5,
+              "elapsedMinutes": 140,
+              "etaHHMM": "10:20",
+              "kind": "fuel-and-hydration",
+              "carbsGrams": 15,
+              "fluidMl": 350,
+              "label": "Km 19.5: 1 gel + 1/2 bottle",
+              "shortFitCue": "Fuel 15g+H2O",
+              "detail": "15 g carbs · 350 ml · 2 h 20"
+            },
+            {
+              "id": "cp-175",
+              "distKm": 31.3,
+              "elapsedMinutes": 175,
+              "etaHHMM": "10:55",
+              "kind": "fuel-and-hydration",
+              "carbsGrams": 15,
+              "fluidMl": 350,
+              "label": "Km 31.3: 1 gel + 1/2 bottle",
+              "shortFitCue": "Fuel 15g+H2O",
+              "detail": "15 g carbs · 350 ml · 2 h 55"
+            },
+            {
+              "id": "cp-210",
+              "distKm": 36.8,
+              "elapsedMinutes": 210,
+              "etaHHMM": "11:30",
+              "kind": "fuel-and-hydration",
+              "carbsGrams": 15,
+              "fluidMl": 350,
+              "label": "Km 36.8: 1 gel + 1/2 bottle",
+              "shortFitCue": "Fuel 15g+H2O",
+              "detail": "15 g carbs · 350 ml · 3 h 30"
+            },
+            {
+              "id": "cp-245",
+              "distKm": 41.2,
+              "elapsedMinutes": 245,
+              "etaHHMM": "12:05",
+              "kind": "fuel-and-hydration",
+              "carbsGrams": 15,
+              "fluidMl": 350,
+              "label": "Km 41.2: 1 gel + 1/2 bottle",
+              "shortFitCue": "Fuel 15g+H2O",
+              "detail": "15 g carbs · 350 ml · 4 h 05"
+            },
+            {
+              "id": "cp-280",
+              "distKm": 52.9,
+              "elapsedMinutes": 280,
+              "etaHHMM": "12:40",
+              "kind": "fuel-and-hydration",
+              "carbsGrams": 15,
+              "fluidMl": 350,
+              "label": "Km 52.9: 1 gel + 1/2 bottle",
+              "shortFitCue": "Fuel 15g+H2O",
+              "detail": "15 g carbs · 350 ml · 4 h 40"
+            }
+          ],
+          "totalClimbKm": 12,
+          "totalClimbGainM": 760,
+          "recommendedCarbsGPerHr": 25,
+          "targetFluidMlPerHr": 631,
+          "isSynthesizedProfile": false
+        }
+      }
+    },
+    {
+      "id": "pro-auto-override-check",
+      "description": "carbPacingMode auto prevents riderLevel pro from auto-locking at 90 g/h",
+      "input": {
+        "targetSpeedKmH": 18,
+        "ftpWatts": 300,
+        "carbTargetGPerHr": 90,
+        "carbPacingMode": "auto",
+        "riderLevel": "pro"
+      },
+      "expected": {
+        "climbs": [
+          {
+            "index": 1,
+            "category": "2",
+            "name": "Climb 1 (Cat 2)",
+            "startKm": 10,
+            "endKm": 18,
+            "lengthKm": 8,
+            "elevationGainM": 540,
+            "avgGradePct": 6.8,
+            "maxGradePct": 7,
+            "startEleM": 225,
+            "summitEleM": 765,
+            "targetWatts": 233,
+            "wattsPerKg": 3.33,
+            "ftpPercent": 78,
+            "powerZone": "Z3",
+            "climbSpeedKmH": 13.5,
+            "durationMinutes": 36,
+            "durationFormatted": "36 min",
+            "vamMetersPerHour": 909,
+            "etaStartHHMM": "08:33",
+            "fuelingCue": "Km 8.5: 1/2 bottle before 6.8% climb"
+          },
+          {
+            "index": 2,
+            "category": "3",
+            "name": "Climb 2 (Cat 3)",
+            "startKm": 35,
+            "endKm": 39,
+            "lengthKm": 4,
+            "elevationGainM": 220,
+            "avgGradePct": 5.5,
+            "maxGradePct": 5.5,
+            "startEleM": 430,
+            "summitEleM": 650,
+            "targetWatts": 224,
+            "wattsPerKg": 3.2,
+            "ftpPercent": 75,
+            "powerZone": "Z2",
+            "climbSpeedKmH": 15.3,
+            "durationMinutes": 16,
+            "durationFormatted": "16 min",
+            "vamMetersPerHour": 844,
+            "etaStartHHMM": "11:07",
+            "fuelingCue": "Km 33.5: 1/2 bottle before 5.5% climb"
+          }
+        ],
+        "checkpoints": [
+          {
+            "id": "cp-35",
+            "distKm": 10.1,
+            "elapsedMinutes": 35,
+            "etaHHMM": "08:35",
+            "kind": "fuel-and-hydration",
+            "carbsGrams": 15,
+            "fluidMl": 350,
+            "label": "Km 10.1: 1 gel + 1/2 bottle",
+            "shortFitCue": "Fuel 15g+H2O",
+            "detail": "15 g carbs · 350 ml · 35 min"
+          },
+          {
+            "id": "cp-70",
+            "distKm": 12.9,
+            "elapsedMinutes": 70,
+            "etaHHMM": "09:10",
+            "kind": "fuel-and-hydration",
+            "carbsGrams": 15,
+            "fluidMl": 350,
+            "label": "Km 12.9: 1 gel + 1/2 bottle",
+            "shortFitCue": "Fuel 15g+H2O",
+            "detail": "15 g carbs · 350 ml · 1 h 10"
+          },
+          {
+            "id": "cp-105",
+            "distKm": 15.6,
+            "elapsedMinutes": 105,
+            "etaHHMM": "09:45",
+            "kind": "fuel-and-hydration",
+            "carbsGrams": 15,
+            "fluidMl": 350,
+            "label": "Km 15.6: 1 gel + 1/2 bottle",
+            "shortFitCue": "Fuel 15g+H2O",
+            "detail": "15 g carbs · 350 ml · 1 h 45"
+          },
+          {
+            "id": "cp-140",
+            "distKm": 19.5,
+            "elapsedMinutes": 140,
+            "etaHHMM": "10:20",
+            "kind": "fuel-and-hydration",
+            "carbsGrams": 15,
+            "fluidMl": 350,
+            "label": "Km 19.5: 1 gel + 1/2 bottle",
+            "shortFitCue": "Fuel 15g+H2O",
+            "detail": "15 g carbs · 350 ml · 2 h 20"
+          },
+          {
+            "id": "cp-175",
+            "distKm": 31.3,
+            "elapsedMinutes": 175,
+            "etaHHMM": "10:55",
+            "kind": "fuel-and-hydration",
+            "carbsGrams": 15,
+            "fluidMl": 350,
+            "label": "Km 31.3: 1 gel + 1/2 bottle",
+            "shortFitCue": "Fuel 15g+H2O",
+            "detail": "15 g carbs · 350 ml · 2 h 55"
+          },
+          {
+            "id": "cp-210",
+            "distKm": 36.8,
+            "elapsedMinutes": 210,
+            "etaHHMM": "11:30",
+            "kind": "fuel-and-hydration",
+            "carbsGrams": 15,
+            "fluidMl": 350,
+            "label": "Km 36.8: 1 gel + 1/2 bottle",
+            "shortFitCue": "Fuel 15g+H2O",
+            "detail": "15 g carbs · 350 ml · 3 h 30"
+          },
+          {
+            "id": "cp-245",
+            "distKm": 41.2,
+            "elapsedMinutes": 245,
+            "etaHHMM": "12:05",
+            "kind": "fuel-and-hydration",
+            "carbsGrams": 15,
+            "fluidMl": 350,
+            "label": "Km 41.2: 1 gel + 1/2 bottle",
+            "shortFitCue": "Fuel 15g+H2O",
+            "detail": "15 g carbs · 350 ml · 4 h 05"
+          },
+          {
+            "id": "cp-280",
+            "distKm": 52.9,
+            "elapsedMinutes": 280,
+            "etaHHMM": "12:40",
+            "kind": "fuel-and-hydration",
+            "carbsGrams": 15,
+            "fluidMl": 350,
+            "label": "Km 52.9: 1 gel + 1/2 bottle",
+            "shortFitCue": "Fuel 15g+H2O",
+            "detail": "15 g carbs · 350 ml · 4 h 40"
+          }
+        ],
+        "totalClimbKm": 12,
+        "totalClimbGainM": 760,
+        "recommendedCarbsGPerHr": 28,
+        "targetFluidMlPerHr": 631,
+        "isSynthesizedProfile": false
+      }
+    },
+    {
+      "id": "flat-ride-fr",
+      "description": "Flat 50 km ride in French emits 0 climbs while keeping periodic fueling checkpoints",
+      "input": {
+        "distanceKm": 50,
+        "lang": "fr",
+        "ftpWatts": 230,
+        "checkpointIntervalMinutes": 35
+      },
+      "expected": {
+        "climbs": [],
+        "checkpoints": [
+          {
+            "id": "cp-35",
+            "distKm": 13.4,
+            "elapsedMinutes": 35,
+            "etaHHMM": "08:35",
+            "kind": "fuel-and-hydration",
+            "carbsGrams": 35,
+            "fluidMl": 400,
+            "label": "Km 13.4 : 1 gel + 1/2 bidon",
+            "shortFitCue": "Ravito 35g+Eau",
+            "detail": "35 g glucides · 400 ml · 35 min"
+          },
+          {
+            "id": "cp-70",
+            "distKm": 26.8,
+            "elapsedMinutes": 70,
+            "etaHHMM": "09:10",
+            "kind": "fuel-and-hydration",
+            "carbsGrams": 35,
+            "fluidMl": 400,
+            "label": "Km 26.8 : 1 gel + 1/2 bidon",
+            "shortFitCue": "Ravito 35g+Eau",
+            "detail": "35 g glucides · 400 ml · 1 h 10"
+          },
+          {
+            "id": "cp-105",
+            "distKm": 40.3,
+            "elapsedMinutes": 105,
+            "etaHHMM": "09:45",
+            "kind": "fuel-and-hydration",
+            "carbsGrams": 35,
+            "fluidMl": 400,
+            "label": "Km 40.3 : 1 gel + 1/2 bidon",
+            "shortFitCue": "Ravito 35g+Eau",
+            "detail": "35 g glucides · 400 ml · 1 h 45"
+          }
+        ],
+        "totalClimbKm": 0,
+        "totalClimbGainM": 0,
+        "recommendedCarbsGPerHr": 59,
+        "targetFluidMlPerHr": 682,
+        "isSynthesizedProfile": false
+      }
+    },
+    {
+      "id": "climb-pacing-curve-and-interpolation",
+      "description": "Climb-adjusted pacing curve and forward/inverse distance-time interpolation",
+      "input": {
+        "profile": [
+          {
+            "distKm": 0,
+            "eleM": 100,
+            "gradePct": 0
+          },
+          {
+            "distKm": 10,
+            "eleM": 100,
+            "gradePct": 0
+          },
+          {
+            "distKm": 20,
+            "eleM": 1000,
+            "gradePct": 9
+          }
+        ],
+        "totalDistanceKm": 20,
+        "avgFlatSpeedKmH": 28,
+        "totalMassKg": 78
+      },
+      "expected": {
+        "curve": [
+          {
+            "distKm": 0,
+            "elapsedSec": 0
+          },
+          {
+            "distKm": 10,
+            "elapsedSec": 1285.7142857142858
+          },
+          {
+            "distKm": 20,
+            "elapsedSec": 6150.763969922416
+          }
+        ],
+        "elapsedAt10KmSec": 1285.7142857142858,
+        "elapsedAt20KmSec": 6150.763969922416,
+        "distAt1500SecKm": 10.440459457138294
+      }
+    }
+  ]
+}

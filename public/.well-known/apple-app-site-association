@@ -1,0 +1,29 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "TEAM_ID.cc.ridecadence.app"
+        ],
+        "components": [
+          {
+            "/": "/p/*",
+            "comment": "Shared ride plans"
+          },
+          {
+            "/": "/tools",
+            "comment": "Free cycling tools hub"
+          },
+          {
+            "/": "/tools/*",
+            "comment": "Individual free cycling tools"
+          },
+          {
+            "/": "/oauth/*",
+            "comment": "OAuth Universal Link callbacks"
+          }
+        ]
+      }
+    ]
+  }
+}

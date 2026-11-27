@@ -186,4 +186,63 @@ describe('climbSplits.ts', () => {
     assert.match(tcx, /<PointType>(Food|Water)<\/PointType>/);
     assert.match(tcx, /% FTP/);
   });
+
+  it('propagates carbPacingMode locked and 25 g/h floor into climb splits and fueling checkpoints', () => {
+    const trip = makeClimbingTrip();
+    trip.route.targetSpeedKmH = 18;
+    const physics = calculatePhysics(trip.physics, trip.route, trip.weather, 'en', 300);
+
+    const autoSummary = computeClimbSplitsAndFueling(trip, physics, 'en', {
+      ftpWatts: 300,
+      carbTargetGPerHr: 80,
+      carbPacingMode: 'auto',
+      riderLevel: 'regular',
+      checkpointIntervalMinutes: 35,
+    });
+    const lockedSummary = computeClimbSplitsAndFueling(trip, physics, 'en', {
+      ftpWatts: 300,
+      carbTargetGPerHr: 80,
+      carbPacingMode: 'locked',
+      riderLevel: 'regular',
+      checkpointIntervalMinutes: 35,
+    });
+
+    assert.equal(lockedSummary.recommendedCarbsGPerHr, 80);
+    assert.ok(
+      autoSummary.recommendedCarbsGPerHr < 80,
+      `Expected auto mode at low intensity to modulate below 80, got ${autoSummary.recommendedCarbsGPerHr}`
+    );
+
+    const lockedFuelCp = lockedSummary.checkpoints.find((cp) => cp.kind === 'fuel-and-hydration');
+    const autoFuelCp = autoSummary.checkpoints.find((cp) => cp.kind === 'fuel-and-hydration');
+    assert.ok(lockedFuelCp && autoFuelCp);
+    assert.ok(lockedFuelCp.carbsGrams > autoFuelCp.carbsGrams);
+    assert.notEqual(lockedFuelCp.shortFitCue, autoFuelCp.shortFitCue);
+
+    // 25 g/h locked floor matches nutrition.ts
+    const floorSummary = computeClimbSplitsAndFueling(trip, physics, 'en', {
+      ftpWatts: 300,
+      carbTargetGPerHr: 25,
+      carbPacingMode: 'locked',
+      riderLevel: 'regular',
+    });
+    assert.equal(floorSummary.recommendedCarbsGPerHr, 25);
+  });
+
+  it('prevents riderLevel pro from auto-locking when carbPacingMode is auto', () => {
+    const trip = makeClimbingTrip();
+    trip.route.targetSpeedKmH = 18;
+    const physics = calculatePhysics(trip.physics, trip.route, trip.weather, 'en', 300);
+
+    const proAutoSummary = computeClimbSplitsAndFueling(trip, physics, 'en', {
+      ftpWatts: 300,
+      carbTargetGPerHr: 90,
+      carbPacingMode: 'auto',
+      riderLevel: 'pro',
+    });
+    assert.ok(
+      proAutoSummary.recommendedCarbsGPerHr < 90,
+      `Expected pro+auto to modulate below 90 g/h, got ${proAutoSummary.recommendedCarbsGPerHr}`
+    );
+  });
 });

@@ -1,0 +1,177 @@
+{
+  "schemaVersion": 1,
+  "engine": "openingHours",
+  "sourceFiles": [
+    "src/utils/openingHours.ts"
+  ],
+  "determinism": {
+    "frozenUtc": "2026-11-26T12:00:00.000Z",
+    "timezone": "Europe/Paris"
+  },
+  "cases": [
+    {
+      "id": "always-open-24-7",
+      "description": "24/7 and Mo-Su 00:00-24:00 in EN and FR",
+      "input": {
+        "a": [
+          "24/7",
+          "2026-07-15",
+          "03:15",
+          "en"
+        ],
+        "b": [
+          "Mo-Su 00:00-24:00",
+          "2026-07-15",
+          "23:50",
+          "fr"
+        ]
+      },
+      "expected": {
+        "a": {
+          "status": "open",
+          "badgeLabel": "24/7",
+          "detailLabel": "Open 24/7",
+          "rawHours": "24/7"
+        },
+        "b": {
+          "status": "open",
+          "badgeLabel": "24/7",
+          "detailLabel": "Ouvert 24h/24",
+          "rawHours": "Mo-Su 00:00-24:00"
+        }
+      }
+    },
+    {
+      "id": "weekday-open-closing-closed",
+      "description": "Weekday hours evaluated at open, closing-soon (20 min left), closed, and Sunday",
+      "input": {
+        "hours": "Mo-Fr 07:00-19:30",
+        "checks": [
+          {
+            "date": "2026-07-15",
+            "eta": "12:00",
+            "lang": "en"
+          },
+          {
+            "date": "2026-07-15",
+            "eta": "19:10",
+            "lang": "en"
+          },
+          {
+            "date": "2026-07-15",
+            "eta": "19:35",
+            "lang": "fr"
+          },
+          {
+            "date": "2026-07-19",
+            "eta": "12:00",
+            "lang": "en"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "status": "open",
+          "badgeLabel": "Open at 12:00",
+          "detailLabel": "Open at 12:00 (until 19:30) · Mo-Fr 07:00-19:30",
+          "rawHours": "Mo-Fr 07:00-19:30"
+        },
+        {
+          "status": "closing-soon",
+          "badgeLabel": "Closing soon (19:30)",
+          "detailLabel": "Closes in 20 min at 19:30 (arrival 19:10) · Mo-Fr 07:00-19:30",
+          "rawHours": "Mo-Fr 07:00-19:30"
+        },
+        {
+          "status": "closed",
+          "badgeLabel": "Fermé à 19:35",
+          "detailLabel": "Fermé à 19:35 · Mo-Fr 07:00-19:30",
+          "rawHours": "Mo-Fr 07:00-19:30"
+        },
+        {
+          "status": "closed",
+          "badgeLabel": "Closed at 12:00",
+          "detailLabel": "Closed on ride day (hours: Mo-Fr 07:00-19:30)",
+          "rawHours": "Mo-Fr 07:00-19:30"
+        }
+      ]
+    },
+    {
+      "id": "overnight-window",
+      "description": "Overnight opening window Mo-Su 18:00-02:00",
+      "input": {
+        "hours": "Mo-Su 18:00-02:00",
+        "date": "2026-07-15",
+        "times": [
+          "23:30",
+          "01:40"
+        ]
+      },
+      "expected": {
+        "at2330": {
+          "status": "open",
+          "badgeLabel": "Open at 23:30",
+          "detailLabel": "Open at 23:30 (until 02:00) · Mo-Su 18:00-02:00",
+          "rawHours": "Mo-Su 18:00-02:00"
+        },
+        "at0140": {
+          "status": "closing-soon",
+          "badgeLabel": "Closing soon (02:00)",
+          "detailLabel": "Closes in 20 min at 02:00 (arrival 01:40) · Mo-Su 18:00-02:00",
+          "rawHours": "Mo-Su 18:00-02:00"
+        }
+      }
+    },
+    {
+      "id": "seasonal-apr-oct",
+      "description": "Seasonal month range Apr-Oct open in July and closed in January",
+      "input": {
+        "hours": "Apr-Oct Mo-Su 08:00-19:00",
+        "dates": [
+          "2026-07-15",
+          "2026-01-15"
+        ]
+      },
+      "expected": {
+        "july": {
+          "status": "open",
+          "badgeLabel": "Open at 12:00",
+          "detailLabel": "Open at 12:00 (until 19:00) · Apr-Oct Mo-Su 08:00-19:00",
+          "rawHours": "Apr-Oct Mo-Su 08:00-19:00"
+        },
+        "january": {
+          "status": "closed",
+          "badgeLabel": "Fermé à 12:00",
+          "detailLabel": "Fermé ce jour (horaires : Apr-Oct Mo-Su 08:00-19:00)",
+          "rawHours": "Apr-Oct Mo-Su 08:00-19:00"
+        }
+      }
+    },
+    {
+      "id": "unknown-and-empty",
+      "description": "Unsupported/ambiguous syntax returns unknown and empty/undefined returns null",
+      "input": {
+        "samples": [
+          "PH off",
+          "sunset-22:00",
+          null
+        ]
+      },
+      "expected": {
+        "phOff": {
+          "status": "closed",
+          "badgeLabel": "Closed at 12:00",
+          "detailLabel": "Closed on ride day (hours: PH off)",
+          "rawHours": "PH off"
+        },
+        "sunset": {
+          "status": "unknown",
+          "badgeLabel": "sunset-22:00",
+          "detailLabel": "sunset-22:00",
+          "rawHours": "sunset-22:00"
+        },
+        "empty": null
+      }
+    }
+  ]
+}

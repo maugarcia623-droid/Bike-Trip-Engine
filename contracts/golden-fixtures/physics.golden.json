@@ -1,0 +1,1429 @@
+{
+  "schemaVersion": 1,
+  "engine": "physics",
+  "sourceFiles": [
+    "src/utils/physics.ts",
+    "src/utils/surfaceProfile.ts"
+  ],
+  "determinism": {
+    "frozenUtc": "2026-11-26T12:00:00.000Z",
+    "timezone": "Europe/Paris"
+  },
+  "cases": [
+    {
+      "id": "power-zones",
+      "description": "Coggan power zone mapping across Z1–Z5",
+      "input": {
+        "ftpPercents": [
+          50,
+          68,
+          85,
+          100,
+          115
+        ]
+      },
+      "expected": [
+        {
+          "pct": 50,
+          "zone": "Z1"
+        },
+        {
+          "pct": 68,
+          "zone": "Z2"
+        },
+        {
+          "pct": 85,
+          "zone": "Z3"
+        },
+        {
+          "pct": 100,
+          "zone": "Z4"
+        },
+        {
+          "pct": 115,
+          "zone": "Z5"
+        }
+      ]
+    },
+    {
+      "id": "flat-calm-speed",
+      "description": "Flat 50 km calm speed pacing with tubeless baseline",
+      "input": {
+        "physics": {
+          "riderWeightKg": 70,
+          "bikeWeightKg": 9,
+          "gearWeightKg": 2,
+          "cda": 0.32,
+          "crr": 0.0045,
+          "rho": 1.225,
+          "drivetrainEfficiency": 0.97,
+          "grossMechanicalEfficiency": 0.22,
+          "gradientPercent": 0
+        },
+        "route": {
+          "origin": "Nantes",
+          "destination": "Ancenis",
+          "distanceKm": 50,
+          "targetSpeedKmH": 28,
+          "pacingMode": "speed",
+          "urbanTrafficDelayMinutes": 0,
+          "gateSecurityDelayMinutes": 0,
+          "coordinates": [
+            [
+              47.2184,
+              -1.5536
+            ],
+            [
+              47.29,
+              -1.35
+            ],
+            [
+              47.3667,
+              -1.1833
+            ]
+          ]
+        },
+        "weather": {
+          "isHeadwindActive": false,
+          "baseWindSpeedKmH": 0,
+          "windDirection": "calm",
+          "windDirectionDegrees": 0,
+          "temperatureC": 18,
+          "precipitationRiskPercent": 0,
+          "estuaryGustKmH": 0,
+          "visibilityKm": 20
+        },
+        "lang": "en",
+        "ftpOverride": 240,
+        "envContext": {
+          "isTubeless": true
+        }
+      },
+      "expected": {
+        "result": {
+          "systemMassKg": 81,
+          "groundSpeedMs": 7.777777777777778,
+          "airSpeedMs": 7.777777777777778,
+          "effectiveSpeedKmH": 28,
+          "calmSpeedKmH": 28,
+          "baselineLegWatts": 123.74312241030646,
+          "rollingResistanceWatts": 27.81135,
+          "aerodynamicDragWatts": 92.21947873799725,
+          "gravityWatts": 0,
+          "wheelWatts": 120.03082873799725,
+          "legWatts": 123.74312241030646,
+          "wattsPerKg": 1.77,
+          "ftpWatts": 240,
+          "ftpPercent": 52,
+          "powerZone": "Z1",
+          "pacingMode": "speed",
+          "windDelayMinutes": 0,
+          "movingTimeSeconds": 6428.571428571428,
+          "movingTimeFormatted": "1 h 47 min 08 s",
+          "totalWorkKj": 795.4915012091129,
+          "totalKcalBurn": 864.2137810806458,
+          "carbOxidationGramPerHour": 72,
+          "totalCarbsBurnedGrams": 129,
+          "speedDeltaKmH": 0,
+          "powerDeltaWatts": 0,
+          "goStatus": "GO",
+          "goStatusReason": "Calm, gentle air — smooth and easy pedaling ahead.",
+          "effectiveCrr": 0.0045,
+          "crrMultiplier": 1,
+          "roadCondition": "dry",
+          "cautionPaceFactor": 1,
+          "cautionDelayMinutes": 0,
+          "cautionReasons": [],
+          "surfaceCrrSource": "bike-baseline"
+        },
+        "didactic": {
+          "headline": "124W — Gentle, effortless spin",
+          "breathingCue": "Easy nasal breathing — you can chat in full paragraphs all day.",
+          "everydayAnalogy": "Feels like an unhurried stroll on flat ground.",
+          "whatIsWatts": "Watts measure the actual leg push on your pedals right now (unlike speed, which drops in wind or hills).",
+          "whatIsFtp": "Your FTP (240W) is the max steady power you can sustain for 1 hour (52% used on this ride).",
+          "whatIsWkg": "1.8 W/kg divides your watts by body weight (70kg) — what truly matters on climbs."
+        }
+      }
+    },
+    {
+      "id": "headwind-speed-fr",
+      "description": "Strong headwind in speed pacing mode with French locale dictionary",
+      "input": {
+        "physics": {
+          "riderWeightKg": 70,
+          "bikeWeightKg": 9,
+          "gearWeightKg": 2,
+          "cda": 0.32,
+          "crr": 0.0045,
+          "rho": 1.225,
+          "drivetrainEfficiency": 0.97,
+          "grossMechanicalEfficiency": 0.22,
+          "gradientPercent": 0
+        },
+        "route": {
+          "origin": "Nantes",
+          "destination": "Ancenis",
+          "distanceKm": 50,
+          "targetSpeedKmH": 28,
+          "pacingMode": "speed",
+          "urbanTrafficDelayMinutes": 0,
+          "gateSecurityDelayMinutes": 0,
+          "coordinates": [
+            [
+              47.2184,
+              -1.5536
+            ],
+            [
+              47.29,
+              -1.35
+            ],
+            [
+              47.3667,
+              -1.1833
+            ]
+          ]
+        },
+        "weather": {
+          "isHeadwindActive": true,
+          "baseWindSpeedKmH": 25,
+          "windDirection": "headwind",
+          "windDirectionDegrees": 0,
+          "temperatureC": 18,
+          "precipitationRiskPercent": 0,
+          "estuaryGustKmH": 0,
+          "visibilityKm": 20,
+          "effectiveHeadwindKmH": 25
+        },
+        "lang": "fr",
+        "ftpOverride": 240,
+        "envContext": {
+          "isTubeless": true
+        }
+      },
+      "expected": {
+        "result": {
+          "systemMassKg": 81,
+          "groundSpeedMs": 7.777777777777778,
+          "airSpeedMs": 14.722222222222221,
+          "effectiveSpeedKmH": 28,
+          "calmSpeedKmH": 28,
+          "baselineLegWatts": 123.74312241030646,
+          "rollingResistanceWatts": 27.81135,
+          "aerodynamicDragWatts": 330.41392318244164,
+          "gravityWatts": 0,
+          "wheelWatts": 358.22527318244164,
+          "legWatts": 369.3044053427233,
+          "wattsPerKg": 5.28,
+          "ftpWatts": 240,
+          "ftpPercent": 154,
+          "powerZone": "Z5",
+          "pacingMode": "speed",
+          "windDelayMinutes": 0,
+          "movingTimeSeconds": 6428.571428571428,
+          "movingTimeFormatted": "1 h 47 min 08 s",
+          "totalWorkKj": 2374.0997486317924,
+          "totalKcalBurn": 2579.197536754511,
+          "carbOxidationGramPerHour": 318,
+          "totalCarbsBurnedGrams": 568,
+          "speedDeltaKmH": 12.7,
+          "powerDeltaWatts": 245.56128293241687,
+          "goStatus": "CAUTION",
+          "goStatusReason": "Vent de face sensible (25 km/h) — tout à fait jouable ! Roule à l’effort sans forcer sur la vitesse.",
+          "effectiveCrr": 0.0045,
+          "crrMultiplier": 1,
+          "roadCondition": "dry",
+          "cautionPaceFactor": 1,
+          "cautionDelayMinutes": 0,
+          "cautionReasons": [],
+          "surfaceCrrSource": "bike-baseline"
+        },
+        "didactic": {
+          "headline": "369 W — Effort intense près du seuil (à limiter en voyage)",
+          "breathingCue": "Un ou deux mots maximum ; jambes sollicitées — passez en \"Effort Fixe\" pour souffler.",
+          "everydayAnalogy": "Équivaut à courir vite en côte ou grimper deux marches à la fois.",
+          "whatIsWatts": "Les Watts mesurent l'énergie mécanique réelle appuyée sur vos pédales (indépendamment du vent ou de la pente).",
+          "whatIsFtp": "Votre FTP (240 W) est la puissance maximale que vous pouvez tenir pendant 1 heure sans exploser (154 % utilisé ici).",
+          "whatIsWkg": "5.3 W/kg rapporte votre puissance à votre poids (70 kg) — le vrai repère dès que la route grimpe."
+        }
+      }
+    },
+    {
+      "id": "headwind-effort",
+      "description": "Effort pacing mode (180 W target) under 20 km/h headwind",
+      "input": {
+        "physics": {
+          "riderWeightKg": 70,
+          "bikeWeightKg": 9,
+          "gearWeightKg": 2,
+          "cda": 0.32,
+          "crr": 0.0045,
+          "rho": 1.225,
+          "drivetrainEfficiency": 0.97,
+          "grossMechanicalEfficiency": 0.22,
+          "gradientPercent": 0
+        },
+        "route": {
+          "origin": "Nantes",
+          "destination": "Ancenis",
+          "distanceKm": 50,
+          "targetSpeedKmH": 28,
+          "pacingMode": "effort",
+          "urbanTrafficDelayMinutes": 0,
+          "gateSecurityDelayMinutes": 0,
+          "coordinates": [
+            [
+              47.2184,
+              -1.5536
+            ],
+            [
+              47.29,
+              -1.35
+            ],
+            [
+              47.3667,
+              -1.1833
+            ]
+          ],
+          "targetEffortWatts": 180
+        },
+        "weather": {
+          "isHeadwindActive": true,
+          "baseWindSpeedKmH": 20,
+          "windDirection": "headwind",
+          "windDirectionDegrees": 0,
+          "temperatureC": 18,
+          "precipitationRiskPercent": 0,
+          "estuaryGustKmH": 0,
+          "visibilityKm": 20,
+          "effectiveHeadwindKmH": 20
+        },
+        "lang": "en",
+        "ftpOverride": 240
+      },
+      "expected": {
+        "systemMassKg": 81,
+        "groundSpeedMs": 5.931250398047268,
+        "airSpeedMs": 11.486805953602824,
+        "effectiveSpeedKmH": 21.4,
+        "calmSpeedKmH": 32.4,
+        "baselineLegWatts": 123.74312241030646,
+        "rollingResistanceWatts": 21.20863895456553,
+        "aerodynamicDragWatts": 153.3913605176775,
+        "gravityWatts": 0,
+        "wheelWatts": 174.59999947224304,
+        "legWatts": 179.99999945592066,
+        "wattsPerKg": 2.57,
+        "ftpWatts": 240,
+        "ftpPercent": 75,
+        "powerZone": "Z2",
+        "pacingMode": "effort",
+        "windDelayMinutes": 47,
+        "movingTimeSeconds": 8429.925672411568,
+        "movingTimeFormatted": "2 h 20 min 29 s",
+        "totalWorkKj": 1517.3866164475337,
+        "totalKcalBurn": 1648.4732057703955,
+        "carbOxidationGramPerHour": 122,
+        "totalCarbsBurnedGrams": 286,
+        "speedDeltaKmH": 11,
+        "powerDeltaWatts": 0,
+        "goStatus": "GO",
+        "goStatusReason": "Headwind (20 km/h) absorbed: your effort stays comfortable at 180 W (Z2) and adds +47 min to your time.",
+        "effectiveCrr": 0.0045,
+        "crrMultiplier": 1,
+        "roadCondition": "dry",
+        "cautionPaceFactor": 1,
+        "cautionDelayMinutes": 0,
+        "cautionReasons": [],
+        "surfaceCrrSource": "bike-baseline"
+      }
+    },
+    {
+      "id": "tailwind-speed",
+      "description": "Tailwind speed pacing reduces power and aero drag",
+      "input": {
+        "physics": {
+          "riderWeightKg": 70,
+          "bikeWeightKg": 9,
+          "gearWeightKg": 2,
+          "cda": 0.32,
+          "crr": 0.0045,
+          "rho": 1.225,
+          "drivetrainEfficiency": 0.97,
+          "grossMechanicalEfficiency": 0.22,
+          "gradientPercent": 0
+        },
+        "route": {
+          "origin": "Nantes",
+          "destination": "Ancenis",
+          "distanceKm": 50,
+          "targetSpeedKmH": 28,
+          "pacingMode": "speed",
+          "urbanTrafficDelayMinutes": 0,
+          "gateSecurityDelayMinutes": 0,
+          "coordinates": [
+            [
+              47.2184,
+              -1.5536
+            ],
+            [
+              47.29,
+              -1.35
+            ],
+            [
+              47.3667,
+              -1.1833
+            ]
+          ]
+        },
+        "weather": {
+          "isHeadwindActive": false,
+          "baseWindSpeedKmH": 20,
+          "windDirection": "tailwind",
+          "windDirectionDegrees": 0,
+          "temperatureC": 18,
+          "precipitationRiskPercent": 0,
+          "estuaryGustKmH": 0,
+          "visibilityKm": 20,
+          "effectiveHeadwindKmH": -15
+        },
+        "lang": "en",
+        "ftpOverride": 240
+      },
+      "expected": {
+        "systemMassKg": 81,
+        "groundSpeedMs": 7.777777777777778,
+        "airSpeedMs": 3.6111111111111107,
+        "effectiveSpeedKmH": 28,
+        "calmSpeedKmH": 28,
+        "baselineLegWatts": 123.74312241030646,
+        "rollingResistanceWatts": 27.81135,
+        "aerodynamicDragWatts": 19.878943758573385,
+        "gravityWatts": 0,
+        "wheelWatts": 47.69029375857339,
+        "legWatts": 49.165251297498344,
+        "wattsPerKg": 0.7,
+        "ftpWatts": 240,
+        "ftpPercent": 20,
+        "powerZone": "Z1",
+        "pacingMode": "speed",
+        "windDelayMinutes": 0,
+        "movingTimeSeconds": 6428.571428571428,
+        "movingTimeFormatted": "1 h 47 min 08 s",
+        "totalWorkKj": 316.0623297696322,
+        "totalKcalBurn": 343.36686269080496,
+        "carbOxidationGramPerHour": 22,
+        "totalCarbsBurnedGrams": 39,
+        "speedDeltaKmH": 0,
+        "powerDeltaWatts": 0,
+        "goStatus": "GO",
+        "goStatusReason": "Calm, gentle air — smooth and easy pedaling ahead.",
+        "effectiveCrr": 0.0045,
+        "crrMultiplier": 1,
+        "roadCondition": "dry",
+        "cautionPaceFactor": 1,
+        "cautionDelayMinutes": 0,
+        "cautionReasons": [],
+        "surfaceCrrSource": "bike-baseline"
+      }
+    },
+    {
+      "id": "climb-and-descent",
+      "description": "Steep 6.5% climb vs -3.0% descent gradient scaling",
+      "input": {
+        "climbPhysics": {
+          "riderWeightKg": 70,
+          "bikeWeightKg": 9,
+          "gearWeightKg": 2,
+          "cda": 0.32,
+          "crr": 0.0045,
+          "rho": 1.225,
+          "drivetrainEfficiency": 0.97,
+          "grossMechanicalEfficiency": 0.22,
+          "gradientPercent": 6.5
+        },
+        "descentPhysics": {
+          "riderWeightKg": 70,
+          "bikeWeightKg": 9,
+          "gearWeightKg": 2,
+          "cda": 0.32,
+          "crr": 0.0045,
+          "rho": 1.225,
+          "drivetrainEfficiency": 0.97,
+          "grossMechanicalEfficiency": 0.22,
+          "gradientPercent": -3
+        },
+        "route": {
+          "origin": "Nantes",
+          "destination": "Ancenis",
+          "distanceKm": 50,
+          "targetSpeedKmH": 28,
+          "pacingMode": "speed",
+          "urbanTrafficDelayMinutes": 0,
+          "gateSecurityDelayMinutes": 0,
+          "coordinates": [
+            [
+              47.2184,
+              -1.5536
+            ],
+            [
+              47.29,
+              -1.35
+            ],
+            [
+              47.3667,
+              -1.1833
+            ]
+          ]
+        },
+        "weather": {
+          "isHeadwindActive": false,
+          "baseWindSpeedKmH": 0,
+          "windDirection": "calm",
+          "windDirectionDegrees": 0,
+          "temperatureC": 18,
+          "precipitationRiskPercent": 0,
+          "estuaryGustKmH": 0,
+          "visibilityKm": 20
+        },
+        "ftpOverride": 240
+      },
+      "expected": {
+        "climb": {
+          "systemMassKg": 81,
+          "groundSpeedMs": 7.777777777777778,
+          "airSpeedMs": 7.777777777777778,
+          "effectiveSpeedKmH": 28,
+          "calmSpeedKmH": 28,
+          "baselineLegWatts": 537.0148205827684,
+          "rollingResistanceWatts": 27.81135,
+          "aerodynamicDragWatts": 92.21947873799725,
+          "gravityWatts": 400.87354722728804,
+          "wheelWatts": 520.9043759652853,
+          "legWatts": 537.0148205827684,
+          "wattsPerKg": 7.67,
+          "ftpWatts": 240,
+          "ftpPercent": 224,
+          "powerZone": "Z5",
+          "pacingMode": "speed",
+          "windDelayMinutes": 0,
+          "movingTimeSeconds": 6428.571428571428,
+          "movingTimeFormatted": "1 h 47 min 08 s",
+          "totalWorkKj": 3452.238132317797,
+          "totalKcalBurn": 3750.4759824415487,
+          "carbOxidationGramPerHour": 462,
+          "totalCarbsBurnedGrams": 825,
+          "speedDeltaKmH": 0,
+          "powerDeltaWatts": 0,
+          "goStatus": "CAUTION",
+          "goStatusReason": "Heads up: this pace is brisk for you. Switch to Steady effort to ride more relaxed.",
+          "effectiveCrr": 0.0045,
+          "crrMultiplier": 1,
+          "roadCondition": "dry",
+          "cautionPaceFactor": 1,
+          "cautionDelayMinutes": 0,
+          "cautionReasons": [],
+          "surfaceCrrSource": "bike-baseline"
+        },
+        "descent": {
+          "systemMassKg": 81,
+          "groundSpeedMs": 7.777777777777778,
+          "airSpeedMs": 7.777777777777778,
+          "effectiveSpeedKmH": 28,
+          "calmSpeedKmH": 28,
+          "baselineLegWatts": 25,
+          "rollingResistanceWatts": 27.81135,
+          "aerodynamicDragWatts": 92.21947873799725,
+          "gravityWatts": -185.32562222577852,
+          "wheelWatts": 5,
+          "legWatts": 5.154639175257732,
+          "wattsPerKg": 0.07,
+          "ftpWatts": 240,
+          "ftpPercent": 2,
+          "powerZone": "Z1",
+          "pacingMode": "speed",
+          "windDelayMinutes": 0,
+          "movingTimeSeconds": 6428.571428571428,
+          "movingTimeFormatted": "1 h 47 min 08 s",
+          "totalWorkKj": 33.13696612665685,
+          "totalKcalBurn": 35.999659011229845,
+          "carbOxidationGramPerHour": 2,
+          "totalCarbsBurnedGrams": 4,
+          "speedDeltaKmH": 0,
+          "powerDeltaWatts": 0,
+          "goStatus": "GO",
+          "goStatusReason": "Calm, gentle air — smooth and easy pedaling ahead.",
+          "effectiveCrr": 0.0045,
+          "crrMultiplier": 1,
+          "roadCondition": "dry",
+          "cautionPaceFactor": 1,
+          "cautionDelayMinutes": 0,
+          "cautionReasons": [],
+          "surfaceCrrSource": "bike-baseline"
+        }
+      }
+    },
+    {
+      "id": "cold-wet-dark-caution",
+      "description": "Cold wet dark caution pace factor, road surface classification, and EN/FR summaries",
+      "input": {
+        "physics": {
+          "riderWeightKg": 70,
+          "bikeWeightKg": 9,
+          "gearWeightKg": 2,
+          "cda": 0.32,
+          "crr": 0.0045,
+          "rho": 1.225,
+          "drivetrainEfficiency": 0.97,
+          "grossMechanicalEfficiency": 0.22,
+          "gradientPercent": 0
+        },
+        "route": {
+          "origin": "Nantes",
+          "destination": "Ancenis",
+          "distanceKm": 50,
+          "targetSpeedKmH": 28,
+          "pacingMode": "speed",
+          "urbanTrafficDelayMinutes": 0,
+          "gateSecurityDelayMinutes": 0,
+          "coordinates": [
+            [
+              47.2184,
+              -1.5536
+            ],
+            [
+              47.29,
+              -1.35
+            ],
+            [
+              47.3667,
+              -1.1833
+            ]
+          ]
+        },
+        "weather": {
+          "isHeadwindActive": false,
+          "baseWindSpeedKmH": 0,
+          "windDirection": "calm",
+          "windDirectionDegrees": 0,
+          "temperatureC": 6,
+          "precipitationRiskPercent": 45,
+          "estuaryGustKmH": 0,
+          "visibilityKm": 20,
+          "relativeHumidity": 96,
+          "recentPrecipitationMm": 1.5
+        },
+        "envContext": {
+          "isTubeless": false,
+          "nightPercent": 56,
+          "twilightPercent": 30
+        }
+      },
+      "expected": {
+        "roadCondition": "wet",
+        "en": {
+          "systemMassKg": 81,
+          "groundSpeedMs": 6.976666666666667,
+          "airSpeedMs": 6.976666666666667,
+          "effectiveSpeedKmH": 25.1,
+          "calmSpeedKmH": 25.1,
+          "baselineLegWatts": 102.05028214268806,
+          "rollingResistanceWatts": 32.430815235,
+          "aerodynamicDragWatts": 66.5579584434074,
+          "gravityWatts": 0,
+          "wheelWatts": 98.9887736784074,
+          "legWatts": 102.05028214268805,
+          "wattsPerKg": 1.46,
+          "ftpWatts": 240,
+          "ftpPercent": 43,
+          "powerZone": "Z1",
+          "pacingMode": "speed",
+          "windDelayMinutes": 0,
+          "movingTimeSeconds": 7166.74629718108,
+          "movingTimeFormatted": "1 h 59 min 26 s",
+          "totalWorkKj": 731.3684816723941,
+          "totalKcalBurn": 794.5511924999935,
+          "carbOxidationGramPerHour": 56,
+          "totalCarbsBurnedGrams": 111,
+          "speedDeltaKmH": 0,
+          "powerDeltaWatts": 0,
+          "goStatus": "GO",
+          "goStatusReason": "Calm, gentle air — smooth and easy pedaling ahead.",
+          "effectiveCrr": 0.00585,
+          "crrMultiplier": 1.3,
+          "roadCondition": "wet",
+          "cautionPaceFactor": 0.897,
+          "cautionDelayMinutes": 12,
+          "cautionReasons": [
+            "dark",
+            "wet",
+            "cold-tires"
+          ],
+          "surfaceCrrSource": "bike-baseline"
+        },
+        "cautionSummaryEn": "−10% pace (dark/wet)",
+        "fr": {
+          "systemMassKg": 81,
+          "groundSpeedMs": 6.976666666666667,
+          "airSpeedMs": 6.976666666666667,
+          "effectiveSpeedKmH": 25.1,
+          "calmSpeedKmH": 25.1,
+          "baselineLegWatts": 102.05028214268806,
+          "rollingResistanceWatts": 32.430815235,
+          "aerodynamicDragWatts": 66.5579584434074,
+          "gravityWatts": 0,
+          "wheelWatts": 98.9887736784074,
+          "legWatts": 102.05028214268805,
+          "wattsPerKg": 1.46,
+          "ftpWatts": 240,
+          "ftpPercent": 43,
+          "powerZone": "Z1",
+          "pacingMode": "speed",
+          "windDelayMinutes": 0,
+          "movingTimeSeconds": 7166.74629718108,
+          "movingTimeFormatted": "1 h 59 min 26 s",
+          "totalWorkKj": 731.3684816723941,
+          "totalKcalBurn": 794.5511924999935,
+          "carbOxidationGramPerHour": 56,
+          "totalCarbsBurnedGrams": 111,
+          "speedDeltaKmH": 0,
+          "powerDeltaWatts": 0,
+          "goStatus": "GO",
+          "goStatusReason": "Air calme et porteur — pédalage fluide et sans contrainte.",
+          "effectiveCrr": 0.00585,
+          "crrMultiplier": 1.3,
+          "roadCondition": "wet",
+          "cautionPaceFactor": 0.897,
+          "cautionDelayMinutes": 12,
+          "cautionReasons": [
+            "dark",
+            "wet",
+            "cold-tires"
+          ],
+          "surfaceCrrSource": "bike-baseline"
+        },
+        "cautionSummaryFr": "−10% allure (nuit/mouillé)"
+      }
+    },
+    {
+      "id": "sectional-energy-breakdown",
+      "description": "Sectional energy breakdown across flat, rolling, climbing, and descent bands",
+      "input": {
+        "tripId": "alpine-loop",
+        "departureDate": "2026-07-15",
+        "isTubeless": true,
+        "ftpOverride": 260
+      },
+      "expected": {
+        "envContext": {
+          "isTubeless": true,
+          "nightPercent": 0,
+          "twilightPercent": 0
+        },
+        "physics": {
+          "systemMassKg": 81,
+          "groundSpeedMs": 6.388888888888888,
+          "airSpeedMs": 6.388888888888888,
+          "effectiveSpeedKmH": 23,
+          "calmSpeedKmH": 23,
+          "baselineLegWatts": 173.72993627762648,
+          "rollingResistanceWatts": 22.845037499999997,
+          "aerodynamicDragWatts": 54.30765067729766,
+          "gravityWatts": 91.36535001200001,
+          "wheelWatts": 168.51803818929767,
+          "legWatts": 173.72993627762648,
+          "wattsPerKg": 2.48,
+          "ftpWatts": 260,
+          "ftpPercent": 67,
+          "powerZone": "Z2",
+          "pacingMode": "speed",
+          "windDelayMinutes": 0,
+          "movingTimeSeconds": 9704.347826086958,
+          "movingTimeFormatted": "2 h 41 min 44 s",
+          "totalWorkKj": 1685.9357294420101,
+          "totalKcalBurn": 1831.5832277094669,
+          "carbOxidationGramPerHour": 112,
+          "totalCarbsBurnedGrams": 302,
+          "speedDeltaKmH": 0,
+          "powerDeltaWatts": 0,
+          "goStatus": "GO",
+          "goStatusReason": "Calm, gentle air — smooth and easy pedaling ahead.",
+          "effectiveCrr": 0.0045,
+          "crrMultiplier": 1,
+          "roadCondition": "dry",
+          "cautionPaceFactor": 1,
+          "cautionDelayMinutes": 0,
+          "cautionReasons": [],
+          "surfaceCrrSource": "bike-baseline"
+        },
+        "sectional": {
+          "isFromGpx": true,
+          "zoneShares": [
+            {
+              "zone": "Z1",
+              "pctTime": 78,
+              "minutes": 126,
+              "wattsRange": "< 146W"
+            },
+            {
+              "zone": "Z2",
+              "pctTime": 0,
+              "minutes": 0,
+              "wattsRange": "146–195W"
+            },
+            {
+              "zone": "Z3",
+              "pctTime": 0,
+              "minutes": 0,
+              "wattsRange": "198–234W"
+            },
+            {
+              "zone": "Z4",
+              "pctTime": 0,
+              "minutes": 0,
+              "wattsRange": "237–273W"
+            },
+            {
+              "zone": "Z5",
+              "pctTime": 22,
+              "minutes": 35,
+              "wattsRange": "> 273W"
+            }
+          ],
+          "bands": [
+            {
+              "id": "easy",
+              "title": "Sheltered Flats & Descents",
+              "subtitle": "Active recovery & light cadence spin",
+              "pctDistance": 81,
+              "distanceKm": 50,
+              "avgWatts": 56,
+              "peakWatts": 87,
+              "zone": "Z1",
+              "kcalShare": 660,
+              "avgSpeedKmH": 23.7
+            },
+            {
+              "id": "rolling",
+              "title": "Rolling Cruise & Wind Exposure",
+              "subtitle": "Steady endurance rhythm on undulating roads",
+              "pctDistance": 0,
+              "distanceKm": 0,
+              "avgWatts": 181,
+              "peakWatts": 203,
+              "zone": "Z2",
+              "kcalShare": 0,
+              "avgSpeedKmH": 23
+            },
+            {
+              "id": "climbs",
+              "title": "Climbs & Punchy Ramps (>3.5%)",
+              "subtitle": "Peak muscular effort — shift down early!",
+              "pctDistance": 19,
+              "distanceKm": 12,
+              "avgWatts": 359,
+              "peakWatts": 359,
+              "zone": "Z5",
+              "kcalShare": 1172,
+              "avgSpeedKmH": 20.6
+            }
+          ],
+          "peakClimbWatts": 359,
+          "peakZone": "Z5",
+          "effortTrace": [
+            {
+              "distKm": 0,
+              "eleM": 210,
+              "watts": 87,
+              "gradePct": 0.15,
+              "zone": "Z1"
+            },
+            {
+              "distKm": 10,
+              "eleM": 225,
+              "watts": 87,
+              "gradePct": 0.1,
+              "zone": "Z1"
+            },
+            {
+              "distKm": 12,
+              "eleM": 345,
+              "watts": 359,
+              "gradePct": 6,
+              "zone": "Z5"
+            },
+            {
+              "distKm": 15,
+              "eleM": 555,
+              "watts": 359,
+              "gradePct": 7,
+              "zone": "Z5"
+            },
+            {
+              "distKm": 18,
+              "eleM": 765,
+              "watts": 359,
+              "gradePct": 7,
+              "zone": "Z5"
+            },
+            {
+              "distKm": 28,
+              "eleM": 420,
+              "watts": 25,
+              "gradePct": -3.4,
+              "zone": "Z1"
+            },
+            {
+              "distKm": 35,
+              "eleM": 430,
+              "watts": 87,
+              "gradePct": 0.1,
+              "zone": "Z1"
+            },
+            {
+              "distKm": 39,
+              "eleM": 650,
+              "watts": 359,
+              "gradePct": 5.5,
+              "zone": "Z5"
+            },
+            {
+              "distKm": 55,
+              "eleM": 310,
+              "watts": 25,
+              "gradePct": -2.1,
+              "zone": "Z1"
+            },
+            {
+              "distKm": 62,
+              "eleM": 320,
+              "watts": 87,
+              "gradePct": 0.1,
+              "zone": "Z1"
+            }
+          ],
+          "peakAtKm": 12,
+          "peakGradePct": 6,
+          "totalMinutes": 161,
+          "totalDistanceKm": 62,
+          "elevationGainM": 795,
+          "ftpWatts": 260
+        }
+      }
+    },
+    {
+      "id": "zero-distance-guard",
+      "description": "Zero-distance division guard on physics and sectional breakdown",
+      "input": {
+        "physics": {
+          "riderWeightKg": 70,
+          "bikeWeightKg": 9,
+          "gearWeightKg": 2,
+          "cda": 0.32,
+          "crr": 0.0045,
+          "rho": 1.225,
+          "drivetrainEfficiency": 0.97,
+          "grossMechanicalEfficiency": 0.22,
+          "gradientPercent": 0
+        },
+        "route": {
+          "origin": "Nantes",
+          "destination": "Ancenis",
+          "distanceKm": 0,
+          "targetSpeedKmH": 28,
+          "pacingMode": "speed",
+          "urbanTrafficDelayMinutes": 0,
+          "gateSecurityDelayMinutes": 0,
+          "coordinates": [
+            [
+              47.2184,
+              -1.5536
+            ],
+            [
+              47.29,
+              -1.35
+            ],
+            [
+              47.3667,
+              -1.1833
+            ]
+          ]
+        },
+        "weather": {
+          "isHeadwindActive": false,
+          "baseWindSpeedKmH": 0,
+          "windDirection": "calm",
+          "windDirectionDegrees": 0,
+          "temperatureC": 18,
+          "precipitationRiskPercent": 0,
+          "estuaryGustKmH": 0,
+          "visibilityKm": 20
+        }
+      },
+      "expected": {
+        "physics": {
+          "systemMassKg": 81,
+          "groundSpeedMs": 7.777777777777778,
+          "airSpeedMs": 7.777777777777778,
+          "effectiveSpeedKmH": 28,
+          "calmSpeedKmH": 28,
+          "baselineLegWatts": 123.74312241030646,
+          "rollingResistanceWatts": 27.81135,
+          "aerodynamicDragWatts": 92.21947873799725,
+          "gravityWatts": 0,
+          "wheelWatts": 120.03082873799725,
+          "legWatts": 123.74312241030646,
+          "wattsPerKg": 1.77,
+          "ftpWatts": 240,
+          "ftpPercent": 52,
+          "powerZone": "Z1",
+          "pacingMode": "speed",
+          "windDelayMinutes": 0,
+          "movingTimeSeconds": 0,
+          "movingTimeFormatted": "0 min 00 s",
+          "totalWorkKj": 0,
+          "totalKcalBurn": 0,
+          "carbOxidationGramPerHour": 0,
+          "totalCarbsBurnedGrams": 0,
+          "speedDeltaKmH": 0,
+          "powerDeltaWatts": 0,
+          "goStatus": "GO",
+          "goStatusReason": "Calm, gentle air — smooth and easy pedaling ahead.",
+          "effectiveCrr": 0.0045,
+          "crrMultiplier": 1,
+          "roadCondition": "dry",
+          "cautionPaceFactor": 1,
+          "cautionDelayMinutes": 0,
+          "cautionReasons": [],
+          "surfaceCrrSource": "bike-baseline"
+        },
+        "sectional": {
+          "isFromGpx": false,
+          "zoneShares": [
+            {
+              "zone": "Z1",
+              "pctTime": 53,
+              "minutes": 34,
+              "wattsRange": "< 134W"
+            },
+            {
+              "zone": "Z2",
+              "pctTime": 13,
+              "minutes": 8,
+              "wattsRange": "134–180W"
+            },
+            {
+              "zone": "Z3",
+              "pctTime": 13,
+              "minutes": 8,
+              "wattsRange": "182–216W"
+            },
+            {
+              "zone": "Z4",
+              "pctTime": 10,
+              "minutes": 7,
+              "wattsRange": "218–252W"
+            },
+            {
+              "zone": "Z5",
+              "pctTime": 11,
+              "minutes": 7,
+              "wattsRange": "> 252W"
+            }
+          ],
+          "bands": [
+            {
+              "id": "easy",
+              "title": "Sheltered Flats & Descents",
+              "subtitle": "Active recovery & light cadence spin",
+              "pctDistance": 0,
+              "distanceKm": 0,
+              "avgWatts": 64,
+              "peakWatts": 181,
+              "zone": "Z1",
+              "kcalShare": 0,
+              "avgSpeedKmH": 28.3
+            },
+            {
+              "id": "rolling",
+              "title": "Rolling Cruise & Wind Exposure",
+              "subtitle": "Steady endurance rhythm on undulating roads",
+              "pctDistance": 0,
+              "distanceKm": 0,
+              "avgWatts": 234,
+              "peakWatts": 296,
+              "zone": "Z4",
+              "kcalShare": 0,
+              "avgSpeedKmH": 28
+            },
+            {
+              "id": "climbs",
+              "title": "Climbs & Punchy Ramps (>3.5%)",
+              "subtitle": "Peak muscular effort — shift down early!",
+              "pctDistance": 0,
+              "distanceKm": 0,
+              "avgWatts": 163,
+              "peakWatts": 183,
+              "zone": "Z2",
+              "kcalShare": 0,
+              "avgSpeedKmH": 28
+            }
+          ],
+          "peakClimbWatts": 296,
+          "peakZone": "Z5",
+          "effortTrace": [
+            {
+              "distKm": 0,
+              "eleM": 142.6,
+              "watts": 226,
+              "gradePct": 1.6,
+              "zone": "Z4"
+            },
+            {
+              "distKm": 0.63,
+              "eleM": 152.7,
+              "watts": 226,
+              "gradePct": 1.6,
+              "zone": "Z4"
+            },
+            {
+              "distKm": 1.25,
+              "eleM": 155.1,
+              "watts": 149,
+              "gradePct": 0.4,
+              "zone": "Z2"
+            },
+            {
+              "distKm": 1.88,
+              "eleM": 149.5,
+              "watts": 66,
+              "gradePct": -0.9,
+              "zone": "Z1"
+            },
+            {
+              "distKm": 2.5,
+              "eleM": 137.6,
+              "watts": 25,
+              "gradePct": -1.9,
+              "zone": "Z1"
+            },
+            {
+              "distKm": 3.13,
+              "eleM": 122.3,
+              "watts": 25,
+              "gradePct": -2.4,
+              "zone": "Z1"
+            },
+            {
+              "distKm": 3.75,
+              "eleM": 106.7,
+              "watts": 25,
+              "gradePct": -2.5,
+              "zone": "Z1"
+            },
+            {
+              "distKm": 4.38,
+              "eleM": 93,
+              "watts": 25,
+              "gradePct": -2.2,
+              "zone": "Z1"
+            },
+            {
+              "distKm": 5,
+              "eleM": 82.4,
+              "watts": 25,
+              "gradePct": -1.7,
+              "zone": "Z1"
+            },
+            {
+              "distKm": 5.63,
+              "eleM": 74.2,
+              "watts": 41,
+              "gradePct": -1.3,
+              "zone": "Z1"
+            },
+            {
+              "distKm": 6.25,
+              "eleM": 67.2,
+              "watts": 54,
+              "gradePct": -1.1,
+              "zone": "Z1"
+            },
+            {
+              "distKm": 6.88,
+              "eleM": 59.6,
+              "watts": 47,
+              "gradePct": -1.2,
+              "zone": "Z1"
+            },
+            {
+              "distKm": 7.5,
+              "eleM": 50.5,
+              "watts": 28,
+              "gradePct": -1.5,
+              "zone": "Z1"
+            },
+            {
+              "distKm": 8.13,
+              "eleM": 39.9,
+              "watts": 25,
+              "gradePct": -1.7,
+              "zone": "Z1"
+            },
+            {
+              "distKm": 8.75,
+              "eleM": 29.4,
+              "watts": 25,
+              "gradePct": -1.7,
+              "zone": "Z1"
+            },
+            {
+              "distKm": 9.38,
+              "eleM": 21.3,
+              "watts": 41,
+              "gradePct": -1.3,
+              "zone": "Z1"
+            },
+            {
+              "distKm": 10,
+              "eleM": 18,
+              "watts": 92,
+              "gradePct": -0.5,
+              "zone": "Z1"
+            },
+            {
+              "distKm": 10.63,
+              "eleM": 21,
+              "watts": 156,
+              "gradePct": 0.5,
+              "zone": "Z2"
+            },
+            {
+              "distKm": 11.25,
+              "eleM": 30.2,
+              "watts": 219,
+              "gradePct": 1.5,
+              "zone": "Z4"
+            },
+            {
+              "distKm": 11.88,
+              "eleM": 43.9,
+              "watts": 264,
+              "gradePct": 2.2,
+              "zone": "Z5"
+            },
+            {
+              "distKm": 12.5,
+              "eleM": 58.8,
+              "watts": 277,
+              "gradePct": 2.4,
+              "zone": "Z5"
+            },
+            {
+              "distKm": 13.13,
+              "eleM": 71.2,
+              "watts": 251,
+              "gradePct": 2,
+              "zone": "Z4"
+            },
+            {
+              "distKm": 13.75,
+              "eleM": 77.9,
+              "watts": 194,
+              "gradePct": 1.1,
+              "zone": "Z3"
+            },
+            {
+              "distKm": 14.38,
+              "eleM": 77.2,
+              "watts": 117,
+              "gradePct": -0.1,
+              "zone": "Z1"
+            },
+            {
+              "distKm": 15,
+              "eleM": 69.5,
+              "watts": 47,
+              "gradePct": -1.2,
+              "zone": "Z1"
+            },
+            {
+              "distKm": 15.63,
+              "eleM": 57.1,
+              "watts": 25,
+              "gradePct": -2,
+              "zone": "Z1"
+            },
+            {
+              "distKm": 16.25,
+              "eleM": 43.7,
+              "watts": 25,
+              "gradePct": -2.2,
+              "zone": "Z1"
+            },
+            {
+              "distKm": 16.88,
+              "eleM": 33.3,
+              "watts": 25,
+              "gradePct": -1.7,
+              "zone": "Z1"
+            },
+            {
+              "distKm": 17.5,
+              "eleM": 29.1,
+              "watts": 79,
+              "gradePct": -0.7,
+              "zone": "Z1"
+            },
+            {
+              "distKm": 18.13,
+              "eleM": 32.4,
+              "watts": 156,
+              "gradePct": 0.5,
+              "zone": "Z2"
+            },
+            {
+              "distKm": 18.75,
+              "eleM": 42.8,
+              "watts": 232,
+              "gradePct": 1.7,
+              "zone": "Z4"
+            },
+            {
+              "distKm": 19.38,
+              "eleM": 58,
+              "watts": 277,
+              "gradePct": 2.4,
+              "zone": "Z5"
+            },
+            {
+              "distKm": 20,
+              "eleM": 75,
+              "watts": 296,
+              "gradePct": 2.7,
+              "zone": "Z5"
+            },
+            {
+              "distKm": 20.63,
+              "eleM": 90.7,
+              "watts": 283,
+              "gradePct": 2.5,
+              "zone": "Z5"
+            },
+            {
+              "distKm": 21.25,
+              "eleM": 103.4,
+              "watts": 251,
+              "gradePct": 2,
+              "zone": "Z4"
+            },
+            {
+              "distKm": 21.88,
+              "eleM": 112.4,
+              "watts": 213,
+              "gradePct": 1.4,
+              "zone": "Z3"
+            },
+            {
+              "distKm": 22.5,
+              "eleM": 118.6,
+              "watts": 187,
+              "gradePct": 1,
+              "zone": "Z3"
+            },
+            {
+              "distKm": 23.13,
+              "eleM": 123.7,
+              "watts": 175,
+              "gradePct": 0.8,
+              "zone": "Z2"
+            },
+            {
+              "distKm": 23.75,
+              "eleM": 129.2,
+              "watts": 181,
+              "gradePct": 0.9,
+              "zone": "Z2"
+            },
+            {
+              "distKm": 24.38,
+              "eleM": 135.8,
+              "watts": 187,
+              "gradePct": 1,
+              "zone": "Z3"
+            },
+            {
+              "distKm": 25,
+              "eleM": 143,
+              "watts": 200,
+              "gradePct": 1.2,
+              "zone": "Z3"
+            },
+            {
+              "distKm": 25.63,
+              "eleM": 149.1,
+              "watts": 187,
+              "gradePct": 1,
+              "zone": "Z3"
+            },
+            {
+              "distKm": 26.25,
+              "eleM": 151.7,
+              "watts": 149,
+              "gradePct": 0.4,
+              "zone": "Z2"
+            },
+            {
+              "distKm": 26.88,
+              "eleM": 148.6,
+              "watts": 92,
+              "gradePct": -0.5,
+              "zone": "Z1"
+            },
+            {
+              "distKm": 27.5,
+              "eleM": 138.9,
+              "watts": 25,
+              "gradePct": -1.6,
+              "zone": "Z1"
+            },
+            {
+              "distKm": 28.13,
+              "eleM": 123.4,
+              "watts": 25,
+              "gradePct": -2.5,
+              "zone": "Z1"
+            },
+            {
+              "distKm": 28.75,
+              "eleM": 104.4,
+              "watts": 25,
+              "gradePct": -3.1,
+              "zone": "Z1"
+            },
+            {
+              "distKm": 29.38,
+              "eleM": 85.5,
+              "watts": 25,
+              "gradePct": -3,
+              "zone": "Z1"
+            },
+            {
+              "distKm": 30,
+              "eleM": 70.6,
+              "watts": 25,
+              "gradePct": -2.4,
+              "zone": "Z1"
+            }
+          ],
+          "peakAtKm": 20,
+          "peakGradePct": 2.7,
+          "totalMinutes": 64,
+          "totalDistanceKm": 30,
+          "elevationGainM": 195,
+          "ftpWatts": 240
+        }
+      }
+    }
+  ]
+}

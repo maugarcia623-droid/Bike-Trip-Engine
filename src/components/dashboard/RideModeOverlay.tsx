@@ -218,13 +218,20 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
     const ftpWatts = Math.max(80, riderSpecs.ftpWatts || 200);
     const pctFtp =
       physicsResult.ftpPercent ?? ((physicsResult.legWatts || 150) / ftpWatts) * 100;
+    const carbCeiling = riderSpecs.carbTargetGPerHr || 60;
+    const isLockedCarbTarget =
+      riderSpecs?.carbPacingMode === 'locked' ||
+      (riderSpecs?.carbPacingMode !== 'auto' &&
+        riderSpecs?.riderLevel === 'pro' &&
+        carbCeiling >= 60);
     const carbTarget = calculateIntensityModulatedCarbTarget({
       rideHours,
       pctFtp,
       carbOxidationGramPerHour: physicsResult.carbOxidationGramPerHour || 45,
-      gutCeilingGPerHr: riderSpecs.carbTargetGPerHr || 60,
+      gutCeilingGPerHr: carbCeiling,
       totalDays,
       activeChips,
+      isLockedCarbTarget,
     });
     const hydration = calculateHydrationPlan({
       rideHours,
@@ -232,13 +239,13 @@ export const RideModeOverlay: React.FC<RideModeOverlayProps> = ({
       legWatts: physicsResult.legWatts,
       bidonSizeMl: riderSpecs.bidonSizeMl ?? 650,
       frameBottleSlots: riderSpecs.frameBottleSlots ?? 2,
-      isShortRide,
+      isShortRide: isShortRide && !isLockedCarbTarget,
       activeChips,
     });
     return computeFuelingIntervals({
       targetFluidMlPerHr: hydration.targetFluidMlPerHr,
       carbTargetPerHour: carbTarget.effectiveHourlyRateG,
-      isShortRide,
+      isShortRide: isShortRide && !isLockedCarbTarget,
     });
   }, [
     physicsResult.movingTimeSeconds,

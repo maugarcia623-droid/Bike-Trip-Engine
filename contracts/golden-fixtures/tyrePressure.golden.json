@@ -1,0 +1,206 @@
+{
+  "schemaVersion": 1,
+  "engine": "tyrePressure",
+  "sourceFiles": [
+    "src/utils/tyrePressure.ts"
+  ],
+  "determinism": {
+    "frozenUtc": "2026-11-26T12:00:00.000Z",
+    "timezone": "Europe/Paris"
+  },
+  "cases": [
+    {
+      "id": "road-28mm-hookless-capped",
+      "description": "28 mm road hookless rim pressure capped at 5.0 bar ETRTO limit",
+      "input": {
+        "systemMassKg": 95,
+        "tireWidthMm": 28,
+        "isTubeless": true,
+        "pavedPct": 100,
+        "gravelPct": 0,
+        "singletrackPct": 0,
+        "bikeCategory": "road",
+        "isHookless": true
+      },
+      "expected": {
+        "frontBar": 5,
+        "rearBar": 5,
+        "frontPsi": 73,
+        "rearPsi": 73,
+        "frontLoadPct": 45,
+        "rearLoadPct": 55,
+        "bikeCategory": "road",
+        "casingType": "supple",
+        "isHookless": true,
+        "hooklessCapped": true
+      }
+    },
+    {
+      "id": "gravel-38mm-mixed",
+      "description": "38 mm tubeless gravel bike on 40/50/10 paved/gravel/singletrack mix",
+      "input": {
+        "systemMassKg": 82,
+        "tireWidthMm": 38,
+        "isTubeless": true,
+        "pavedPct": 40,
+        "gravelPct": 50,
+        "singletrackPct": 10,
+        "bikeCategory": "gravel",
+        "casingType": "standard"
+      },
+      "expected": {
+        "frontBar": 2.6,
+        "rearBar": 3.1,
+        "frontPsi": 38,
+        "rearPsi": 45,
+        "frontLoadPct": 44,
+        "rearLoadPct": 56,
+        "bikeCategory": "gravel",
+        "casingType": "standard",
+        "isHookless": false,
+        "hooklessCapped": false
+      }
+    },
+    {
+      "id": "touring-42mm-loaded-tubes",
+      "description": "Loaded 42 mm inner-tube reinforced touring setup with 14 kg cargo",
+      "input": {
+        "systemMassKg": 105,
+        "tireWidthMm": 42,
+        "isTubeless": false,
+        "pavedPct": 70,
+        "gravelPct": 30,
+        "singletrackPct": 0,
+        "gearWeightKg": 14,
+        "bikeCategory": "touring",
+        "casingType": "reinforced"
+      },
+      "expected": {
+        "frontBar": 3.2,
+        "rearBar": 4,
+        "frontPsi": 46,
+        "rearPsi": 58,
+        "frontLoadPct": 42,
+        "rearLoadPct": 58,
+        "bikeCategory": "touring",
+        "casingType": "reinforced",
+        "isHookless": false,
+        "hooklessCapped": false
+      }
+    },
+    {
+      "id": "mtb-54mm-singletrack",
+      "description": "54 mm MTB tubeless setup on 60% singletrack",
+      "input": {
+        "systemMassKg": 85,
+        "tireWidthMm": 54,
+        "isTubeless": true,
+        "pavedPct": 10,
+        "gravelPct": 30,
+        "singletrackPct": 60,
+        "bikeCategory": "mtb"
+      },
+      "expected": {
+        "frontBar": 1.4,
+        "rearBar": 1.7,
+        "frontPsi": 20,
+        "rearPsi": 25,
+        "frontLoadPct": 41,
+        "rearLoadPct": 59,
+        "bikeCategory": "mtb",
+        "casingType": "standard",
+        "isHookless": false,
+        "hooklessCapped": false
+      }
+    },
+    {
+      "id": "build-from-bike-and-infer",
+      "description": "buildTyrePressureInputFromBike, inferBikeCategory, and getWheelLoadSplit helpers",
+      "input": {
+        "bike": {
+          "id": "bike-sword",
+          "name": "Van Rysel GRVL AF SWORD",
+          "weightKg": 10.9,
+          "crr": 0.0055,
+          "cda": 0.38,
+          "isTubeless": true,
+          "tireWidthMm": 38,
+          "bikeCategory": "gravel",
+          "casingType": "standard",
+          "isHookless": false
+        },
+        "systemMassKg": 80,
+        "gearWeightKg": 2
+      },
+      "expected": {
+        "BAR_TO_PSI": 14.5038,
+        "builtInput": {
+          "systemMassKg": 80,
+          "tireWidthMm": 38,
+          "isTubeless": true,
+          "pavedPct": 60,
+          "gravelPct": 35,
+          "singletrackPct": 5,
+          "gearWeightKg": 2,
+          "bikeCategory": "gravel",
+          "casingType": "standard",
+          "isHookless": false,
+          "bikeName": "Van Rysel GRVL AF SWORD"
+        },
+        "pressure": {
+          "frontBar": 2.6,
+          "rearBar": 3.2,
+          "frontPsi": 38,
+          "rearPsi": 46,
+          "frontLoadPct": 44,
+          "rearLoadPct": 56,
+          "bikeCategory": "gravel",
+          "casingType": "standard",
+          "isHookless": false,
+          "hooklessCapped": false
+        },
+        "inferredCategory": "gravel",
+        "wheelLoadSplitRoad": {
+          "frontPct": 45,
+          "rearPct": 55
+        },
+        "wheelLoadSplitGravelLoaded": {
+          "frontPct": 42,
+          "rearPct": 58
+        }
+      }
+    },
+    {
+      "id": "formatting-en-fr-psi",
+      "description": "barToPsi and EN/FR bar/PSI pressure pair formatting",
+      "input": {
+        "frontBar": 3.2,
+        "rearBar": 3.8,
+        "sampleBars": [
+          2.4,
+          3.2,
+          5
+        ]
+      },
+      "expected": {
+        "psiValues": [
+          {
+            "bar": 2.4,
+            "psi": 35
+          },
+          {
+            "bar": 3.2,
+            "psi": 46
+          },
+          {
+            "bar": 5,
+            "psi": 73
+          }
+        ],
+        "barEn": "3.2/3.8 bar",
+        "barFr": "3,2/3,8 bar",
+        "psiEn": "46/55 PSI"
+      }
+    }
+  ]
+}

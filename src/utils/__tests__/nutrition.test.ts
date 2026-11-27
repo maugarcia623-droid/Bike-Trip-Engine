@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   calculateIntensityModulatedCarbTarget,
   calculateHydrationPlan,
+  getRealFoodNutritionPlan,
   resolveEffectiveFuelSplit,
 } from '../nutrition';
 
@@ -130,5 +131,81 @@ describe('nutrition.ts', () => {
       isMultiDayTour: true,
     });
     assert.equal(multiDay.savoryResetCount, 2);
+  });
+
+  it('holds exact gutCeilingGPerHr when isLockedCarbTarget is true even at low intensity or <45 min', () => {
+    const lockedLowIntensity = calculateIntensityModulatedCarbTarget({
+      rideHours: 2,
+      pctFtp: 58,
+      carbOxidationGramPerHour: 110,
+      gutCeilingGPerHr: 80,
+      totalDays: 1,
+      isLockedCarbTarget: true,
+    });
+    assert.equal(lockedLowIntensity.recommendedGPerHr, 80);
+    assert.equal(lockedLowIntensity.effectiveHourlyRateG, 80);
+    assert.equal(lockedLowIntensity.targetOnBikeCarbsG, 160);
+
+    const lockedShortRide = calculateIntensityModulatedCarbTarget({
+      rideHours: 0.5,
+      pctFtp: 65,
+      carbOxidationGramPerHour: 110,
+      gutCeilingGPerHr: 70,
+      totalDays: 1,
+      isLockedCarbTarget: true,
+    });
+    assert.equal(lockedShortRide.recommendedGPerHr, 70);
+    assert.notEqual(lockedShortRide.pacingTier, 'short-hydration-only');
+  });
+
+  it('honors carbPacingMode auto override over riderLevel pro and locked 25 g/h floor in getRealFoodNutritionPlan', () => {
+    const proAutoPhases = getRealFoodNutritionPlan('09:30', '09:50', '07:30', 'en', {
+      carbTargetGPerHr: 90,
+      carbPacingMode: 'auto',
+      riderLevel: 'pro',
+      rideHours: 2,
+      pctFtp: 55,
+      carbOxidationGramPerHour: 95,
+      nutritionPreference: 'sports-fuel',
+    });
+    const proAutoOnBike = proAutoPhases.find((p) => p.phaseId === 'on-bike');
+    assert.ok(proAutoOnBike);
+    assert.ok(!proAutoOnBike.title.includes('(90 g/h)'), `Expected auto modulation below 90 g/h, got: ${proAutoOnBike.title}`);
+
+    const proDefaultLockedPhases = getRealFoodNutritionPlan('09:30', '09:50', '07:30', 'en', {
+      carbTargetGPerHr: 90,
+      riderLevel: 'pro',
+      rideHours: 2,
+      pctFtp: 55,
+      carbOxidationGramPerHour: 95,
+      nutritionPreference: 'sports-fuel',
+    });
+    const proDefaultOnBike = proDefaultLockedPhases.find((p) => p.phaseId === 'on-bike');
+    assert.ok(proDefaultOnBike?.title.includes('(90 g/h)'));
+
+    // Locked mode with light-liquid rollout does not exceed effectiveCeilingGPerHr * rideHours
+    const lockedLightLiquid = getRealFoodNutritionPlan('09:30', '09:50', '07:30', 'en', {
+      carbTargetGPerHr: 80,
+      carbPacingMode: 'locked',
+      rideHours: 2,
+      pctFtp: 55,
+      carbOxidationGramPerHour: 95,
+      nutritionPreference: 'sports-fuel',
+      logistics: { preRideStyle: 'light-liquid' },
+    });
+    const lockedOnBike = lockedLightLiquid.find((p) => p.phaseId === 'on-bike');
+    assert.ok(lockedOnBike?.title.includes('(80 g/h)'));
+
+    // 25 g/h locked floor is respected without clamping up to 30
+    const lockedFloorPhases = getRealFoodNutritionPlan('09:30', '09:50', '07:30', 'en', {
+      carbTargetGPerHr: 25,
+      carbPacingMode: 'locked',
+      rideHours: 2,
+      pctFtp: 55,
+      carbOxidationGramPerHour: 95,
+      nutritionPreference: 'sports-fuel',
+    });
+    const floorOnBike = lockedFloorPhases.find((p) => p.phaseId === 'on-bike');
+    assert.ok(floorOnBike?.title.includes('(25 g/h)'), `Expected 25 g/h floor, got: ${floorOnBike?.title}`);
   });
 });

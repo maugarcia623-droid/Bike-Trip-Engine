@@ -1,0 +1,274 @@
+{
+  "schemaVersion": 1,
+  "engine": "stemSticker",
+  "sourceFiles": [
+    "src/utils/stemSticker.ts"
+  ],
+  "determinism": {
+    "frozenUtc": "2026-11-26T12:00:00.000Z",
+    "timezone": "Europe/Paris"
+  },
+  "cases": [
+    {
+      "id": "ventoux-gravel-selected-stops-en",
+      "description": "Mont Ventoux gravel stem sticker with explicit stop selection and custom note",
+      "input": {
+        "demoRouteId": "mont-ventoux-bedoin",
+        "departureDate": "2026-07-15",
+        "departureTime": "08:00",
+        "presetId": "gravel",
+        "selectedAmenityIds": [
+          "stop-b"
+        ],
+        "customNotes": [
+          {
+            "id": "c1",
+            "km": 15.2,
+            "label": "Chalet Reynard Coffee"
+          }
+        ],
+        "lang": "en"
+      },
+      "expected": {
+        "presets": {
+          "road": {
+            "id": "road",
+            "widthMm": 36,
+            "minHeightMm": 140,
+            "maxRows": 10,
+            "labelEn": "Narrow Road",
+            "labelFr": "Route fin",
+            "dimLabel": "3.6 × 14 cm"
+          },
+          "gravel": {
+            "id": "gravel",
+            "widthMm": 46,
+            "minHeightMm": 155,
+            "maxRows": 13,
+            "labelEn": "Wide Gravel",
+            "labelFr": "Gravel large",
+            "dimLabel": "4.6 × 15.5 cm"
+          }
+        },
+        "sticker": {
+          "title": "Mont Ventoux Classic — Bédoin Loop",
+          "subtitle": "57.8 km · +1640 m · 2h53",
+          "distanceKm": 57.8,
+          "elevationGainM": 1640,
+          "startTime": "08:00",
+          "finishHHMM": "13:54",
+          "movingLabel": "2h53",
+          "fuelCueLine": "Eat /25m · Sip /15m · 2×650ml",
+          "tyrePressureLine": "3.0/3.6 bar",
+          "rows": [
+            {
+              "id": "start",
+              "km": 0,
+              "etaHHMM": "08:00",
+              "kind": "start",
+              "title": "Bédoin",
+              "tag": "GO"
+            },
+            {
+              "id": "climb-0",
+              "km": 0.7,
+              "etaHHMM": "08:04",
+              "kind": "climb",
+              "title": "Cat 3 · 5.2 km @ 4.4%",
+              "detail": "+229 m → km 5.8",
+              "tag": "▲",
+              "emphasis": false
+            },
+            {
+              "id": "climb-1",
+              "km": 5.8,
+              "etaHHMM": "08:58",
+              "kind": "climb",
+              "title": "Cat 1 · 9.8 km @ 9.0%",
+              "detail": "+880 m → km 15.6",
+              "tag": "▲",
+              "emphasis": true
+            },
+            {
+              "id": "custom-c1",
+              "km": 15.2,
+              "etaHHMM": "10:51",
+              "kind": "custom",
+              "title": "Chalet Reynard Coffee",
+              "tag": "★",
+              "emphasis": true
+            },
+            {
+              "id": "climb-2",
+              "km": 15.6,
+              "etaHHMM": "10:53",
+              "kind": "climb",
+              "title": "Cat 1 · 5.8 km @ 8.3%",
+              "detail": "+486 m → km 21.4",
+              "tag": "▲",
+              "emphasis": true
+            },
+            {
+              "id": "water-stop-b",
+              "km": 28,
+              "etaHHMM": "12:17",
+              "kind": "water",
+              "title": "Fontaine B",
+              "detail": "Water tap",
+              "tag": "💧"
+            },
+            {
+              "id": "fuel-40",
+              "km": 40,
+              "etaHHMM": "12:44",
+              "kind": "fuel",
+              "title": "Eat snack & sip water",
+              "tag": "●"
+            },
+            {
+              "id": "finish",
+              "km": 57.8,
+              "etaHHMM": "13:54",
+              "kind": "finish",
+              "title": "Bédoin",
+              "tag": "FIN"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "road-preset-water-gap-fr",
+      "description": "Narrow road preset (maxRows 10) in French with PSI tyre pressure and critical water-gap row",
+      "input": {
+        "distanceKm": 95,
+        "presetId": "road",
+        "pressureUnit": "psi",
+        "temperatureC": 27,
+        "lang": "fr"
+      },
+      "expected": {
+        "title": "Boucle Sèche 95 km",
+        "subtitle": "95.0 km · +650 m · 3h39",
+        "distanceKm": 95,
+        "elevationGainM": 650,
+        "startTime": "07:30",
+        "finishHHMM": "11:09",
+        "movingLabel": "3h39",
+        "fuelCueLine": "Manger /25m · Boire /12m · 2×650ml",
+        "tyrePressureLine": "41/49 PSI",
+        "rows": [
+          {
+            "id": "start",
+            "km": 0,
+            "etaHHMM": "07:30",
+            "kind": "start",
+            "title": "Nantes",
+            "tag": "GO"
+          },
+          {
+            "id": "fuel-25",
+            "km": 25,
+            "etaHHMM": "08:28",
+            "kind": "fuel",
+            "title": "Manger & boire",
+            "tag": "●"
+          },
+          {
+            "id": "fuel-50",
+            "km": 50,
+            "etaHHMM": "09:25",
+            "kind": "fuel",
+            "title": "Manger & boire",
+            "tag": "●"
+          },
+          {
+            "id": "fuel-75",
+            "km": 75,
+            "etaHHMM": "10:23",
+            "kind": "fuel",
+            "title": "Manger & boire",
+            "tag": "●"
+          },
+          {
+            "id": "finish",
+            "km": 95,
+            "etaHHMM": "11:09",
+            "kind": "finish",
+            "title": "Ancenis",
+            "tag": "FIN"
+          }
+        ]
+      }
+    },
+    {
+      "id": "short-ride-carb-locked-vs-auto",
+      "description": "12 km (<45m) ride comparing carbPacingMode auto (Water only) vs locked (Eat /20m)",
+      "input": {
+        "distanceKm": 12,
+        "targetSpeedKmH": 25,
+        "carbTargetGPerHr": 80
+      },
+      "expected": {
+        "autoShortSticker": {
+          "title": "Short Interval Spin",
+          "subtitle": "12.0 km · +80 m · 29 min",
+          "distanceKm": 12,
+          "elevationGainM": 80,
+          "startTime": "08:00",
+          "finishHHMM": "08:29",
+          "movingLabel": "29 min",
+          "fuelCueLine": "1×650 ml · Water only",
+          "tyrePressureLine": "2.8/3.4 bar",
+          "rows": [
+            {
+              "id": "start",
+              "km": 0,
+              "etaHHMM": "08:00",
+              "kind": "start",
+              "title": "Nantes",
+              "tag": "GO"
+            },
+            {
+              "id": "finish",
+              "km": 12,
+              "etaHHMM": "08:29",
+              "kind": "finish",
+              "title": "Ancenis",
+              "tag": "FIN"
+            }
+          ]
+        },
+        "lockedShortSticker": {
+          "title": "Short Interval Spin",
+          "subtitle": "12.0 km · +80 m · 29 min",
+          "distanceKm": 12,
+          "elevationGainM": 80,
+          "startTime": "08:00",
+          "finishHHMM": "08:29",
+          "movingLabel": "29 min",
+          "fuelCueLine": "Eat /20m · Sip /15m · 1×650ml",
+          "tyrePressureLine": "2.8/3.4 bar",
+          "rows": [
+            {
+              "id": "start",
+              "km": 0,
+              "etaHHMM": "08:00",
+              "kind": "start",
+              "title": "Nantes",
+              "tag": "GO"
+            },
+            {
+              "id": "finish",
+              "km": 12,
+              "etaHHMM": "08:29",
+              "kind": "finish",
+              "title": "Ancenis",
+              "tag": "FIN"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

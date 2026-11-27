@@ -1,6 +1,6 @@
 import { TripProfile } from '../types/trip';
 import { Language } from '../context/LanguageContext';
-import { NutritionPreference } from '../types/specs';
+import { NutritionPreference, RiderLevel } from '../types/specs';
 import { computeCumulativeDistances, snapToPolyline } from '../services/overpassCorridor';
 import { calculatePhysics } from './physics';
 import {
@@ -26,6 +26,14 @@ export interface FitExportOptions {
   carbTargetGPerHr?: number;
   /** Optional rider fueling preference. */
   nutritionPreference?: NutritionPreference;
+  /** Optional carb pacing mode ('auto' | 'locked'). */
+  carbPacingMode?: 'auto' | 'locked';
+  /** Explicit locked-carb target override. */
+  isLockedCarbTarget?: boolean;
+  /** Optional rider level for legacy pro auto-lock fallback. */
+  riderLevel?: RiderLevel;
+  /** Optional export timestamp in Unix ms (defaults to Date.now()) for deterministic output. */
+  exportTimestampMs?: number;
 }
 
 // Garmin FIT epoch: 1989-12-31T00:00:00Z in Unix seconds
@@ -208,6 +216,10 @@ export function exportTripToFit(
     ftpWatts,
     carbTargetGPerHr,
     nutritionPreference,
+    carbPacingMode,
+    isLockedCarbTarget,
+    riderLevel,
+    exportTimestampMs,
   } = options;
   const coords =
     trip.route.coordinates && trip.route.coordinates.length >= 2
@@ -250,7 +262,11 @@ export function exportTripToFit(
         : targetTotalM / Math.max(2, avgSpeedKmH / 3.6)
     )
   );
-  const nowFitSec = Math.max(1, Math.floor(Date.now() / 1000) - FIT_EPOCH_OFFSET_SEC);
+  const timestampMs =
+    typeof exportTimestampMs === 'number' && Number.isFinite(exportTimestampMs)
+      ? exportTimestampMs
+      : Date.now();
+  const nowFitSec = Math.max(1, Math.floor(timestampMs / 1000) - FIT_EPOCH_OFFSET_SEC);
 
   const w = new FitByteWriter();
 
@@ -391,6 +407,9 @@ export function exportTripToFit(
     const splitSummary = computeClimbSplitsAndFueling(trip, physicsResult, lang, {
       ftpWatts,
       carbTargetGPerHr,
+      isLockedCarbTarget,
+      carbPacingMode,
+      riderLevel,
       nutritionPreference,
       checkpointIntervalMinutes: fuelIntervalMinutes,
       departureTimeHHMM: trip.departureTime,

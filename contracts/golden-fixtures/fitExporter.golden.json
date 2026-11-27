@@ -1,0 +1,149 @@
+{
+  "schemaVersion": 1,
+  "engine": "fitExporter",
+  "sourceFiles": [
+    "src/utils/fitExporter.ts"
+  ],
+  "determinism": {
+    "frozenUtc": "2026-11-26T12:00:00.000Z",
+    "timezone": "Europe/Paris"
+  },
+  "cases": [
+    {
+      "id": "minimal-route",
+      "description": "Minimal 20 km .FIT export with fueling and climb cues disabled",
+      "input": {
+        "distanceKm": 20,
+        "targetSpeedKmH": 25,
+        "includeFuelingCues": false,
+        "includeClimbCues": false,
+        "exportTimestampMs": 1795694400000
+      },
+      "expected": {
+        "byteLength": 262,
+        "headerSize": 14,
+        "protocolVersion": 32,
+        "profileVersion": 2132,
+        "dataSize": 246,
+        "headerCrc16": 48950,
+        "fileCrc16": 62873,
+        "messageCounts": {
+          "fileId": 1,
+          "course": 1,
+          "lap": 1,
+          "event": 2,
+          "record": 3,
+          "coursePoint": 0,
+          "total": 8
+        },
+        "base64": "DiBUCPYAAAAuRklUNr9AAAAAAAUAAQABAoQCAoQDBIwEBIYABgEAAQAVESYgQNNqRUEAAB8AAQUYBwFMb2lyZSBWYWxsZXkgUmVmZXJlbmNlAABCAAATAAn9BIYCBIYDBIUEBIUFBIUGBIUHBIYIBIYJBIYCQNNqRUDTakXv2JMh/izl/jfYriE5lij/EMpNABDKTQD3kzEAQwAAFQAD/QSGAAEAAQEAA0DTakUAAEQAABQABf0EhgAEhQEEhQUEhgIChARA02pF79iTIf4s5f4AAAAAKAoENt1qRbzhoCFxPQr/TmgaACgKBCrnakU32K4hOZYo//eTMQAoCgMq52pFAAGZ9Q=="
+      }
+    },
+    {
+      "id": "amenities-and-cues-utf8",
+      "description": "Course points with UTF-8 multi-byte boundary truncation and turn cues (excluding depart)",
+      "input": {
+        "distanceKm": 40,
+        "pinnedAmenityName": "Stop 1234567 €€€",
+        "cueDirections": [
+          "depart",
+          "right"
+        ],
+        "exportTimestampMs": 1795694400000
+      },
+      "expected": {
+        "byteLength": 354,
+        "headerSize": 14,
+        "protocolVersion": 32,
+        "profileVersion": 2132,
+        "dataSize": 338,
+        "headerCrc16": 62509,
+        "fileCrc16": 8604,
+        "messageCounts": {
+          "fileId": 1,
+          "course": 1,
+          "lap": 1,
+          "event": 2,
+          "record": 3,
+          "coursePoint": 2,
+          "total": 10
+        },
+        "base64": "DiBUCFIBAAAuRklULfRAAAAAAAUAAQABAoQCAoQDBIwEBIYABgEAAQAVESYgQNNqRUEAAB8AAQUYBwFMb2lyZSBWYWxsZXkgUmVmZXJlbmNlAABCAAATAAn9BIYCBIYDBIUEBIUFBIUGBIUHBIYIBIYJBIYCQNNqRUDTakXv2JMh/izl/jfYriE5lij/2GZmANhmZgAACT0AQwAAFQAD/QSGAAEAAQEAA0DTakUAAEQAABQABf0EhgAEhQEEhQUEhgIChARA02pF79iTIf4s5f4AAAAAKAoEOeFqRbzhoCFxPQr/koIgACgKBHftakU32K4hOZYo/wAJPQAoCkUAACAABgEEhgIEhQMEhQQEhgUBAAYQBwVt2GpFvOGgIXE9Cv9AQg8AB1J1ZSBIYXV0ZQAAAAAAAAAFOOFqRbzhoCFxPQr/gX8gAApTdG9wIDEyMzQ1NjcgAAAAA3ftakUAAZwh"
+      }
+    },
+    {
+      "id": "alpine-locked-80-en",
+      "description": "Alpine route with carbPacingMode locked at 80 g/h (45g+H2O cues) and climb markers",
+      "input": {
+        "distanceKm": 65,
+        "targetSpeedKmH": 18,
+        "includeFuelingCues": true,
+        "includeClimbCues": true,
+        "fuelIntervalMinutes": 35,
+        "lang": "en",
+        "ftpWatts": 300,
+        "carbTargetGPerHr": 80,
+        "carbPacingMode": "locked",
+        "riderLevel": "regular",
+        "nutritionPreference": "sports-fuel",
+        "exportTimestampMs": 1795694400000
+      },
+      "expected": {
+        "byteLength": 660,
+        "headerSize": 14,
+        "protocolVersion": 32,
+        "profileVersion": 2132,
+        "dataSize": 644,
+        "headerCrc16": 33427,
+        "fileCrc16": 33982,
+        "messageCounts": {
+          "fileId": 1,
+          "course": 1,
+          "lap": 1,
+          "event": 2,
+          "record": 3,
+          "coursePoint": 11,
+          "total": 19
+        },
+        "base64": "DiBUCIQCAAAuRklUk4JAAAAAAAUAAQABAoQCAoQDBIwEBIYABgEAAQAVESYgQNNqRUEAAB8AAQUYBwFDb2wgTG9vcAAAAAAAAAAAAAAAAAAAAABCAAATAAn9BIYCBIYDBIUEBIUFBIUGBIUHBIYIBIYJBIYCQNNqRUDTakUrGgkgVuhHBHl8GSC17lsEmJcpAZiXKQGgLmMAQwAAFQAD/QSGAAEAAQEAA0DTakUAAEQAABQABf0EhgAEhQEEhQUEhgIChARA02pFKxoJIFboRwQAAAAA3g0Eav1qRU5iECCJ1FIEi2AwABISBG8fa0V5fBkgte5bBKAuYwAEEEUAACAABgEEhgIEhQMEhQQEhgUBAAYQBwUQ22pFJGYLIEtaSwRAQg8AHUMyIDhrbSA3JQAAAAAAAAAFfdtqRYqDCyBkhksEkAUQAApGdWVsIDQ1ZytIMk8AAAAABZrjakVLIgwghXRMBEAkFAAKRnVlbCA0NWcrSDJPAAAAAAW362pFDMEMIKZiTQTwQhgACkZ1ZWwgNDVnK0gyTwAAAAAFIfRqRa5lDSCZWU4EsIgcAApGdWVsIDQ1ZytIMk8AAAAABT38akXZCRAg2k9SBOAULgAKRnVlbCA0NWcrSDJPAAAAAAX9/2pF8UgRIC27UwTgZzUAHEMzIDRrbSA2JQAAAAAAAAAFVgRrReYFEiAieFQEkIY5AApGdWVsIDQ1ZytIMk8AAAAABcAMa0XbyRIgFzxVBFDMPQAKRnVlbCA0NWcrSDJPAAAAAAXhFGtFspoVIO4MWATAg00ACkZ1ZWwgNDVnK0gyTwAAAAAFFx1rRYWqGCDBHFsEwJpeAApGdWVsIDQ1ZytIMk8AAAAAA28fa0UAAb6E"
+      }
+    },
+    {
+      "id": "alpine-auto-pro-fr",
+      "description": "French alpine route with carbPacingMode auto preventing pro auto-lock at 90 g/h",
+      "input": {
+        "distanceKm": 65,
+        "targetSpeedKmH": 18,
+        "includeFuelingCues": true,
+        "includeClimbCues": true,
+        "fuelIntervalMinutes": 35,
+        "lang": "fr",
+        "ftpWatts": 300,
+        "carbTargetGPerHr": 90,
+        "carbPacingMode": "auto",
+        "riderLevel": "pro",
+        "nutritionPreference": "real-food",
+        "exportTimestampMs": 1795694400000
+      },
+      "expected": {
+        "byteLength": 660,
+        "headerSize": 14,
+        "protocolVersion": 32,
+        "profileVersion": 2132,
+        "dataSize": 644,
+        "headerCrc16": 33427,
+        "fileCrc16": 64776,
+        "messageCounts": {
+          "fileId": 1,
+          "course": 1,
+          "lap": 1,
+          "event": 2,
+          "record": 3,
+          "coursePoint": 11,
+          "total": 19
+        },
+        "base64": "DiBUCIQCAAAuRklUk4JAAAAAAAUAAQABAoQCAoQDBIwEBIYABgEAAQAVESYgQNNqRUEAAB8AAQUYBwFDb2wgTG9vcAAAAAAAAAAAAAAAAAAAAABCAAATAAn9BIYCBIYDBIUEBIUFBIUGBIUHBIYIBIYJBIYCQNNqRUDTakUrGgkgVuhHBHl8GSC17lsEmJcpAZiXKQGgLmMAQwAAFQAD/QSGAAEAAQEAA0DTakUAAEQAABQABf0EhgAEhQEEhQUEhgIChARA02pFKxoJIFboRwQAAAAA3g0Eav1qRU5iECCJ1FIEi2AwABISBG8fa0V5fBkgte5bBKAuYwAEEEUAACAABgEEhgIEhQMEhQQEhgUBAAYQBwUQ22pFJGYLIEtaSwRAQg8AHUMyIDhrbSA3JQAAAAAAAAAFfdtqRYqDCyBkhksEkAUQAApSYXZpdG8gMTVnK0VhdQAABZrjakVLIgwghXRMBEAkFAAKUmF2aXRvIDE1ZytFYXUAAAW362pFDMEMIKZiTQTwQhgAClJhdml0byAxNWcrRWF1AAAFIfRqRa5lDSCZWU4EsIgcAApSYXZpdG8gMTVnK0VhdQAABT38akXZCRAg2k9SBOAULgAKUmF2aXRvIDE1ZytFYXUAAAX9/2pF8UgRIC27UwTgZzUAHEMzIDRrbSA2JQAAAAAAAAAFVgRrReYFEiAieFQEkIY5AApSYXZpdG8gMTVnK0VhdQAABcAMa0XbyRIgFzxVBFDMPQAKUmF2aXRvIDE1ZytFYXUAAAXhFGtFspoVIO4MWATAg00AClJhdml0byAxNWcrRWF1AAAFFx1rRYWqGCDBHFsEwJpeAApSYXZpdG8gMTVnK0VhdQAAA28fa0UAAQj9"
+      }
+    }
+  ]
+}
