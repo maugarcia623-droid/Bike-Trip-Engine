@@ -147,4 +147,27 @@ public enum StationaryRecoveryEngine {
         if clean >= lunchBreakMinDuration { return 0 }
         return min(preDawnWinterMaxRestMin, clean)
     }
+
+    public static func getPlannedRestStopMinutes(_ trip: TripProfile, now: Date = Date()) -> Int {
+        let ruleSettings = trip.ruleSettings
+        let chips = trip.customChips ?? []
+        let recoveryRule = getStationaryRecoveryRuleForTrip(trip, now: now)
+        var rest = resolveEffectiveRestStopMinutes(
+            requestedMinutes: ruleSettings?.plannedLongStopMin ?? 0,
+            rule: recoveryRule
+        )
+        if chips.contains("coffee-stop") {
+            rest += resolveEffectiveRestStopMinutes(
+                requestedMinutes: ruleSettings?.coffeeDurationMin ?? 15,
+                rule: recoveryRule
+            )
+        }
+        if chips.contains("picnic-outing") {
+            rest += resolveEffectiveRestStopMinutes(
+                requestedMinutes: ruleSettings?.picnicDurationMin ?? 45,
+                rule: recoveryRule
+            )
+        }
+        return rest
+    }
 }

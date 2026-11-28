@@ -1,5 +1,27 @@
 import Foundation
 
+public struct ExpeditionTotals: Codable, Sendable, Equatable {
+    public var totalDays: Int
+    public var totalDistanceKm: Double
+    public var totalElevationM: Int
+    public var originCity: String
+    public var finalDestinationCity: String
+
+    public init(
+        totalDays: Int,
+        totalDistanceKm: Double,
+        totalElevationM: Int,
+        originCity: String,
+        finalDestinationCity: String
+    ) {
+        self.totalDays = totalDays
+        self.totalDistanceKm = totalDistanceKm
+        self.totalElevationM = totalElevationM
+        self.originCity = originCity
+        self.finalDestinationCity = finalDestinationCity
+    }
+}
+
 public enum StageManagerEngine {
     public static func downsampleCoordinates(_ coords: [LatLon]?, maxPoints: Int = 450) -> [LatLon]? {
         guard let coords = coords else { return nil }
@@ -121,5 +143,27 @@ public enum StageManagerEngine {
         let targetStart = cal.startOfDay(for: target)
         let days = cal.dateComponents([.day], from: nowStart, to: targetStart).day ?? 999
         return days >= -2 && days <= 14
+    }
+
+    public static func getExpeditionTotals(_ trip: TripProfile, now: Date = Date()) -> ExpeditionTotals {
+        let stages = resolveLiveStages(trip, now: now)
+        var totalDistanceKm = 0.0
+        var totalElevationM = 0.0
+
+        for stage in stages {
+            totalDistanceKm += stage.route.distanceKm
+            totalElevationM += stage.route.elevationGainM ?? 0.0
+        }
+
+        let firstStage = stages.first
+        let lastStage = stages.last
+
+        return ExpeditionTotals(
+            totalDays: stages.count,
+            totalDistanceKm: JSCompat.roundTo(totalDistanceKm, decimals: 1),
+            totalElevationM: JSCompat.jsRoundInt(totalElevationM),
+            originCity: firstStage?.route.origin ?? "",
+            finalDestinationCity: lastStage?.route.destination ?? ""
+        )
     }
 }

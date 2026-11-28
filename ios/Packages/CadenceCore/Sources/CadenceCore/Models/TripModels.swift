@@ -482,6 +482,7 @@ public struct LogisticsSettings: Codable, Sendable, Equatable {
     public var plannedLongStopMin: Double?
     public var plannedLongStopLabel: String?
     public var extraMinutes: Double?
+    public var picnicDurationMin: Double?
 
     public init(
         preRideStyle: String? = nil,
@@ -496,7 +497,8 @@ public struct LogisticsSettings: Codable, Sendable, Equatable {
         rationType: String? = nil,
         plannedLongStopMin: Double? = nil,
         plannedLongStopLabel: String? = nil,
-        extraMinutes: Double? = nil
+        extraMinutes: Double? = nil,
+        picnicDurationMin: Double? = nil
     ) {
         self.preRideStyle = preRideStyle
         self.hasDestinationFridge = hasDestinationFridge
@@ -511,6 +513,7 @@ public struct LogisticsSettings: Codable, Sendable, Equatable {
         self.plannedLongStopMin = plannedLongStopMin
         self.plannedLongStopLabel = plannedLongStopLabel
         self.extraMinutes = extraMinutes
+        self.picnicDurationMin = picnicDurationMin
     }
 }
 
